@@ -1,0 +1,23 @@
+from .apps.continent import Continent
+from .apps.country import Country
+from .apps.state import State
+from .apps.district import District
+from .apps.city import City
+from .apps.zone import Zone
+from .apps.ward import Ward
+from .apps.fuel import Fuel
+from .apps.property import Property
+from .apps.subproperty import SubProperty
+from .apps.customercreation import CustomerCreation
+from .apps.wastecollection import WasteCollection
+from .apps.feedback import FeedBack
+
+from .apps.mainuserscreen import MainUserScreen
+from .apps.userscreen import UserScreen
+from .apps.userpermission import UserPermission
+
+from .apps.userType import UserType
+from .apps.userCreation import User
+from .apps.vehicleTypeCreation import VehicleTypeCreation
+from .apps.vehicleCreation import VehicleCreation
+from .apps.complaints import Complaint

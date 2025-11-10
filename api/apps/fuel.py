@@ -1,0 +1,49 @@
+from django.db import models
+import uuid
+from .utils.comfun import generate_unique_id  # optional if you want prefixed IDs
+
+def generate_fueltype_id():
+    # Prefix for traceability inside the ERP ecosystem
+    return f"FUEL-{generate_unique_id()}"
+
+
+class Fuel(models.Model):
+    """
+    Transport Master: Fuel Type
+    -----------------------------------
+    Defines available fuel types (e.g. Diesel, Petrol, CNG).
+    Supports soft delete and active/inactive toggling.
+    """
+
+    # Unique identifier for internal and API-level use
+    unique_id = models.CharField(
+        max_length=40,
+        unique=True,
+        default=generate_fueltype_id,
+        editable=False
+    )
+
+    # Business fields
+    fuel_type = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+
+    # Status flags
+    is_active = models.BooleanField(default=True)
+    is_deleted = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Fuel Type"
+        verbose_name_plural = "Fuel Types"
+        ordering = ["fuel_type"]
+
+    def __str__(self):
+        return self.fuel_type
+
+    # Soft delete override
+    def delete(self, *args, **kwargs):
+        """
+        Soft delete: marks record as deleted without physically removing it.
+        """
+        self.is_deleted = True
+        self.is_active = False
+        self.save(update_fields=["is_deleted", "is_active"])
