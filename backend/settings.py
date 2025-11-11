@@ -83,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'globaldb',          
         'USER': 'root',            
-        'PASSWORD': 'pass123', 
+        'PASSWORD': 'admin@123', 
         'HOST': 'localhost',
         'PORT': '3306',
         'OPTIONS': {
