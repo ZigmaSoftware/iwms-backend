@@ -13,7 +13,15 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    '192.168.1.128',
+    '192.168.4.10',
+    '.trycloudflare.com',
+    '192.168.4.*',  # allow all 192.168.4.xxx
+    '192.168.5.*',  # optional, for devices on .5 subnet
+]
 
 # -------------------------------------------------------
 # Installed Apps
@@ -75,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'globaldb',          
         'USER': 'root',            
-        'PASSWORD': 'admin@123', 
+        'PASSWORD': 'pass123', 
         'HOST': 'localhost',
         'PORT': '3306',
         'OPTIONS': {
@@ -83,6 +91,7 @@ DATABASES = {
         },
     }
 }
+
 
 
 # -------------------------------------------------------
@@ -106,8 +115,9 @@ USE_TZ = True
 # -------------------------------------------------------
 # Static Files
 # -------------------------------------------------------
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') 
 
 # -------------------------------------------------------
 # Django REST Framework
@@ -125,9 +135,24 @@ REST_FRAMEWORK = {
 # -------------------------------------------------------
 # CORS (allow React frontend)
 # -------------------------------------------------------
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite React dev server
+CORS_ALLOW_CREDENTIALS = True
+
+# Comment out fixed list to rely only on regexes
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:4126",
+#     "http://127.0.0.1:4126",
+#     "http://192.168.1.128:4126",
+# ]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",  # allow all 192.168.4.xxx:port
+    r"^http://192\.168\.5\.\d{1,3}(:\d+)?$",  # optional
+    r"^http://192\.168\.1\.\d{1,3}(:\d+)?$",  # optional
+    r"^http://127\.0\.0\.1(:\d+)?$",          # local dev
+    r"^http://localhost(:\d+)?$",             # local dev
 ]
+
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
