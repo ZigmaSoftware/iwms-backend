@@ -148,7 +148,8 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",  # allow all 192.168.4.xxx:port
     r"^http://192\.168\.5\.\d{1,3}(:\d+)?$",  # optional
     r"^http://192\.168\.1\.\d{1,3}(:\d+)?$",  # optional
-    r"^http://127\.0\.0\.1(:\d+)?$",          # local dev
+    r"^http://127\.0\.0\.1(:\d+)?$",
+    r"^http://125\.17\.238\.158(:\d+)?$",          # local dev
     r"^http://localhost(:\d+)?$",             # local dev
 ]
 
