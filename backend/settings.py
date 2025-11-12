@@ -19,9 +19,7 @@ ALLOWED_HOSTS = [
     '192.168.1.128',
     '192.168.4.10',
     '.trycloudflare.com',
-    '192.168.4.*',  # allow all 192.168.4.xxx
-    '192.168.5.*',  # optional, for devices on .5 subnet
-]
+    '125.17.238.158']
 
 # -------------------------------------------------------
 # Installed Apps
@@ -138,19 +136,20 @@ REST_FRAMEWORK = {
 CORS_ALLOW_CREDENTIALS = True
 
 # Comment out fixed list to rely only on regexes
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:4126",
-#     "http://127.0.0.1:4126",
-#     "http://192.168.1.128:4126",
-# ]
-
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",  # allow all 192.168.4.xxx:port
-    r"^http://192\.168\.5\.\d{1,3}(:\d+)?$",  # optional
-    r"^http://192\.168\.1\.\d{1,3}(:\d+)?$",  # optional
-    r"^http://127\.0\.0\.1(:\d+)?$",          # local dev
-    r"^http://localhost(:\d+)?$",             # local dev
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4126",
+    "http://127.0.0.1:4126",
+    "http://192.168.1.128:4126",
+    "http://125.17.238.158:4126"
 ]
+
+# CORS_ALLOWED_ORIGIN_REGEXES = [
+#     r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",  # allow all 192.168.4.xxx:port
+#     r"^http://192\.168\.5\.\d{1,3}(:\d+)?$",  # optional
+#     r"^http://192\.168\.1\.\d{1,3}(:\d+)?$",  # optional
+#     r"^http://127\.0\.0\.1(:\d+)?$",          # local dev
+#     r"^http://localhost(:\d+)?$",             # local dev
+# ]
 
 
 
