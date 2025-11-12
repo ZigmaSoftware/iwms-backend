@@ -1,0 +1,26 @@
+from .geography.continent_serializer import ContinentSerializer
+from .geography.country_serializer import CountrySerializer
+from .geography.state_serializer import StateSerializer
+from .geography.district_serializer import DistrictSerializer
+from .geography.city_serializer import CitySerializer
+from .geography.zone_serializer import ZoneSerializer
+from .geography.ward_serializer import WardSerializer
+
+from .assets.fuel_serializer import FuelSerializer
+from .assets.property_serializer import PropertySerializer
+from .assets.subproperty_serializer import SubPropertySerializer
+
+from .customers.customercreation_serializer import CustomerCreationSerializer
+from .customers.wastecollection_serializer import WasteCollectionSerializer
+from .customers.feedback_serializer import FeedBackSerializer
+
+from .users.usertype_serializer import UserTypeSerializer
+from .users.user_serializer import UserSerializer
+from .users.userscreen_serializer import UserScreenSerializer
+from .users.mainuserscreen_serializer import MainUserScreenSerializer
+from .users.userpermission_serializer import UserPermissionSerializer
+
+from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
+from .vehicles.vehiclecreation_serializer import VehicleCreationSerializer
+
+from .complaints.complaint_serializer import ComplaintSerializer
