@@ -34,7 +34,6 @@ from .views.vehicles.vehiclecreation_viewset import VehicleCreationViewSet
 #  Complaints
 from .views.complaints.complaint_viewset import ComplaintViewSet
 
-
 # Router registration
 router = DefaultRouter()
 
@@ -73,5 +72,5 @@ router.register(r'complaints', ComplaintViewSet, basename='complaints')
 
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('', include(router.urls))
 ]
