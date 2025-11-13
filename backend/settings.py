@@ -9,7 +9,7 @@ SECRET_KEY = 'django-insecure-8$arlvxjc7$dw$(0!gyw)55qbm%9*az3wwr)6$7kku-dw6zoiz
 DEBUG = True
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media') 
 
 
 
@@ -83,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'globaldb',          
         'USER': 'root',            
-        'PASSWORD': 'pass123', 
+        'PASSWORD': 'admin@123', 
         'HOST': 'localhost',
         'PORT': '3306',
         'OPTIONS': {
