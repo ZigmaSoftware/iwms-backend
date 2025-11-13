@@ -30,11 +30,9 @@ from .views.users.userpermission_viewset import UserPermissionViewSet
 #  Vehicles
 from .views.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from .views.vehicles.vehiclecreation_viewset import VehicleCreationViewSet
-from .views.vehicles.vehicletracking_viewset import VehicleHistoryView
 
 #  Complaints
 from .views.complaints.complaint_viewset import ComplaintViewSet
-
 
 # Router registration
 router = DefaultRouter()
@@ -74,7 +72,5 @@ router.register(r'complaints', ComplaintViewSet, basename='complaints')
 
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path("vehicle_history", VehicleHistoryView.as_view(), name="vehicle_history"),
-    path("vehicle_history/", VehicleHistoryView.as_view(), name="vehicle_history_slash"),
+    path('', include(router.urls))
 ]
