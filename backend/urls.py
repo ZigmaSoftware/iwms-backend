@@ -17,27 +17,21 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework import routers
-from api.views import CountryViewSet
 from django.http import HttpResponse
 from django.conf import settings
 from django.conf.urls.static import static
 
 def home(request):
-    return HttpResponse("Django backend is running! Try /admin/ or /api/countries/")
+    return HttpResponse("Django backend is running! Try /api/desktop/ or /api/mobile/")
 
-router = routers.DefaultRouter()
-router.register(r'countries', CountryViewSet)
- 
 urlpatterns = [
     path('', home),
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),
+
+    # Correct routing
+    path('api/desktop/', include('api.urls.desktop_urls')),
+    path('api/mobile/', include('api.urls.mobile_urls')),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-
-
-
