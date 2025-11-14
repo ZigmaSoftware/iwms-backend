@@ -56,7 +56,6 @@ class CustomerCreation(models.Model):
     property = models.ForeignKey(Property, on_delete=models.PROTECT, related_name="customer_creation")
     sub_property = models.ForeignKey(SubProperty, on_delete=models.PROTECT, related_name="customer_creation")
 
-    qr_code = models.CharField(max_length=400, blank=True, null=True)
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
