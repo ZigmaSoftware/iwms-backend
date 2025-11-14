@@ -67,7 +67,7 @@ router.register(r'userpermissions', UserPermissionViewSet)
 router.register(r'vehicle-type', VehicleTypeCreationViewSet, basename='vehicle-type')
 router.register(r'vehicle-creation', VehicleCreationViewSet, basename='vehicle-creation')
 
-#  Complaint routes
+#  Complaint routesN
 router.register(r'complaints', ComplaintViewSet, basename='complaints')
 
 
