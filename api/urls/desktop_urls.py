@@ -43,7 +43,7 @@ router.register(r'fuels', FuelViewSet)
 router.register(r'properties', PropertyViewSet)
 router.register(r'subproperties', SubPropertyViewSet)
 
-router.register(r'customers', CustomerCreationViewSet)
+router.register(r'customercreations', CustomerCreationViewSet)
 router.register(r'wastecollections', WasteCollectionViewSet)
 router.register(r'feedbacks', FeedBackViewSet)
 
@@ -56,6 +56,7 @@ router.register(r'userpermissions', UserPermissionViewSet)
 router.register(r'vehicle-type', VehicleTypeCreationViewSet)
 router.register(r'vehicle-creation', VehicleCreationViewSet)
 
+# router.register(r'customerCreations',CustomerCreationViewSet)
 router.register(r'complaints', ComplaintViewSet)
 
 urlpatterns = router.urls
