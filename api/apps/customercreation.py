@@ -4,6 +4,7 @@ from .state import State
 from .district import District
 from .city import City
 from .zone import Zone
+from .userType import UserType
 from .ward import Ward
 from .property import Property
 from .subproperty import SubProperty
@@ -13,7 +14,6 @@ from .utils.comfun import generate_unique_id
 def generate_customer_id():
     """Generate readable prefixed ID, e.g., CUS-20251028001"""
     return f"CUS-{generate_unique_id()}"
-
 
 class CustomerCreation(models.Model):
     class IDProofType(models.TextChoices):
@@ -33,6 +33,8 @@ class CustomerCreation(models.Model):
     building_no = models.CharField(max_length=20)
     street = models.CharField(max_length=100)
     area = models.CharField(max_length=50)
+    password = models.CharField(max_length=128, blank=True, null=True)
+    user_type = models.ForeignKey(UserType, on_delete=models.SET_NULL, related_name="customer_creation", null=True, blank=True)
 
     ward = models.ForeignKey(Ward, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)
     zone = models.ForeignKey(Zone, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)

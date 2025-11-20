@@ -11,8 +11,6 @@ DEBUG = True
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media') 
 
-
-
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
@@ -21,7 +19,10 @@ ALLOWED_HOSTS = [
     '.trycloudflare.com',
     '192.168.4.*',  # allow all 192.168.4.xxx
     '192.168.5.*',
-    "125.17.238.158"]
+    "125.17.238.158",
+    '10.111.127.123', #moto net
+    '192.168.4.75',  #ofc net  
+    ]
 
 # -------------------------------------------------------
 # Installed Apps
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
     # Third-party
     'rest_framework',
     'corsheaders',
+    'rest_framework.authtoken',
 
     # Your apps
     'api',
@@ -145,12 +147,14 @@ CORS_ALLOW_CREDENTIALS = True
 # ]
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$",
     r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",  # allow all 192.168.4.xxx:port
     r"^http://192\.168\.5\.\d{1,3}(:\d+)?$",  # optional
     r"^http://192\.168\.1\.\d{1,3}(:\d+)?$",  # optional
     r"^http://127\.0\.0\.1(:\d+)?$",
-    r"^http://125\.17\.238\.158(:\d+)?$",          # local dev
+    r"^http://125\.17\.238\.158(:\d+)?$",     # local dev
     r"^http://localhost(:\d+)?$",             # local dev
+    r"^http://192\.168\.4\.75(:\d+)?$",
 ]
 
 
