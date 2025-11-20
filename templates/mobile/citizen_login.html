@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Login</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 480px;
+            background: #fff;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        h1 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 1.75rem;
+        }
+
+        p.lead {
+            margin-top: 0;
+            margin-bottom: 24px;
+            color: #4b5563;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #111827;
+            margin-top: 12px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: 2px solid #2563eb;
+            border-color: transparent;
+        }
+
+        button {
+            margin-top: 20px;
+            width: 100%;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            background: #2563eb;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .hint {
+            margin-top: 18px;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .customer-note {
+            list-style: none;
+            padding-left: 0;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .customer-note li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Mobile Login</h1>
+        <p class="lead">
+            Pick your user type, enter the username registered under Customer Creation (typically the contact number),
+            and provide your password.
+        </p>
+        <form method="post" action="{{ login_path }}">
+            {% csrf_token %}
+            <label for="user_type">User type</label>
+            <select name="user_type" id="user_type" required>
+                <option value="" selected disabled>Choose user type</option>
+                {% for user_type in user_types %}
+                    <option value="{{ user_type.name }}">{{ user_type.name }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="username">Username (Customer contact no)</label>
+            <input
+                type="text"
+                name="username"
+                id="username"
+                list="customer-list"
+                placeholder="e.g. 9876543210"
+                autocomplete="off"
+                required
+            />
+            <datalist id="customer-list">
+                {% for customer in customers %}
+                    <option value="{{ customer.contact_no }}">{{ customer.customer_name }}</option>
+                {% endfor %}
+            </datalist>
+
+            <label for="password">Password</label>
+            <input type="password" name="password" id="password" required />
+
+            <button type="submit">Login</button>
+        </form>
+
+        {% if customers %}
+            <div class="hint">
+                Known customers (contact numbers shown):
+                <ul class="customer-note">
+                    {% for customer in customers %}
+                        <li>{{ customer.customer_name }} - {{ customer.contact_no }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
