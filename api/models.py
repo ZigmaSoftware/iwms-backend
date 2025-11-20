@@ -8,6 +8,7 @@ from .apps.ward import Ward
 from .apps.fuel import Fuel
 from .apps.property import Property
 from .apps.subproperty import SubProperty
+from .apps.staffcreation import Staffcreation
 from .apps.customercreation import CustomerCreation
 from .apps.wastecollection import WasteCollection
 from .apps.feedback import FeedBack
