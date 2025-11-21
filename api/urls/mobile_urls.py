@@ -1,8 +1,13 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
 from ..views.mobileView.citizen_login.login_page import CitizenLoginPage
-from ..views.mobileView.citizen_login.login_viewset import CitizenLogin
+from ..views.mobileView.citizen_login.login_viewset import CitizenLoginViewSet  # ViewSet version
+
+router = DefaultRouter()
+router.register("customer/login", CitizenLoginViewSet, basename="customer-login")
 
 urlpatterns = [
-    path("", CitizenLoginPage.as_view(), name="mobile-root"),
-    path("customer/login/", CitizenLogin.as_view(), name="customer-login"),
+    path("login", CitizenLoginPage.as_view(), name="mobile-root"),
+    path("", include(router.urls)),
 ]
