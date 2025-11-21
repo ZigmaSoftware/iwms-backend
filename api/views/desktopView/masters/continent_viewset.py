@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from api.apps.continent import Continent
-from api.serializers.desktopView.geography.continent_serializer import ContinentSerializer
+from api.serializers.desktopView.masters.continent_serializer import ContinentSerializer
 
 
 class ContinentViewSet(viewsets.ModelViewSet):

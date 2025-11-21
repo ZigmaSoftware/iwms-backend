@@ -1,10 +1,10 @@
-from .geography.continent_serializer import ContinentSerializer
-from .geography.country_serializer import CountrySerializer
-from .geography.state_serializer import StateSerializer
-from .geography.district_serializer import DistrictSerializer
-from .geography.city_serializer import CitySerializer
-from .geography.zone_serializer import ZoneSerializer
-from .geography.ward_serializer import WardSerializer
+from .masters.continent_serializer import ContinentSerializer
+from .masters.country_serializer import CountrySerializer
+from .masters.state_serializer import StateSerializer
+from .masters.district_serializer import DistrictSerializer
+from .masters.city_serializer import CitySerializer
+from .masters.zone_serializer import ZoneSerializer
+from .masters.ward_serializer import WardSerializer
 
 from .assets.fuel_serializer import FuelSerializer
 from .assets.property_serializer import PropertySerializer

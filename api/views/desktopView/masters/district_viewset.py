@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from api.apps.district import District
-from api.serializers.desktopView.geography.district_serializer import DistrictSerializer
+from api.serializers.desktopView.masters.district_serializer import DistrictSerializer
 
 class DistrictViewSet(viewsets.ModelViewSet):
     queryset = District.objects.all() 
