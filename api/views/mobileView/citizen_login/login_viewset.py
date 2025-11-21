@@ -27,6 +27,29 @@ class CitizenLogin(APIView):
             # Fallback to direct compare if stored_password is plain text (not recommended).
             return stored_password == raw_password
 
+    @staticmethod
+    def _build_permission_payload(user_type):
+        queryset = (
+            user_type.user_permissions.filter(is_active=True, is_delete=False)
+            .select_related("main_screen", "user_screen")
+        )
+        permissions = []
+        for perm in queryset:
+            permissions.append(
+                {
+                    "id": perm.id,
+                    "unique_id": perm.unique_id,
+                    "main_screen_id": perm.main_screen_id,
+                    "main_screen_unique_id": perm.main_screen.unique_id if perm.main_screen else None,
+                    "main_screen_name": perm.main_screen.mainscreen if perm.main_screen else None,
+                    "user_screen_id": perm.user_screen_id,
+                    "user_screen_unique_id": perm.user_screen.unique_id if perm.user_screen else None,
+                    "user_screen_name": perm.user_screen.screen_name if perm.user_screen else None,
+                    "permissions": perm.permissions or {},
+                }
+            )
+        return permissions
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
@@ -84,11 +107,18 @@ class CitizenLogin(APIView):
         user.save(update_fields=["is_active"])
 
         token, _ = AuthToken.objects.get_or_create(user=user)
+        user_type_payload = {
+            "id": user_type.id,
+            "unique_id": user_type.unique_id,
+            "name": user_type.name,
+        }
         return Response(
             {
                 "status": True,
                 "message": "Login successful",
                 "token": token.key,
+                "user_type": user_type_payload,
+                "permissions": self._build_permission_payload(user_type),
                 "user": {
                     "username": user.username,
                     "email": user.email,
