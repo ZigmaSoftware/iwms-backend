@@ -5,7 +5,6 @@ from api.apps.userType import UserType
 
 
 class CitizenLoginPage(TemplateView):
-    template_name = "mobile/citizen_login.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
