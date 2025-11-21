@@ -1,7 +1,5 @@
-from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-# Desktop ViewSets
 from ..views.desktopView.geography.continent_viewset import ContinentViewSet
 from ..views.desktopView.geography.country_viewset import CountryViewSet
 from ..views.desktopView.geography.state_viewset import StateViewSet
@@ -9,6 +7,7 @@ from ..views.desktopView.geography.district_viewset import DistrictViewSet
 from ..views.desktopView.geography.city_viewset import CityViewSet
 from ..views.desktopView.geography.zone_viewset import ZoneViewSet
 from ..views.desktopView.geography.ward_viewset import WardViewSet
+from ..views.desktopView.geography.staffcreation_viewset import StaffcreationViewset
 
 from ..views.desktopView.assets.fuel_viewset import FuelViewSet
 from ..views.desktopView.assets.property_viewset import PropertyViewSet
@@ -38,6 +37,7 @@ router.register(r'districts', DistrictViewSet)
 router.register(r'cities', CityViewSet)
 router.register(r'zones', ZoneViewSet)
 router.register(r'wards', WardViewSet)
+router.register(r'staffcreation', StaffcreationViewset)
 
 router.register(r'fuels', FuelViewSet)
 router.register(r'properties', PropertyViewSet)
@@ -56,7 +56,6 @@ router.register(r'userpermissions', UserPermissionViewSet)
 router.register(r'vehicle-type', VehicleTypeCreationViewSet)
 router.register(r'vehicle-creation', VehicleCreationViewSet)
 
-# router.register(r'customerCreations',CustomerCreationViewSet)
 router.register(r'complaints', ComplaintViewSet)
 
 urlpatterns = router.urls
