@@ -17,5 +17,5 @@ class CitizenLoginPage(TemplateView):
             .order_by("customer_name")
             .values("customer_name", "contact_no")[:80]
         )
-        context["login_path"] = reverse("customer-login")
+        context["login_path"] = reverse("customer-login-list")
         return context
