@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from api.apps.staffcreation import Staffcreation
-from api.serializers.staffcreation_serializer import StaffcreationSerializer
+from api.serializers.desktopView.masters.staffcreation_serializer import StaffcreationSerializer
 
 
 class StaffcreationViewset(viewsets.ModelViewSet):

@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from api.apps.zone import Zone
-from api.serializers.desktopView.geography.zone_serializer import ZoneSerializer
+from api.serializers.desktopView.masters.zone_serializer import ZoneSerializer
 
 class ZoneViewSet(viewsets.ModelViewSet):
     queryset = Zone.objects.all() 

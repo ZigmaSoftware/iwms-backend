@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from api.apps.state import State
-from api.serializers.desktopView.geography.state_serializer import StateSerializer
+from api.serializers.desktopView.masters.state_serializer import StateSerializer
 
 class StateViewSet(viewsets.ModelViewSet):
     queryset = State.objects.all() 

@@ -1,13 +1,13 @@
 from rest_framework.routers import DefaultRouter
 
-from ..views.desktopView.geography.continent_viewset import ContinentViewSet
-from ..views.desktopView.geography.country_viewset import CountryViewSet
-from ..views.desktopView.geography.state_viewset import StateViewSet
-from ..views.desktopView.geography.district_viewset import DistrictViewSet
-from ..views.desktopView.geography.city_viewset import CityViewSet
-from ..views.desktopView.geography.zone_viewset import ZoneViewSet
-from ..views.desktopView.geography.ward_viewset import WardViewSet
-from ..views.desktopView.geography.staffcreation_viewset import StaffcreationViewset
+from ..views.desktopView.masters.continent_viewset import ContinentViewSet
+from ..views.desktopView.masters.country_viewset import CountryViewSet
+from ..views.desktopView.masters.state_viewset import StateViewSet
+from ..views.desktopView.masters.district_viewset import DistrictViewSet
+from ..views.desktopView.masters.city_viewset import CityViewSet
+from ..views.desktopView.masters.zone_viewset import ZoneViewSet
+from ..views.desktopView.masters.ward_viewset import WardViewSet
+from ..views.desktopView.masters.staffcreation_viewset import StaffcreationViewset
 
 from ..views.desktopView.assets.fuel_viewset import FuelViewSet
 from ..views.desktopView.assets.property_viewset import PropertyViewSet

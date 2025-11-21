@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from api.apps.ward import Ward
-from api.serializers.desktopView.geography.ward_serializer import WardSerializer
+from api.serializers.desktopView.masters.ward_serializer import WardSerializer
 
 class WardViewSet(viewsets.ModelViewSet):
     queryset = Ward.objects.all() 
