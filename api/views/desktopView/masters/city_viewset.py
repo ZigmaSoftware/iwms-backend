@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from api.apps.city import City
-from api.serializers.desktopView.geography.city_serializer import CitySerializer
+from api.serializers.desktopView.masters.city_serializer import CitySerializer
 
 class CityViewSet(viewsets.ModelViewSet):
     
