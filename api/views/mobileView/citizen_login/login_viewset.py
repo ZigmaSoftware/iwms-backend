@@ -1,30 +1,29 @@
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.authtoken.models import Token as AuthToken
+
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.models import User
 from django.db.models import Q
-from rest_framework import status
-from rest_framework.authtoken.models import Token as AuthToken
-from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from api.apps.customercreation import CustomerCreation
 from api.apps.userType import UserType
 from api.serializers.mobileView.citizenLogin.login_serializer import LoginSerializer
 
 
-class CitizenLogin(APIView):
+class CitizenLoginViewSet(viewsets.ViewSet):
+    serializer_class = LoginSerializer
+
+    def get_serializer(self, *args, **kwargs):
+        return self.serializer_class(*args, **kwargs)
+
     @staticmethod
     def _password_matches(stored_password, raw_password):
-        """
-        stored_password: the hashed password (or plain if your DB stores plain — not recommended)
-        raw_password: the password provided by the user
-        """
         if not stored_password:
             return False
-        # Try using Django's check_password first (handles hashed passwords)
         try:
             return check_password(raw_password, stored_password)
         except (ValueError, TypeError):
-            # Fallback to direct compare if stored_password is plain text (not recommended).
             return stored_password == raw_password
 
     @staticmethod
@@ -50,8 +49,8 @@ class CitizenLogin(APIView):
             )
         return permissions
 
-    def post(self, request):
-        serializer = LoginSerializer(data=request.data)
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response(
                 {"status": False, "message": "Invalid payload", "errors": serializer.errors},
@@ -62,12 +61,12 @@ class CitizenLogin(APIView):
         username = serializer.validated_data["username"]
         password = serializer.validated_data["password"]
 
-        # Note: use the correct field name for deletion flag (is_delete) consistently
         user_type = UserType.objects.filter(
             Q(name__iexact=user_type_identifier) | Q(unique_id__iexact=user_type_identifier),
             is_active=True,
             is_delete=False,
         ).first()
+        print(user_type)
 
         if not user_type:
             return Response(
@@ -88,7 +87,6 @@ class CitizenLogin(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Check password safely (supports hashed and plain fallback)
         # if not self._password_matches(customer.password, password):
         if(customer.password != password):
             return Response(
@@ -112,6 +110,7 @@ class CitizenLogin(APIView):
             "unique_id": user_type.unique_id,
             "name": user_type.name,
         }
+
         return Response(
             {
                 "status": True,
@@ -125,6 +124,30 @@ class CitizenLogin(APIView):
                     "first_name": user.first_name,
                     "last_name": user.last_name,
                 },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def list(self, request):
+        user_types = list(
+            UserType.objects.filter(is_active=True, is_delete=False)
+            .order_by("name")
+            .values("id", "unique_id", "name")
+        )
+        customers = list(
+            CustomerCreation.objects.filter(
+                is_active=True,
+                is_deleted=False,
+            )
+            .order_by("customer_name")
+            .values("customer_name", "contact_no")[:80]
+        )
+        return Response(
+            {
+                "status": True,
+                "message": "Login metadata",
+                "user_types": user_types,
+                "customers": customers,
             },
             status=status.HTTP_200_OK,
         )

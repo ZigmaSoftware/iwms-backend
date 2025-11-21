@@ -5,7 +5,6 @@ from api.apps.userType import UserType
 
 
 class CitizenLoginPage(TemplateView):
-    template_name = "mobile/citizen_login.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -17,5 +16,5 @@ class CitizenLoginPage(TemplateView):
             .order_by("customer_name")
             .values("customer_name", "contact_no")[:80]
         )
-        context["login_path"] = reverse("customer-login")
+        context["login_path"] = reverse("customer-login-list")
         return context
