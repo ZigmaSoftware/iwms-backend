@@ -22,3 +22,5 @@ from .apps.userCreation import User
 from .apps.vehicleTypeCreation import VehicleTypeCreation
 from .apps.vehicleCreation import VehicleCreation
 from .apps.complaints import Complaint
+from .apps.main_category_citizenGrievance import MainCategory
+from .apps.sub_category_citizenGrievance import SubCategory
