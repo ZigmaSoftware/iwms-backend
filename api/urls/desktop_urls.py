@@ -1,5 +1,6 @@
 from rest_framework.routers import DefaultRouter
 
+
 from ..views.desktopView.masters.continent_viewset import ContinentViewSet
 from ..views.desktopView.masters.country_viewset import CountryViewSet
 from ..views.desktopView.masters.state_viewset import StateViewSet
@@ -7,7 +8,6 @@ from ..views.desktopView.masters.district_viewset import DistrictViewSet
 from ..views.desktopView.masters.city_viewset import CityViewSet
 from ..views.desktopView.masters.zone_viewset import ZoneViewSet
 from ..views.desktopView.masters.ward_viewset import WardViewSet
-from ..views.desktopView.masters.staffcreation_viewset import StaffcreationViewset
 
 from ..views.desktopView.assets.fuel_viewset import FuelViewSet
 from ..views.desktopView.assets.property_viewset import PropertyViewSet
@@ -22,6 +22,9 @@ from ..views.desktopView.users.user_viewset import UserViewSet
 from ..views.desktopView.users.mainuserscreen_viewset import MainUserScreenViewSet
 from ..views.desktopView.users.userscreen_viewset import UserScreenViewSet
 from ..views.desktopView.users.userpermission_viewset import UserPermissionViewSet
+from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
+from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
+
 
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from ..views.desktopView.vehicles.vehiclecreation_viewset import VehicleCreationViewSet
@@ -48,6 +51,7 @@ router.register(r'wastecollections', WasteCollectionViewSet)
 router.register(r'feedbacks', FeedBackViewSet)
 
 router.register(r'user-type', UserTypeViewSet)
+router.register(r'staffusertypes', StaffUserTypeViewSet)
 router.register(r'user', UserViewSet)
 router.register(r'mainuserscreen', MainUserScreenViewSet)
 router.register(r'userscreens', UserScreenViewSet)
