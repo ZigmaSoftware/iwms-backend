@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from api.apps.userCreation import User
 from api.serializers.desktopView.users.user_serializer import UserSerializer
 
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.filter(is_delete=False)
     serializer_class = UserSerializer
