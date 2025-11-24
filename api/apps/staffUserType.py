@@ -1,29 +1,27 @@
 from django.db import models
 from .utils.comfun import generate_unique_id
 
+def generate_staff_usertype_id():
+    return f"STUSRTYPE{generate_unique_id()}"
 
-def generate_usertype_id():
-    """Generate a unique ID prefixed with UTYPE."""
-    return f"UTYPE{generate_unique_id()}"
-
-
-class UserType(models.Model):
-    # Allowed values
-    USERTYPE_CHOICES = [
-        ("staff", "Staff"),
-        ("customer", "Customer"),
+class StaffUserType(models.Model):
+    STAFF_ROLE_CHOICES = [
+        ("admin", "Admin"),
+        ("operator", "Operator"),
+        ("driver", "Driver"),
+        ("user", "User"),
     ]
 
-    usertype_id = models.CharField(
+    staffusertype_id = models.CharField(
         max_length=30,
         unique=True,
-        default=generate_usertype_id,
+        default=generate_staff_usertype_id,
         editable=False
     )
 
     name = models.CharField(
         max_length=50,
-        choices=USERTYPE_CHOICES,
+        choices=STAFF_ROLE_CHOICES,
         unique=True
     )
 
@@ -32,14 +30,13 @@ class UserType(models.Model):
 
     class Meta:
         ordering = ["id"]
-        verbose_name = "User Type"
-        verbose_name_plural = "User Types"
+        verbose_name = "Staff User Type"
+        verbose_name_plural = "Staff User Types"
 
     def __str__(self):
         return self.name
 
     def delete(self, *args, **kwargs):
-        """Soft Delete"""
         self.is_active = False
         self.is_delete = True
         self.save(update_fields=["is_active", "is_delete"])
