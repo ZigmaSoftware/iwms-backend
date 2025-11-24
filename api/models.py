@@ -8,7 +8,7 @@ from .apps.ward import Ward
 from .apps.fuel import Fuel
 from .apps.property import Property
 from .apps.subproperty import SubProperty
-from .apps.staffcreation import Staffcreation
+from .apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 from .apps.customercreation import CustomerCreation
 from .apps.wastecollection import WasteCollection
 from .apps.feedback import FeedBack
@@ -19,10 +19,9 @@ from .apps.userpermission import UserPermission
 
 from .apps.userType import UserType
 from .apps.staffUserType import StaffUserType
-from .apps.usercreation import User
+from .apps.userCreation import User
 from .apps.vehicleTypeCreation import VehicleTypeCreation
 from .apps.vehicleCreation import VehicleCreation
 from .apps.complaints import Complaint
 from .apps.main_category_citizenGrievance import MainCategory
 from .apps.sub_category_citizenGrievance import SubCategory
-from .apps.staffUserType import StaffUserType
