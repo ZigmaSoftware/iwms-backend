@@ -14,8 +14,14 @@ class StaffcreationViewset(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser)
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["employee_name", "employee_id", "site_name", "department", "designation"]
-    ordering_fields = ["id", "employee_name", "employee_id", "created_at"]
+    search_fields = [
+        "employee_name",
+        "staff_unique_id",
+        "site_name",
+        "department",
+        "designation",
+    ]
+    ordering_fields = ["id", "staff_unique_id", "employee_name", "created_at"]
 
     def get_queryset(self):
         queryset = StaffOfficeDetails.objects.select_related("personal_details")

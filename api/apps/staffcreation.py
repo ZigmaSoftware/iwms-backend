@@ -37,9 +37,7 @@ class StaffOfficeDetails(models.Model):
         ordering = ["-id"]
 
     def __str__(self):
-        if self.employee_id:
-            return f"{self.employee_name} ({self.employee_id})"
-        return self.employee_name
+        return f"{self.employee_name} ({self.staff_unique_id})"
 
 
 class StaffPersonalDetails(models.Model):
