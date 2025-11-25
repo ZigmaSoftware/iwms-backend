@@ -4,5 +4,5 @@ from api.serializers.desktopView.masters.continent_serializer import ContinentSe
 
 
 class ContinentViewSet(viewsets.ModelViewSet):
-    queryset = Continent.objects.filter(is_active=True)
+    queryset = Continent.objects.filter(is_delete=False)
     serializer_class = ContinentSerializer

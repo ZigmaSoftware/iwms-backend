@@ -12,12 +12,30 @@ class ZoneSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, attrs):
-        city = attrs.get("city")
-        name = attrs.get("name")
+        # Handle PATCH safely
         instance = getattr(self, "instance", None)
-        qs = Zone.objects.filter(city=city, name__iexact=name.strip(), is_deleted=False)
+
+        # Extract values with fallback to instance (for PATCH)
+        city = attrs.get("city", getattr(instance, "city", None))
+        name = attrs.get("name", getattr(instance, "name", None))
+
+        # If either field is missing in PATCH, still safe
+        if name is None or city is None:
+            return attrs
+
+        # Validate duplication
+        qs = Zone.objects.filter(
+            city=city,
+            name__iexact=name.strip(),
+            is_deleted=False
+        )
+
         if instance:
             qs = qs.exclude(pk=instance.pk)
+
         if qs.exists():
-            raise serializers.ValidationError({"name": "Zone name already exists for the selected city."})
+            raise serializers.ValidationError({
+                "name": "Zone name already exists for the selected city."
+            })
+
         return attrs
