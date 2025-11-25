@@ -59,12 +59,12 @@ class Command(BaseCommand):
 
         self._truncate_all()
         self._seed_geography()
-        self._seed_usertypes_users()
-        self._seed_screens()
+        # self._seed_usertypes_users()
+        # self._seed_screens()
         self._seed_properties()
         self._seed_vehicle_masters()
         self._seed_vehicles()
-        self._seed_customers()
+        # self._seed_customers()
         self._seed_complaints()
         self._seed_feedback()
 
@@ -76,17 +76,17 @@ class Command(BaseCommand):
     def _truncate_all(self):
         truncate(FeedBack)
         truncate(Complaint)
-        truncate(CustomerCreation)
+        # truncate(CustomerCreation)
 
         truncate(VehicleCreation)
         truncate(VehicleTypeCreation)
         truncate(Fuel)
 
-        truncate(UserPermission)
-        truncate(UserScreen)
-        truncate(MainUserScreen)
-        truncate(User)
-        truncate(UserType)
+        # truncate(UserPermission)
+        # truncate(UserScreen)
+        # truncate(MainUserScreen)
+        # truncate(User)
+        # truncate(UserType)
 
         truncate(Ward)
         truncate(Zone)
@@ -138,40 +138,40 @@ class Command(BaseCommand):
     # ----------------------------------------------------------------------
     # USER TYPES + USERS
     # ----------------------------------------------------------------------
-    def _seed_usertypes_users(self):
-        admin = UserType.objects.create(name="Admin")
-        operator = UserType.objects.create(name="Operator")
-        citizen = UserType.objects.create(name="Citizen")
+    # def _seed_usertypes_users(self):
+    #     admin = UserType.objects.create(name="Admin")
+    #     operator = UserType.objects.create(name="Operator")
+    #     citizen = UserType.objects.create(name="Citizen")
 
-        User.objects.create(
-            username="admin",
-            password="admin123",
-            first_name="System",
-            last_name="Admin",
-            user_type=admin,
-        )
+    #     User.objects.create(
+    #         username="admin",
+    #         password="admin123",
+    #         first_name="System",
+    #         last_name="Admin",
+    #         user_type=admin,
+    #     )
 
-        for i in range(5):
-            User.objects.create(
-                username=f"operator{i}",
-                password="op123",
-                first_name=fake.first_name(),
-                last_name=fake.last_name(),
-                user_type=operator,
-            )
+    #     for i in range(5):
+    #         User.objects.create(
+    #             username=f"operator{i}",
+    #             password="op123",
+    #             first_name=fake.first_name(),
+    #             last_name=fake.last_name(),
+    #             user_type=operator,
+    #         )
 
-    # ----------------------------------------------------------------------
-    # SCREENS + PERMISSIONS
-    # ----------------------------------------------------------------------
-    def _seed_screens(self):
-        dashboard = MainUserScreen.objects.create(mainscreen="Dashboard")
-        operations = MainUserScreen.objects.create(mainscreen="Operations")
-        reports = MainUserScreen.objects.create(mainscreen="Reports")
+    # # ----------------------------------------------------------------------
+    # # SCREENS + PERMISSIONS
+    # # ----------------------------------------------------------------------
+    # def _seed_screens(self):
+    #     dashboard = MainUserScreen.objects.create(mainscreen="Dashboard")
+    #     operations = MainUserScreen.objects.create(mainscreen="Operations")
+    #     reports = MainUserScreen.objects.create(mainscreen="Reports")
 
-        UserScreen.objects.create(mainscreen=dashboard, screen_name="Live Map")
-        UserScreen.objects.create(mainscreen=operations, screen_name="Grievance Management")
-        UserScreen.objects.create(mainscreen=operations, screen_name="Vehicle Tracking")
-        UserScreen.objects.create(mainscreen=reports, screen_name="Daily Metrics")
+    #     UserScreen.objects.create(mainscreen=dashboard, screen_name="Live Map")
+    #     UserScreen.objects.create(mainscreen=operations, screen_name="Grievance Management")
+    #     UserScreen.objects.create(mainscreen=operations, screen_name="Vehicle Tracking")
+    #     UserScreen.objects.create(mainscreen=reports, screen_name="Daily Metrics")
 
     # ----------------------------------------------------------------------
     # PROPERTY → SUBPROPERTY
@@ -219,44 +219,44 @@ class Command(BaseCommand):
     # ----------------------------------------------------------------------
     # CUSTOMERS
     # ----------------------------------------------------------------------
-    def _seed_customers(self):
-        india = Country.objects.first()
-        tn = State.objects.first()
-        dist = District.objects.first()
-        city = City.objects.first()
-        zones = list(Zone.objects.all())
-        wards = list(Ward.objects.all())
+    # def _seed_customers(self):
+    #     india = Country.objects.first()
+    #     tn = State.objects.first()
+    #     dist = District.objects.first()
+    #     city = City.objects.first()
+    #     zones = list(Zone.objects.all())
+    #     wards = list(Ward.objects.all())
 
-        prop = Property.objects.first()
-        subprops = list(SubProperty.objects.filter(property=prop))
+    #     prop = Property.objects.first()
+    #     subprops = list(SubProperty.objects.filter(property=prop))
 
-        citizen_type = UserType.objects.get(name="Citizen")
+    #     citizen_type = UserType.objects.get(name="Citizen")
 
-        for _ in range(15):
-            z = random.choice(zones)
-            w = random.choice(wards)
+    #     for _ in range(15):
+    #         z = random.choice(zones)
+    #         w = random.choice(wards)
 
-            CustomerCreation.objects.create(
-                customer_name=fake.name(),
-                contact_no=fake.msisdn()[:10],
-                building_no=fake.building_number(),
-                street=fake.street_name(),
-                area=fake.city_suffix(),
-                id_proof_type="AADHAAR",
-                id_no="1234-5678-9012",
-                ward=w,
-                zone=z,
-                city=city,
-                district=dist,
-                state=tn,
-                country=india,
-                pincode="641001",
-                latitude=str(fake.latitude()),
-                longitude=str(fake.longitude()),
-                property=prop,
-                sub_property=random.choice(subprops),
-                user_type=citizen_type,
-            )
+    #         CustomerCreation.objects.create(
+    #             customer_name=fake.name(),
+    #             contact_no=fake.msisdn()[:10],
+    #             building_no=fake.building_number(),
+    #             street=fake.street_name(),
+    #             area=fake.city_suffix(),
+    #             id_proof_type="AADHAAR",
+    #             id_no="1234-5678-9012",
+    #             ward=w,
+    #             zone=z,
+    #             city=city,
+    #             district=dist,
+    #             state=tn,
+    #             country=india,
+    #             pincode="641001",
+    #             latitude=str(fake.latitude()),
+    #             longitude=str(fake.longitude()),
+    #             property=prop,
+    #             sub_property=random.choice(subprops),
+    #             user_type=citizen_type,
+    #         )
 
     # ----------------------------------------------------------------------
     # COMPLAINTS
