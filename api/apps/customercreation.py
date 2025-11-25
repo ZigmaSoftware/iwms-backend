@@ -33,7 +33,7 @@ class CustomerCreation(models.Model):
     building_no = models.CharField(max_length=20)
     street = models.CharField(max_length=100)
     area = models.CharField(max_length=50)
-    password = models.CharField(max_length=128, blank=True, null=True)
+    # password = models.CharField(max_length=128, blank=True, null=True)
     # user_type = models.ForeignKey(UserType, on_delete=models.SET_NULL, related_name="customer_creation", null=True, blank=True)
 
     ward = models.ForeignKey(Ward, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)
