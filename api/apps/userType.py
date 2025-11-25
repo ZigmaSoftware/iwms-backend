@@ -8,12 +8,6 @@ def generate_usertype_id():
 
 
 class UserType(models.Model):
-    # Allowed values
-    USERTYPE_CHOICES = [
-        ("staff", "Staff"),
-        ("customer", "Customer"),
-    ]
-
     usertype_id = models.CharField(
         max_length=30,
         unique=True,
@@ -23,7 +17,6 @@ class UserType(models.Model):
 
     name = models.CharField(
         max_length=50,
-        choices=USERTYPE_CHOICES,
         unique=True
     )
 
