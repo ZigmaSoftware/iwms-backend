@@ -1,7 +1,5 @@
 from rest_framework import serializers
 from django.db.models import Q
-from django.contrib.auth.hashers import check_password
-
 from api.apps.userCreation import User
 
 
@@ -13,9 +11,7 @@ class LoginSerializer(serializers.Serializer):
         username = attrs["username"].strip()
         password = attrs["password"].strip()
 
-        # ---------------------------------------------------------
-        # FIND USER BY MULTIPLE POSSIBLE MATCHES
-        # ---------------------------------------------------------
+        # FIND USER BY MULTIPLE MATCH FIELDS
         user = (
             User.objects
             .select_related(
@@ -38,13 +34,11 @@ class LoginSerializer(serializers.Serializer):
         if not user:
             raise serializers.ValidationError("Invalid username or password")
 
-        # Validate password
-        if not check_password(password, user.password):
+        # ---- FIXED PASSWORD CHECK (PLAIN TEXT) ----
+        if password != user.password:
             raise serializers.ValidationError("Invalid username or password")
 
-        # ---------------------------------------------------------
-        # DETECT USER TYPE
-        # ---------------------------------------------------------
+        # USER TYPE VALIDATION
         user_type = user.user_type.name.lower()
 
         if user_type == "customer":
