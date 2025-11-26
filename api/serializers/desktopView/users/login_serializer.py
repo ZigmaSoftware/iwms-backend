@@ -25,7 +25,7 @@ class LoginSerializer(serializers.Serializer):
                 Q(customer_id__customer_name__iexact=username) |
                 Q(customer_id__contact_no__iexact=username) |
                 Q(staff_id__employee_name__iexact=username) |
-                Q(staff_id__employee_id__iexact=username) |
+                Q(staff_id__staff_unique_id__iexact=username) | 
                 Q(unique_id__iexact=username)
             )
             .first()
