@@ -14,7 +14,7 @@ class StaffOfficeDetails(models.Model):
         default=generate_staff_unique_id
     )
     employee_name = models.CharField(max_length=200)
-    employee_id = models.CharField(max_length=50, blank=True, null=True)
+    # employee_id = models.CharField(max_length=50, blank=True, null=True)
     doj = models.DateField(blank=True, null=True)
     department = models.CharField(max_length=200, blank=True, null=True)
     designation = models.CharField(max_length=200, blank=True, null=True)
