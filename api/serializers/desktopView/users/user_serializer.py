@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
     # ---------- READ-ONLY DISPLAY FIELDS ----------
     user_type_name = serializers.CharField(source="user_type.name", read_only=True)
     staffusertype_name = serializers.CharField(source="staffusertype_id.name", read_only=True)
-    staff_name = serializers.CharField(source="staff_id.name", read_only=True)
+    staff_name = serializers.CharField(source="staff_id.employee_name", read_only=True)
     customer = CustomerNestedSerializer(source="customer_id", read_only=True)
     district_name = serializers.CharField(source="district_id.name", read_only=True)
     city_name = serializers.CharField(source="city_id.name", read_only=True)
