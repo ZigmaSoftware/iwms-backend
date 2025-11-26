@@ -1,5 +1,3 @@
-
-
 from django.db.models import Q
 from rest_framework import serializers
 
@@ -22,7 +20,7 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError({"username": "Username is required."})
 
         user_type_exists = UserType.objects.filter(
-            Q(name__iexact=user_type_value) | Q(unique_id__iexact=user_type_value),
+            Q(name_iexact=user_type_value) | Q(unique_id_iexact=user_type_value),
             is_active=True,
             is_delete=False,
         ).exists()

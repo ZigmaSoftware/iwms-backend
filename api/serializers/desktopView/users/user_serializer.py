@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from api.apps.userCreation import User
 from api.apps.userType import UserType
+from api.serializers.desktopView.users.customer_nested_serializer import CustomerNestedSerializer
+
 
 class UserSerializer(serializers.ModelSerializer):
 
@@ -8,11 +10,12 @@ class UserSerializer(serializers.ModelSerializer):
     user_type_name = serializers.CharField(source="user_type.name", read_only=True)
     staffusertype_name = serializers.CharField(source="staffusertype_id.name", read_only=True)
     staff_name = serializers.CharField(source="staff_id.name", read_only=True)
-    customer_name = serializers.CharField(source="customer_id.customer_name", read_only=True)
+    customer = CustomerNestedSerializer(source="customer_id", read_only=True)
     district_name = serializers.CharField(source="district_id.name", read_only=True)
     city_name = serializers.CharField(source="city_id.name", read_only=True)
     zone_name = serializers.CharField(source="zone_id.name", read_only=True)
     ward_name = serializers.CharField(source="ward_id.name", read_only=True)
+    
 
     class Meta:
         model = User
