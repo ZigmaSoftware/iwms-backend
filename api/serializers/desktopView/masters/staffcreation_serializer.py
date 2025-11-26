@@ -73,7 +73,7 @@ class StaffcreationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "staff_unique_id",
-            "employee_id",
+            # "employee_id",
             "employee_name",
             "doj",
             "department",
