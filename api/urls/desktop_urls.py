@@ -43,6 +43,8 @@ from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
 # New Config Endpoint
 from ..views.desktopView.users.userType_config_viewset import UserTypeConfigView
 
+from ..views.desktopView.users.login_viewset import LoginViewSet
+
 
 
 # ==============================
@@ -75,9 +77,11 @@ router.register(r'feedbacks', FeedBackViewSet)
 router.register(r'user-type', UserTypeViewSet)
 router.register(r'staffusertypes', StaffUserTypeViewSet)
 router.register(r'user', UserViewSet)
-router.register(r'mainuserscreen', MainUserScreenViewSet)
+router.register(r'mainuserscreen', MainUserScreenViewSet)           
 router.register(r'userscreens', UserScreenViewSet)
 router.register(r'userpermissions', UserPermissionViewSet)
+router.register(r'login-user', LoginViewSet, basename='login-user')
+
 
 # Vehicles
 router.register(r'vehicle-type', VehicleTypeCreationViewSet)
