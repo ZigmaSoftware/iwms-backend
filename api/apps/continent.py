@@ -2,7 +2,6 @@ from django.db import models
 from .utils.comfun import generate_unique_id
 
 def generate_continent_id():
-    # Prepend CONT- to the unique ID
     return f"CONT{generate_unique_id()}"
 
 class Continent(models.Model):
@@ -13,7 +12,7 @@ class Continent(models.Model):
     )
     name = models.CharField(max_length=100)
     is_active = models.BooleanField(default=True)
-    is_delete = models.BooleanField(default=False) 
+    is_delete = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["id"]
@@ -22,13 +21,9 @@ class Continent(models.Model):
         return self.name
 
     def delete(self, *args, **kwargs):
-        """Soft delete: deactivate this Continent and its related Countries."""
-        self.is_active = False
-        self.save(update_fields=["is_active"])
-
-        # Deactivate all related countries (if relation exists)
-        related_countries = getattr(self, "countries", None)
-        if related_countries is not None:
-            for country in related_countries.all():
-                country.is_active = False
-                country.save(update_fields=["is_active"])
+        """
+        Soft delete – mark continent as deleted.
+        Do NOT change is_active here. Status toggle uses is_active.
+        """
+        self.is_delete = True
+        self.save(update_fields=["is_delete"])
