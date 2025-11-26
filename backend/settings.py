@@ -1,15 +1,20 @@
 from pathlib import Path
 import os
 import pymysql
+
 pymysql.install_as_MySQLdb()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# -------------------------------------------------------
+# SECRET KEY – use this one only (your exact key)
+# -------------------------------------------------------
 SECRET_KEY = 'django-insecure-8$arlvxjc7$dw$(0!gyw)55qbm%9*az3wwr)6$7kku-dw6zoiz'
+
 DEBUG = True
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media') 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
@@ -17,11 +22,11 @@ ALLOWED_HOSTS = [
     '192.168.1.128',
     '192.168.4.10',
     '.trycloudflare.com',
-    '192.168.4.*',  # allow all 192.168.4.xxx
+    '192.168.4.*',
     '192.168.5.*',
     "125.17.238.158",
-    '10.80.216.123', #moto net
-    '192.168.4.75',  #ofc net  
+    '10.80.216.123',
+    '192.168.4.75',
     '115.245.93.26',
     'testserver',
 ]
@@ -39,8 +44,8 @@ INSTALLED_APPS = [
 
     # Third-party
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
-    'rest_framework.authtoken',
 
     # Your apps
     'api',
@@ -50,7 +55,7 @@ INSTALLED_APPS = [
 # Middleware
 # -------------------------------------------------------
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',   # must be on top before CommonMiddleware
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -85,9 +90,9 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'globaldb',          
-        'USER': 'root',            
-        'PASSWORD': 'admin@123', 
+        'NAME': 'globaldb',
+        'USER': 'root',
+        'PASSWORD': 'admin@123',
         'HOST': 'localhost',
         'PORT': '3306',
         'OPTIONS': {
@@ -96,10 +101,8 @@ DATABASES = {
     }
 }
 
-
-
 # -------------------------------------------------------
-# Password validators
+# Password Validators
 # -------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -121,47 +124,42 @@ USE_TZ = True
 # -------------------------------------------------------
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') 
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # -------------------------------------------------------
-# Django REST Framework
+# REST Framework
 # -------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
 }
 
 # -------------------------------------------------------
-# CORS (allow React frontend)
+# CORS SETTINGS
 # -------------------------------------------------------
 CORS_ALLOW_CREDENTIALS = True
 
-# Comment out fixed list to rely only on regexes
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:4126",
-#     "http://127.0.0.1:4126",
-#     "http://192.168.1.128:4126",
-# ]
-
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$",
-    r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",  # allow all 192.168.4.xxx:port
-    r"^http://192\.168\.5\.\d{1,3}(:\d+)?$",  # optional
-    r"^http://192\.168\.1\.\d{1,3}(:\d+)?$",  # optional
+    r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",
+    r"^http://192\.168\.5\.\d{1,3}(:\d+)?$",
+    r"^http://192\.168\.1\.\d{1,3}(:\d+)?$",
     r"^http://127\.0\.0\.1(:\d+)?$",
-    r"^http://125\.17\.238\.158(:\d+)?$",     # local dev
-    r"^http://localhost(:\d+)?$",             # local dev
+    r"^http://125\.17\.238\.158(:\d+)?$",
+    r"^http://localhost(:\d+)?$",
     r"^http://192\.168\.4\.75(:\d+)?$",
-    r"^http://115\.245\.93\.26(:/d+)?$"
+    r"^http://115\.245\.93\.26(:\d+)?$",
 ]
-
-
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
+# -------------------------------------------------------
+# JWT CONFIG (import at the end)
+# -------------------------------------------------------
+from .settings_jwt import *
