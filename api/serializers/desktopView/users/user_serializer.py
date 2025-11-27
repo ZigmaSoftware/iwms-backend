@@ -6,54 +6,71 @@ from api.serializers.desktopView.users.customer_nested_serializer import Custome
 
 class UserSerializer(serializers.ModelSerializer):
 
-    # ---------- READ-ONLY DISPLAY FIELDS ----------
+    # ---------- USER TYPE DISPLAY ----------
     user_type_name = serializers.CharField(source="user_type.name", read_only=True)
+
+    # ---------- STAFF BASIC DETAILS ----------
     staffusertype_name = serializers.CharField(source="staffusertype_id.name", read_only=True)
     staff_name = serializers.CharField(source="staff_id.employee_name", read_only=True)
+    staff_doj = serializers.DateField(source="staff_id.doj", read_only=True)
+    staff_designation = serializers.CharField(source="staff_id.designation", read_only=True)
+    staff_department = serializers.CharField(source="staff_id.department", read_only=True)
+    staff_grade = serializers.CharField(source="staff_id.grade", read_only=True)
+    staff_siteName = serializers.CharField(source="staff_id.site_name", read_only=True)
+    staff_biometricId = serializers.CharField(source="staff_id.biometric_id", read_only=True)
+    staff_staff_head = serializers.CharField(source="staff_id.staff_head", read_only=True)
+    staff_employee_known_as = serializers.CharField(source="staff_id.employee_known", read_only=True)
+    staff_photo = serializers.ImageField(source="staff_id.photo", read_only=True)
+    staff_salaryType = serializers.CharField(source="staff_id.salary_type", read_only=True)
+    staff_activeStatus = serializers.BooleanField(source="staff_id.active_status", read_only=True)
+    staff_unique_id = serializers.CharField(source="staff_id.staff_unique_id", read_only=True)
+
+    # ---------- STAFF PERSONAL DETAILS ----------
+    staff_maritalStatus = serializers.CharField(source="staff_id.personal_details.marital_status", read_only=True)
+    staff_dob = serializers.DateField(source="staff_id.personal_details.dob", read_only=True)
+    staff_blood_group = serializers.CharField(source="staff_id.personal_details.blood_group", read_only=True)
+    staff_gender = serializers.CharField(source="staff_id.personal_details.gender", read_only=True)
+    staff_physical_status = serializers.CharField(source="staff_id.personal_details.physically_challenged", read_only=True)
+    staff_extra_curricular = serializers.CharField(source="staff_id.personal_details.extra_curricular", read_only=True)
+    staff_present_address = serializers.JSONField(source="staff_id.personal_details.present_address", read_only=True)
+    staff_permanent_address = serializers.JSONField(source="staff_id.personal_details.permanent_address", read_only=True)
+    staff_contact_details = serializers.JSONField(source="staff_id.personal_details.contact_details", read_only=True)
+
+    # ---------- CUSTOMER ----------
     customer = CustomerNestedSerializer(source="customer_id", read_only=True)
+
+    # ---------- LOCATION ----------
     district_name = serializers.CharField(source="district_id.name", read_only=True)
     city_name = serializers.CharField(source="city_id.name", read_only=True)
     zone_name = serializers.CharField(source="zone_id.name", read_only=True)
     ward_name = serializers.CharField(source="ward_id.name", read_only=True)
-    
 
     class Meta:
         model = User
         fields = "__all__"
 
-    # ---------- VALIDATION (MANDATORY & RESTRICTED FIELDS) ----------
+    # ---------- VALIDATION ----------
     def validate(self, attrs):
         user_type = attrs.get("user_type")
 
-        # If no user_type provided, skip validation
         if not user_type:
             return attrs
 
         name = user_type.name.lower().strip()
 
-        # ======================================================
-        # USER TYPE = CUSTOMER
-        # ======================================================
+        # CUSTOMER VALIDATION
         if name == "customer":
-
-            # Mandatory
             if not attrs.get("customer_id"):
                 raise serializers.ValidationError({
                     "customer_id": "customer_id is required when user type is Customer."
                 })
 
-            # These fields must be null
             if attrs.get("staffusertype_id") or attrs.get("staff_id"):
-                raise serializers.ValidationError(
-                    "Staff fields are not allowed for Customer."
-                )
+                raise serializers.ValidationError("Staff fields are not allowed for Customer.")
 
-        # ======================================================
-        # USER TYPE = STAFF
-        # ======================================================
+        # STAFF VALIDATION
         if name == "staff":
 
-            # Mandatory
             if not attrs.get("staffusertype_id"):
                 raise serializers.ValidationError({
                     "staffusertype_id": "staffusertype_id is required when user type is Staff."
@@ -64,10 +81,7 @@ class UserSerializer(serializers.ModelSerializer):
                     "staff_id": "staff_id is required when user type is Staff."
                 })
 
-            # Not allowed
             if attrs.get("customer_id"):
-                raise serializers.ValidationError(
-                    "customer_id is not allowed when user type is Staff."
-                )
+                raise serializers.ValidationError("customer_id is not allowed for Staff.")
 
         return attrs
