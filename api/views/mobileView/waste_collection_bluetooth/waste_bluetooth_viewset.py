@@ -7,7 +7,7 @@ from django.db import connection
 from ....apps.waste_collection_bluetooth import generate_unique_id, upload_image
 
 
-class WasteCollectionViewSet(viewsets.ViewSet):
+class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     # ----------------- INSERT WASTE SUB -----------------
