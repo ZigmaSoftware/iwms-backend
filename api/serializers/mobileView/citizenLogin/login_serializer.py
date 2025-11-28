@@ -1,30 +1,33 @@
+from django.db.models import Q
 from rest_framework import serializers
+
 from api.apps.userType import UserType
 
 
 class LoginSerializer(serializers.Serializer):
-    user_type = serializers.ChoiceField(choices=[], help_text="Select the User Type")
+    # Accept plain strings and validate manually to allow both name and unique_id inputs.
+    user_type = serializers.CharField(required=True, help_text="Select the User Type")
     username = serializers.CharField(required=True, help_text="Customer username (contact number or name).")
     password = serializers.CharField(write_only=True, required=True)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Dynamically load active user types from DB
-        user_types = UserType.objects.filter(is_active=True, is_delete=False)
-
-        # Assign dropdown values → (value sent, text shown)
-        self.fields['user_type'].choices = [
-            (ut.unique_id, ut.name) for ut in user_types
-        ]
-
     def validate(self, attrs):
-        attrs["user_type"] = attrs["user_type"].strip()
-        attrs["username"] = attrs["username"].strip()
+        user_type_value = attrs["user_type"].strip()
+        username_value = attrs["username"].strip()
 
-        if not attrs["user_type"]:
+        if not user_type_value:
             raise serializers.ValidationError({"user_type": "User type is required."})
-        if not attrs["username"]:
+        if not username_value:
             raise serializers.ValidationError({"username": "Username is required."})
 
+        user_type_exists = UserType.objects.filter(
+            Q(name_iexact=user_type_value) | Q(unique_id_iexact=user_type_value),
+            is_active=True,
+            is_delete=False,
+        ).exists()
+
+        if not user_type_exists:
+            raise serializers.ValidationError({"user_type": "Unknown or inactive user type."})
+
+        attrs["user_type"] = user_type_value
+        attrs["username"] = username_value
         return attrs
