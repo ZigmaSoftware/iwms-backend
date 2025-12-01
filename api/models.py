@@ -26,3 +26,4 @@ from .apps.complaints import Complaint
 from .apps.main_category_citizenGrievance import MainCategory
 from .apps.sub_category_citizenGrievance import SubCategory
 from .apps.waste_collection_bluetooth import WasteCollectionSub, WasteType, WasteCollectionMain
+from .apps.attendance import Employee,Recognized
