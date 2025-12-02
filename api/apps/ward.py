@@ -1,5 +1,4 @@
 from django.db import models
-from django.core.exceptions import ValidationError
 from .country import Country
 from .state import State
 from .district import District
@@ -9,69 +8,44 @@ from .utils.comfun import generate_unique_id
 
 
 def generate_ward_id():
-    # Create readable prefixed ID, e.g., WARD20251028001
+    return f"WARD{generate_unique_id()}"
+
+
+def generate_ward_id():
     return f"WARD{generate_unique_id()}"
 
 
 class Ward(models.Model):
-    unique_id = models.CharField(
+    ward_id = models.CharField(
         max_length=30,
+        primary_key=True,
         unique=True,
         default=generate_ward_id
     )
 
-    country = models.ForeignKey(
-        Country,
-        on_delete=models.PROTECT,
-        related_name='wards'
-    )
-    state = models.ForeignKey(
-        State,
-        on_delete=models.PROTECT,
-        related_name='wards'
-    )
-    district = models.ForeignKey(
-        District,
-        on_delete=models.PROTECT,
-        related_name='wards',
-        blank=True,
-        null=True
-    )
-    city = models.ForeignKey(
-        City,
-        on_delete=models.PROTECT,
-        related_name='wards',
-        blank=True,
-        null=True
-    )
-    zone = models.ForeignKey(
-        Zone,
-        on_delete=models.PROTECT,
-        related_name='wards',
-        blank=True,
-        null=True
-    )
-    name = models.CharField(max_length=100)
+    country = models.ForeignKey(Country, on_delete=models.PROTECT, related_name="wards", to_field="country_id")
+    state = models.ForeignKey(State, on_delete=models.PROTECT, related_name="wards", to_field="state_id")
+    district = models.ForeignKey(District, on_delete=models.PROTECT, related_name="wards",
+                                 blank=True, null=True, to_field="district_id")
+    city = models.ForeignKey(City, on_delete=models.PROTECT, related_name="wards",
+                             blank=True, null=True, to_field="city_id")
+    zone = models.ForeignKey(Zone, on_delete=models.PROTECT, related_name="wards",
+                             blank=True, null=True, to_field="zone_id")
 
-    is_deleted = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
+    name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
 
+
+    is_active = models.BooleanField(default=True)
+    is_deleted = models.BooleanField(default=False)
+
     class Meta:
-        verbose_name = "Ward"
-        verbose_name_plural = "Wards"
         ordering = ["name"]
-        #  Removed unique_together since we handle it in clean()
 
     def __str__(self):
-        return f"{self.name} ({self.zone.name if self.zone else self.city.name if self.city else self.state.name})"
-
-    def save(self, *args, **kwargs):
-        # Run clean() before saving
-        super().save(*args, **kwargs)
+        return self.name
 
     def delete(self, *args, **kwargs):
-        """Soft delete this Ward."""
         self.is_deleted = True
         self.is_active = False
         self.save(update_fields=["is_deleted", "is_active"])
