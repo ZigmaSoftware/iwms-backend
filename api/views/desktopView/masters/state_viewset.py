@@ -3,8 +3,9 @@ from api.apps.state import State
 from api.serializers.desktopView.masters.state_serializer import StateSerializer
 
 class StateViewSet(viewsets.ModelViewSet):
-    queryset = State.objects.all() 
+    queryset = State.objects.filter(is_deleted=False)
     serializer_class = StateSerializer
+    lookup_field = "state_id"
 
     def get_queryset(self):
         queryset = State.objects.filter(is_deleted=False)
