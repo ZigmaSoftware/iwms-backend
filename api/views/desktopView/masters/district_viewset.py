@@ -3,8 +3,9 @@ from api.apps.district import District
 from api.serializers.desktopView.masters.district_serializer import DistrictSerializer
 
 class DistrictViewSet(viewsets.ModelViewSet):
-    queryset = District.objects.all() 
+    queryset = District.objects.filter(is_deleted=False)
     serializer_class = DistrictSerializer
+    lookup_field = "district_id"
 
     def get_queryset(self):
         queryset = District.objects.filter(is_deleted=False)
