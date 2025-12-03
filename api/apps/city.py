@@ -2,6 +2,7 @@ from django.db import models
 from .country import Country
 from .state import State
 from .district import District
+from .continent import Continent
 from .utils.comfun import generate_unique_id
 
 
@@ -15,6 +16,13 @@ class City(models.Model):
         primary_key=True,
         unique=True,
         default=generate_city_id
+    )
+
+    continent_id = models.ForeignKey(
+        Continent,
+        on_delete=models.PROTECT,
+        related_name="cities",
+        to_field="unique_id"
     )
 
     country_id = models.ForeignKey(
