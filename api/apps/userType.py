@@ -3,13 +3,13 @@ from .utils.comfun import generate_unique_id
 
 
 def generate_usertype_id():
-    """Generate a unique ID prefixed with UTYPE."""
     return f"UTYPE{generate_unique_id()}"
 
 
 class UserType(models.Model):
-    usertype_id = models.CharField(
+    unique_id = models.CharField(
         max_length=30,
+        primary_key=True,            # FIXED
         unique=True,
         default=generate_usertype_id,
         editable=False
@@ -21,18 +21,17 @@ class UserType(models.Model):
     )
 
     is_active = models.BooleanField(default=True)
-    is_delete = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)   # FIXED
 
     class Meta:
-        ordering = ["id"]
+        ordering = ["name"]   # better than id, and alphabetic
         verbose_name = "User Type"
         verbose_name_plural = "User Types"
 
     def __str__(self):
         return self.name
 
-    def delete(self, *args, **kwargs):
-        """Soft Delete"""
+    def delete(self, *args, **kwargs):   # Soft delete
         self.is_active = False
-        self.is_delete = True
-        self.save(update_fields=["is_active", "is_delete"])
+        self.is_deleted = True
+        self.save(update_fields=["is_active", "is_deleted"])

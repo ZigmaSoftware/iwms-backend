@@ -7,13 +7,6 @@ class MainCategorySerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
-            "name",
+            "main_categoryName",
             "is_active",
-            "is_delete",
-        ]
-        read_only_fields = [
-            "id",
-            "unique_id",
-            "is_active",
-            "is_delete",
         ]
