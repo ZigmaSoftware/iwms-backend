@@ -9,3 +9,4 @@ class WasteCollectionViewSet(viewsets.ModelViewSet):
         "customer__property","customer__sub_property"
     ).order_by("-collection_date","-collection_time")
     serializer_class = WasteCollectionSerializer
+    lookup_field = "unique_id"

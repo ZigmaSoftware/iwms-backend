@@ -1,13 +1,33 @@
 from rest_framework import serializers
 from api.apps.userCreation import User
 from api.apps.userType import UserType
-from api.serializers.desktopView.users.customer_nested_serializer import CustomerNestedSerializer
+from api.apps.customercreation import CustomerCreation
+from api.apps.staffcreation import StaffOfficeDetails
+
+
+class UniqueIdOrPkField(serializers.SlugRelatedField):
+    """
+    Accept a related object by unique_id (slug) or numeric PK; serialize as unique_id.
+    """
+
+    def to_representation(self, value):
+        return getattr(value, self.slug_field, None) or super().to_representation(value)
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except Exception:
+            try:
+                return self.get_queryset().get(pk=data)
+            except Exception:
+                raise
 
 
 class UserSerializer(serializers.ModelSerializer):
 
     # ---------- USER TYPE DISPLAY ----------
     user_type_name = serializers.CharField(source="user_type.name", read_only=True)
+    user_type_id = serializers.CharField(source="user_type.unique_id", read_only=True)
 
     # ---------- STAFF BASIC DETAILS ----------
     staffusertype_name = serializers.CharField(source="staffusertype_id.name", read_only=True)
@@ -23,7 +43,12 @@ class UserSerializer(serializers.ModelSerializer):
     staff_photo = serializers.ImageField(source="staff_id.photo", read_only=True)
     staff_salaryType = serializers.CharField(source="staff_id.salary_type", read_only=True)
     staff_activeStatus = serializers.BooleanField(source="staff_id.active_status", read_only=True)
-    staff_unique_id = serializers.CharField(source="staff_id.staff_unique_id", read_only=True)
+    staff_id = UniqueIdOrPkField(
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     # ---------- STAFF PERSONAL DETAILS ----------
     staff_maritalStatus = serializers.CharField(source="staff_id.personal_details.marital_status", read_only=True)
@@ -36,8 +61,13 @@ class UserSerializer(serializers.ModelSerializer):
     staff_permanent_address = serializers.JSONField(source="staff_id.personal_details.permanent_address", read_only=True)
     staff_contact_details = serializers.JSONField(source="staff_id.personal_details.contact_details", read_only=True)
 
-    # ---------- CUSTOMER ----------
-    customer = CustomerNestedSerializer(source="customer_id", read_only=True)
+    # ---------- CUSTOMER IDENTIFIER ----------
+    customer_id = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=CustomerCreation.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     # ---------- LOCATION ----------
     district_name = serializers.CharField(source="district_id.name", read_only=True)
@@ -48,6 +78,10 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = "__all__"
+        extra_kwargs = {
+            # Hide raw FK for user_type; we expose user_type_id instead
+            "user_type": {"write_only": True},
+        }
 
     # ---------- VALIDATION ----------
     def validate(self, attrs):

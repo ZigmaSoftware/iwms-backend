@@ -51,12 +51,21 @@ class Complaint(models.Model):
     )
     
 
-    customer = models.ForeignKey(CustomerCreation, on_delete=models.PROTECT)
+    # Column in DB is customer_id_id from legacy naming; keep attribute as customer
+    customer = models.ForeignKey(
+        CustomerCreation,
+        on_delete=models.PROTECT,
+        db_column="customer_id_id",
+    )
     zone = models.ForeignKey(Zone, on_delete=models.PROTECT, null=True, blank=True)
     ward = models.ForeignKey(Ward, on_delete=models.PROTECT, null=True, blank=True)
 
     contact_no = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
+
+    # Frontend-driven categories
+    main_category = models.CharField(max_length=120, blank=True, null=True)
+    sub_category = models.CharField(max_length=120, blank=True, null=True)
 
     category = models.CharField(max_length=20, choices=CategoryChoices.choices)
     details = models.TextField(blank=True, null=True)
