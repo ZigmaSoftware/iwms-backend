@@ -8,18 +8,18 @@ def generate_country_id():
 
 
 class Country(models.Model):
-    country_id = models.CharField(
+    unique_id = models.CharField(
         max_length=30,
         primary_key=True,
         unique=True,
         default=generate_country_id
     )
 
-    continent = models.ForeignKey(
+    continent_id = models.ForeignKey(
         Continent,
         on_delete=models.PROTECT,
         related_name="countries",
-        to_field="continent_id"
+        to_field="unique_id"
     )
 
     name = models.CharField(max_length=100)

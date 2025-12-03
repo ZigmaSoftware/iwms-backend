@@ -2,6 +2,7 @@ from rest_framework import serializers
 from api.apps.ward import Ward
 
 class WardSerializer(serializers.ModelSerializer):
+    continent_name = serializers.CharField(source='continent.name', read_only=True)
     country_name = serializers.CharField(source='country.name', read_only=True)
     state_name = serializers.CharField(source='state.name', read_only=True)
     district_name = serializers.CharField(source='district.name', read_only=True)
@@ -11,6 +12,7 @@ class WardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ward
         fields = '__all__'
+        read_only_fields = ["unique_id"]
 
     def validate(self, attrs):
         instance = getattr(self, "instance", None)
