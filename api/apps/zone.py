@@ -10,25 +10,40 @@ def generate_zone_id():
     return f"ZONE{generate_unique_id()}"
 
 
-def generate_zone_id():
-    return f"ZONE{generate_unique_id()}"
-
-
 class Zone(models.Model):
-    zone_id = models.CharField(
+    unique_id = models.CharField(
         max_length=30,
         primary_key=True,
         unique=True,
         default=generate_zone_id
     )
 
-    country = models.ForeignKey(Country, on_delete=models.PROTECT, related_name="zones", to_field="country_id")
-    state = models.ForeignKey(State, on_delete=models.PROTECT, related_name="zones", to_field="state_id")
-    district = models.ForeignKey(
-        District, on_delete=models.PROTECT, related_name="zones", blank=True, null=True, to_field="district_id"
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.PROTECT,
+        related_name="zones",
+        to_field="unique_id"
     )
+
+    state = models.ForeignKey(
+        State,
+        on_delete=models.PROTECT,
+        related_name="zones",
+        to_field="unique_id"
+    )
+
+    district = models.ForeignKey(
+        District,
+        on_delete=models.PROTECT,
+        related_name="zones",
+        to_field="unique_id"
+    )
+
     city = models.ForeignKey(
-        City, on_delete=models.PROTECT, related_name="zones", blank=True, null=True, to_field="city_id"
+        City,
+        on_delete=models.PROTECT,
+        related_name="zones",
+        to_field="unique_id"
     )
 
     name = models.CharField(max_length=100)
@@ -41,7 +56,7 @@ class Zone(models.Model):
         ordering = ["name"]
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.city.name if self.city else self.state.name})"
 
     def delete(self, *args, **kwargs):
         self.is_deleted = True

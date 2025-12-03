@@ -5,7 +5,7 @@ from api.serializers.desktopView.masters.continent_serializer import ContinentSe
 class ContinentViewSet(viewsets.ModelViewSet):
     queryset = Continent.objects.filter(is_deleted=False)
     serializer_class = ContinentSerializer
-    lookup_field = "continent_id"
+    lookup_field = "unique_id"
 
     def perform_destroy(self, instance):
         instance.delete()

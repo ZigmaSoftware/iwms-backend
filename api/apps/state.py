@@ -1,5 +1,6 @@
 from django.db import models
 from .country import Country
+from .continent import Continent
 from .utils.comfun import generate_unique_id
 
 
@@ -8,18 +9,25 @@ def generate_state_id():
 
 
 class State(models.Model):
-    state_id = models.CharField(
+    unique_id = models.CharField(
         max_length=30,
         primary_key=True,
         unique=True,
         default=generate_state_id
     )
 
-    country = models.ForeignKey(
+    country_id = models.ForeignKey(
         Country,
         on_delete=models.PROTECT,
         related_name="states",
-        to_field="country_id"    # important
+        to_field="unique_id"
+    )
+
+    continent_id = models.ForeignKey(
+        Continent,
+        on_delete=models.PROTECT,
+        related_name="states",
+        to_field="unique_id"
     )
 
     name = models.CharField(max_length=100)
@@ -30,10 +38,10 @@ class State(models.Model):
 
     class Meta:
         ordering = ["name"]
-        unique_together = ("country", "name")
+        unique_together = ("country_id", "name")
 
     def __str__(self):
-        return f"{self.name} ({self.country.name})"
+        return f"{self.name} ({self.country_id.name})"
 
     def delete(self, *args, **kwargs):
         self.is_deleted = True
