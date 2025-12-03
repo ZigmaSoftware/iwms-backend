@@ -1,40 +1,30 @@
 from django.db import models
 from .utils.comfun import generate_unique_id
-from .property import Property  # import parent Property model
+from .property import Property
 
 
 def generate_subproperty_id():
-    """Generate prefixed SubProperty ID for traceability."""
     return f"SUBPROPERTY-{generate_unique_id()}"
 
 
 class SubProperty(models.Model):
-    """
-    Master: SubProperty
-    -----------------------------------
-    Defines sub-properties linked to a main Property.
-    Supports soft delete and active/inactive toggling.
-    """
-
-    # Unique identifier for internal and API-level use
     unique_id = models.CharField(
         max_length=40,
+        primary_key=True,
         unique=True,
         default=generate_subproperty_id,
         editable=False
     )
 
-    # Relationship to parent Property
-    property = models.ForeignKey(
+    property_id = models.ForeignKey(
         Property,
         on_delete=models.PROTECT,
-        related_name="sub_properties"
+        related_name="sub_properties",
+        to_field="unique_id"
     )
 
-    # Business field
     sub_property_name = models.CharField(max_length=100)
 
-    # Status flags
     is_active = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)
 
@@ -44,17 +34,16 @@ class SubProperty(models.Model):
         ordering = ["sub_property_name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["property", "sub_property_name"],
+                fields=["property_id", "sub_property_name"],  # FIXED
                 condition=models.Q(is_deleted=False),
                 name="unique_sub_property_per_property_not_deleted"
             )
         ]
 
     def __str__(self):
-        return f"{self.sub_property_name} ({self.property.property_name})"
+        return f"{self.sub_property_name} ({self.property_id.property_name})"  # FIXED
 
     def delete(self, *args, **kwargs):
-        """Soft delete without removing the record."""
         self.is_deleted = True
         self.is_active = False
         self.save(update_fields=["is_deleted", "is_active"])

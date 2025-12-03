@@ -11,30 +11,51 @@ def generate_ward_id():
     return f"WARD{generate_unique_id()}"
 
 
-def generate_ward_id():
-    return f"WARD{generate_unique_id()}"
-
-
 class Ward(models.Model):
-    ward_id = models.CharField(
+    unique_id = models.CharField(
         max_length=30,
         primary_key=True,
         unique=True,
         default=generate_ward_id
     )
 
-    country = models.ForeignKey(Country, on_delete=models.PROTECT, related_name="wards", to_field="country_id")
-    state = models.ForeignKey(State, on_delete=models.PROTECT, related_name="wards", to_field="state_id")
-    district = models.ForeignKey(District, on_delete=models.PROTECT, related_name="wards",
-                                 blank=True, null=True, to_field="district_id")
-    city = models.ForeignKey(City, on_delete=models.PROTECT, related_name="wards",
-                             blank=True, null=True, to_field="city_id")
-    zone = models.ForeignKey(Zone, on_delete=models.PROTECT, related_name="wards",
-                             blank=True, null=True, to_field="zone_id")
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.PROTECT,
+        related_name="wards",
+        to_field="unique_id"
+    )
+
+    state = models.ForeignKey(
+        State,
+        on_delete=models.PROTECT,
+        related_name="wards",
+        to_field="unique_id"
+    )
+
+    district = models.ForeignKey(
+        District,
+        on_delete=models.PROTECT,
+        related_name="wards",
+        to_field="unique_id"
+    )
+
+    city = models.ForeignKey(
+        City,
+        on_delete=models.PROTECT,
+        related_name="wards",
+        to_field="unique_id"
+    )
+
+    zone = models.ForeignKey(
+        Zone,
+        on_delete=models.PROTECT,
+        related_name="wards",
+        to_field="unique_id"
+    )
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
-
 
     is_active = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)
@@ -43,7 +64,7 @@ class Ward(models.Model):
         ordering = ["name"]
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.city.name if self.city else self.state.name})"
 
     def delete(self, *args, **kwargs):
         self.is_deleted = True
