@@ -8,7 +8,6 @@ from ..views.mobileView.citizen_login.new_login_views import LoginViewSet
 # from ..views.mobileView.grievance.sub_category_viewset import 
 
 router = DefaultRouter()
-router.register("customer/login", CitizenLoginViewSet, basename="customer-login")
 router.register("main-category", MainCategoryViewSet, basename="main-category")
 router.register("subcategory", SubCategoryViewSet, basename="subcategory")
 router.register("login", LoginViewSet, basename="mobile-login")
