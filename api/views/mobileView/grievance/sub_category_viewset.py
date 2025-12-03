@@ -8,6 +8,7 @@ from api.serializers.mobileView.grievance.subcategory_serializer import SubCateg
 class SubCategoryViewSet(viewsets.ModelViewSet):
     queryset = SubCategory.objects.filter(is_delete=False)
     serializer_class = SubCategorySerializer
+    lookup_field = "unique_id"
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
