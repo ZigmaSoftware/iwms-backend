@@ -9,3 +9,4 @@ class FeedBackViewSet(viewsets.ModelViewSet):
         "customer__property","customer__sub_property"
     )
     serializer_class = FeedBackSerializer
+    lookup_field = "unique_id"

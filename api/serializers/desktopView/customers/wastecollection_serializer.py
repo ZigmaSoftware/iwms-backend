@@ -1,7 +1,38 @@
 from rest_framework import serializers
 from api.apps.wastecollection import WasteCollection
+from api.apps.customercreation import CustomerCreation
+
+
+class CustomerField(serializers.SlugRelatedField):
+    """Accept customer unique_id or PK, serialize as unique_id."""
+
+    def to_representation(self, value):
+        return value.unique_id if value else None
+
+    def to_internal_value(self, data):
+        if data in [None, ""]:
+            raise serializers.ValidationError("Customer is required")
+        # try unique_id
+        try:
+            return self.get_queryset().get(unique_id=str(data))
+        except CustomerCreation.DoesNotExist:
+            # fallback: pk
+            try:
+                return self.get_queryset().get(pk=int(data))
+            except (ValueError, TypeError, CustomerCreation.DoesNotExist):
+                raise serializers.ValidationError("Invalid customer reference")
+
 
 class WasteCollectionSerializer(serializers.ModelSerializer):
+    customer = CustomerField(
+        slug_field="unique_id",
+        queryset=CustomerCreation.objects.all(),
+        write_only=True,
+    )
+    # Expose customer unique identifier as `customer_id`
+    customer_id = serializers.CharField(
+        source="customer.unique_id", read_only=True
+    )
     ward_name = serializers.CharField(source="customer.ward.ward_name", read_only=True)
     zone_name = serializers.CharField(source="customer.zone.name", read_only=True, default=None)
     city_name = serializers.CharField(source="customer.city.name", read_only=True)
@@ -13,3 +44,6 @@ class WasteCollectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = WasteCollection
         fields = "__all__"
+        extra_kwargs = {
+            "customer": {"write_only": True},
+        }

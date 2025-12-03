@@ -4,7 +4,8 @@ from api.apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 
 
 class StaffcreationSerializer(serializers.ModelSerializer):
-    staff_unique_id = serializers.CharField(read_only=True)
+    # Expose staff ID as `unique_id` for frontend parity
+    unique_id = serializers.CharField(source="staff_unique_id", read_only=True)
     marital_status = serializers.CharField(
         source="personal_details.marital_status",
         required=False,
@@ -72,7 +73,7 @@ class StaffcreationSerializer(serializers.ModelSerializer):
         model = StaffOfficeDetails
         fields = [
             "id",
-            "staff_unique_id",
+            "unique_id",
             # "employee_id",
             "employee_name",
             "doj",
@@ -101,7 +102,7 @@ class StaffcreationSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "staff_unique_id", "created_at", "updated_at"]
+        read_only_fields = ["id", "unique_id", "created_at", "updated_at"]
 
     def _pop_personal_data(self, validated_data):
         """

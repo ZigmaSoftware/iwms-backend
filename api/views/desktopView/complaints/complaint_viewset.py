@@ -6,6 +6,7 @@ from api.serializers.desktopView.complaints.complaint_serializer import Complain
 
 class ComplaintViewSet(viewsets.ModelViewSet):
     serializer_class = ComplaintSerializer
+    lookup_field = "unique_id"
     queryset = Complaint.objects.filter(is_deleted=False).select_related(
         "customer", "zone", "ward"
     )
