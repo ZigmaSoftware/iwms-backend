@@ -2,11 +2,11 @@ from rest_framework import serializers
 from api.apps.zone import Zone
 
 class ZoneSerializer(serializers.ModelSerializer):
-    continent_name = serializers.CharField(source='continent.name', read_only=True)
-    country_name = serializers.CharField(source='country.name', read_only=True)
-    state_name = serializers.CharField(source='state.name', read_only=True)
-    district_name = serializers.CharField(source='district.name', read_only=True)
-    city_name = serializers.CharField(source='city.name', read_only=True)
+    continent_name = serializers.CharField(source='continent_id.name', read_only=True)
+    country_name = serializers.CharField(source='country_id.name', read_only=True)
+    state_name = serializers.CharField(source='state_id.name', read_only=True)
+    district_name = serializers.CharField(source='district_id.name', read_only=True)
+    city_name = serializers.CharField(source='city_id.name', read_only=True)
 
     class Meta:
         model = Zone
@@ -18,7 +18,7 @@ class ZoneSerializer(serializers.ModelSerializer):
         instance = getattr(self, "instance", None)
 
         # Extract values with fallback to instance (for PATCH)
-        city = attrs.get("city", getattr(instance, "city", None))
+        city = attrs.get("city_id", getattr(instance, "city_id", None))
         name = attrs.get("name", getattr(instance, "name", None))
 
         # If either field is missing in PATCH, still safe
@@ -26,9 +26,10 @@ class ZoneSerializer(serializers.ModelSerializer):
             return attrs
 
         # Validate duplication
+        cleaned_name = name.strip()
         qs = Zone.objects.filter(
-            city=city,
-            name__iexact=name.strip(),
+            city_id=city,
+            name__iexact=cleaned_name,
             is_deleted=False
         )
 
@@ -40,4 +41,5 @@ class ZoneSerializer(serializers.ModelSerializer):
                 "name": "Zone name already exists for the selected city."
             })
 
+        attrs["name"] = cleaned_name
         return attrs

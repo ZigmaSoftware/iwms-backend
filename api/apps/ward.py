@@ -4,6 +4,7 @@ from .state import State
 from .district import District
 from .city import City
 from .zone import Zone
+from .continent import Continent
 from .utils.comfun import generate_unique_id
 
 
@@ -19,35 +20,42 @@ class Ward(models.Model):
         default=generate_ward_id
     )
 
-    country = models.ForeignKey(
+    continent_id = models.ForeignKey(
+        Continent,
+        on_delete=models.PROTECT,
+        related_name="wards",
+        to_field="unique_id"
+    )
+
+    country_id = models.ForeignKey(
         Country,
         on_delete=models.PROTECT,
         related_name="wards",
         to_field="unique_id"
     )
 
-    state = models.ForeignKey(
+    state_id = models.ForeignKey(
         State,
         on_delete=models.PROTECT,
         related_name="wards",
         to_field="unique_id"
     )
 
-    district = models.ForeignKey(
+    district_id = models.ForeignKey(
         District,
         on_delete=models.PROTECT,
         related_name="wards",
         to_field="unique_id"
     )
 
-    city = models.ForeignKey(
+    city_id = models.ForeignKey(
         City,
         on_delete=models.PROTECT,
         related_name="wards",
         to_field="unique_id"
     )
 
-    zone = models.ForeignKey(
+    zone_id = models.ForeignKey(
         Zone,
         on_delete=models.PROTECT,
         related_name="wards",
@@ -64,7 +72,10 @@ class Ward(models.Model):
         ordering = ["name"]
 
     def __str__(self):
-        return f"{self.name} ({self.city.name if self.city else self.state.name})"
+        city = getattr(self, "city_id", None)
+        state = getattr(self, "state_id", None)
+        location = city.name if city else (state.name if state else "")
+        return f"{self.name} ({location})" if location else self.name
 
     def delete(self, *args, **kwargs):
         self.is_deleted = True
