@@ -2,6 +2,7 @@ from rest_framework import serializers
 from api.apps.zone import Zone
 
 class ZoneSerializer(serializers.ModelSerializer):
+    continent_name = serializers.CharField(source='continent.name', read_only=True)
     country_name = serializers.CharField(source='country.name', read_only=True)
     state_name = serializers.CharField(source='state.name', read_only=True)
     district_name = serializers.CharField(source='district.name', read_only=True)
@@ -10,6 +11,7 @@ class ZoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = Zone
         fields = '__all__'
+        read_only_fields = ["unique_id"]
 
     def validate(self, attrs):
         # Handle PATCH safely

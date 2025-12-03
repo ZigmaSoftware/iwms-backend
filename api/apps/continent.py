@@ -9,7 +9,7 @@ def generate_continent_id():
 class Continent(models.Model):
     id = models.AutoField(primary_key=True)
 
-    continent_id = models.CharField(
+    unique_id = models.CharField(
         max_length=30,
         unique=True,
         default=generate_continent_id

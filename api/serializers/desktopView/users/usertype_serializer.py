@@ -5,3 +5,4 @@ class UserTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserType
         fields = '__all__'
+        read_only_fields = ["unique_id"]  

@@ -4,5 +4,9 @@ from api.serializers.desktopView.users.staffusertype_serializer import StaffUser
 
 
 class StaffUserTypeViewSet(viewsets.ModelViewSet):
-    queryset = StaffUserType.objects.filter(is_delete=False)
+    queryset = StaffUserType.objects.filter(is_deleted=False)
     serializer_class = StaffUserTypeSerializer
+    lookup_field = "unique_id"
+
+    def perform_destroy(self, instance):
+        instance.delete()

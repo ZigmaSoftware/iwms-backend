@@ -5,3 +5,4 @@ class ContinentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Continent
         fields = '__all__'
+        read_only_fields = ["unique_id"]
