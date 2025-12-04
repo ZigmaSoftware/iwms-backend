@@ -25,7 +25,7 @@ from .users.mainuserscreen_viewset import MainUserScreenViewSet
 from .users.userscreen_viewset import UserScreenViewSet
 from .users.userpermission_viewset import UserPermissionViewSet
 from .users.staffusertype_viewset import StaffUserTypeViewSet
-from .users.staffcreation_viewset import StaffcreationViewset
+from .masters.staffcreation_viewset import StaffcreationViewset
 from .users.login_viewset import LoginViewSet
 
 # Vehicles

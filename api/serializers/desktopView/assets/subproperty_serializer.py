@@ -1,42 +1,56 @@
 from rest_framework import serializers
 from api.apps.subproperty import SubProperty
 
+
 class SubPropertySerializer(serializers.ModelSerializer):
     property_name = serializers.CharField(
-        source="property.property_name",
+        source="property_id.property_name",
         read_only=True
     )
 
     class Meta:
         model = SubProperty
         fields = "__all__"
-        # ⚠️ IMPORTANT: REMOVE ALL BUILT-IN UNIQUE VALIDATORS
-        validators = []   # This eliminates the is_deleted KeyError
+        read_only_fields = ["unique_id"]   # SAME PATTERN AS StaffUserType
+        validators = []                    # avoid built-in unique validator
+
+    def validate_property_id(self, property_obj):
+        """
+        Ensure Property is valid (not deleted or inactive)
+        """
+
+        if hasattr(property_obj, "is_deleted") and property_obj.is_deleted:
+            raise serializers.ValidationError("Selected Property is deleted.")
+
+        if hasattr(property_obj, "is_active") and not property_obj.is_active:
+            raise serializers.ValidationError("Selected Property is inactive.")
+
+        return property_obj
 
     def validate(self, attrs):
+        """
+        Ensure unique sub-property per property (case-insensitive)
+        """
+
         instance = getattr(self, "instance", None)
 
-        # Get the values - PATCH safe
+        prop = attrs.get("property_id", getattr(instance, "property_id", None))
         name = attrs.get("sub_property_name", getattr(instance, "sub_property_name", None))
-        prop = attrs.get("property", getattr(instance, "property", None))
 
-        # If PATCH only updates is_active → skip validation entirely
-        if name is None or prop is None:
+        # PATCH-safe: if either field missing, skip validation
+        if prop is None or name is None:
             return attrs
 
         name = name.strip()
 
-        # Duplicate check
         qs = SubProperty.objects.filter(
             sub_property_name__iexact=name,
-            property=prop,
+            property_id=prop,
         )
 
-        # If you have soft delete
         if hasattr(SubProperty, "is_deleted"):
             qs = qs.filter(is_deleted=False)
 
-        # Exclude the same row on edit
         if instance:
             qs = qs.exclude(pk=instance.pk)
 
@@ -46,4 +60,3 @@ class SubPropertySerializer(serializers.ModelSerializer):
             })
 
         return attrs
-
