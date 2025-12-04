@@ -59,7 +59,8 @@ class UserSerializer(serializers.ModelSerializer):
     staff_extra_curricular = serializers.CharField(source="staff_id.personal_details.extra_curricular", read_only=True)
     staff_present_address = serializers.JSONField(source="staff_id.personal_details.present_address", read_only=True)
     staff_permanent_address = serializers.JSONField(source="staff_id.personal_details.permanent_address", read_only=True)
-    staff_contact_details = serializers.JSONField(source="staff_id.personal_details.contact_details", read_only=True)
+    staff_contact_mobile = serializers.CharField(source="staff_id.personal_details.contact_mobile", read_only=True)
+    staff_contact_email = serializers.EmailField(source="staff_id.personal_details.contact_email", read_only=True)
 
     # ---------- CUSTOMER IDENTIFIER ----------
     customer_id = UniqueIdOrPkField(

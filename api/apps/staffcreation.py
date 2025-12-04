@@ -57,7 +57,8 @@ class StaffPersonalDetails(models.Model):
     extra_curricular = models.TextField(blank=True, null=True)
     present_address = models.JSONField(blank=True, null=True)
     permanent_address = models.JSONField(blank=True, null=True)
-    contact_details = models.JSONField(blank=True, null=True)
+    contact_mobile = models.CharField(max_length=20, blank=True, null=True)
+    contact_email = models.EmailField(max_length=254, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
