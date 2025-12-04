@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from api.apps.sub_category_citizenGrievance import SubCategory
+from api.validators.unique_name_validator import unique_name_validator
 
 
 class SubCategorySerializer(serializers.ModelSerializer):
@@ -17,3 +18,10 @@ class SubCategorySerializer(serializers.ModelSerializer):
             "is_delete",
         ]
         read_only_fields = ["id", "unique_id", "is_delete"]
+        validators = []  # disable DRF unique constraint
+    def validate(self, attrs):
+        return unique_name_validator(
+            Model=SubCategory,
+            name_field="name",
+            scope_fields=["mainCategory"]
+        )(self, attrs)
