@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.db import connection
 from datetime import datetime, timedelta
 from ....apps.waste_collection_bluetooth import generate_unique_id, upload_image
+from ....apps.customercreation import CustomerCreation
 
 
 
@@ -342,3 +343,54 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
         if timezone.is_naive(dt):
             return timezone.make_aware(dt)
         return dt
+
+    # ----------------- LOOKUP CUSTOMER BY UNIQUE ID FOR QR -----------------
+    @action(detail=False, methods=["get"], url_path="customer")
+    def get_customer_by_unique_id(self, request):
+        unique_id = request.query_params.get("unique_id") or request.query_params.get("uid")
+        if not unique_id:
+            return Response(
+                {"status": "error", "message": "unique_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 1) Attempt to match directly on customer unique_id
+        customer = (
+            CustomerCreation.objects
+            .filter(unique_id=unique_id, is_deleted=False, is_active=True)
+            .first()
+        )
+
+        # 2) Fallback: match user unique_id -> customer_id
+        if customer is None:
+            from ....apps.userCreation import User
+
+            user = (
+                User.objects
+                .select_related("customer_id")
+                .filter(unique_id=unique_id, is_active=True, is_delete=False)
+                .first()
+            )
+            customer = getattr(user, "customer_id", None)
+
+        if not customer:
+            return Response(
+                {"status": "error", "message": "Customer not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        data = {
+            "unique_id": customer.unique_id,
+            "customer_name": customer.customer_name,
+            "contact_no": customer.contact_no,
+            "latitude": customer.latitude,
+            "longitude": customer.longitude,
+            "address": {
+                "building_no": customer.building_no,
+                "street": customer.street,
+                "area": customer.area,
+                "pincode": customer.pincode,
+            },
+        }
+
+        return Response({"status": "success", "data": data})
