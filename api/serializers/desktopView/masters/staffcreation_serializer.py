@@ -51,9 +51,16 @@ class StaffcreationSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    contact_details = serializers.JSONField(
-        source="personal_details.contact_details",
+    contact_mobile = serializers.CharField(
+        source="personal_details.contact_mobile",
         required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    contact_email = serializers.EmailField(
+        source="personal_details.contact_email",
+        required=False,
+        allow_blank=True,
         allow_null=True,
     )
 
@@ -66,7 +73,8 @@ class StaffcreationSerializer(serializers.ModelSerializer):
         "extra_curricular",
         "present_address",
         "permanent_address",
-        "contact_details",
+        "contact_mobile",
+        "contact_email",
     ]
 
     class Meta:
@@ -98,7 +106,8 @@ class StaffcreationSerializer(serializers.ModelSerializer):
             "extra_curricular",
             "present_address",
             "permanent_address",
-            "contact_details",
+            "contact_mobile",
+            "contact_email",
             "created_at",
             "updated_at",
         ]
