@@ -42,3 +42,4 @@ class FeedBackSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "customer": {"write_only": True},
         }
+    
