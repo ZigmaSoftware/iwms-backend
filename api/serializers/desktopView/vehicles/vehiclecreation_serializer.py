@@ -7,6 +7,7 @@ from api.apps.district import District
 from api.apps.city import City
 from api.apps.zone import Zone
 from api.apps.ward import Ward
+from api.validators.unique_name_validator import unique_name_validator
 
 
 class UniqueIdOrPkField(serializers.SlugRelatedField):
@@ -110,3 +111,11 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["unique_id"]
+        validators = []  # disable DRF unique constraint
+
+    def validate(self, attrs):
+        return unique_name_validator(
+            Model=VehicleCreation,
+            name_field="vehicle_no",
+        )(self, attrs)
