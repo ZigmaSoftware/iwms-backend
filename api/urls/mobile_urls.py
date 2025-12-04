@@ -11,4 +11,6 @@ router.register("customer/login", CitizenLoginViewSet, basename="customer-login"
 router.register("main-category", MainCategoryViewSet, basename="main-category")
 router.register("sub-category", SubCategoryViewSet, basename="sub-category")
 router.register("login", LoginViewSet, basename="mobile-login")
+router.register("waste", WasteCollectionBluetoothViewSet, basename="waste-collection")
+
 urlpatterns = router.urls
