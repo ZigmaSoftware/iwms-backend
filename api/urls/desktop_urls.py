@@ -31,7 +31,7 @@ from ..views.desktopView.users.mainuserscreen_viewset import MainUserScreenViewS
 from ..views.desktopView.users.userscreen_viewset import UserScreenViewSet
 from ..views.desktopView.users.userpermission_viewset import UserPermissionViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
-from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
+from ..views.desktopView.masters.staffcreation_viewset import StaffcreationViewset
 
 # Vehicles
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet

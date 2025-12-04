@@ -1,8 +1,14 @@
+from django.shortcuts import get_object_or_404
+
 from rest_framework import viewsets
 from api.apps.staffUserType import StaffUserType
 from api.serializers.desktopView.users.staffusertype_serializer import StaffUserTypeSerializer
 
 
 class StaffUserTypeViewSet(viewsets.ModelViewSet):
-    queryset = StaffUserType.objects.filter(is_delete=False)
+    queryset = StaffUserType.objects.filter(is_deleted=False)
     serializer_class = StaffUserTypeSerializer
+    lookup_field = "unique_id"
+
+    def perform_destroy(self, instance):
+        instance.delete()

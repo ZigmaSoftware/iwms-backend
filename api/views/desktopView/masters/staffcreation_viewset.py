@@ -1,22 +1,31 @@
+from django.shortcuts import get_object_or_404
+from django.db import transaction
+
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 
-from api.models import Staffcreation
-from api.serializers import StaffcreationSerializer
+from api.apps.staffcreation import StaffOfficeDetails
+from api.serializers.desktopView.masters.staffcreation_serializer import StaffcreationSerializer
 
 
 class StaffcreationViewset(viewsets.ModelViewSet):
-    queryset = Staffcreation.objects.all().order_by("-id")
+    queryset = StaffOfficeDetails.objects.select_related("personal_details").all()
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser)
-
+    lookup_field = "staff_unique_id"
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["employee_name", "employee_id", "site_name", "department", "designation"]
-    ordering_fields = ["id", "employee_name", "employee_id", "created_at"]
+    search_fields = [
+        "employee_name",
+        "staff_unique_id",
+        "site_name",
+        "department",
+        "designation",
+    ]
+    ordering_fields = ["id", "staff_unique_id", "employee_name", "created_at"]
 
     def get_queryset(self):
-        queryset = Staffcreation.objects.all()
+        queryset = StaffOfficeDetails.objects.select_related("personal_details")
 
         site_name = self.request.query_params.get("site_name", None)
         employee_name = self.request.query_params.get("employee_name", None)
@@ -30,7 +39,7 @@ class StaffcreationViewset(viewsets.ModelViewSet):
             queryset = queryset.filter(employee_name__icontains=employee_name)
 
         if active_status in ["0", "1"]:
-            queryset = queryset.filter(active_status=active_status)
+            queryset = queryset.filter(active_status=active_status == "1")
 
         if salary_type:
             queryset = queryset.filter(salary_type__icontains=salary_type)
@@ -38,10 +47,11 @@ class StaffcreationViewset(viewsets.ModelViewSet):
         return queryset.order_by("-id")
 
     def create(self, request, *args, **kwargs):
-        serializer = StaffcreationSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
 
         if serializer.is_valid():
-            serializer.save()
+            with transaction.atomic():
+                serializer.save()
             return Response(
                 {"status": True, "message": "Staff Created Successfully"},
                 status=status.HTTP_201_CREATED
@@ -54,10 +64,15 @@ class StaffcreationViewset(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = StaffcreationSerializer(instance, data=request.data, partial=True)
+        serializer = self.get_serializer(
+            instance,
+            data=request.data,
+            partial=kwargs.pop("partial", False),
+        )
 
         if serializer.is_valid():
-            serializer.save()
+            with transaction.atomic():
+                serializer.save()
             return Response(
                 {"status": True, "message": "Staff Updated Successfully"},
                 status=status.HTTP_200_OK
@@ -67,6 +82,16 @@ class StaffcreationViewset(viewsets.ModelViewSet):
             {"status": False, "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+    def get_object(self):
+        lookup_field = self.lookup_field
+        lookup_url_kwarg = self.lookup_url_kwarg or lookup_field
+        lookup_value = self.kwargs.get(lookup_url_kwarg)
+        queryset = self.filter_queryset(self.get_queryset())
+        obj = get_object_or_404(queryset, **{lookup_field: lookup_value})
+
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

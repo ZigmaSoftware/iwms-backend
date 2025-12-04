@@ -7,3 +7,4 @@ class CustomerCreationViewSet(viewsets.ModelViewSet):
         "ward","zone","city","district","state","country","property","sub_property"
     ).order_by("customer_name")
     serializer_class = CustomerCreationSerializer
+    lookup_field = "unique_id"
