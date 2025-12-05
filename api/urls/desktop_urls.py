@@ -32,6 +32,7 @@ from ..views.desktopView.users.userscreen_viewset import UserScreenViewSet
 from ..views.desktopView.users.userpermission_viewset import UserPermissionViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
 from ..views.desktopView.masters.staffcreation_viewset import StaffcreationViewset
+from ..views.desktopView.assignments.assignment_viewset import DailyAssignmentViewSet
 
 # Vehicles
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
@@ -81,6 +82,7 @@ router.register(r'mainuserscreen', MainUserScreenViewSet)
 router.register(r'userscreens', UserScreenViewSet)
 router.register(r'userpermissions', UserPermissionViewSet)
 router.register(r'login-user', LoginViewSet, basename='login-user')
+router.register(r'assignments', DailyAssignmentViewSet)
 
 
 # Vehicles

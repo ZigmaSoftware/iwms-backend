@@ -1,0 +1,569 @@
+[
+  {
+    "model": "api.continent",
+    "pk": 1,
+    "fields": {
+      "unique_id": "CONTASIA1",
+      "name": "Asia",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.country",
+    "pk": 1,
+    "fields": {
+      "unique_id": "COUNIND1",
+      "continent_id": "CONTASIA1",
+      "name": "India",
+      "currency": "INR",
+      "mob_code": "+91",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.state",
+    "pk": 1,
+    "fields": {
+      "unique_id": "STATEDEL1",
+      "country_id": "COUNIND1",
+      "continent_id": "CONTASIA1",
+      "name": "Delhi NCR",
+      "label": "DL",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.district",
+    "pk": 1,
+    "fields": {
+      "unique_id": "DISTGBN1",
+      "country_id": "COUNIND1",
+      "state_id": "STATEDEL1",
+      "continent_id": "CONTASIA1",
+      "name": "Greater Noida",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.city",
+    "pk": 1,
+    "fields": {
+      "unique_id": "CITYNOIDA1",
+      "continent_id": "CONTASIA1",
+      "country_id": "COUNIND1",
+      "state_id": "STATEDEL1",
+      "district_id": "DISTGBN1",
+      "name": "Noida",
+      "description": "Gamma 1 sector",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.zone",
+    "pk": 1,
+    "fields": {
+      "unique_id": "ZONEGAMMA1",
+      "continent_id": "CONTASIA1",
+      "country_id": "COUNIND1",
+      "state_id": "STATEDEL1",
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "name": "Gamma",
+      "description": "Gamma 1 Noida",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.ward",
+    "pk": "WARD1GAMMA",
+    "fields": {
+      "unique_id": "WARD1GAMMA",
+      "continent_id": "CONTASIA1",
+      "country_id": "COUNIND1",
+      "state_id": "STATEDEL1",
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "name": "1",
+      "description": "Ward 1 Gamma 1",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.property",
+    "pk": "PROPERTYAPT1",
+    "fields": {
+      "unique_id": "PROPERTYAPT1",
+      "property_name": "Apartment",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.subproperty",
+    "pk": "SUBPROPERTY-B1",
+    "fields": {
+      "unique_id": "SUBPROPERTY-B1",
+      "property_id": "PROPERTYAPT1",
+      "sub_property_name": "Block 1",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.usertype",
+    "pk": "UTYPE-CUSTOMER",
+    "fields": {
+      "unique_id": "UTYPE-CUSTOMER",
+      "name": "customer",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.usertype",
+    "pk": "UTYPE-STAFF",
+    "fields": {
+      "unique_id": "UTYPE-STAFF",
+      "name": "staff",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.staffusertype",
+    "pk": "STUSR-DRIVER",
+    "fields": {
+      "unique_id": "STUSR-DRIVER",
+      "usertype_id": "UTYPE-STAFF",
+      "name": "driver",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.staffusertype",
+    "pk": "STUSR-OPERATOR",
+    "fields": {
+      "unique_id": "STUSR-OPERATOR",
+      "usertype_id": "UTYPE-STAFF",
+      "name": "operator",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.staffusertype",
+    "pk": "STUSR-ADMIN",
+    "fields": {
+      "unique_id": "STUSR-ADMIN",
+      "usertype_id": "UTYPE-STAFF",
+      "name": "admin",
+      "is_active": true,
+      "is_deleted": false
+    }
+  },
+  {
+    "model": "api.customercreation",
+    "pk": 1,
+    "fields": {
+      "unique_id": "CUS-GAMMA1-001",
+      "customer_name": "Sameer",
+      "contact_no": "9786255854",
+      "building_no": "A1",
+      "street": "Main Street",
+      "area": "Gamma 1",
+      "ward": "WARD1GAMMA",
+      "zone": "ZONEGAMMA1",
+      "city": "CITYNOIDA1",
+      "district": "DISTGBN1",
+      "state": "STATEDEL1",
+      "country": "COUNIND1",
+      "pincode": "201308",
+      "latitude": "28.4740",
+      "longitude": "77.5045",
+      "id_proof_type": "AADHAAR",
+      "id_no": "A1",
+      "property": "PROPERTYAPT1",
+      "sub_property": "SUBPROPERTY-B1",
+      "is_deleted": false,
+      "is_active": true
+    }
+  },
+  {
+    "model": "api.customercreation",
+    "pk": 2,
+    "fields": {
+      "unique_id": "CUS-GAMMA1-002",
+      "customer_name": "Riya",
+      "contact_no": "9786255855",
+      "building_no": "A2",
+      "street": "Park Lane",
+      "area": "Gamma 1",
+      "ward": "WARD1GAMMA",
+      "zone": "ZONEGAMMA1",
+      "city": "CITYNOIDA1",
+      "district": "DISTGBN1",
+      "state": "STATEDEL1",
+      "country": "COUNIND1",
+      "pincode": "201308",
+      "latitude": "28.4750",
+      "longitude": "77.5035",
+      "id_proof_type": "AADHAAR",
+      "id_no": "A2",
+      "property": "PROPERTYAPT1",
+      "sub_property": "SUBPROPERTY-B1",
+      "is_deleted": false,
+      "is_active": true
+    }
+  },
+  {
+    "model": "api.customercreation",
+    "pk": 3,
+    "fields": {
+      "unique_id": "CUS-GAMMA1-003",
+      "customer_name": "Karan",
+      "contact_no": "9786255856",
+      "building_no": "A3",
+      "street": "Garden Road",
+      "area": "Gamma 1",
+      "ward": "WARD1GAMMA",
+      "zone": "ZONEGAMMA1",
+      "city": "CITYNOIDA1",
+      "district": "DISTGBN1",
+      "state": "STATEDEL1",
+      "country": "COUNIND1",
+      "pincode": "201308",
+      "latitude": "28.4735",
+      "longitude": "77.5050",
+      "id_proof_type": "AADHAAR",
+      "id_no": "A3",
+      "property": "PROPERTYAPT1",
+      "sub_property": "SUBPROPERTY-B1",
+      "is_deleted": false,
+      "is_active": true
+    }
+  },
+  {
+    "model": "api.staffofficedetails",
+    "pk": 1,
+    "fields": {
+      "staff_unique_id": "ST-DRV-001",
+      "employee_name": "Driver One",
+      "department": "Logistics",
+      "designation": "Driver",
+      "active_status": true
+    }
+  },
+  {
+    "model": "api.staffofficedetails",
+    "pk": 2,
+    "fields": {
+      "staff_unique_id": "ST-DRV-002",
+      "employee_name": "Driver Two",
+      "department": "Logistics",
+      "designation": "Driver",
+      "active_status": true
+    }
+  },
+  {
+    "model": "api.staffofficedetails",
+    "pk": 3,
+    "fields": {
+      "staff_unique_id": "ST-DRV-003",
+      "employee_name": "Driver Three",
+      "department": "Logistics",
+      "designation": "Driver",
+      "active_status": true
+    }
+  },
+  {
+    "model": "api.staffofficedetails",
+    "pk": 4,
+    "fields": {
+      "staff_unique_id": "ST-OPR-001",
+      "employee_name": "Operator One",
+      "department": "Operations",
+      "designation": "Operator",
+      "active_status": true
+    }
+  },
+  {
+    "model": "api.staffofficedetails",
+    "pk": 5,
+    "fields": {
+      "staff_unique_id": "ST-OPR-002",
+      "employee_name": "Operator Two",
+      "department": "Operations",
+      "designation": "Operator",
+      "active_status": true
+    }
+  },
+  {
+    "model": "api.staffofficedetails",
+    "pk": 6,
+    "fields": {
+      "staff_unique_id": "ST-OPR-003",
+      "employee_name": "Operator Three",
+      "department": "Operations",
+      "designation": "Operator",
+      "active_status": true
+    }
+  },
+  {
+    "model": "api.staffofficedetails",
+    "pk": 7,
+    "fields": {
+      "staff_unique_id": "ST-ADM-001",
+      "employee_name": "Admin One",
+      "department": "Admin",
+      "designation": "Admin",
+      "active_status": true
+    }
+  },
+  {
+    "model": "api.staffofficedetails",
+    "pk": 8,
+    "fields": {
+      "staff_unique_id": "ST-ADM-002",
+      "employee_name": "Admin Two",
+      "department": "Admin",
+      "designation": "Admin",
+      "active_status": true
+    }
+  },
+  {
+    "model": "api.staffofficedetails",
+    "pk": 9,
+    "fields": {
+      "staff_unique_id": "ST-ADM-003",
+      "employee_name": "Admin Three",
+      "department": "Admin",
+      "designation": "Admin",
+      "active_status": true
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 1,
+    "fields": {
+      "unique_id": "USER-CIT-001",
+      "user_type": "UTYPE-CUSTOMER",
+      "password": "7890",
+      "staffusertype_id": null,
+      "staff_id": null,
+      "customer_id": 1,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 2,
+    "fields": {
+      "unique_id": "USER-CIT-002",
+      "user_type": "UTYPE-CUSTOMER",
+      "password": "7890",
+      "staffusertype_id": null,
+      "staff_id": null,
+      "customer_id": 2,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 3,
+    "fields": {
+      "unique_id": "USER-CIT-003",
+      "user_type": "UTYPE-CUSTOMER",
+      "password": "7890",
+      "staffusertype_id": null,
+      "staff_id": null,
+      "customer_id": 3,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 4,
+    "fields": {
+      "unique_id": "USER-DRV-001",
+      "user_type": "UTYPE-STAFF",
+      "password": "7890",
+      "staffusertype_id": "STUSR-DRIVER",
+      "staff_id": 1,
+      "customer_id": null,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 5,
+    "fields": {
+      "unique_id": "USER-DRV-002",
+      "user_type": "UTYPE-STAFF",
+      "password": "7890",
+      "staffusertype_id": "STUSR-DRIVER",
+      "staff_id": 2,
+      "customer_id": null,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 6,
+    "fields": {
+      "unique_id": "USER-DRV-003",
+      "user_type": "UTYPE-STAFF",
+      "password": "7890",
+      "staffusertype_id": "STUSR-DRIVER",
+      "staff_id": 3,
+      "customer_id": null,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 7,
+    "fields": {
+      "unique_id": "USER-OPR-001",
+      "user_type": "UTYPE-STAFF",
+      "password": "7890",
+      "staffusertype_id": "STUSR-OPERATOR",
+      "staff_id": 4,
+      "customer_id": null,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 8,
+    "fields": {
+      "unique_id": "USER-OPR-002",
+      "user_type": "UTYPE-STAFF",
+      "password": "7890",
+      "staffusertype_id": "STUSR-OPERATOR",
+      "staff_id": 5,
+      "customer_id": null,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 9,
+    "fields": {
+      "unique_id": "USER-OPR-003",
+      "user_type": "UTYPE-STAFF",
+      "password": "7890",
+      "staffusertype_id": "STUSR-OPERATOR",
+      "staff_id": 6,
+      "customer_id": null,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 10,
+    "fields": {
+      "unique_id": "USER-ADM-001",
+      "user_type": "UTYPE-STAFF",
+      "password": "7890",
+      "staffusertype_id": "STUSR-ADMIN",
+      "staff_id": 7,
+      "customer_id": null,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 11,
+    "fields": {
+      "unique_id": "USER-ADM-002",
+      "user_type": "UTYPE-STAFF",
+      "password": "7890",
+      "staffusertype_id": "STUSR-ADMIN",
+      "staff_id": 8,
+      "customer_id": null,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  },
+  {
+    "model": "api.user",
+    "pk": 12,
+    "fields": {
+      "unique_id": "USER-ADM-003",
+      "user_type": "UTYPE-STAFF",
+      "password": "7890",
+      "staffusertype_id": "STUSR-ADMIN",
+      "staff_id": 9,
+      "customer_id": null,
+      "district_id": "DISTGBN1",
+      "city_id": "CITYNOIDA1",
+      "zone_id": "ZONEGAMMA1",
+      "ward_id": "WARD1GAMMA",
+      "is_active": true,
+      "is_delete": false
+    }
+  }
+]

@@ -12,6 +12,7 @@ from .apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 from .apps.customercreation import CustomerCreation
 from .apps.wastecollection import WasteCollection
 from .apps.feedback import FeedBack
+from .apps.assignment import DailyAssignment
 
 from .apps.mainuserscreen import MainUserScreen
 from .apps.userscreen import UserScreen
