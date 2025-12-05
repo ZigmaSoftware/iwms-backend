@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from api.apps.staffUserType import StaffUserType
+from api.validators.unique_name_validator import unique_name_validator
 
 
 class StaffUserTypeSerializer(serializers.ModelSerializer):
@@ -13,6 +14,7 @@ class StaffUserTypeSerializer(serializers.ModelSerializer):
         model = StaffUserType
         fields = "__all__"
         read_only_fields = ["unique_id"]
+        validators = []
     
     def validate_usertype_id(self, usertype_obj):
         """Only allow StaffUserType if UserType is 'staff'."""
@@ -29,3 +31,10 @@ class StaffUserTypeSerializer(serializers.ModelSerializer):
             )
 
         return usertype_obj
+    
+
+    def validate(self, attrs):
+        return unique_name_validator(
+            Model=StaffUserType,
+            name_field="name",
+        )(self, attrs)
