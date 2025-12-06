@@ -6,7 +6,7 @@ class StaffPersonalSerializer(serializers.ModelSerializer):
         model = StaffPersonalDetails
         fields = [
             "dob", "blood_group", "marital_status", "gender",
-            "present_address", "permanent_address", "contact_details"
+            "present_address", "permanent_address", 
         ]
 
 
