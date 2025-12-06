@@ -17,9 +17,9 @@ from api.apps.ward import Ward
 from api.apps.userType import UserType
 from api.apps.userCreation import User      # adjust to actual filename
 
-from api.apps.mainuserscreen import MainUserScreen
+
 from api.apps.userscreen import UserScreen
-from api.apps.userpermission import UserPermission
+
 
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty

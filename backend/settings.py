@@ -93,7 +93,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'globaldb',
+        'NAME': 'iwmsdb',
         'USER': 'root',
         'PASSWORD': 'admin@123',
         'HOST': 'localhost',
