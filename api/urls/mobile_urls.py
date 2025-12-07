@@ -24,6 +24,7 @@ router.register("register", RegisterViewSet, basename="register")
 router.register("recognize", RecognizeViewSet, basename="recognize")
 router.register("employee", EmployeeViewSet, basename="employee")
 router.register("staff-profile", StaffProfileViewSet, basename="staff-profile")
+router.register("waste", WasteCollectionBluetoothViewSet, basename="waste-collection")
 urlpatterns = router.urls
 
 urlpatterns = router.urls
