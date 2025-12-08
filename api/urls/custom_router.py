@@ -2,22 +2,17 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+from django.urls import path
 from collections import OrderedDict
 
 
 class GroupedRouter(DefaultRouter):
-    """
-    Custom DRF router that groups endpoints by module names.
-    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.group_map = OrderedDict()
 
     def register_group(self, group, prefix, viewset, basename=None):
-        """
-        Register a viewset inside a named group.
-        """
         if group not in self.group_map:
             self.group_map[group] = []
 
@@ -45,15 +40,12 @@ class GroupedRouter(DefaultRouter):
 
                     for entry in items:
                         url_name = f"{entry['basename']}-list"
-
                         try:
                             url = reverse(url_name, request=request)
                         except Exception:
                             url = None
 
-                        # Clean label for display
                         label = entry['basename'].replace("-", " ").title()
-
                         data[group_name][label] = url
 
                 return Response(data)
@@ -62,6 +54,8 @@ class GroupedRouter(DefaultRouter):
 
     def get_urls(self):
         urls = super().get_urls()
-        # override the default API root
-        urls[0].callback = self.get_api_root_view()
-        return urls
+
+        # Safe root URL
+        root = [path("", self.get_api_root_view(), name="grouped-api-root")]
+
+        return root + urls
