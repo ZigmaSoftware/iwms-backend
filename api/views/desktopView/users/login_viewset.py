@@ -2,7 +2,6 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken
-
 from ....serializers.desktopView.users.login_serializer import LoginSerializer
 
 
@@ -14,8 +13,8 @@ class LoginViewSet(ViewSet):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]
+        permissions = serializer.validated_data["permissions"]
 
-        # Generate ONLY access token (5 hours)
         access = AccessToken.for_user(user)
         token = str(access)
 
@@ -32,5 +31,6 @@ class LoginViewSet(ViewSet):
             "user_type": user.user_type.name,
             "name": name,
             "role": role,
+            "permissions": permissions,     # <--- NEW
             "access_token": token
         }, status=status.HTTP_200_OK)
