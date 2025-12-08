@@ -1,4 +1,5 @@
 from .custom_router import GroupedRouter
+from django.urls import path, include
 
 # Masters
 from ..views.desktopView.masters.continent_viewset import ContinentViewSet
@@ -45,7 +46,7 @@ from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
 router = GroupedRouter()
 
 # Masters
-router.register_group("masters", "continents", ContinentViewSet)
+
 router.register_group("masters", "countries", CountryViewSet)
 router.register_group("masters", "states", StateViewSet)
 router.register_group("masters", "districts", DistrictViewSet)
@@ -53,6 +54,7 @@ router.register_group("masters", "cities", CityViewSet)
 router.register_group("masters", "zones", ZoneViewSet)
 router.register_group("masters", "wards", WardViewSet)
 router.register_group("masters", "staffcreation", StaffcreationViewset)
+router.register_group("masters", "continents", ContinentViewSet)
 
 # Assets
 router.register_group("assets", "fuels", FuelViewSet)
@@ -83,4 +85,6 @@ router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
 router.register_group("complaints", "complaints", ComplaintViewSet)
 
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("", include(router.urls)),   # <-- THIS IS THE FIX
+]
