@@ -1,9 +1,5 @@
-from rest_framework.routers import DefaultRouter
-from django.urls import path
-
-# ==============================
-#   Import All ViewSets
-# ==============================
+from .custom_router import GroupedRouter
+from django.urls import path, include
 
 # Masters
 from ..views.desktopView.masters.continent_viewset import ContinentViewSet
@@ -13,6 +9,7 @@ from ..views.desktopView.masters.district_viewset import DistrictViewSet
 from ..views.desktopView.masters.city_viewset import CityViewSet
 from ..views.desktopView.masters.zone_viewset import ZoneViewSet
 from ..views.desktopView.masters.ward_viewset import WardViewSet
+from ..views.desktopView.masters.staffcreation_viewset import StaffcreationViewset
 
 # Assets
 from ..views.desktopView.assets.fuel_viewset import FuelViewSet
@@ -24,15 +21,16 @@ from ..views.desktopView.customers.customercreation_viewset import CustomerCreat
 from ..views.desktopView.customers.wastecollection_viewset import WasteCollectionViewSet
 from ..views.desktopView.customers.feedback_viewset import FeedBackViewSet
 
-# Users
+# Users & Access
 from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
 from ..views.desktopView.users.user_viewset import UserViewSet
-from ..views.desktopView.users.mainuserscreen_viewset import MainUserScreenViewSet
-from ..views.desktopView.users.userscreen_viewset import UserScreenViewSet
-from ..views.desktopView.users.userpermission_viewset import UserPermissionViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
-from ..views.desktopView.masters.staffcreation_viewset import StaffcreationViewset
-from ..views.desktopView.assignments.assignment_viewset import DailyAssignmentViewSet
+from ..views.desktopView.users.userscreenaction_viewset import UserScreenActionViewSet
+from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
+from ..views.desktopView.users.mainscreen_viewset import MainScreenViewSet
+from ..views.desktopView.users.userscreen_viewset import UserScreenViewSet
+from ..views.desktopView.users.userscreenpermission_viewset import UserScreenPermissionViewSet
+from ..views.desktopView.users.login_viewset import LoginViewSet
 
 # Vehicles
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
@@ -41,64 +39,52 @@ from ..views.desktopView.vehicles.vehiclecreation_viewset import VehicleCreation
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
 
-# New Config Endpoint
-from ..views.desktopView.users.userType_config_viewset import UserTypeConfigView
 
-from ..views.desktopView.users.login_viewset import LoginViewSet
-
-
-
-# ==============================
-#   Router Registration
-# ==============================
-
-router = DefaultRouter()
+# -------------------------------------------------------------------
+# Register grouped router
+# -------------------------------------------------------------------
+router = GroupedRouter()
 
 # Masters
-router.register(r'continents', ContinentViewSet)
-router.register(r'countries', CountryViewSet)
-router.register(r'states', StateViewSet)
-router.register(r'districts', DistrictViewSet)
-router.register(r'cities', CityViewSet)
-router.register(r'zones', ZoneViewSet)
-router.register(r'wards', WardViewSet)
-router.register(r'staffcreation', StaffcreationViewset)
+
+router.register_group("masters", "countries", CountryViewSet)
+router.register_group("masters", "states", StateViewSet)
+router.register_group("masters", "districts", DistrictViewSet)
+router.register_group("masters", "cities", CityViewSet)
+router.register_group("masters", "zones", ZoneViewSet)
+router.register_group("masters", "wards", WardViewSet)
+router.register_group("masters", "staffcreation", StaffcreationViewset)
+router.register_group("masters", "continents", ContinentViewSet)
 
 # Assets
-router.register(r'fuels', FuelViewSet)
-router.register(r'properties', PropertyViewSet)
-router.register(r'subproperties', SubPropertyViewSet)
+router.register_group("assets", "fuels", FuelViewSet)
+router.register_group("assets", "properties", PropertyViewSet)
+router.register_group("assets", "subproperties", SubPropertyViewSet)
 
 # Customers
-router.register(r'customercreations', CustomerCreationViewSet)
-router.register(r'wastecollections', WasteCollectionViewSet)
-router.register(r'feedbacks', FeedBackViewSet)
+router.register_group("customers", "customercreations", CustomerCreationViewSet)
+router.register_group("customers", "wastecollections", WasteCollectionViewSet)
+router.register_group("customers", "feedbacks", FeedBackViewSet)
 
 # Users
-router.register(r'user-type', UserTypeViewSet)
-router.register(r'staffusertypes', StaffUserTypeViewSet)
-router.register(r'user', UserViewSet)
-router.register(r'mainuserscreen', MainUserScreenViewSet)           
-router.register(r'userscreens', UserScreenViewSet)
-router.register(r'userpermissions', UserPermissionViewSet)
-router.register(r'login-user', LoginViewSet, basename='login-user')
-router.register(r'assignments', DailyAssignmentViewSet)
-
+router.register_group("users", "user-type", UserTypeViewSet)
+router.register_group("users", "staffusertypes", StaffUserTypeViewSet)
+router.register_group("users", "users", UserViewSet)
+router.register_group("users", "login-user", LoginViewSet)
+router.register_group("users", "userscreen-action", UserScreenActionViewSet)
+router.register_group("users", "mainscreentype", MainScreenTypeViewSet)
+router.register_group("users", "mainscreens", MainScreenViewSet)
+router.register_group("users", "userscreens", UserScreenViewSet)
+router.register_group("users", "userscreenpermissions", UserScreenPermissionViewSet)
 
 # Vehicles
-router.register(r'vehicle-type', VehicleTypeCreationViewSet)
-router.register(r'vehicle-creation', VehicleCreationViewSet)
+router.register_group("vehicles", "vehicle-type", VehicleTypeCreationViewSet)
+router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
 
 # Complaints
-router.register(r'complaints', ComplaintViewSet)
+router.register_group("complaints", "complaints", ComplaintViewSet)
 
 
-# ==============================
-#   Final URL Patterns
-# ==============================
-
-urlpatterns = router.urls 
-
-# + [
-#     path('user-type-config/<int:pk>/', UserTypeConfigView.as_view(), name="user-type-config"),
-# ]
+urlpatterns = [
+    path("", include(router.urls)),   # <-- THIS IS THE FIX
+]

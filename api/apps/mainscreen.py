@@ -1,35 +1,32 @@
 from django.db import models
 from .utils.comfun import generate_unique_id
-from .mainscreen import MainScreen
+from .mainscreentype import MainScreenType
 
 
-def generate_userscreen_id():
-    return f"USERSCREEN-{generate_unique_id()}"
+def generate_mainscreen_id():
+    return f"MAINSCREEN-{generate_unique_id()}"
 
 
-class UserScreen(models.Model):
+class MainScreen(models.Model):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
         unique=True,
-        default=generate_userscreen_id,
+        default=generate_mainscreen_id,
         editable=False
     )
 
-    mainscreen_id = models.ForeignKey(
-        MainScreen,
+    mainscreentype_id = models.ForeignKey(
+        MainScreenType,
         on_delete=models.PROTECT,
-        related_name="userscreens",
+        related_name="mainscreens",
         to_field="unique_id",
-        db_column="mainscreen_id"
+        db_column="mainscreentype_id"   # IMPORTANT
     )
 
-    userscreen_name = models.CharField(max_length=50, unique=True)
-    folder_name = models.CharField(max_length=50, unique=True)
+    mainscreen_name = models.CharField(max_length=50, unique=True)
     icon_name = models.CharField(max_length=50, unique=True)
-
-    # REMOVE unique=True
-    order_no = models.IntegerField()
+    order_no = models.IntegerField(unique=True)
 
     description = models.CharField(max_length=255, blank=True, null=True)
 
@@ -38,21 +35,14 @@ class UserScreen(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
 
     class Meta:
         ordering = ["order_no"]
-        verbose_name = "User Screen"
-        verbose_name_plural = "User Screens"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["mainscreen_id", "order_no"],
-                name="unique_order_per_mainscreen"
-            ),
-        ]
+        verbose_name = "Main Screen"
+        verbose_name_plural = "Main Screens"
 
     def __str__(self):
-        return self.userscreen_name
+        return self.mainscreen_name
 
     def delete(self, *args, **kwargs):
         self.is_active = False
