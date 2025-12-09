@@ -32,7 +32,7 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
     vehicle_type_id = UniqueIdOrPkField(
         source="vehicle_type",
         slug_field="unique_id",
-        queryset=VehicleTypeCreation.objects.filter(is_delete=False),
+        queryset=VehicleTypeCreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
