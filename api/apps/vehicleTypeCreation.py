@@ -29,5 +29,5 @@ class VehicleTypeCreation(models.Model):
         Soft delete: mark this vehicle type as inactive (and optionally cascade).
         """
         self.is_active = False
-        self.is_delete = True
-        self.save(update_fields=["is_active", "is_delete"])
+        self.is_deleted = True
+        self.save(update_fields=["is_active", "is_deleted"])
