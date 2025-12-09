@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import models
 from api.apps.userscreenpermission import UserScreenPermission
 from api.apps.userType import UserType
 from api.apps.userscreen import UserScreen
@@ -13,117 +14,130 @@ class UserScreenPermissionSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class UserScreenPermissionBulkSerializer(serializers.Serializer):
+class ScreenActionSerializer(serializers.Serializer):
+    userscreen_id = serializers.CharField()
+    actions = serializers.ListField(
+        child=serializers.CharField(),
+        allow_empty=True
+    )
+
+
+class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
     usertype_id = serializers.CharField()
     staffusertype_id = serializers.CharField(required=False, allow_null=True)
     mainscreen_id = serializers.CharField()
-    userscreen_id = serializers.CharField()
 
-    userscreenaction_ids = serializers.ListField(
-        child=serializers.CharField(),
-        allow_empty=False
-    )
-
+    screens = ScreenActionSerializer(many=True)
     description = serializers.CharField(required=False, allow_blank=True)
 
     # ------------------------------------------------------------
     # VALIDATIONS
     # ------------------------------------------------------------
     def validate(self, data):
-        usertype_id = data["usertype_id"]
-        staffusertype_id = data.get("staffusertype_id")
+        ut_id = data["usertype_id"]
 
-        # -------------------------------
-        # VALIDATE USER TYPE
-        # -------------------------------
         try:
-            ut = UserType.objects.get(unique_id=usertype_id)
+            ut = UserType.objects.get(unique_id=ut_id)
         except UserType.DoesNotExist:
             raise serializers.ValidationError({"usertype_id": "Invalid usertype"})
 
-        # Detect customer type by common name fields
-        ut_name = getattr(ut, "name", None) or getattr(ut, "user_type", None)
+        # ROLE RESOLUTION
+        ut_name = getattr(ut, "name", "").lower()
 
-        if ut_name and ut_name.lower() in ["customer", "client", "cust"]:
-            data["staffusertype_id"] = None
+        if ut_name in ["customer", "client", "cust"]:
+            data["resolved_staffusertype_id"] = None
+        else:
+            staff_ut = data.get("staffusertype_id")
+            if not staff_ut:
+                raise serializers.ValidationError({
+                    "staffusertype_id": "staffusertype_id is required for staff usertype"
+                })
+            data["resolved_staffusertype_id"] = staff_ut
 
-        # -------------------------------
-        # VALIDATE SCREEN BELONGS TO MAINSCREEN
-        # -------------------------------
-        try:
-            screen = UserScreen.objects.get(unique_id=data["userscreen_id"], is_deleted=False)
-        except UserScreen.DoesNotExist:
-            raise serializers.ValidationError({"userscreen_id": "Invalid userscreen"})
+        # Validate screens belong to mainscreen
+        ms_id = data["mainscreen_id"]
 
-        if screen.mainscreen_id.unique_id != data["mainscreen_id"]:
-            raise serializers.ValidationError({
-                "userscreen_id": (
-                    f"Userscreen '{screen.userscreen_name}' does not belong to "
-                    f"Mainscreen '{screen.mainscreen_id.mainscreen_name}'."
-                )
-            })
+        for item in data["screens"]:
+            userscreen_id = item["userscreen_id"]
+
+            try:
+                sc = UserScreen.objects.get(unique_id=userscreen_id, is_deleted=False)
+            except UserScreen.DoesNotExist:
+                raise serializers.ValidationError({"screens": f"Invalid userscreen {userscreen_id}"})
+
+            if sc.mainscreen_id.unique_id != ms_id:
+                raise serializers.ValidationError({
+                    "screens": (
+                        f"Screen {sc.userscreen_name} does not belong to "
+                        f"Mainscreen {sc.mainscreen_id.mainscreen_name}"
+                    )
+                })
 
         return data
 
     # ------------------------------------------------------------
-    # CREATE LOGIC
+    # BULK CREATE / UPDATE / DELETE
     # ------------------------------------------------------------
     def create(self, validated_data):
-        usertype_id = validated_data["usertype_id"]
-        staffusertype_id = validated_data.get("staffusertype_id")
-        mainscreen_id = validated_data["mainscreen_id"]
-        userscreen_id = validated_data["userscreen_id"]
-        actions = validated_data["userscreenaction_ids"]
-        description = validated_data.get("description", "")
+        ut = validated_data["usertype_id"]
+        stu = validated_data["resolved_staffusertype_id"]
+        ms = validated_data["mainscreen_id"]
+        screens = validated_data["screens"]
+        desc = validated_data.get("description", "")
 
-        created_objs = []
-        skipped = []
+        created = []
+        updated = []
+        deleted = []
 
-        # Determine last order_no FOR THE ROLE
-        last = UserScreenPermission.objects.filter(
-            usertype_id_id=usertype_id,
-            staffusertype_id_id=staffusertype_id,
-            mainscreen_id_id=mainscreen_id
-        ).order_by("-order_no").first()
+        for scr in screens:
+            userscreen_id = scr["userscreen_id"]
+            incoming_actions = scr["actions"]
 
-        order_no = (last.order_no + 1) if last else 1
-
-        # ------------------------------------------------------------
-        # CREATE FOR EACH ACTION
-        # ------------------------------------------------------------
-        for action_id in actions:
-            exists = UserScreenPermission.objects.filter(
-                usertype_id_id=usertype_id,
-                staffusertype_id_id=staffusertype_id,
+            qs = UserScreenPermission.objects.filter(
+                usertype_id_id=ut,
+                staffusertype_id_id=stu,
+                mainscreen_id_id=ms,
                 userscreen_id_id=userscreen_id,
-                userscreenaction_id_id=action_id,
                 is_deleted=False
-            ).exists()
-
-            if exists:
-                skipped.append({
-                    "action": action_id,
-                    "reason": (
-                        "Permission already exists for this specific role "
-                        f"(usertype={usertype_id}, staffusertype={staffusertype_id})"
-                    )
-                })
-                continue
-
-            obj = UserScreenPermission.objects.create(
-                usertype_id_id=usertype_id,
-                staffusertype_id_id=staffusertype_id,
-                mainscreen_id_id=mainscreen_id,
-                userscreen_id_id=userscreen_id,
-                userscreenaction_id_id=action_id,
-                description=description,
-                order_no=order_no
             )
 
-            created_objs.append(obj)
-            order_no += 1
+            existing = {obj.userscreenaction_id_id: obj for obj in qs}
+
+            max_order = qs.aggregate(models.Max("order_no")).get("order_no__max") or 0
+            order_no = max_order + 1
+
+            # CREATE + UPDATE
+            for action_id in incoming_actions:
+                if action_id in existing:
+                    obj = existing[action_id]
+                    obj.description = desc
+                    obj.is_active = True
+                    obj.is_deleted = False
+                    obj.save()
+                    updated.append(obj)
+                else:
+                    obj = UserScreenPermission.objects.create(
+                        usertype_id_id=ut,
+                        staffusertype_id_id=stu,
+                        mainscreen_id_id=ms,
+                        userscreen_id_id=userscreen_id,
+                        userscreenaction_id_id=action_id,
+                        description=desc,
+                        order_no=order_no
+                    )
+                    created.append(obj)
+                    order_no += 1
+
+            # DELETE missing actions
+            for action_id, obj in existing.items():
+                if action_id not in incoming_actions:
+                    obj.is_deleted = True
+                    obj.is_active = False
+                    obj.save()
+                    deleted.append(obj)
 
         return {
-            "created": created_objs,
-            "skipped": skipped
+            "created": created,
+            "updated": updated,
+            "deleted": deleted
         }
