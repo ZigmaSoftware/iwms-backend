@@ -27,7 +27,8 @@ from .users.mainscreentype_serializer import MainScreenTypeSerializer
 from .users.mainscreen_serializer import MainScreenSerializer
 from .users.userscreenpermission_serializer import (
     UserScreenPermissionSerializer,
-    UserScreenPermissionBulkSerializer
+    UserScreenPermissionMultiScreenSerializer,
+    ScreenActionSerializer
 )
 
 # Vehicles
