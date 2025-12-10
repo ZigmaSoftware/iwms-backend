@@ -10,7 +10,6 @@ from api.apps.userscreen import UserScreen
 # SINGLE PERMISSION SERIALIZER (Used for GET, LIST)
 # =============================================================
 class UserScreenPermissionSerializer(serializers.ModelSerializer):
-    # JOINED NAMES (Read Only)
     userscreen_name = serializers.CharField(source="userscreen_id.userscreen_name", read_only=True)
     userscreenaction_name = serializers.CharField(source="userscreenaction_id.action_name", read_only=True)
 
@@ -29,14 +28,11 @@ class UserScreenPermissionSerializer(serializers.ModelSerializer):
 # =============================================================
 class ScreenActionSerializer(serializers.Serializer):
     userscreen_id = serializers.CharField()
-    actions = serializers.ListField(
-        child=serializers.CharField(),
-        allow_empty=True
-    )
+    actions = serializers.ListField(child=serializers.CharField(), allow_empty=True)
 
 
 # =============================================================
-# MULTI-SCREEN BULK CREATE / UPDATE SERIALIZER
+# MULTI-SCREEN BULK CREATE / UPDATE / REVIVE / SOFT DELETE
 # =============================================================
 class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
     usertype_id = serializers.CharField()
@@ -60,47 +56,39 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
 
         ut_name = getattr(ut, "name", "").lower()
 
-        # If user is customer, staff usertype must be null
+        # Customer type: staffusertype must be null
         if ut_name in ["customer", "client", "cust"]:
             data["resolved_staffusertype_id"] = None
-
         else:
-            staff_ut = data.get("staffusertype_id")
-
-            if not staff_ut:
+            st = data.get("staffusertype_id")
+            if not st:
                 raise serializers.ValidationError({
-                    "staffusertype_id": "staffusertype_id is required for staff usertype"
+                    "staffusertype_id": "staffusertype_id is required for staff roles"
                 })
+            data["resolved_staffusertype_id"] = st
 
-            data["resolved_staffusertype_id"] = staff_ut
+        ms = data["mainscreen_id"]
 
-        # Validate screens belong to mainscreen
-        ms_id = data["mainscreen_id"]
-
-        for item in data["screens"]:
-            userscreen_id = item["userscreen_id"]
-
+        # Validate screen belongs to mainscreen
+        for scr in data["screens"]:
             try:
-                sc = UserScreen.objects.get(unique_id=userscreen_id, is_deleted=False)
+                sc = UserScreen.objects.get(unique_id=scr["userscreen_id"], is_deleted=False)
             except UserScreen.DoesNotExist:
-                raise serializers.ValidationError({"screens": f"Invalid userscreen {userscreen_id}"})
+                raise serializers.ValidationError({"screens": f"Invalid screen {scr['userscreen_id']}"})
 
-            if sc.mainscreen_id.unique_id != ms_id:
+            if sc.mainscreen_id.unique_id != ms:
                 raise serializers.ValidationError({
-                    "screens": (
-                        f"Screen {sc.userscreen_name} does not belong to "
-                        f"Mainscreen {sc.mainscreen_id.mainscreen_name}"
-                    )
+                    "screens": f"{sc.userscreen_name} does not belong to {sc.mainscreen_id.mainscreen_name}"
                 })
 
         return data
 
     # ----------------------------
-    # BULK CREATE / UPDATE / DELETE
+    # BULK SYNC (Create, Update, Revive, Delete)
     # ----------------------------
     def create(self, validated_data):
         ut = validated_data["usertype_id"]
-        stu = validated_data["resolved_staffusertype_id"]
+        st = validated_data["resolved_staffusertype_id"]
         ms = validated_data["mainscreen_id"]
         screens = validated_data["screens"]
         desc = validated_data.get("description", "")
@@ -108,47 +96,54 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         created, updated, deleted = [], [], []
 
         for scr in screens:
-            userscreen_id = scr["userscreen_id"]
+            scr_id = scr["userscreen_id"]
             incoming_actions = scr["actions"]
 
+            # Fetch ALL existing records (including soft deleted)
             qs = UserScreenPermission.objects.filter(
                 usertype_id_id=ut,
-                staffusertype_id_id=stu,
+                staffusertype_id_id=st,
                 mainscreen_id_id=ms,
-                userscreen_id_id=userscreen_id,
-                is_deleted=False
+                userscreen_id_id=scr_id
             )
 
             existing = {obj.userscreenaction_id_id: obj for obj in qs}
 
-            max_order = qs.aggregate(models.Max("order_no")).get("order_no__max") or 0
-            order_no = max_order + 1
+            order_no = 1
 
-            # CREATE + UPDATE
-            for action_id in incoming_actions:
-                if action_id in existing:
-                    obj = existing[action_id]
-                    obj.description = desc
-                    obj.is_active = True
+            # CREATE + REVIVE + UPDATE
+            for act_id in incoming_actions:
+
+                if act_id in existing:
+                    obj = existing[act_id]
+
+                    # revive soft-deleted
                     obj.is_deleted = False
+                    obj.is_active = True
+
+                    obj.description = desc
+                    obj.order_no = order_no
                     obj.save()
+
                     updated.append(obj)
                 else:
+                    # create fresh
                     obj = UserScreenPermission.objects.create(
                         usertype_id_id=ut,
-                        staffusertype_id_id=stu,
+                        staffusertype_id_id=st,
                         mainscreen_id_id=ms,
-                        userscreen_id_id=userscreen_id,
-                        userscreenaction_id_id=action_id,
+                        userscreen_id_id=scr_id,
+                        userscreenaction_id_id=act_id,
                         description=desc,
-                        order_no=order_no,
+                        order_no=order_no
                     )
                     created.append(obj)
-                    order_no += 1
 
-            # DELETE missing actions
-            for action_id, obj in existing.items():
-                if action_id not in incoming_actions:
+                order_no += 1
+
+            # DELETE actions missing from incoming
+            for act_id, obj in existing.items():
+                if act_id not in incoming_actions:
                     obj.is_deleted = True
                     obj.is_active = False
                     obj.save()
@@ -157,5 +152,5 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         return {
             "created": created,
             "updated": updated,
-            "deleted": deleted,
+            "deleted": deleted
         }
