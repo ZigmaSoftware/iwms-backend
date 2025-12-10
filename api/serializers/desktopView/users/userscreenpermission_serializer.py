@@ -1,19 +1,32 @@
 from rest_framework import serializers
 from django.db import models
+
 from api.apps.userscreenpermission import UserScreenPermission
 from api.apps.userType import UserType
 from api.apps.userscreen import UserScreen
 
 
+# =============================================================
+# SINGLE PERMISSION SERIALIZER (Used for GET, LIST)
+# =============================================================
 class UserScreenPermissionSerializer(serializers.ModelSerializer):
+    # JOINED NAMES (Read Only)
     userscreen_name = serializers.CharField(source="userscreen_id.userscreen_name", read_only=True)
     userscreenaction_name = serializers.CharField(source="userscreenaction_id.action_name", read_only=True)
+
+    usertype_name = serializers.CharField(source="usertype_id.name", read_only=True)
+    staffusertype_name = serializers.CharField(source="staffusertype_id.name", read_only=True)
+
+    mainscreen_name = serializers.CharField(source="mainscreen_id.mainscreen_name", read_only=True)
 
     class Meta:
         model = UserScreenPermission
         fields = "__all__"
 
 
+# =============================================================
+# Nested Screen → Action Serializer
+# =============================================================
 class ScreenActionSerializer(serializers.Serializer):
     userscreen_id = serializers.CharField()
     actions = serializers.ListField(
@@ -22,6 +35,9 @@ class ScreenActionSerializer(serializers.Serializer):
     )
 
 
+# =============================================================
+# MULTI-SCREEN BULK CREATE / UPDATE SERIALIZER
+# =============================================================
 class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
     usertype_id = serializers.CharField()
     staffusertype_id = serializers.CharField(required=False, allow_null=True)
@@ -30,28 +46,32 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
     screens = ScreenActionSerializer(many=True)
     description = serializers.CharField(required=False, allow_blank=True)
 
-    # ------------------------------------------------------------
-    # VALIDATIONS
-    # ------------------------------------------------------------
+    # ----------------------------
+    # VALIDATION
+    # ----------------------------
     def validate(self, data):
         ut_id = data["usertype_id"]
 
+        # Validate usertype
         try:
             ut = UserType.objects.get(unique_id=ut_id)
         except UserType.DoesNotExist:
             raise serializers.ValidationError({"usertype_id": "Invalid usertype"})
 
-        # ROLE RESOLUTION
         ut_name = getattr(ut, "name", "").lower()
 
+        # If user is customer, staff usertype must be null
         if ut_name in ["customer", "client", "cust"]:
             data["resolved_staffusertype_id"] = None
+
         else:
             staff_ut = data.get("staffusertype_id")
+
             if not staff_ut:
                 raise serializers.ValidationError({
                     "staffusertype_id": "staffusertype_id is required for staff usertype"
                 })
+
             data["resolved_staffusertype_id"] = staff_ut
 
         # Validate screens belong to mainscreen
@@ -75,9 +95,9 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
 
         return data
 
-    # ------------------------------------------------------------
+    # ----------------------------
     # BULK CREATE / UPDATE / DELETE
-    # ------------------------------------------------------------
+    # ----------------------------
     def create(self, validated_data):
         ut = validated_data["usertype_id"]
         stu = validated_data["resolved_staffusertype_id"]
@@ -85,9 +105,7 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         screens = validated_data["screens"]
         desc = validated_data.get("description", "")
 
-        created = []
-        updated = []
-        deleted = []
+        created, updated, deleted = [], [], []
 
         for scr in screens:
             userscreen_id = scr["userscreen_id"]
@@ -123,7 +141,7 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                         userscreen_id_id=userscreen_id,
                         userscreenaction_id_id=action_id,
                         description=desc,
-                        order_no=order_no
+                        order_no=order_no,
                     )
                     created.append(obj)
                     order_no += 1
@@ -139,5 +157,5 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         return {
             "created": created,
             "updated": updated,
-            "deleted": deleted
+            "deleted": deleted,
         }
