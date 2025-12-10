@@ -36,8 +36,8 @@ class DailyAssignmentSerializer(serializers.ModelSerializer):
 
     ward_name = serializers.CharField(source="ward.name", read_only=True)
     customer_name = serializers.CharField(source="customer.customer_name", read_only=True)
-    customer_latitude = serializers.CharField(source="customer.latitude", read_only=True)
-    customer_longitude = serializers.CharField(source="customer.longitude", read_only=True)
+    customer_latitude = serializers.FloatField(source="customer.latitude", read_only=True)
+    customer_longitude = serializers.FloatField(source="customer.longitude", read_only=True)
     driver_name = serializers.CharField(source="driver.staff_id.employee_name", read_only=True)
     operator_name = serializers.CharField(source="operator.staff_id.employee_name", read_only=True)
     assigned_by_name = serializers.CharField(source="assigned_by.staff_id.employee_name", read_only=True)
