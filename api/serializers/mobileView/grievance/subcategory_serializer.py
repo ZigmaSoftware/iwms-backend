@@ -4,7 +4,9 @@ from api.validators.unique_name_validator import unique_name_validator
 
 
 class SubCategorySerializer(serializers.ModelSerializer):
-    mainCategory_name = serializers.CharField(source="mainCategory.name", read_only=True)
+    mainCategory_name = serializers.CharField(
+        source="mainCategory.main_categoryName", read_only=True
+    )
 
     class Meta:
         model = SubCategory
