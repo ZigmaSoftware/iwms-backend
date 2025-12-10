@@ -1,10 +1,9 @@
-from rest_framework.routers import DefaultRouter
-from django.urls import path
+from django.urls import path, include
+from .custom_router import GroupedRouter
 
-# ==============================
-#   Import All ViewSets
-# ==============================
-
+# ============================================================
+# IMPORTS
+# ============================================================
 # Masters
 from ..views.desktopView.masters.continent_viewset import ContinentViewSet
 from ..views.desktopView.masters.country_viewset import CountryViewSet
@@ -13,25 +12,30 @@ from ..views.desktopView.masters.district_viewset import DistrictViewSet
 from ..views.desktopView.masters.city_viewset import CityViewSet
 from ..views.desktopView.masters.zone_viewset import ZoneViewSet
 from ..views.desktopView.masters.ward_viewset import WardViewSet
+from ..views.desktopView.masters.staffcreation_viewset import StaffcreationViewset
 
 # Assets
 from ..views.desktopView.assets.fuel_viewset import FuelViewSet
 from ..views.desktopView.assets.property_viewset import PropertyViewSet
 from ..views.desktopView.assets.subproperty_viewset import SubPropertyViewSet
 
-# Customers
+# Customer Modules
 from ..views.desktopView.customers.customercreation_viewset import CustomerCreationViewSet
 from ..views.desktopView.customers.wastecollection_viewset import WasteCollectionViewSet
 from ..views.desktopView.customers.feedback_viewset import FeedBackViewSet
 
-# Users
+# Users - Creation & Assignments
 from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
-from ..views.desktopView.users.user_viewset import UserViewSet
-from ..views.desktopView.users.mainuserscreen_viewset import MainUserScreenViewSet
-from ..views.desktopView.users.userscreen_viewset import UserScreenViewSet
-from ..views.desktopView.users.userpermission_viewset import UserPermissionViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
-from ..views.desktopView.masters.staffcreation_viewset import StaffcreationViewset
+from ..views.desktopView.users.user_viewset import UserViewSet
+from ..views.desktopView.users.login_viewset import LoginViewSet
+
+# Screen Management
+from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
+from ..views.desktopView.users.mainscreen_viewset import MainScreenViewSet
+from ..views.desktopView.users.userscreen_viewset import UserScreenViewSet
+from ..views.desktopView.users.userscreenaction_viewset import UserScreenActionViewSet
+from ..views.desktopView.users.userscreenpermission_viewset import UserScreenPermissionViewSet
 
 # Vehicles
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
@@ -40,63 +44,73 @@ from ..views.desktopView.vehicles.vehiclecreation_viewset import VehicleCreation
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
 
-# New Config Endpoint
-from ..views.desktopView.users.userType_config_viewset import UserTypeConfigView
 
-from ..views.desktopView.users.login_viewset import LoginViewSet
+router = GroupedRouter()
 
-
-
-# ==============================
-#   Router Registration
-# ==============================
-
-router = DefaultRouter()
-
-# Masters
-router.register(r'continents', ContinentViewSet)
-router.register(r'countries', CountryViewSet)
-router.register(r'states', StateViewSet)
-router.register(r'districts', DistrictViewSet)
-router.register(r'cities', CityViewSet)
-router.register(r'zones', ZoneViewSet)
-router.register(r'wards', WardViewSet)
-router.register(r'staffcreation', StaffcreationViewset)
-
-# Assets
-router.register(r'fuels', FuelViewSet)
-router.register(r'properties', PropertyViewSet)
-router.register(r'subproperties', SubPropertyViewSet)
-
-# Customers
-router.register(r'customercreations', CustomerCreationViewSet)
-router.register(r'wastecollections', WasteCollectionViewSet)
-router.register(r'feedbacks', FeedBackViewSet)
-
-# Users
-router.register(r'user-type', UserTypeViewSet)
-router.register(r'staffusertypes', StaffUserTypeViewSet)
-router.register(r'user', UserViewSet)
-router.register(r'mainuserscreen', MainUserScreenViewSet)           
-router.register(r'userscreens', UserScreenViewSet)
-router.register(r'userpermissions', UserPermissionViewSet)
-router.register(r'login-user', LoginViewSet, basename='login-user')
+# ============================================================
+# GROUP: MASTERS
+# ============================================================
+router.register_group("masters", "continents",    ContinentViewSet)
+router.register_group("masters", "countries",     CountryViewSet)
+router.register_group("masters", "states",        StateViewSet)
+router.register_group("masters", "districts",     DistrictViewSet)
+router.register_group("masters", "cities",        CityViewSet)
+router.register_group("masters", "zones",         ZoneViewSet)
+router.register_group("masters", "wards",         WardViewSet)
 
 
-# Vehicles
-router.register(r'vehicle-type', VehicleTypeCreationViewSet)
-router.register(r'vehicle-creation', VehicleCreationViewSet)
+# ============================================================
+# GROUP: ASSETS
+# ============================================================
+router.register_group("assets", "fuels",         FuelViewSet)
+router.register_group("assets", "properties",    PropertyViewSet)
+router.register_group("assets", "subproperties", SubPropertyViewSet)
 
-# Complaints
-router.register(r'complaints', ComplaintViewSet)
+
+# ============================================================
+# GROUP: SCREEN MANAGEMENT (separate group)
+# ============================================================
+router.register_group("screen-management", "mainscreentype",        MainScreenTypeViewSet)
+router.register_group("screen-management", "mainscreens",           MainScreenViewSet)
+router.register_group("screen-management", "userscreens",           UserScreenViewSet)
+router.register_group("screen-management", "userscreen-action",     UserScreenActionViewSet)
+router.register_group("screen-management", "userscreenpermissions", UserScreenPermissionViewSet)
 
 
-# ==============================
-#   Final URL Patterns
-# ==============================
+# ============================================================
+# GROUP: USER & ROLE ASSIGNMENT
+# ============================================================
+router.register_group("role-assign", "user-type",      UserTypeViewSet)
+router.register_group("role-assign", "staffusertypes", StaffUserTypeViewSet)
 
-urlpatterns = router.urls 
 
-# + [
-#     path('user-type-config/<int:pk>/', UserTypeConfigView.as_view(), name="user-type-config"),
-# ]
+# ============================================================
+# GROUP: USER CREATION (customer + staff + login)
+# ============================================================
+router.register_group("user-creation", "users-creation",  UserViewSet)
+router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
+router.register_group("user-creation", "login-user",      LoginViewSet)
+
+
+# ============================================================
+# GROUP: CUSTOMER MODULES
+# ============================================================
+router.register_group("customers", "customercreations", CustomerCreationViewSet)
+router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
+router.register_group("customers", "feedbacks",         FeedBackViewSet)
+router.register_group("customers", "complaints", ComplaintViewSet)
+
+
+# ============================================================
+# GROUP: VEHICLES
+# ============================================================
+router.register_group("vehicles", "vehicle-type",     VehicleTypeCreationViewSet)
+router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
+
+
+# ============================================================
+# URLS
+# ============================================================
+urlpatterns = [
+    path("", include(router.urls)),
+]

@@ -25,13 +25,13 @@ ALLOWED_HOSTS = [
     '192.168.5.*',
     '192.168.5.92',
     "125.17.238.158",
+    '10.80.216.123',
     '192.168.4.75',
     '115.245.93.26',
     'testserver',
     '10.64.151.226',
     '10.240.175.113',
-    '10.153.105.158',
-    '10.37.103.123' #bharathi
+    '10.153.105.158'
 ]
 
 # -------------------------------------------------------
@@ -93,7 +93,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'globaldb',
+        'NAME': 'iwmsdb',
         'USER': 'root',
         'PASSWORD': 'admin@123',
         'HOST': 'localhost',
@@ -156,12 +156,11 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://127\.0\.0\.1(:\d+)?$",
     r"^http://125\.17\.238\.158(:\d+)?$",
     r"^http://localhost(:\d+)?$",
-    r"^http://192\.168\.4\.75(:\d+)?$", #ofc-bharathi
-    r"^http://115\.245\.93\.26(:/d+)?$",
-    r"^http://10\.64\.151\.226(:\d+)?$"   #dhivya
-    r"^http://10\.153\.105\.158(:\d+)?$"  #sameer 10.153.105.158
-    r"^http://10\.37\.103\.123(:\d+)?$"  #bharathi  10.37.103.123
-    r"^http://192\.168\.5\.92(:\d+)?$"    #office wifi-sameer
+    r"^http://192\.168\.4\.75(:\d+)?$",
+    r"^http://115\.245\.93\.26(:\d+)?$",
+    r"^http://10\.64\.151\.226(:\d+)?$", #dhivya
+    r"^http://10\.153\.105\.158(:\d+)?$",  #sameer 10.153.105.158
+    r"^http://192\.168\.5\.92(:\d+)?$",    #office wifi
 
 ]
 

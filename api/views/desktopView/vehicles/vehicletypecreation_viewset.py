@@ -6,7 +6,7 @@ from api.serializers.desktopView.vehicles.vehicletypecreation_serializer import 
 
 
 class VehicleTypeCreationViewSet(viewsets.ModelViewSet):
-    queryset = VehicleTypeCreation.objects.filter(is_delete=False)
+    queryset = VehicleTypeCreation.objects.filter(is_deleted=False)
     serializer_class = VehicleTypeCreationSerializer
     lookup_field = "unique_id"
 
