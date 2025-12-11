@@ -6,11 +6,11 @@ from api.serializers.mobileView.grievance.subcategory_serializer import SubCateg
 
 
 class SubCategoryViewSet(viewsets.ModelViewSet):
-    queryset = SubCategory.objects.filter(is_delete=False)
+    queryset = SubCategory.objects.filter(is_deleted=False)
     serializer_class = SubCategorySerializer
     lookup_field = "unique_id"
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.delete()
+        instance.deleted()
         return Response({"message": "Sub-category deleted"}, status=status.HTTP_200_OK)
