@@ -100,7 +100,7 @@ class User(models.Model):
     updated_at = models.DateTimeField(auto_now=True, null=True)
 
     is_active = models.BooleanField(default=True)
-    is_delete = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-id"]

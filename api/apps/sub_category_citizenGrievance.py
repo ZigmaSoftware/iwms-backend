@@ -22,7 +22,7 @@ class SubCategory(models.Model):
 
     name = models.CharField(max_length=120)
     is_active = models.BooleanField(default=True)
-    is_delete = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["id"]
@@ -31,6 +31,6 @@ class SubCategory(models.Model):
         return self.name
 
     def delete(self, *args, **kwargs):
-        self.is_delete = True
+        self.is_deleted = True
         self.is_active = False
-        self.save(update_fields=["is_delete", "is_active"])
+        self.save(update_fields=["is_deleted", "is_active"])

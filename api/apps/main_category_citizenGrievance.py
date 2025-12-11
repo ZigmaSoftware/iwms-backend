@@ -18,7 +18,7 @@ class MainCategory(models.Model):
     )
 
     is_active = models.BooleanField(default=True)
-    is_delete = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["id"]
@@ -30,5 +30,5 @@ class MainCategory(models.Model):
 
     def delete(self, *args, **kwargs):
         self.is_active = False
-        self.is_delete = True
-        self.save(update_fields=["is_active", "is_delete"])
+        self.is_deleted = True
+        self.save(update_fields=["is_active", "is_deleted"])

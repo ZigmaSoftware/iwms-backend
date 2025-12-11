@@ -83,7 +83,6 @@ class UserSerializer(serializers.ModelSerializer):
             # Hide raw FK for user_type; we expose user_type_id instead
             "user_type": {"write_only": True},
         }
-        
 
     # ---------- VALIDATION ----------
     def validate(self, attrs):
