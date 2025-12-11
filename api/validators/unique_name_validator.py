@@ -19,15 +19,11 @@ def unique_name_validator(Model, name_field="name", scope_fields=None):
 
         name_clean = name.strip()
 
-        # base queryset with soft-delete awareness
-        base_filter = {f"{name_field}__iexact": name_clean}
-        # prefer is_deleted field; fallback to is_delete if that's what the model has
-        if hasattr(Model, "is_deleted"):
-            base_filter["is_deleted"] = False
-        elif hasattr(Model, "is_delete"):
-            base_filter["is_delete"] = False
-
-        qs = Model.objects.filter(**base_filter)
+        # base queryset
+        qs = Model.objects.filter(
+            is_deleted=False,
+            **{f"{name_field}__iexact": name_clean}
+        )
 
         # apply scope filters
         for field in scope_fields:
