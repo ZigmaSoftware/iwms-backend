@@ -9,7 +9,7 @@ class CitizenLoginPage(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["user_types"] = list(
-            UserType.objects.filter(is_active=True, is_delete=False).order_by("name")
+            UserType.objects.filter(is_active=True, is_deleted=False).order_by("name")
         )
         context["customers"] = list(
             CustomerCreation.objects.filter(is_active=True, is_deleted=False)
