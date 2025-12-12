@@ -58,7 +58,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             cursor.execute("""
                 INSERT INTO waste_collection_sub
                 (unique_id, screen_unique_id, customer_id, waste_type_id, image, weight,
-                 latitude, longitude, date_time, is_delete)
+                 latitude, longitude, date_time, is_deleted)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,0)
             """, [unique_id, screen_id, customer_id, waste_type, image_path,
                   weight, latitude, longitude, now])
@@ -77,7 +77,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             cursor.execute("""
                 SELECT id, waste_type_name
                 FROM waste_type_creation_master
-                WHERE is_delete=0
+                WHERE is_deleted=0
                 ORDER BY id ASC
             """)
             rows = cursor.fetchall()
@@ -98,7 +98,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 WHERE screen_unique_id=%s
                 AND customer_id=%s
                 AND waste_type_id=%s
-                AND is_delete=0
+                AND is_deleted=0
                 ORDER BY id DESC LIMIT 1
             """, [screen_id, customer_id, waste_type])
             row = cursor.fetchone()
@@ -131,7 +131,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             cursor.execute("""
                 SELECT COALESCE(SUM(weight), 0)
                 FROM waste_collection_sub
-                WHERE screen_unique_id=%s AND customer_id=%s AND is_delete=0
+                WHERE screen_unique_id=%s AND customer_id=%s AND is_deleted=0
             """, [screen_id, customer_id])
             total = cursor.fetchone()[0]
 
@@ -145,7 +145,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             cursor.execute("""
                 INSERT INTO waste_collection_main
                 (unique_id, screen_unique_id, collected_time, created,
-                 total_waste_collected, entry_type, customer_id, is_delete)
+                 total_waste_collected, entry_type, customer_id, is_deleted)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,0)
             """, [main_id, screen_id, now, now, total, entry_type, customer_id])
 
@@ -153,7 +153,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             cursor.execute("""
                 UPDATE waste_collection_sub
                 SET form_unique_id=%s
-                WHERE screen_unique_id=%s AND customer_id=%s AND is_delete=0
+                WHERE screen_unique_id=%s AND customer_id=%s AND is_deleted=0
             """, [main_id, screen_id, customer_id])
 
         return Response({
@@ -178,7 +178,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             cursor.execute("""
                 SELECT unique_id
                 FROM waste_collection_sub
-                WHERE unique_id=%s AND is_delete=0
+                WHERE unique_id=%s AND is_deleted=0
             """, [record_id])
             row = cursor.fetchone()
 
@@ -201,7 +201,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             sql += ", image=%s"
             params.append(image_path)
 
-        sql += " WHERE unique_id=%s AND is_delete=0"
+        sql += " WHERE unique_id=%s AND is_deleted=0"
         params.append(record_id)
 
         with connection.cursor() as cursor:
@@ -266,7 +266,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 f"""
                 SELECT waste_type_id, COALESCE(SUM(weight), 0)
                 FROM waste_collection_sub
-                WHERE is_delete=0 {date_filter}
+                WHERE is_deleted=0 {date_filter}
                 GROUP BY waste_type_id
             """,
                 params,
@@ -294,7 +294,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 f"""
                 SELECT COUNT(*)
                 FROM waste_collection_main
-                WHERE is_delete=0 {trips_filter}
+                WHERE is_deleted=0 {trips_filter}
             """,
                 trips_params,
             )
@@ -368,7 +368,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             user = (
                 User.objects
                 .select_related("customer_id")
-                .filter(unique_id=unique_id, is_active=True, is_delete=False)
+                .filter(unique_id=unique_id, is_active=True, is_deleted=False)
                 .first()
             )
             customer = getattr(user, "customer_id", None)

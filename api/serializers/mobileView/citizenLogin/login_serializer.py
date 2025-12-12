@@ -22,7 +22,7 @@ class LoginSerializer(serializers.Serializer):
         user_type_exists = UserType.objects.filter(
             Q(name_iexact=user_type_value) | Q(unique_id_iexact=user_type_value),
             is_active=True,
-            is_delete=False,
+            is_deleted=False,
         ).exists()
 
         if not user_type_exists:
