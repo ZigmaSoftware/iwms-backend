@@ -20,7 +20,7 @@ class LoginSerializer(serializers.Serializer):
                 "staff_id",
                 "customer_id",
             )
-            .filter(is_active=True, is_delete=False)
+            .filter(is_active=True, is_deleted=False)
             .filter(
                 Q(customer_id__customer_name__iexact=username) |
                 Q(customer_id__contact_no__iexact=username) |
