@@ -16,7 +16,7 @@ from ..views.mobileView.attendance_view.staff_profile_viewset import StaffProfil
 
 router = DefaultRouter()
 
-router.register("customer/login", CitizenLoginViewSet, basename="customer-login")
+router.register("login", LoginViewSet, basename="mobile-login")
 router.register("main-category", MainCategoryViewSet, basename="main-category")
 router.register("sub-category", SubCategoryViewSet, basename="sub-category")
 router.register("login", LoginViewSet, basename="mobile-login")
@@ -25,5 +25,6 @@ router.register("recognize", RecognizeViewSet, basename="recognize")
 router.register("employee", EmployeeViewSet, basename="employee")
 router.register("staff-profile", StaffProfileViewSet, basename="staff-profile")
 urlpatterns = router.urls
+router.register("waste", WasteCollectionBluetoothViewSet, basename="waste-collection")
 
 urlpatterns = router.urls

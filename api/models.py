@@ -29,5 +29,58 @@ from .apps.complaints import Complaint
 
 from .apps.main_category_citizenGrievance import MainCategory
 from .apps.sub_category_citizenGrievance import SubCategory
-from .apps.waste_collection_bluetooth import WasteCollectionSub, WasteType, WasteCollectionMain
-from .apps.attendance import Employee,Recognized
+
+from .apps.waste_collection_bluetooth import (
+    WasteCollectionSub,
+    WasteType,
+    WasteCollectionMain
+)
+
+
+__all__ = [
+    # Geography
+    "Continent",
+    "Country",
+    "State",
+    "District",
+    "City",
+    "Zone",
+    "Ward",
+
+    # Assets
+    "Fuel",
+    "Property",
+    "SubProperty",
+
+    # Staff
+    "StaffOfficeDetails",
+    "StaffPersonalDetails",
+
+    # Customer / Waste / Feedback
+    "CustomerCreation",
+    "WasteCollection",
+    "FeedBack",
+
+    # User, Access & Screens
+    "User",
+    "UserType",
+    "StaffUserType",
+    "UserScreen",
+    "UserScreenPermission",
+
+    # Vehicles
+    "VehicleTypeCreation",
+    "VehicleCreation",
+
+    # Complaints
+    "Complaint",
+
+    # Citizen Grievance
+    "MainCategory",
+    "SubCategory",
+
+    # Bluetooth Waste Collection
+    "WasteCollectionSub",
+    "WasteType",
+    "WasteCollectionMain",
+]

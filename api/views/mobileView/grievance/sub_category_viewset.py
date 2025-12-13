@@ -6,7 +6,7 @@ from api.serializers.mobileView.grievance.subcategory_serializer import SubCateg
 
 
 class SubCategoryViewSet(viewsets.ModelViewSet):
-    queryset = SubCategory.objects.filter(is_delete=False)
+    queryset = SubCategory.objects.filter(is_deleted=False)
     serializer_class = SubCategorySerializer
     lookup_field = "unique_id"
 

@@ -7,7 +7,7 @@ from api.serializers.desktopView.users.user_serializer import UserSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.filter(is_delete=False)
+    queryset = User.objects.filter(is_deleted=False)
     serializer_class = UserSerializer
     lookup_field = "unique_id"
 
@@ -23,6 +23,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.is_delete = True
+        instance.is_deleted = True
         instance.save()
         return Response({"message": "User soft deleted successfully"}, status=status.HTTP_200_OK)

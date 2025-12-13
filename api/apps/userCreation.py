@@ -49,7 +49,8 @@ class User(models.Model):
         StaffOfficeDetails,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="users_staff"
+        related_name="users_staff",
+         to_field="staff_unique_id"
     )
 
     # -----------------------------
@@ -59,7 +60,8 @@ class User(models.Model):
         CustomerCreation,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="users_customer"
+        related_name="users_customer",
+        to_field="unique_id"
     )
 
     # -----------------------------
@@ -100,7 +102,7 @@ class User(models.Model):
     updated_at = models.DateTimeField(auto_now=True, null=True)
 
     is_active = models.BooleanField(default=True)
-    is_delete = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-id"]
