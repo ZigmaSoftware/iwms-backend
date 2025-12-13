@@ -9,13 +9,9 @@ sqlparse==0.5.3
 Pillow==12.0.0
 faker==38.2.0
 djangorestframework_simplejwt==5.5.1
-<<<<<<< HEAD
 qrcode==7.4.2
 python-dateutil==2.9.0.post0
 requests==2.31.0
 
-=======
-PyMySQL==1.1.1
->>>>>>> a0aaca3 (fixed requirement)
 
 PyMySQL==1.1.1
