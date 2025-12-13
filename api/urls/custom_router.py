@@ -51,7 +51,10 @@ class GroupedRouter(DefaultRouter):
                         except Exception:
                             url = None
 
-                        data[group_name][entry["prefix"]] = url
+                        # Clean label for display
+                        label = entry['basename'].replace("-", " ").title()
+
+                        data[group_name][label] = url
 
                 return Response(data)
 
@@ -59,6 +62,6 @@ class GroupedRouter(DefaultRouter):
 
     def get_urls(self):
         urls = super().get_urls()
-        # override default root
+        # override the default API root
         urls[0].callback = self.get_api_root_view()
         return urls
