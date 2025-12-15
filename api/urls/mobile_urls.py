@@ -12,6 +12,7 @@ from ..views.mobileView.attendance_view.register import RegisterViewSet
 from ..views.mobileView.attendance_view.recognize import RecognizeViewSet
 from ..views.mobileView.attendance_view.employee_viewset import EmployeeViewSet
 from ..views.mobileView.attendance_view.staff_profile_viewset import StaffProfileViewSet
+from api.views.mobileView.attendance_view.attendance_list import AttendanceListViewSet
 # from ..views.mobileView.grievance.sub_category_viewset import 
 
 router = DefaultRouter()
@@ -24,6 +25,7 @@ router.register("register", RegisterViewSet, basename="register")
 router.register("recognize", RecognizeViewSet, basename="recognize")
 router.register("employee", EmployeeViewSet, basename="employee")
 router.register("staff-profile", StaffProfileViewSet, basename="staff-profile")
+router.register("attendance-list", AttendanceListViewSet, basename="attendance_list")
 urlpatterns = router.urls
 router.register("waste", WasteCollectionBluetoothViewSet, basename="waste-collection")
 
