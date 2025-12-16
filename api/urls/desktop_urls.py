@@ -84,7 +84,8 @@ router.register_group("screen-management", "userscreenpermissions", UserScreenPe
 router.register_group("role-assign", "user-type",      UserTypeViewSet)
 router.register_group("role-assign", "staffusertypes", StaffUserTypeViewSet)
 router.register_group("role-assign","assignments", DailyAssignmentViewSet,)
-
+router.register_group("role-assign", "daily-assignments", DailyAssignmentViewSet)
+   
 
 
 # ============================================================
