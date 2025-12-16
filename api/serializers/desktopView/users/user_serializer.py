@@ -87,6 +87,7 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "user_type": {"write_only": True},
         }
+        
 
     # ==================================================
     # VALIDATION (PHONE-FIRST + PASSWORD UNIQUE)

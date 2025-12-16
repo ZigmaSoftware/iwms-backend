@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from django.db import models
-
 from api.apps.userscreenpermission import UserScreenPermission
 from api.apps.userType import UserType
 from api.apps.userscreen import UserScreen

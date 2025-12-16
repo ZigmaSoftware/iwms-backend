@@ -32,5 +32,7 @@ class LoginViewSet(ViewSet):
             "user_type": user.user_type.name,
             "name": name,
             "role": role,
-            "access_token": token
+            "access_token": token,
+            "emp_id":user.staff_id_id if user.staff_id else None,
+            'customer_id':user.customer_id_id if user.customer_id else None
         }, status=status.HTTP_200_OK)

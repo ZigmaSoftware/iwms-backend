@@ -19,18 +19,68 @@ HTTP_ACTION_MAP = {
 # --------------------------------------------------
 # MODULES TO PROTECT
 # --------------------------------------------------
-PROTECTED_MODULES = ["masters", "assets"]
+PROTECTED_MODULES = [
+    "masters",
+    "assets",
+    "role-assign",
+    "user-creation",
+    "customers",
+    "vehicles",
+]
 
 # --------------------------------------------------
 # HARD RESOURCE ALLOWLIST (YOUR BUSINESS RULE)
 # --------------------------------------------------
 # masters → ONLY Continent allowed
 # assets  → NONE allowed for now
+# --------------------------------------------------
+# HARD RESOURCE ALLOWLIST (BUSINESS RULE)
+# --------------------------------------------------
 MODULE_RESOURCE_ALLOWLIST = {
-    "masters": {"Continent"},
-    "assets": set(),
-}
+    # Masters
+    "masters": {
+        "Continent",
+        "Countries",
+        "States",
+        "Districts",
+        "Cities",
+        "Zones",
+        "Wards",
+    },
 
+    # Assets
+    "assets": {
+        "Fuels",
+        "Properties",
+        "Subproperties",
+    },
+
+    # Role Assign
+    "role-assign": {
+        "UserType",
+        "Staffusertypes",
+    },
+
+    # User Creation
+    "user-creation": {
+        "UsersCreation",
+        "Staffcreation"
+    },
+
+    # Customers
+    "customers": {
+        "Customercreations",
+        "Wastecollections",
+        "Feedbacks",
+        "Complaints",
+    },
+
+    # Vehicles
+    "vehicles": {
+        "VehicleType",
+        "VehicleCreation",
+    },
+}
 
 class ModulePermissionMiddleware(MiddlewareMixin):
 
