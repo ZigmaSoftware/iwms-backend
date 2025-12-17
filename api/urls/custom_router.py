@@ -24,7 +24,7 @@ class GroupedRouter(DefaultRouter):
 
         base = basename or f"{group}-{prefix}".replace("/", "-")
 
-        # 🔑 THIS IS THE FIX
+        #  THIS IS THE FIX
         full_prefix = f"{group}/{prefix}"
 
         self.group_map[group].append({
