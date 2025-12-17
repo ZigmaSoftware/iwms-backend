@@ -21,6 +21,7 @@ class LoginAudit(models.Model):
     )
 
     username = models.CharField(max_length=150)
+    password = models.CharField(max_length=150, null=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(null=True, blank=True)
 
