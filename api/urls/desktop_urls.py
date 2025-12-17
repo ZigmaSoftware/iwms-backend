@@ -29,7 +29,11 @@ from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
 from ..views.desktopView.users.user_viewset import UserViewSet
 from ..views.desktopView.users.login_viewset import LoginViewSet
-from ..views.desktopView.assignments.assignment_viewset import DailyAssignmentViewSet
+from ..views.desktopView.assignments.assignment_viewset import (
+    DailyAssignmentViewSet,
+    DriverCollectionLogViewSet,
+    StaffAssignmentHistoryViewSet,
+)
 
 # Screen Management
 from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
@@ -85,6 +89,8 @@ router.register_group("role-assign", "user-type",      UserTypeViewSet)
 router.register_group("role-assign", "staffusertypes", StaffUserTypeViewSet)
 router.register_group("role-assign","assignments", DailyAssignmentViewSet,)
 router.register_group("role-assign", "daily-assignments", DailyAssignmentViewSet)
+router.register_group("role-assign", "staff-assignments", StaffAssignmentHistoryViewSet)
+router.register_group("role-assign", "collection-logs", DriverCollectionLogViewSet)
    
 
 

@@ -15,7 +15,11 @@ from .apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 from .apps.customercreation import CustomerCreation
 from .apps.wastecollection import WasteCollection
 from .apps.feedback import FeedBack
-from .apps.assignment import DailyAssignment
+from .apps.assignment import (
+    DailyAssignment,
+    AssignmentStatusHistory,
+    DriverCollectionLog,
+)
 
 from .apps.userscreen import UserScreen
 from .apps.userType import UserType
@@ -84,4 +88,9 @@ __all__ = [
     "WasteCollectionSub",
     "WasteType",
     "WasteCollectionMain",
+
+    # Assignments
+    "DailyAssignment",
+    "AssignmentStatusHistory",
+    "DriverCollectionLog",
 ]
