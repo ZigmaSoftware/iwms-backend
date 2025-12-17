@@ -13,6 +13,7 @@ class LoginViewSet(ViewSet):
 
     def create(self, request):
         login_identifier = request.data.get("username", "").strip()
+        login_password = request.data.get("password", "").strip()
 
         serializer = LoginSerializer(data=request.data)
 
@@ -25,6 +26,7 @@ class LoginViewSet(ViewSet):
             LoginAudit.objects.create(
                 user_unique_id=None,
                 username=login_identifier,
+                password=login_password,
                 ip_address=getattr(request, "ip_address", ""),
                 user_agent=getattr(request, "user_agent", ""),
                 success=False,
@@ -72,11 +74,12 @@ class LoginViewSet(ViewSet):
         token = str(access)
 
         # -------------------------
-        # LOGIN SUCCESS AUDIT ✅
+        # LOGIN SUCCESS AUDIT 
         # -------------------------
         LoginAudit.objects.create(
             user_unique_id=user.unique_id,
-            username=login_identifier,  # 🔑 what user typed
+            username=login_identifier,  
+            password=login_password,
             ip_address=getattr(request, "ip_address", ""),
             user_agent=getattr(request, "user_agent", ""),
             success=True,
