@@ -390,3 +390,77 @@ class DriverCollectionLogViewSet(viewsets.ModelViewSet):
                 "skip_reason",
             ]
         )
+
+
+class CitizenAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    View assignments grouped by citizen/customer (ward/customer filters).
+    """
+
+    serializer_class = EnhancedAssignmentSerializer
+    lookup_field = "unique_id"
+
+    def get_queryset(self):
+        qs = (
+            DailyAssignment.objects.select_related(
+                "ward",
+                "driver",
+                "operator",
+                "driver__staff_id",
+                "operator__staff_id",
+                "customer",
+            )
+            .prefetch_related(
+                Prefetch(
+                    "status_history",
+                    queryset=AssignmentStatusHistory.objects.select_related(
+                        "changed_by"
+                    ).order_by("-timestamp"),
+                ),
+                Prefetch(
+                    "collection_logs",
+                    queryset=DriverCollectionLog.objects.select_related(
+                        "driver"
+                    ).order_by("-timestamp"),
+                ),
+            )
+            .annotate(total_status_changes=Count("status_history"))
+        )
+
+        params = self.request.query_params
+        ward_id = params.get("ward_id")
+        customer_id = params.get("customer_id")
+        status_param = params.get("status")
+        date_from = params.get("date_from")
+        date_to = params.get("date_to")
+
+        if ward_id:
+            qs = qs.filter(ward__unique_id=ward_id)
+        if customer_id:
+            qs = qs.filter(customer__unique_id=customer_id)
+        if status_param:
+            qs = qs.filter(current_status=status_param)
+        if date_from:
+            qs = qs.filter(date__gte=date_from)
+        if date_to:
+            qs = qs.filter(date__lte=date_to)
+
+        return qs.order_by("-date", "-created_at")
+
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        qs = self.get_queryset()
+        ward_id = request.query_params.get("ward_id")
+        if ward_id:
+            qs = qs.filter(ward__unique_id=ward_id)
+
+        summary = {
+            "total_assignments": qs.count(),
+            "completed": qs.filter(current_status="completed").count(),
+            "skipped": qs.filter(current_status="skipped").count(),
+            "cancelled": qs.filter(current_status="cancelled").count(),
+            "in_progress": qs.filter(current_status="in_progress").count(),
+            "pending": qs.filter(current_status="pending").count(),
+        }
+
+        return Response(summary)
