@@ -74,6 +74,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
     'api.middleware.module_permission_middleware.ModulePermissionMiddleware',
+    'api.middleware.request_meta_middleware.RequestMetaMiddleware',
 ]
 
 ROOT_URLCONF = 'backend.urls'
