@@ -7,7 +7,7 @@ class StaffOfficeSeeder:
     def run(self):
         staff_data = [
             {
-                "employee_name": "Admin User",
+                "employee_name": "Sathya",
                 "department": "Administration",
                 "designation": "System Admin",
                 "grade": "A",
@@ -15,7 +15,7 @@ class StaffOfficeSeeder:
                 "salary_type": "Monthly",
             },
             {
-                "employee_name": "Operator User",
+                "employee_name": "Aakash",
                 "department": "Operations",
                 "designation": "Operator",
                 "grade": "B",
@@ -30,4 +30,4 @@ class StaffOfficeSeeder:
                 defaults=data
             )
 
-        print("✅ StaffOfficeDetails seeded")
+        print("StaffOfficeDetails seeded")

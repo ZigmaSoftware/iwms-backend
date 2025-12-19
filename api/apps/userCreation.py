@@ -50,7 +50,7 @@ class User(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         related_name="users_staff",
-         to_field="staff_unique_id"
+        to_field="staff_unique_id"
     )
 
     # -----------------------------
