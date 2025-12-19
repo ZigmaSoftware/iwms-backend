@@ -294,6 +294,7 @@ from api.management.commands.seeders.role_assign import ROLE_ASSIGN_SEEDERS
 from api.management.commands.seeders.assets import ASSET_SEEDERS
 from api.management.commands.seeders.customers import CUSTOMER_SEEDERS
 from api.management.commands.seeders.userCreation import USER_CREATION_SEEDERS
+from api.management.commands.seeders.permissions import PERMISSION_SEEDERS
 
 
 SEED_GROUPS = {
@@ -302,6 +303,7 @@ SEED_GROUPS = {
     "assets":ASSET_SEEDERS,
       "customers": CUSTOMER_SEEDERS,
       "user-creation": USER_CREATION_SEEDERS,
+       "permission": PERMISSION_SEEDERS,
 }
 
 class Command(BaseCommand):
