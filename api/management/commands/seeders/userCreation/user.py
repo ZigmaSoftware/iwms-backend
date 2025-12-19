@@ -23,19 +23,15 @@ class UserSeeder:
             raise Exception("❌ UserType 'staff' missing. Run UserTypeSeeder first.")
 
         # --------------------------------------------------
-        # STAFF ROLES
+        # STAFF ROLE (ONLY ADMIN)
         # --------------------------------------------------
         try:
             admin_role = StaffUserType.objects.get(
                 name="admin",
                 usertype_id=staff_type
             )
-            operator_role = StaffUserType.objects.get(
-                name="operator",
-                usertype_id=staff_type
-            )
         except StaffUserType.DoesNotExist:
-            raise Exception("❌ Staff roles missing. Run StaffUserTypeSeeder first.")
+            raise Exception("❌ Staff admin role missing. Run StaffUserTypeSeeder first.")
 
         # --------------------------------------------------
         # LOCATION
@@ -49,42 +45,27 @@ class UserSeeder:
             raise Exception("❌ Location masters missing. Run masters seeder first.")
 
         # --------------------------------------------------
-        # STAFF
+        # STAFF (ONLY ONE ADMIN USER)
         # --------------------------------------------------
         admin_staff = StaffOfficeDetails.objects.get(employee_name="Sathya")
-        operator_staff = StaffOfficeDetails.objects.get(employee_name="Aakash")
 
         # --------------------------------------------------
-        # USERS (AUTO unique_id, SAFE SEED)
+        # USER CREATE
         # --------------------------------------------------
-        users = [
-            {
+        User.objects.get_or_create(
+            staff_id=admin_staff,  # 🔑 one user per staff
+            defaults={
+                "user_type": staff_type,
                 "staffusertype_id": admin_role,
-                "staff_id": admin_staff,
-                "password": "admin@123",
-            },
-            {
-                "staffusertype_id": operator_role,
-                "staff_id": operator_staff,
-                "password": "operator@123",
-            },
-        ]
+                "customer_id": None,
+                "password": "admin@123",  # ⚠ plain text (as requested)
+                "district_id": district,
+                "city_id": city,
+                "zone_id": zone,
+                "ward_id": ward,
+                "is_active": True,
+                "is_deleted": False,
+            }
+        )
 
-        for data in users:
-            User.objects.get_or_create(
-                staff_id=data["staff_id"],   # 🔑 ONE USER PER STAFF
-                defaults={
-                    "user_type": staff_type,
-                    "staffusertype_id": data["staffusertype_id"],
-                    "customer_id": None,
-                    "password": data["password"],   # ⚠ plain text (as requested)
-                    "district_id": district,
-                    "city_id": city,
-                    "zone_id": zone,
-                    "ward_id": ward,
-                    "is_active": True,
-                    "is_deleted": False,
-                }
-            )
-
-        print("✅ Staff users seeded safely (no duplicates)")
+        print("✅ Admin staff user seeded successfully")

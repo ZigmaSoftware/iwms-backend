@@ -14,16 +14,13 @@ class StaffUserTypeSeeder(BaseSeeder):
         except UserType.DoesNotExist:
             raise Exception("❌ UserType 'staff' not found. Run UserTypeSeeder first.")
 
-        staff_roles = ["admin", "operator", "driver"]
+        StaffUserType.objects.get_or_create(
+            usertype_id=staff_usertype,
+            name="admin",
+            defaults={
+                "is_active": True,
+                "is_deleted": False,
+            }
+        )
 
-        for role in staff_roles:
-            StaffUserType.objects.get_or_create(
-                usertype_id=staff_usertype,
-                name=role,
-                defaults={
-                    "is_active": True,
-                    "is_deleted": False,
-                }
-            )
-
-        self.log("✅ Staff roles created only for staff usertype")
+        self.log("✅ Staff user type 'admin' seeded for Staff")
