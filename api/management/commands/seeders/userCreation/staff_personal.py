@@ -16,4 +16,4 @@ class StaffPersonalSeeder:
                 }
             )
 
-        print("✅ StaffPersonalDetails seeded")
+        print(" StaffPersonalDetails seeded")

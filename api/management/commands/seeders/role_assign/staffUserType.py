@@ -9,17 +9,11 @@ class StaffUserTypeSeeder(BaseSeeder):
     name = "staff_user_type"
 
     def run(self):
-        # --------------------------------------------------
-        # GET STAFF USER TYPE (ONLY ONE)
-        # --------------------------------------------------
         try:
-            staff_usertype = UserType.objects.get(name="Staff")
+            staff_usertype = UserType.objects.get(name__iexact="staff")
         except UserType.DoesNotExist:
-            raise Exception("UserType 'Staff' not found. Run UserTypeSeeder first.")
+            raise Exception("❌ UserType 'staff' not found. Run UserTypeSeeder first.")
 
-        # --------------------------------------------------
-        # STAFF ROLES (ONLY FOR STAFF)
-        # --------------------------------------------------
         staff_roles = ["admin", "operator", "driver"]
 
         for role in staff_roles:
@@ -32,4 +26,4 @@ class StaffUserTypeSeeder(BaseSeeder):
                 }
             )
 
-        self.log("✅ Staff user types seeded")
+        self.log("✅ Staff roles created only for staff usertype")
