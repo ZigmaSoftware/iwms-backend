@@ -3,6 +3,8 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
+from api.apps.userCreation import User
+
 
 # --------------------------------------------------
 # HTTP METHOD → PERMISSION ACTION
@@ -141,6 +143,20 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return JsonResponse({"detail": "Token expired"}, status=401)
         except jwt.InvalidTokenError:
             return JsonResponse({"detail": "Invalid token"}, status=401)
+
+        user_unique_id = payload.get("unique_id")
+        if not user_unique_id:
+            return JsonResponse({"detail": "Invalid token payload"}, status=401)
+
+        try:
+            user = User.objects.only("unique_id", "staffusertype_id_id").get(
+                unique_id=user_unique_id
+            )
+        except User.DoesNotExist:
+            return JsonResponse({"detail": "User not found"}, status=401)
+
+        request.user = user
+        request.jwt_payload = payload
 
         # --------------------------------------------------
         # 4. FETCH PERMISSIONS FROM TOKEN
