@@ -7,6 +7,7 @@ from .custom_router import GroupedRouter
 # Masters
 from ..views.desktopView.masters.continent_viewset import ContinentViewSet
 from ..views.desktopView.masters.country_viewset import CountryViewSet
+from ..views.desktopView.masters.bin_viewset import BinViewSet
 from ..views.desktopView.masters.state_viewset import StateViewSet
 from ..views.desktopView.masters.district_viewset import DistrictViewSet
 from ..views.desktopView.masters.city_viewset import CityViewSet
@@ -52,6 +53,7 @@ router = GroupedRouter()
 # ============================================================
 router.register_group("masters", "continents",    ContinentViewSet)
 router.register_group("masters", "countries",     CountryViewSet)
+router.register_group("masters", "bins",          BinViewSet)
 router.register_group("masters", "states",        StateViewSet)
 router.register_group("masters", "districts",     DistrictViewSet)
 router.register_group("masters", "cities",        CityViewSet)

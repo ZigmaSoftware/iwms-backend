@@ -1,5 +1,6 @@
 from .apps.continent import Continent
 from .apps.country import Country
+from .apps.bin import Bin
 from .apps.state import State
 from .apps.district import District
 from .apps.city import City
@@ -47,6 +48,7 @@ __all__ = [
     "City",
     "Zone",
     "Ward",
+    "Bin",
 
     # Assets
     "Fuel",
