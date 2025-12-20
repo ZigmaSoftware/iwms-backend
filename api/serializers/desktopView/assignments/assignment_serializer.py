@@ -27,17 +27,17 @@ class DailyAssignmentSerializer(serializers.ModelSerializer):
 
     driver = serializers.SlugRelatedField(
         slug_field="unique_id",
-        queryset=User.objects.filter(is_delete=False),
+        queryset=User.objects.filter(is_deleted=False),
     )
 
     operator = serializers.SlugRelatedField(
         slug_field="unique_id",
-        queryset=User.objects.filter(is_delete=False),
+        queryset=User.objects.filter(is_deleted=False),
     )
 
     assigned_by = UniqueIdOrPkField(
         slug_field="unique_id",
-        queryset=User.objects.filter(is_delete=False),
+        queryset=User.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
@@ -153,7 +153,7 @@ class DriverCollectionLogSerializer(serializers.ModelSerializer):
     )
     driver = serializers.SlugRelatedField(
         slug_field="unique_id",
-        queryset=User.objects.filter(is_delete=False),
+        queryset=User.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )

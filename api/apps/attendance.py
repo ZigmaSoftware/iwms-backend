@@ -1,7 +1,7 @@
 from django.db import models
 
 class Employee(models.Model):
-    emp_id = models.CharField(max_length=20, unique=True)
+    emp_id = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=100)
     department = models.CharField(max_length=100)
     image_path = models.CharField(max_length=255)
@@ -15,7 +15,7 @@ class Employee(models.Model):
         ]
 
 class Recognized(models.Model):
-    emp_id = models.CharField(max_length=20)
+    emp_id = models.CharField(max_length=50)
     emp_id_raw = models.CharField(max_length=50, null=True)
     name = models.CharField(max_length=100)
     records = models.DateTimeField()

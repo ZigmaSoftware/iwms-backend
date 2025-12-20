@@ -27,7 +27,7 @@ def upload_image(image):
 
 class WasteType(models.Model):
     waste_type_name = models.CharField(max_length=255)
-    is_delete = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = "waste_type_creation_master"
@@ -42,7 +42,7 @@ class WasteCollectionSub(models.Model):
     latitude = models.CharField(max_length=100, null=True, blank=True)
     longitude = models.CharField(max_length=100, null=True, blank=True)
     form_unique_id = models.CharField(max_length=100, null=True, blank=True)
-    is_delete = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
     date_time = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -57,7 +57,7 @@ class WasteCollectionMain(models.Model):
     total_waste_collected = models.FloatField(default=0)
     entry_type = models.CharField(max_length=20, default='app')
     customer_id = models.CharField(max_length=100)
-    is_delete = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = "waste_collection_main"

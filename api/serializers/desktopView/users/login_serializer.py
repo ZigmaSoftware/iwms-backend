@@ -16,14 +16,15 @@ class LoginSerializer(serializers.Serializer):
         # FIND USER BY MULTIPLE MATCH FIELDS
         user = (
             User.objects
-            .select_related("user_type", "staffusertype_id", "staff_id", "customer_id")
-            .filter(is_active=True, is_delete=False)
+            .select_related("user_type", "staffusertype_id", "staff_id", "customer_id","staff_id__personal_details")
+            .filter(is_active=True, is_deleted=False)
             .filter(
                 Q(customer_id__customer_name__iexact=username) |
                 Q(customer_id__contact_no__iexact=username) |
                 Q(staff_id__employee_name__iexact=username) |
                 Q(staff_id__staff_unique_id__iexact=username) |
-                Q(unique_id__iexact=username)
+                Q(unique_id__iexact=username) |
+                Q(staff_id__personal_details__contact_email__iexact=username) 
             )
             .first()
         )

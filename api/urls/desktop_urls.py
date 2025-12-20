@@ -101,7 +101,12 @@ router.register_group("role-assign", "citizen-assignments", CitizenAssignmentVie
 # ============================================================
 router.register_group("user-creation", "users-creation",  UserViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
-router.register_group("user-creation", "login-user",      LoginViewSet)
+
+
+# ============================================================
+# GROUP: login
+# ============================================================
+router.register_group("login", "login-user",      LoginViewSet)
 
 
 # ============================================================

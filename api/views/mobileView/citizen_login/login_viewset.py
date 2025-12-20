@@ -29,7 +29,7 @@ class CitizenLoginViewSet(viewsets.ViewSet):
     @staticmethod
     def _build_permission_payload(user_type):
         queryset = (
-            user_type.user_permissions.filter(is_active=True, is_delete=False)
+            user_type.user_permissions.filter(is_active=True, is_deleted=False)
             .select_related("main_screen", "user_screen")
         )
         permissions = []
@@ -64,7 +64,7 @@ class CitizenLoginViewSet(viewsets.ViewSet):
         user_type = UserType.objects.filter(
             Q(name__iexact=user_type_identifier) | Q(unique_id__iexact=user_type_identifier),
             is_active=True,
-            is_delete=False,
+            is_deleted=False,
         ).first()
         print(user_type)
 
@@ -130,7 +130,7 @@ class CitizenLoginViewSet(viewsets.ViewSet):
 
     def list(self, request):
         user_types = list(
-            UserType.objects.filter(is_active=True, is_delete=False)
+            UserType.objects.filter(is_active=True, is_deleted=False)
             .order_by("name")
             .values("id", "unique_id", "name")
         )

@@ -34,6 +34,7 @@ from .apps.complaints import Complaint
 
 from .apps.main_category_citizenGrievance import MainCategory
 from .apps.sub_category_citizenGrievance import SubCategory
+from .apps.loginAudit import LoginAudit
 
 from .apps.waste_collection_bluetooth import (
     WasteCollectionSub,
@@ -72,6 +73,7 @@ __all__ = [
     "StaffUserType",
     "UserScreen",
     "UserScreenPermission",
+    "LoginAudit"
 
     # Vehicles
     "VehicleTypeCreation",

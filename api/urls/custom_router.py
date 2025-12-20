@@ -13,18 +13,29 @@ class GroupedRouter(DefaultRouter):
         self.group_map = OrderedDict()
 
     def register_group(self, group, prefix, viewset, basename=None):
+        """
+        group    → masters / assets / customers
+        prefix   → continents / fuels
+        URL OUT  → /masters/continents/
+        """
+
         if group not in self.group_map:
             self.group_map[group] = []
 
-        base = basename or prefix.replace("/", "-")
+        base = basename or f"{group}-{prefix}".replace("/", "-")
+
+        #  THIS IS THE FIX
+        full_prefix = f"{group}/{prefix}"
 
         self.group_map[group].append({
             "prefix": prefix,
+            "full_prefix": full_prefix,
             "basename": base,
             "viewset": viewset
         })
 
-        return super().register(prefix, viewset, basename=base)
+        # 🔑 REGISTER WITH GROUP PREFIX
+        return super().register(full_prefix, viewset, basename=base)
 
     def get_api_root_view(self, api_urls=None):
         grouped = self.group_map
@@ -45,7 +56,7 @@ class GroupedRouter(DefaultRouter):
                         except Exception:
                             url = None
 
-                        label = entry['basename'].replace("-", " ").title()
+                        label = entry['prefix'].replace("-", " ").title()
                         data[group_name][label] = url
 
                 return Response(data)
@@ -55,7 +66,7 @@ class GroupedRouter(DefaultRouter):
     def get_urls(self):
         urls = super().get_urls()
 
-        # Safe root URL
+        # Root endpoint
         root = [path("", self.get_api_root_view(), name="grouped-api-root")]
 
         return root + urls
