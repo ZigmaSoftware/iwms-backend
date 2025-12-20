@@ -68,6 +68,12 @@ class UserSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    customer_name = serializers.CharField(source="customer_id.customer_name", read_only=True)
+    customer_contact=serializers.CharField(source="customer_id.customer_contact_no", read_only=True)
+    customer_city = serializers.CharField(source="customer_id.city.name", read_only=True)
+    customer_district = serializers.CharField(source="customer_id.district.name", read_only=True)
+    customer_zone = serializers.CharField(source="customer_id.zone.name", read_only=True)
+    customer_ward = serializers.CharField(source="customer_id.ward.name", read_only=True)
 
     # ---------- LOCATION ----------
     district_name = serializers.CharField(source="district_id.name", read_only=True)
@@ -133,7 +139,7 @@ class UserSerializer(serializers.ModelSerializer):
                 })
 
         # ==================================================
-        # STEP 3: PASSWORD UNIQUENESS CHECK  ✅ NEW
+        # STEP 3: PASSWORD UNIQUENESS CHECK 
         # ==================================================
         password = attrs.get("password")
         if password:

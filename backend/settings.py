@@ -5,13 +5,24 @@ import os
 # pymysql.install_as_MySQLdb()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+from django.conf import settings
+
+
+
 
 # -------------------------------------------------------
 # SECRET KEY – use this one only (your exact key)
 # -------------------------------------------------------
 SECRET_KEY = 'django-insecure-8$arlvxjc7$dw$(0!gyw)55qbm%9*az3wwr)6$7kku-dw6zoiz'
 
-DEBUG = True
+# DEBUG = True
+
+# -------------------------------------------------------
+# ENVIRONMENT CONFIG
+# -------------------------------------------------------
+ENVIRONMENT = os.getenv("DJANGO_ENV", "development")
+DEBUG = ENVIRONMENT != "production"
+
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
