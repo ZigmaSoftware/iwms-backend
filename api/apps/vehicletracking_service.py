@@ -5,7 +5,7 @@
 # from django.views.decorators.csrf import csrf_exempt
 # from django.views.decorators.http import require_POST
 
-# # ✅ Always use HTTPS if supported
+# #  Always use HTTPS if supported
 # VAMOSYS_URL = "https://api.vamosys.com/vehicle/tracker/getVehicleData"
 
 # @csrf_exempt

@@ -38,4 +38,4 @@ class StaffOfficeSeeder:
                 defaults=staff_data
             )
 
-        print("✅ StaffOfficeDetails (Admin, Driver, Operator) seeded")
+        print("StaffOfficeDetails (Admin only) seeded")
