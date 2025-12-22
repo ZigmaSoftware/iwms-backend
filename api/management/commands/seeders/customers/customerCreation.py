@@ -28,35 +28,66 @@ class CustomerCreationSeeder(BaseSeeder):
         property_obj = Property.objects.get(property_name="Residential", is_deleted=False)
         sub_property_obj = SubProperty.objects.get(sub_property_name="Apartment", is_deleted=False)
 
-        # ---- Customer ----
-        CustomerCreation.objects.get_or_create(
-            contact_no="9876543210",
-            defaults={
-                "customer_name": "Test Customer",
+        customers = [
+            {
+                "customer_name": "Sameer",
+                "contact_no": "7890",
                 "building_no": "12A",
-                "street": "Main Road",
-                "area": "T Nagar",
-
-                "ward": ward,
-                "zone": zone,
-                "city": city,
-                "district": district,
-                "state": state,
-                "country": country,
-
+                "street": "Gamma Road",
+                "area": "Gamma 1",
                 "pincode": "600017",
-                "latitude": "13.0827",
-                "longitude": "80.2707",
+                "latitude": "28.4869",
+                "longitude": "77.5015",
+                "id_no": "AADHAAR-7890-1",
+            },
+            {
+                "customer_name": "Jaisurya",
+                "contact_no": "7890",
+                "building_no": "14B",
+                "street": "Gamma Lane",
+                "area": "Gamma 1",
+                "pincode": "600017",
+                "latitude": "28.4874",
+                "longitude": "77.5021",
+                "id_no": "AADHAAR-7890-2",
+            },
+            {
+                "customer_name": "Sathya",
+                "contact_no": "7890",
+                "building_no": "16C",
+                "street": "Gamma Street",
+                "area": "Gamma 1",
+                "pincode": "600017",
+                "latitude": "28.4859",
+                "longitude": "77.5008",
+                "id_no": "AADHAAR-7890-3",
+            },
+        ]
 
-                "id_proof_type": CustomerCreation.IDProofType.AADHAAR,
-                "id_no": "1234-5678-9012",
-
-                "property": property_obj,
-                "sub_property": sub_property_obj,
-
-                "is_active": True,
-                "is_deleted": False,
-            }
-        )
+        for entry in customers:
+            CustomerCreation.objects.get_or_create(
+                customer_name=entry["customer_name"],
+                contact_no=entry["contact_no"],
+                defaults={
+                    "building_no": entry["building_no"],
+                    "street": entry["street"],
+                    "area": entry["area"],
+                    "ward": ward,
+                    "zone": zone,
+                    "city": city,
+                    "district": district,
+                    "state": state,
+                    "country": country,
+                    "pincode": entry["pincode"],
+                    "latitude": entry["latitude"],
+                    "longitude": entry["longitude"],
+                    "id_proof_type": CustomerCreation.IDProofType.AADHAAR,
+                    "id_no": entry["id_no"],
+                    "property": property_obj,
+                    "sub_property": sub_property_obj,
+                    "is_active": True,
+                    "is_deleted": False,
+                }
+            )
 
         self.log("Customer creation seeded")
