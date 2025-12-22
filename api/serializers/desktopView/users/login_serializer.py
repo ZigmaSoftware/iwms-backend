@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth.hashers import check_password, identify_hasher
 from django.db.models import Q
 from api.apps.userCreation import User
 from api.apps.userscreenpermission import UserScreenPermission
@@ -8,13 +9,23 @@ class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
 
+    @staticmethod
+    def _password_matches(raw_password, stored_password):
+        if stored_password is None:
+            return False
+        try:
+            identify_hasher(stored_password)
+        except ValueError:
+            return raw_password == stored_password
+        return check_password(raw_password, stored_password)
+
     def validate(self, attrs):
         
         username = attrs["username"].strip()
         password = attrs["password"].strip()
 
         # FIND USER BY MULTIPLE MATCH FIELDS
-        user = (
+        candidates = (
             User.objects
             .select_related("user_type", "staffusertype_id", "staff_id", "customer_id","staff_id__personal_details")
             .filter(is_active=True, is_deleted=False)
@@ -26,13 +37,15 @@ class LoginSerializer(serializers.Serializer):
                 Q(unique_id__iexact=username) |
                 Q(staff_id__personal_details__contact_email__iexact=username) 
             )
-            .first()
         )
 
-        if not user:
-            raise serializers.ValidationError("Invalid username or password")
+        user = None
+        for candidate in candidates:
+            if self._password_matches(password, candidate.password):
+                user = candidate
+                break
 
-        if password != user.password:
+        if not user:
             raise serializers.ValidationError("Invalid username or password")
 
         # --------------------------
@@ -84,6 +97,21 @@ class LoginSerializer(serializers.Serializer):
                 permissions[main_name][screen_name] = []
 
             permissions[main_name][screen_name].append(action_name)
+
+        if not permissions and utype == "staff":
+            staff_role = user.staffusertype_id.name.lower()
+            if staff_role in ["driver", "operator"]:
+                permissions = {
+                    "role-assign": {
+                        "Assignments": ["view", "add"],
+                        "DailyAssignments": ["view", "add"],
+                        "StaffAssignments": ["view"],
+                        "CollectionLogs": ["add"],
+                    },
+                    "customers": {
+                        "Customercreations": ["view"],
+                    },
+                }
 
         attrs["user"] = user
         attrs["permissions"] = permissions

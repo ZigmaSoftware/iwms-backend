@@ -1,17 +1,28 @@
 from pathlib import Path
 import os
-import pymysql
+# import pymysql
 
-pymysql.install_as_MySQLdb()
+# pymysql.install_as_MySQLdb()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+from django.conf import settings
+
+
+
 
 # -------------------------------------------------------
 # SECRET KEY – use this one only (your exact key)
 # -------------------------------------------------------
 SECRET_KEY = 'django-insecure-8$arlvxjc7$dw$(0!gyw)55qbm%9*az3wwr)6$7kku-dw6zoiz'
 
-DEBUG = True
+# DEBUG = True
+
+# -------------------------------------------------------
+# ENVIRONMENT CONFIG
+# -------------------------------------------------------
+ENVIRONMENT = os.getenv("DJANGO_ENV", "development")
+DEBUG = ENVIRONMENT != "production"
+
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -31,10 +42,9 @@ ALLOWED_HOSTS = [
     'testserver',
     '10.64.151.226',
     '10.205.101.232',
-    '10.240.175.113',
-    '192.168.143.226',
-    '10.165.19.226'
-    
+    '10.244.208.158',
+    '10.153.105.158',  
+    '192.168.5.92'
     
     
 ]
@@ -74,6 +84,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
     'api.middleware.module_permission_middleware.ModulePermissionMiddleware',
+    'api.middleware.request_meta_middleware.RequestMetaMiddleware',
 ]
 
 ROOT_URLCONF = 'backend.urls'
@@ -174,11 +185,13 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://125\.17\.238\.158(:\d+)?$",
     r"^http://localhost(:\d+)?$",
     r"^http://192\.168\.4\.75(:\d+)?$",
-    r"^http://192\.168\.143\.226(:\d+)?$",
-    r"^http://115\.245\.93\.26(:/d+)?$",
+    r"^http://192\.168\.5\.92(:\d+)?$",
+    r"^http://115\.245\.93\.26(:\d+)?$", 
     r"^http://10\.64\.151\.226(:\d+)?$", #dhivya
-    r"^http://10\.165\.19\.226(:\d+)?$" #dhivya
-   
+    r"^http://10\.205\.101\.232(:\d+)?$", #dhivya
+    r"^http://10\.244\.208\.158(:\d+)?$",  
+
+    
    
 
 ]

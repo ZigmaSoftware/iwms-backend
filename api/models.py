@@ -15,6 +15,11 @@ from .apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 from .apps.customercreation import CustomerCreation
 from .apps.wastecollection import WasteCollection
 from .apps.feedback import FeedBack
+from .apps.assignment import (
+    DailyAssignment,
+    AssignmentStatusHistory,
+    DriverCollectionLog,
+)
 
 from .apps.userscreen import UserScreen
 from .apps.userType import UserType
@@ -29,6 +34,7 @@ from .apps.complaints import Complaint
 
 from .apps.main_category_citizenGrievance import MainCategory
 from .apps.sub_category_citizenGrievance import SubCategory
+from .apps.loginAudit import LoginAudit
 
 from .apps.waste_collection_bluetooth import (
     WasteCollectionSub,
@@ -67,6 +73,7 @@ __all__ = [
     "StaffUserType",
     "UserScreen",
     "UserScreenPermission",
+    "LoginAudit"
 
     # Vehicles
     "VehicleTypeCreation",
@@ -83,4 +90,9 @@ __all__ = [
     "WasteCollectionSub",
     "WasteType",
     "WasteCollectionMain",
+
+    # Assignments
+    "DailyAssignment",
+    "AssignmentStatusHistory",
+    "DriverCollectionLog",
 ]
