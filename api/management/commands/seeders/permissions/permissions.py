@@ -47,7 +47,13 @@ class PermissionSeeder(BaseSeeder):
                 "Fuels", "Properties", "Subproperties"
             ],
             "role-assign": [
-                "UserType", "Staffusertypes"
+                "UserType",
+                "Staffusertypes",
+                "Assignments",
+                "DailyAssignments",
+                "StaffAssignments",
+                "CollectionLogs",
+                "CitizenAssignments",
             ],
             "user-creation": [
                 "UsersCreation", "Staffcreation"

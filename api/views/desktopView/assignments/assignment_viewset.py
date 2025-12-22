@@ -127,7 +127,7 @@ class DailyAssignmentViewSet(viewsets.ModelViewSet):
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=["post"])
     def cancel(self, request, unique_id=None):
         assignment = self.get_object()
         reason = request.data.get("reason")
@@ -198,7 +198,7 @@ class DailyAssignmentViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(assignment)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=["post"])
     def skip(self, request, unique_id=None):
         assignment = self.get_object()
         reason = request.data.get("reason")

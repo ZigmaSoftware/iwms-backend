@@ -31,11 +31,6 @@ PROTECTED_MODULES = [
 ]
 
 # --------------------------------------------------
-# HARD RESOURCE ALLOWLIST (YOUR BUSINESS RULE)
-# --------------------------------------------------
-# masters → ONLY Continent allowed
-# assets  → NONE allowed for now
-# --------------------------------------------------
 # HARD RESOURCE ALLOWLIST (BUSINESS RULE)
 # --------------------------------------------------
 MODULE_RESOURCE_ALLOWLIST = {
@@ -61,6 +56,11 @@ MODULE_RESOURCE_ALLOWLIST = {
     "role-assign": {
         "UserType",
         "Staffusertypes",
+        "Assignments",
+        "DailyAssignments",
+        "StaffAssignments",
+        "CollectionLogs",
+        "CitizenAssignments",
     },
 
     # User Creation
@@ -83,6 +83,28 @@ MODULE_RESOURCE_ALLOWLIST = {
         "VehicleCreation",
     },
 }
+
+RESOURCE_SLUG_OVERRIDES = {
+    "continents": "Continent",
+}
+
+
+def _slug_to_resource(slug: str) -> str:
+    override = RESOURCE_SLUG_OVERRIDES.get(slug)
+    if override:
+        return override
+    parts = slug.replace("_", "-").split("-")
+    return "".join(part[:1].upper() + part[1:] for part in parts if part)
+
+
+def _resource_from_path(path: str, module: str) -> str | None:
+    parts = [segment for segment in path.strip("/").split("/") if segment]
+    if module not in parts:
+        return None
+    index = parts.index(module)
+    if index + 1 >= len(parts):
+        return None
+    return _slug_to_resource(parts[index + 1])
 
 class ModulePermissionMiddleware(MiddlewareMixin):
 
@@ -161,20 +183,25 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         # --------------------------------------------------
         # 4. FETCH PERMISSIONS FROM TOKEN
         # --------------------------------------------------
+        role = str(payload.get("role") or "").lower()
+        if role == "admin":
+            return None
+
         permissions = payload.get("permissions", {})
         module_permissions = permissions.get(module, {})
 
         # --------------------------------------------------
-        # 5. RESOLVE RESOURCE (VIEWSET CLASS)
+        # 5. RESOLVE RESOURCE (URL SLUG → SCREEN NAME)
         # --------------------------------------------------
-        # DRF sets view_func.cls for ViewSets
         view_class = getattr(view_func, "cls", None)
 
         # Swagger / schema / non-ViewSet → allow
         if not view_class:
             return None
 
-        resource = view_class.__name__.replace("ViewSet", "")
+        resource = _resource_from_path(request.path, module)
+        if not resource:
+            resource = view_class.__name__.replace("ViewSet", "")
 
         # --------------------------------------------------
         # 6. MAP HTTP METHOD → ACTION
