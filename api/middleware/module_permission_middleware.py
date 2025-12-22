@@ -31,10 +31,13 @@ PROTECTED_MODULES = [
 ]
 
 # --------------------------------------------------
-# HARD RESOURCE ALLOWLIST (YOUR BUSINESS RULE)
+# AUTH-ONLY ENDPOINTS (TOKEN REQUIRED, NO PERMISSIONS)
 # --------------------------------------------------
-# masters → ONLY Continent allowed
-# assets  → NONE allowed for now
+AUTH_ONLY_PREFIXES = (
+    "/api/mobile/main-category/",
+    "/api/mobile/sub-category/",
+)
+
 # --------------------------------------------------
 # HARD RESOURCE ALLOWLIST (BUSINESS RULE)
 # --------------------------------------------------
@@ -61,6 +64,11 @@ MODULE_RESOURCE_ALLOWLIST = {
     "role-assign": {
         "UserType",
         "Staffusertypes",
+        "Assignments",
+        "DailyAssignments",
+        "StaffAssignments",
+        "CollectionLogs",
+        "CitizenAssignments",
     },
 
     # User Creation
@@ -90,6 +98,10 @@ def _split_path(path):
     return [segment for segment in clean.split("/") if segment]
 
 
+def _is_auth_only_path(path):
+    return any(path.startswith(prefix) for prefix in AUTH_ONLY_PREFIXES)
+
+
 def _module_and_resource_from_path(path):
     parts = _split_path(path)
 
@@ -109,6 +121,68 @@ def _slug_to_resource_name(slug):
     return label.replace(" ", "")
 
 
+def _extract_token(request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return None
+
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    else:
+        token = auth_header.strip()
+
+    return token or None
+
+
+def _resolve_user_from_payload(payload):
+    user_unique_id = payload.get("unique_id")
+    user_id = payload.get("user_id")
+
+    if user_unique_id:
+        return User.objects.only("unique_id", "staffusertype_id_id").get(
+            unique_id=user_unique_id
+        )
+
+    if user_id is not None:
+        return User.objects.only("unique_id", "staffusertype_id_id").get(
+            pk=user_id
+        )
+
+    return None
+
+
+def _authenticate_request(request):
+    token = _extract_token(request)
+    if not token:
+        return JsonResponse(
+            {"detail": "Authorization token missing"},
+            status=401
+        )
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"]
+        )
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({"detail": "Token expired"}, status=401)
+    except jwt.InvalidTokenError:
+        return JsonResponse({"detail": "Invalid token"}, status=401)
+
+    try:
+        user = _resolve_user_from_payload(payload)
+    except User.DoesNotExist:
+        return JsonResponse({"detail": "User not found"}, status=401)
+
+    if not user:
+        return JsonResponse({"detail": "Invalid token payload"}, status=401)
+
+    request.user = user
+    request.jwt_payload = payload
+    return None
+
+
 class ModulePermissionMiddleware(MiddlewareMixin):
 
     def process_view(self, request, view_func, view_args, view_kwargs):
@@ -118,78 +192,52 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         # --------------------------------------------------
         module, resource_slug = _module_and_resource_from_path(request.path)
 
-        # Not a protected module → allow
-        if not module:
-            return None
-
         # Allow OPTIONS / CORS preflight
         if request.method == "OPTIONS":
+            return None
+
+        if _is_auth_only_path(request.path):
+            auth_error = _authenticate_request(request)
+            if auth_error:
+                return auth_error
+            return None
+
+        # Not a protected module → allow
+        if not module:
             return None
 
         # --------------------------------------------------
         # 2. READ AUTHORIZATION HEADER (SAFE)
         # --------------------------------------------------
-        auth_header = request.headers.get("Authorization")
-        token = None
+        auth_error = _authenticate_request(request)
+        if auth_error:
+            return auth_error
 
-        if not auth_header:
-            return JsonResponse(
-                {"detail": "Authorization token missing"},
-                status=401
-            )
-
-        # Accept:
-        # Authorization: Bearer <token>
-        # Authorization: <token>
-        if auth_header.startswith("Bearer "):
-            token = auth_header.split(" ", 1)[1].strip()
-        else:
-            token = auth_header.strip()
-
-        if not token:
-            return JsonResponse(
-                {"detail": "Authorization token missing"},
-                status=401
-            )
-
-        # --------------------------------------------------
-        # 3. DECODE JWT TOKEN
-        # --------------------------------------------------
-        try:
-            payload = jwt.decode(
-                token,
-                settings.SECRET_KEY,
-                algorithms=["HS256"]
-            )
-        except jwt.ExpiredSignatureError:
-            return JsonResponse({"detail": "Token expired"}, status=401)
-        except jwt.InvalidTokenError:
-            return JsonResponse({"detail": "Invalid token"}, status=401)
-
-        user_unique_id = payload.get("unique_id")
-        if not user_unique_id:
-            return JsonResponse({"detail": "Invalid token payload"}, status=401)
-
-        try:
-            user = User.objects.only("unique_id", "staffusertype_id_id").get(
-                unique_id=user_unique_id
-            )
-        except User.DoesNotExist:
-            return JsonResponse({"detail": "User not found"}, status=401)
-
-        request.user = user
-        request.jwt_payload = payload
+        payload = request.jwt_payload
 
         # --------------------------------------------------
         # 4. FETCH PERMISSIONS FROM TOKEN
         # --------------------------------------------------
+        role = str(payload.get("role") or "").lower()
+        if role == "admin":
+            return None
+
+        if role == "operator" and module == "role-assign":
+            operator_resources = {
+                "Assignments",
+                "DailyAssignments",
+                "CollectionLogs",
+            }
+            slug_resource = _slug_to_resource_name(resource_slug)
+            if slug_resource in operator_resources:
+                return None
+
         permissions = payload.get("permissions", {})
         module_permissions = permissions.get(module, {})
 
         # --------------------------------------------------
-        # 5. RESOLVE RESOURCE (VIEWSET CLASS)
+        # 5. RESOLVE RESOURCE (URL SLUG → SCREEN NAME)
         # --------------------------------------------------
-        # DRF sets view_func.cls for ViewSets
         view_class = getattr(view_func, "cls", None)
 
         # Swagger / schema / non-ViewSet → allow
