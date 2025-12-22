@@ -118,4 +118,4 @@ class PermissionSeeder(BaseSeeder):
                     )
                     order_no += 1
 
-        self.log("✅ Full permission structure seeded successfully")
+        self.log("Full permission structure seeded successfully")
