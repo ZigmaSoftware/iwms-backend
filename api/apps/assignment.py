@@ -93,6 +93,26 @@ class DailyAssignment(models.Model):
         default="pending",
     )
 
+    # Driver/operator completion tracking
+    driver_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("completed", "Completed"),
+        ],
+        default="pending",
+    )
+    operator_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("completed", "Completed"),
+        ],
+        default="pending",
+    )
+    driver_completed_at = models.DateTimeField(null=True, blank=True)
+    operator_completed_at = models.DateTimeField(null=True, blank=True)
+
     # Completion tracking
     completed_at = models.DateTimeField(null=True, blank=True)
     completed_by = models.ForeignKey(
@@ -162,6 +182,8 @@ class AssignmentStatusHistory(models.Model):
     STATUS_CHOICES = [
         ("created", "Created"),
         ("in_progress", "In Progress"),
+        ("driver_completed", "Driver Completed"),
+        ("operator_completed", "Operator Completed"),
         ("completed", "Completed"),
         ("skipped", "Skipped by Driver"),
         ("cancelled", "Cancelled by Admin"),

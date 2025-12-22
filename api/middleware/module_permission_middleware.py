@@ -84,27 +84,30 @@ MODULE_RESOURCE_ALLOWLIST = {
     },
 }
 
-RESOURCE_SLUG_OVERRIDES = {
-    "continents": "Continent",
-}
+
+def _split_path(path):
+    clean = path.split("?", 1)[0]
+    return [segment for segment in clean.split("/") if segment]
 
 
-def _slug_to_resource(slug: str) -> str:
-    override = RESOURCE_SLUG_OVERRIDES.get(slug)
-    if override:
-        return override
-    parts = slug.replace("_", "-").split("-")
-    return "".join(part[:1].upper() + part[1:] for part in parts if part)
+def _module_and_resource_from_path(path):
+    parts = _split_path(path)
+
+    for index, segment in enumerate(parts):
+        if segment in PROTECTED_MODULES:
+            resource_slug = parts[index + 1] if index + 1 < len(parts) else None
+            return segment, resource_slug
+
+    return None, None
 
 
-def _resource_from_path(path: str, module: str) -> str | None:
-    parts = [segment for segment in path.strip("/").split("/") if segment]
-    if module not in parts:
+def _slug_to_resource_name(slug):
+    if not slug:
         return None
-    index = parts.index(module)
-    if index + 1 >= len(parts):
-        return None
-    return _slug_to_resource(parts[index + 1])
+
+    label = slug.replace("-", " ").title()
+    return label.replace(" ", "")
+
 
 class ModulePermissionMiddleware(MiddlewareMixin):
 
@@ -113,10 +116,7 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         # --------------------------------------------------
         # 1. IDENTIFY MODULE FROM URL
         # --------------------------------------------------
-        module = next(
-            (m for m in PROTECTED_MODULES if f"/{m}/" in request.path),
-            None
-        )
+        module, resource_slug = _module_and_resource_from_path(request.path)
 
         # Not a protected module → allow
         if not module:
@@ -187,6 +187,16 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         if role == "admin":
             return None
 
+        if role == "operator" and module == "role-assign":
+            operator_resources = {
+                "Assignments",
+                "DailyAssignments",
+                "CollectionLogs",
+            }
+            slug_resource = _slug_to_resource_name(resource_slug)
+            if slug_resource in operator_resources:
+                return None
+
         permissions = payload.get("permissions", {})
         module_permissions = permissions.get(module, {})
 
@@ -199,9 +209,12 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         if not view_class:
             return None
 
-        resource = _resource_from_path(request.path, module)
-        if not resource:
-            resource = view_class.__name__.replace("ViewSet", "")
+        slug_resource = _slug_to_resource_name(resource_slug)
+        view_resource = view_class.__name__.replace("ViewSet", "")
+        permission_resource = getattr(view_class, "permission_resource", None)
+
+        if not permission_resource:
+            permission_resource = slug_resource or view_resource
 
         # --------------------------------------------------
         # 6. MAP HTTP METHOD → ACTION
@@ -218,12 +231,12 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         # --------------------------------------------------
         allowed_resources = MODULE_RESOURCE_ALLOWLIST.get(module, set())
 
-        if resource not in allowed_resources:
+        if permission_resource not in allowed_resources:
             return JsonResponse(
                 {
                     "detail": "Permission denied",
                     "module": module,
-                    "resource": resource,
+                    "resource": permission_resource,
                     "reason": "Resource not allowed in this module",
                 },
                 status=403
@@ -232,14 +245,14 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         # --------------------------------------------------
         # 7B. JWT ACTION CHECK
         # --------------------------------------------------
-        allowed_actions = module_permissions.get(resource, [])
+        allowed_actions = module_permissions.get(permission_resource, [])
 
         if action not in allowed_actions:
             return JsonResponse(
                 {
                     "detail": "Permission denied",
                     "module": module,
-                    "resource": resource,
+                    "resource": permission_resource,
                     "action": action,
                 },
                 status=403

@@ -77,6 +77,10 @@ class DailyAssignmentSerializer(serializers.ModelSerializer):
             "assigned_by",
             "assigned_by_name",
             "current_status",
+            "driver_status",
+            "operator_status",
+            "driver_completed_at",
+            "operator_completed_at",
             "completed_at",
             "skipped_at",
             "skip_reason",
@@ -93,6 +97,10 @@ class DailyAssignmentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "current_status",
+            "driver_status",
+            "operator_status",
+            "driver_completed_at",
+            "operator_completed_at",
             "completed_at",
             "skipped_at",
             "skip_reason",
@@ -213,6 +221,10 @@ class EnhancedAssignmentSerializer(serializers.ModelSerializer):
             "assignment_type",
             "shift",
             "current_status",
+            "driver_status",
+            "operator_status",
+            "driver_completed_at",
+            "operator_completed_at",
             "created_at",
             "updated_at",
             "completed_at",
@@ -230,11 +242,12 @@ class EnhancedAssignmentSerializer(serializers.ModelSerializer):
     def get_latest_action(self, obj):
         latest = obj.status_history.first()
         if latest:
+            changed_by_name = None
+            if latest.changed_by and getattr(latest.changed_by, "staff_id", None):
+                changed_by_name = latest.changed_by.staff_id.employee_name
             return {
                 "status": latest.status,
                 "timestamp": latest.timestamp,
-                "changed_by": latest.changed_by_name
-                if latest.changed_by
-                else None,
+                "changed_by": changed_by_name,
             }
         return None

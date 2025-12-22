@@ -12,7 +12,7 @@ class StaffUserTypeSeeder(BaseSeeder):
         try:
             staff_usertype = UserType.objects.get(name__iexact="staff")
         except UserType.DoesNotExist:
-            raise Exception("❌ UserType 'staff' not found. Run UserTypeSeeder first.")
+            raise Exception("UserType 'staff' not found. Run UserTypeSeeder first.")
 
         StaffUserType.objects.get_or_create(
             usertype_id=staff_usertype,
@@ -39,4 +39,4 @@ class StaffUserTypeSeeder(BaseSeeder):
             }
         )
 
-        self.log("✅ Staff user type 'admin' seeded for Staff")
+        self.log("Staff user type 'admin' seeded for Staff")

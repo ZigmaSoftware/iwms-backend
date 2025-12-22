@@ -85,6 +85,21 @@ class LoginSerializer(serializers.Serializer):
 
             permissions[main_name][screen_name].append(action_name)
 
+        if not permissions and utype == "staff":
+            staff_role = user.staffusertype_id.name.lower()
+            if staff_role in ["driver", "operator"]:
+                permissions = {
+                    "role-assign": {
+                        "Assignments": ["view", "add"],
+                        "DailyAssignments": ["view", "add"],
+                        "StaffAssignments": ["view"],
+                        "CollectionLogs": ["add"],
+                    },
+                    "customers": {
+                        "Customercreations": ["view"],
+                    },
+                }
+
         attrs["user"] = user
         attrs["permissions"] = permissions
 

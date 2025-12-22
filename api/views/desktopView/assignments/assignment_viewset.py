@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.db import models
 from django.db.models import Count, Prefetch
@@ -13,6 +13,7 @@ from api.apps.assignment import (
     DailyAssignment,
     DriverCollectionLog,
 )
+from api.apps.userCreation import User
 from api.serializers.desktopView.assignments.assignment_serializer import (
     AssignmentStatusHistorySerializer,
     DailyAssignmentSerializer,
@@ -31,6 +32,14 @@ class DailyAssignmentViewSet(viewsets.ModelViewSet):
     serializer_class = DailyAssignmentSerializer
 
     def get_queryset(self):
+        if self.action == "list":
+            cutoff = timezone.now() - timedelta(minutes=5)
+            DailyAssignment.objects.filter(
+                is_active=True,
+                current_status="completed",
+                completed_at__lte=cutoff,
+            ).update(is_active=False)
+
         base_qs = DailyAssignment.objects.filter(is_active=True)
 
         if self.action in ["retrieve", "complete", "cancel", "skip"]:
@@ -168,6 +177,13 @@ class DailyAssignmentViewSet(viewsets.ModelViewSet):
         assignment = serializer.save()
 
         if old_instance.current_status != assignment.current_status:
+            if assignment.current_status == "completed":
+                assignment.is_active = False
+                if not assignment.completed_at:
+                    assignment.completed_at = timezone.now()
+                assignment.save(
+                    update_fields=["is_active", "completed_at"]
+                )
             AssignmentStatusHistory.objects.create(
                 assignment=assignment,
                 status=assignment.current_status,
@@ -177,24 +193,96 @@ class DailyAssignmentViewSet(viewsets.ModelViewSet):
                 reason=f"Status changed from {old_instance.current_status} to {assignment.current_status}",
             )
 
+    def _resolve_actor(self, request):
+        raw_request = getattr(request, "_request", None)
+        if raw_request:
+            raw_user = getattr(raw_request, "user", None)
+            if raw_user is not None and getattr(raw_user, "unique_id", None):
+                return raw_user
+            payload = getattr(raw_request, "jwt_payload", None)
+        else:
+            payload = getattr(request, "jwt_payload", None)
+
+        if payload and payload.get("unique_id"):
+            return User.objects.filter(
+                unique_id=payload.get("unique_id")
+            ).first()
+        return None
+
     @action(detail=True, methods=["post"])
     def complete(self, request, unique_id=None):
         assignment = self.get_object()
-        assignment.current_status = "completed"
-        assignment.completed_at = timezone.now()
-        assignment.completed_by = request.user if request.user.is_authenticated else None
-        assignment.save(
-            update_fields=["current_status", "completed_at", "completed_by"]
-        )
+        if assignment.current_status in ["cancelled", "skipped"]:
+            return Response(
+                {"detail": "Assignment is not active."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        AssignmentStatusHistory.objects.create(
-            assignment=assignment,
-            status="completed",
-            changed_by=request.user
-            if request.user.is_authenticated
-            else None,
-            reason="Marked as completed",
-        )
+        actor = self._resolve_actor(request)
+        if actor is None:
+            return Response(
+                {"detail": "Authentication required."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        now = timezone.now()
+        updated_fields = []
+
+        if assignment.driver_id == actor.id:
+            if assignment.driver_status != "completed":
+                assignment.driver_status = "completed"
+                assignment.driver_completed_at = now
+                updated_fields += ["driver_status", "driver_completed_at"]
+                AssignmentStatusHistory.objects.create(
+                    assignment=assignment,
+                    status="driver_completed",
+                    changed_by=actor,
+                    reason="Driver marked completed",
+                )
+        elif assignment.operator_id == actor.id:
+            if assignment.operator_status != "completed":
+                assignment.operator_status = "completed"
+                assignment.operator_completed_at = now
+                updated_fields += ["operator_status", "operator_completed_at"]
+                AssignmentStatusHistory.objects.create(
+                    assignment=assignment,
+                    status="operator_completed",
+                    changed_by=actor,
+                    reason="Operator marked completed",
+                )
+        else:
+            return Response(
+                {"detail": "Only the assigned driver/operator can complete."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if (
+            assignment.driver_status == "completed"
+            and assignment.operator_status == "completed"
+        ):
+            assignment.current_status = "completed"
+            assignment.completed_at = now
+            assignment.completed_by = actor
+            assignment.is_active = False
+            updated_fields += [
+                "current_status",
+                "completed_at",
+                "completed_by",
+                "is_active",
+            ]
+            AssignmentStatusHistory.objects.create(
+                assignment=assignment,
+                status="completed",
+                changed_by=actor,
+                reason="Assignment completed by driver and operator",
+            )
+        else:
+            if assignment.current_status == "pending":
+                assignment.current_status = "in_progress"
+                updated_fields.append("current_status")
+
+        if updated_fields:
+            assignment.save(update_fields=updated_fields)
         serializer = self.get_serializer(assignment)
         return Response(serializer.data)
 
@@ -347,49 +435,10 @@ class DriverCollectionLogViewSet(viewsets.ModelViewSet):
         log = serializer.save(driver=driver)
         assignment = log.assignment
 
-        if log.action == "collection_completed":
-            assignment.current_status = "completed"
-            assignment.completed_at = timezone.now()
-            assignment.completed_by = log.driver
-            AssignmentStatusHistory.objects.create(
-                assignment=assignment,
-                status="completed",
-                changed_by=log.driver,
-                reason="Collection completed by driver",
-                metadata={
-                    "waste_weight": str(log.waste_weight)
-                    if log.waste_weight
-                    else None
-                },
-                latitude=log.latitude,
-                longitude=log.longitude,
-            )
-        elif log.action == "skipped":
-            assignment.current_status = "skipped"
-            assignment.skipped_at = timezone.now()
-            assignment.skipped_by = log.driver
-            assignment.skip_reason = log.skip_reason
-            AssignmentStatusHistory.objects.create(
-                assignment=assignment,
-                status="skipped",
-                changed_by=log.driver,
-                reason=log.skip_reason,
-                latitude=log.latitude,
-                longitude=log.longitude,
-            )
-        elif log.action == "started_navigation":
-            assignment.current_status = "in_progress"
-
-        assignment.save(
-            update_fields=[
-                "current_status",
-                "completed_at",
-                "completed_by",
-                "skipped_at",
-                "skipped_by",
-                "skip_reason",
-            ]
-        )
+        if log.action in ["started_navigation", "collection_started"]:
+            if assignment.current_status == "pending":
+                assignment.current_status = "in_progress"
+                assignment.save(update_fields=["current_status"])
 
 
 class CitizenAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
