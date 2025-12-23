@@ -41,7 +41,7 @@ class PermissionSeeder(BaseSeeder):
         screen_structure = {
             "masters": [
                 "Continent", "Countries", "States", "Districts",
-                "Cities", "Zones", "Wards"
+                "Cities", "Zones", "Wards", "Bins"
             ],
             "assets": [
                 "Fuels", "Properties", "Subproperties"

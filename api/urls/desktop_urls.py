@@ -59,13 +59,12 @@ router = GroupedRouter()
 # ============================================================
 router.register_group("masters", "continents",    ContinentViewSet)
 router.register_group("masters", "countries",     CountryViewSet)
-router.register_group("masters", "bins",          BinViewSet)
 router.register_group("masters", "states",        StateViewSet)
 router.register_group("masters", "districts",     DistrictViewSet)
 router.register_group("masters", "cities",        CityViewSet)
 router.register_group("masters", "zones",         ZoneViewSet)
 router.register_group("masters", "wards",         WardViewSet)
-
+router.register_group("masters", "bins",          BinViewSet)
 
 # ============================================================
 # GROUP: ASSETS
@@ -95,7 +94,7 @@ router.register_group("role-assign", "daily-assignments", DailyAssignmentViewSet
 router.register_group("role-assign", "staff-assignments", StaffAssignmentHistoryViewSet)
 router.register_group("role-assign", "collection-logs", DriverCollectionLogViewSet)
 router.register_group("role-assign", "citizen-assignments", CitizenAssignmentViewSet)
-   
+
 
 
 # ============================================================
