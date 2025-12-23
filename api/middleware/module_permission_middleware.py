@@ -51,6 +51,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Cities",
         "Zones",
         "Wards",
+        "Bins"
     },
 
     # Assets
