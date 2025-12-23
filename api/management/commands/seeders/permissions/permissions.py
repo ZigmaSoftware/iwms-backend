@@ -47,7 +47,13 @@ class PermissionSeeder(BaseSeeder):
                 "Fuels", "Properties", "Subproperties"
             ],
             "role-assign": [
-                "UserType", "Staffusertypes"
+                "UserType",
+                "Staffusertypes",
+                "Assignments",
+                "DailyAssignments",
+                "StaffAssignments",
+                "CollectionLogs",
+                "CitizenAssignments",
             ],
             "user-creation": [
                 "UsersCreation", "Staffcreation"
@@ -96,6 +102,14 @@ class PermissionSeeder(BaseSeeder):
             name="admin",
             usertype_id=staff_type
         )
+        driver_role = StaffUserType.objects.get(
+            name="driver",
+            usertype_id=staff_type
+        )
+        operator_role = StaffUserType.objects.get(
+            name="operator",
+            usertype_id=staff_type
+        )
 
         
         for main in mainscreens.values():
@@ -117,5 +131,66 @@ class PermissionSeeder(BaseSeeder):
                         }
                     )
                     order_no += 1
+
+        driver_permissions = {
+            "role-assign": {
+                "Assignments": ["view", "add"],
+                "DailyAssignments": ["view", "add"],
+                "StaffAssignments": ["view"],
+                "CollectionLogs": ["add"],
+            },
+            "customers": {
+                "Customercreations": ["view"],
+            },
+        }
+
+        operator_permissions = {
+            "role-assign": {
+                "Assignments": ["view", "add"],
+                "DailyAssignments": ["view", "add"],
+                "StaffAssignments": ["view"],
+                "CollectionLogs": ["add"],
+            },
+            "customers": {
+                "Customercreations": ["view"],
+            },
+        }
+
+        role_permission_sets = [
+            (driver_role, driver_permissions),
+            (operator_role, operator_permissions),
+        ]
+
+        for staff_role, permission_map in role_permission_sets:
+            for main_name, screens in permission_map.items():
+                main = mainscreens.get(main_name)
+                if not main:
+                    continue
+                for screen_name, action_names in screens.items():
+                    screen = UserScreen.objects.filter(
+                        mainscreen_id=main,
+                        userscreen_name=screen_name,
+                    ).first()
+                    if not screen:
+                        continue
+                    order_no = 1
+                    for action_name in action_names:
+                        action = actions.get(action_name)
+                        if not action:
+                            continue
+                        UserScreenPermission.objects.get_or_create(
+                            usertype_id=staff_type,
+                            staffusertype_id=staff_role,
+                            mainscreen_id=main,
+                            userscreen_id=screen,
+                            userscreenaction_id=action,
+                            defaults={
+                                "order_no": order_no,
+                                "description": f"{action.variable_name} {screen.userscreen_name}",
+                                "is_active": True,
+                                "is_deleted": False,
+                            }
+                        )
+                        order_no += 1
 
         self.log("✅ Full permission structure seeded successfully")
