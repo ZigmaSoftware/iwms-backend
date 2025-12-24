@@ -65,6 +65,10 @@ class PermissionSeeder(BaseSeeder):
             "vehicles": [
                 "VehicleType", "VehicleCreation"
             ],
+            "grievance": {
+        "MainCategory",
+        "SubCategory",
+    },
         }
 
         mainscreens = {}
@@ -93,6 +97,7 @@ class PermissionSeeder(BaseSeeder):
                         "is_deleted": False,
                     }
                 )
+
 
         # ==================================================
         # 4. USER SCREEN PERMISSIONS (STAFF → ADMIN)
