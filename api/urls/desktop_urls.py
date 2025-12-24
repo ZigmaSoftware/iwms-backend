@@ -1,4 +1,7 @@
 from django.urls import path, include
+
+from api.views.mobileView.grievance.main_category_viewset import MainCategoryViewSet
+from api.views.mobileView.grievance.sub_category_viewset import SubCategoryViewSet
 from .custom_router import GroupedRouter
 
 # ============================================================
@@ -117,6 +120,14 @@ router.register_group("customers", "customercreations", CustomerCreationViewSet)
 router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customers", "feedbacks",         FeedBackViewSet)
 router.register_group("customers", "complaints", ComplaintViewSet)
+
+# ============================================================
+# GROUP: COMPLAINTS (mobile category endpoints)
+# ============================================================
+
+
+router.register_group("grievance","main-category", MainCategoryViewSet, basename="main-category")
+router.register_group("grievance","sub-category", SubCategoryViewSet, basename="sub-category")
 
 
 # ============================================================

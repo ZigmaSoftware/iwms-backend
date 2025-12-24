@@ -53,7 +53,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Wards",
         "Bins"
     },
-
+    
     # Assets
     "assets": {
         "Fuels",
@@ -70,6 +70,11 @@ MODULE_RESOURCE_ALLOWLIST = {
         "StaffAssignments",
         "CollectionLogs",
         "CitizenAssignments",
+    },
+     # Grievance
+    "grievance": {
+        "MainCategory",
+        "SubCategory",
     },
 
     # User Creation
