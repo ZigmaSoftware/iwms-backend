@@ -84,12 +84,7 @@ class UserSeeder:
         except StaffUserType.DoesNotExist:
             raise Exception("Staff operator role missing. Run StaffUserTypeSeeder first.")
 
-        role_seed_config = [
-            ("driver", driver_role, "driver@123", ["Gokul"], "7890"),
-            ("operator", operator_role, "operator@123", ["Rahul"], "7890"),
-        ]
-
-        for role_name, role_obj, default_password, special_names, special_password in role_seed_config:
+        def seed_staff_role(role_name, role_obj, default_password, special_names, special_password):
             name_filter = Q()
             for name in special_names:
                 name_filter |= Q(employee_name__iexact=name)
@@ -122,7 +117,7 @@ class UserSeeder:
 
             if not staff_members.exists():
                 print(f"No active staff with designation '{role_name}' found.")
-                continue
+                return
 
             for staff_member in staff_members:
                 existing_user = User.objects.filter(staff_id=staff_member).first()
@@ -167,6 +162,28 @@ class UserSeeder:
 
                 if updates:
                     User.objects.filter(pk=existing_user.pk).update(**updates)
+
+        driver_default_password = "driver@123"
+        driver_special_names = ["Gokul"]
+        driver_special_password = "7890"
+        seed_staff_role(
+            "driver",
+            driver_role,
+            driver_default_password,
+            driver_special_names,
+            driver_special_password,
+        )
+
+        operator_default_password = "operator@123"
+        operator_special_names = ["Rahul"]
+        operator_special_password = "1234"
+        seed_staff_role(
+            "operator",
+            operator_role,
+            operator_default_password,
+            operator_special_names,
+            operator_special_password,
+        )
 
         # ==================================================
         # CUSTOMER USERS (DYNAMIC)
