@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils import timezone
 from .utils.comfun import generate_unique_id
 from .ward import Ward
 
@@ -50,14 +49,8 @@ class Bin(models.Model):
 
     # ---------- Classification ----------
     bin_name = models.CharField(max_length=100)
-    bin_type = models.CharField(
-        max_length=20,
-        choices=BinType.choices,
-    )
-    waste_type = models.CharField(
-        max_length=20,
-        choices=WasteType.choices,
-    )
+    bin_type = models.CharField(max_length=20, choices=BinType.choices)
+    waste_type = models.CharField(max_length=20, choices=WasteType.choices)
     color_code = models.CharField(max_length=20)
 
     # ---------- Capacity ----------
@@ -76,7 +69,7 @@ class Bin(models.Model):
         default=BinStatus.ACTIVE,
     )
 
-    # ---------- Soft Delete & State ----------
+    # ---------- State ----------
     is_active = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)
 
@@ -90,13 +83,12 @@ class Bin(models.Model):
             models.Index(fields=["ward"]),
             models.Index(fields=["bin_status"]),
             models.Index(fields=["is_active", "is_deleted"]),
-            models.Index(fields=["latitude", "longitude"]),
         ]
         constraints = [
             models.CheckConstraint(
                 check=models.Q(capacity_liters__gt=0),
                 name="bin_capacity_positive",
-            ),
+            )
         ]
 
     def __str__(self):
