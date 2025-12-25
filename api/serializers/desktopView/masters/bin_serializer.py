@@ -4,11 +4,13 @@ from api.validators.unique_name_validator import unique_name_validator
 
 
 class BinSerializer(serializers.ModelSerializer):
+    ward_name = serializers.CharField(source="ward.name", read_only=True)
+
     class Meta:
         model = Bin
         fields = [
             "unique_id",
-            "ward",
+            "ward_id",
             "bin_name",
             "bin_type",
             "waste_type",
@@ -22,6 +24,7 @@ class BinSerializer(serializers.ModelSerializer):
             "is_active",
             "created_at",
             "updated_at",
+            "ward_name"
         ]
         read_only_fields = [
             "unique_id",
