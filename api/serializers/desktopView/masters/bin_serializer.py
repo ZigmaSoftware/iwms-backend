@@ -28,28 +28,21 @@ class BinSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        validators = []
 
     def validate(self, attrs):
-        """
-        Enforce unique bin_name within a ward (enterprise-safe)
-        """
+        # Allow PATCH for status / active toggle without name validation
+        if self.instance and "bin_name" not in attrs:
+            return attrs
+
         return unique_name_validator(
             Model=Bin,
             name_field="bin_name",
-            extra_filters={
-                "ward": attrs.get("ward", getattr(self.instance, "ward", None)),
-                "is_deleted": False,
-            },
+            scope_fields=["ward"],   # uniqueness per ward
         )(self, attrs)
 
     def update(self, instance, validated_data):
-        """
-        Auto-deactivate when decommissioned
-        """
-        bin_status = validated_data.get("bin_status")
-
-        if bin_status == "decommissioned":
+        # Business rule: decommissioned bins must be inactive
+        if validated_data.get("bin_status") == "decommissioned":
             validated_data["is_active"] = False
 
         return super().update(instance, validated_data)

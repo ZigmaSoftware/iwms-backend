@@ -9,21 +9,12 @@ class BinViewSet(viewsets.ModelViewSet):
     lookup_field = "unique_id"
 
     def get_queryset(self):
-        """
-        Default: only non-deleted bins
-        """
         return Bin.objects.filter(is_deleted=False)
 
     def perform_destroy(self, instance):
-        """
-        Soft delete only
-        """
         instance.delete()
 
     def destroy(self, request, *args, **kwargs):
-        """
-        Return enterprise-friendly response
-        """
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response(
