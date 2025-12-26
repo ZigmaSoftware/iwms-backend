@@ -39,7 +39,9 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
     def insert_waste_sub(self, request):
         screen_id = request.data.get("screen_unique_id")
         customer_id = request.data.get("customer_id")
-        waste_type = request.data.get("waste_type")
+        waste_type = request.data.get("waste_type") or request.data.get(
+            "waste_type_id"
+        )
         weight = request.data.get("weight")
         latitude = request.data.get("latitude")
         longitude = request.data.get("longitude")
@@ -47,6 +49,8 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
 
         if not screen_id:
             return Response({"status": "error", "message": "Missing screen_unique_id"}, status=400)
+        if not waste_type:
+            return Response({"status": "error", "message": "Missing waste_type"}, status=400)
         if not image:
             return Response({"status": "error", "message": "No image uploaded"}, status=400)
 
@@ -89,7 +93,11 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
     def get_latest_waste(self, request):
         screen_id = request.data.get("screen_unique_id")
         customer_id = request.data.get("customer_id")
-        waste_type = request.data.get("waste_type")
+        waste_type = request.data.get("waste_type") or request.data.get(
+            "waste_type_id"
+        )
+        if not waste_type:
+            return Response({"status": "error", "message": "Missing waste_type"}, status=400)
 
         with connection.cursor() as cursor:
             cursor.execute("""

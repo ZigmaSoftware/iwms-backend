@@ -4,6 +4,7 @@ from api.apps.assignment import (
     DailyAssignment,
     AssignmentStatusHistory,
     DriverCollectionLog,
+    AssignmentCustomerStatus,
 )
 from api.apps.customercreation import CustomerCreation
 from api.apps.userCreation import User
@@ -188,6 +189,83 @@ class DriverCollectionLogSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "timestamp"]
 
 
+class AssignmentCustomerStatusSerializer(serializers.ModelSerializer):
+    assignment = serializers.SlugRelatedField(
+        slug_field="unique_id",
+        queryset=DailyAssignment.objects.all(),
+    )
+    customer = serializers.SlugRelatedField(
+        slug_field="unique_id",
+        queryset=CustomerCreation.objects.filter(is_deleted=False),
+    )
+    customer_name = serializers.CharField(
+        source="customer.customer_name", read_only=True
+    )
+    updated_by = serializers.SlugRelatedField(
+        slug_field="unique_id",
+        queryset=User.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    updated_by_name = serializers.CharField(
+        source="updated_by.staff_id.employee_name", read_only=True
+    )
+
+    class Meta:
+        model = AssignmentCustomerStatus
+        fields = [
+            "id",
+            "assignment",
+            "customer",
+            "customer_name",
+            "status",
+            "skip_reason",
+            "latitude",
+            "longitude",
+            "updated_by",
+            "updated_by_name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def to_internal_value(self, data):
+        mutable = data.copy()
+
+        raw_customer = mutable.get("customer")
+        if raw_customer:
+            customer = (
+                CustomerCreation.objects.filter(
+                    unique_id=raw_customer, is_deleted=False
+                ).first()
+            )
+            if customer is None:
+                user = User.objects.filter(
+                    unique_id=raw_customer, is_deleted=False
+                ).first()
+                linked_customer = getattr(user, "customer_id", None)
+                if linked_customer:
+                    mutable["customer"] = linked_customer.unique_id
+
+        if mutable.get("status") == "collection_completed":
+            mutable["status"] = "collected"
+
+        return super().to_internal_value(mutable)
+
+    def validate(self, attrs):
+        status = attrs.get("status")
+        if status is None and self.instance is not None:
+            status = self.instance.status
+        if status == "skipped" and not attrs.get("skip_reason"):
+            if not self.instance or not self.instance.skip_reason:
+                raise serializers.ValidationError(
+                    {"skip_reason": "Skip reason is required."}
+                )
+        if status != "skipped":
+            attrs["skip_reason"] = None
+        return attrs
+
+
 class EnhancedAssignmentSerializer(serializers.ModelSerializer):
     """
     Detailed assignment serializer with history and logs.
@@ -203,6 +281,10 @@ class EnhancedAssignmentSerializer(serializers.ModelSerializer):
 
     status_history = AssignmentStatusHistorySerializer(many=True, read_only=True)
     collection_logs = DriverCollectionLogSerializer(many=True, read_only=True)
+    customer_statuses = AssignmentCustomerStatusSerializer(
+        many=True,
+        read_only=True,
+    )
     total_status_changes = serializers.IntegerField(read_only=True)
     latest_action = serializers.SerializerMethodField()
 
@@ -236,6 +318,7 @@ class EnhancedAssignmentSerializer(serializers.ModelSerializer):
             "status_history",
             "collection_logs",
             "total_status_changes",
+            "customer_statuses",
             "latest_action",
         ]
 
