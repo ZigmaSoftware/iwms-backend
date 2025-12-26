@@ -31,7 +31,7 @@ class CustomerCreationSeeder(BaseSeeder):
         customers = [
             {
                 "customer_name": "Sameer",
-                "contact_no": "7890",
+                "contact_no": "7890123456",
                 "building_no": "12A",
                 "street": "Gamma Road",
                 "area": "Gamma 1",
@@ -40,28 +40,7 @@ class CustomerCreationSeeder(BaseSeeder):
                 "longitude": "77.5015",
                 "id_no": "AADHAAR-7890-1",
             },
-            {
-                "customer_name": "Jaisurya",
-                "contact_no": "7890",
-                "building_no": "14B",
-                "street": "Gamma Lane",
-                "area": "Gamma 1",
-                "pincode": "600017",
-                "latitude": "28.4874",
-                "longitude": "77.5021",
-                "id_no": "AADHAAR-7890-2",
-            },
-            {
-                "customer_name": "Sathya",
-                "contact_no": "7890",
-                "building_no": "16C",
-                "street": "Gamma Street",
-                "area": "Gamma 1",
-                "pincode": "600017",
-                "latitude": "28.4859",
-                "longitude": "77.5008",
-                "id_no": "AADHAAR-7890-3",
-            },
+           
         ]
 
         for entry in customers:
