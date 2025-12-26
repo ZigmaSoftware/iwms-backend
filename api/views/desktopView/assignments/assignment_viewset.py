@@ -12,6 +12,7 @@ from api.apps.assignment import (
     AssignmentStatusHistory,
     DailyAssignment,
     DriverCollectionLog,
+    AssignmentCustomerStatus,
 )
 from api.apps.userCreation import User
 from api.serializers.desktopView.assignments.assignment_serializer import (
@@ -19,6 +20,7 @@ from api.serializers.desktopView.assignments.assignment_serializer import (
     DailyAssignmentSerializer,
     DriverCollectionLogSerializer,
     EnhancedAssignmentSerializer,
+    AssignmentCustomerStatusSerializer,
 )
 
 
@@ -61,6 +63,12 @@ class DailyAssignmentViewSet(viewsets.ModelViewSet):
                     queryset=DriverCollectionLog.objects.select_related(
                         "driver"
                     ).order_by("-timestamp"),
+                ),
+                Prefetch(
+                    "customer_statuses",
+                    queryset=AssignmentCustomerStatus.objects.select_related(
+                        "customer", "updated_by"
+                    ).order_by("-updated_at"),
                 ),
             ).annotate(total_status_changes=Count("status_history"))
         else:
@@ -296,9 +304,22 @@ class DailyAssignmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        actor = self._resolve_actor(request)
+        if actor is None:
+            return Response(
+                {"detail": "Authentication required."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if assignment.driver_id != actor.id and assignment.operator_id != actor.id:
+            return Response(
+                {"detail": "Only the assigned driver/operator can skip."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         assignment.current_status = "skipped"
         assignment.skipped_at = timezone.now()
-        assignment.skipped_by = request.user
+        assignment.skipped_by = actor
         assignment.skip_reason = reason
         assignment.save(
             update_fields=[
@@ -312,7 +333,7 @@ class DailyAssignmentViewSet(viewsets.ModelViewSet):
         AssignmentStatusHistory.objects.create(
             assignment=assignment,
             status="skipped",
-            changed_by=request.user,
+            changed_by=actor,
             reason=reason,
         )
         serializer = self.get_serializer(assignment)
@@ -349,6 +370,12 @@ class StaffAssignmentHistoryViewSet(viewsets.ReadOnlyModelViewSet):
                     queryset=DriverCollectionLog.objects.select_related(
                         "driver"
                     ).order_by("-timestamp"),
+                ),
+                Prefetch(
+                    "customer_statuses",
+                    queryset=AssignmentCustomerStatus.objects.select_related(
+                        "customer", "updated_by"
+                    ).order_by("-updated_at"),
                 ),
             )
             .annotate(total_status_changes=Count("status_history"))
@@ -441,6 +468,71 @@ class DriverCollectionLogViewSet(viewsets.ModelViewSet):
                 assignment.save(update_fields=["current_status"])
 
 
+class AssignmentCustomerStatusViewSet(viewsets.ModelViewSet):
+    """
+    Per-customer assignment status viewset (operator updates).
+    """
+
+    serializer_class = AssignmentCustomerStatusSerializer
+    queryset = AssignmentCustomerStatus.objects.select_related(
+        "assignment", "customer", "updated_by"
+    ).all()
+
+    def _resolve_actor(self, request):
+        raw_request = getattr(request, "_request", None)
+        if raw_request is not None:
+            raw_user = getattr(raw_request, "user", None)
+            if raw_user is not None and getattr(raw_user, "unique_id", None):
+                return raw_user
+            payload = getattr(raw_request, "jwt_payload", None)
+        else:
+            payload = getattr(request, "jwt_payload", None)
+
+        if payload and payload.get("unique_id"):
+            return User.objects.filter(
+                unique_id=payload.get("unique_id")
+            ).first()
+        if request.user.is_authenticated:
+            return request.user
+        return None
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+        if "assignment_id" in params:
+            qs = qs.filter(assignment__unique_id=params["assignment_id"])
+        if "customer_id" in params:
+            qs = qs.filter(customer__unique_id=params["customer_id"])
+        if "status" in params:
+            qs = qs.filter(status=params["status"])
+        return qs.order_by("-updated_at")
+
+    def perform_create(self, serializer):
+        actor = self._resolve_actor(self.request)
+        serializer.save(updated_by=actor)
+
+    def perform_update(self, serializer):
+        actor = self._resolve_actor(self.request)
+        serializer.save(updated_by=actor)
+
+    def create(self, request, *args, **kwargs):
+        assignment_id = request.data.get("assignment")
+        customer_id = request.data.get("customer")
+        if assignment_id and customer_id:
+            existing = AssignmentCustomerStatus.objects.filter(
+                assignment__unique_id=assignment_id,
+                customer__unique_id=customer_id,
+            ).first()
+            if existing is not None:
+                serializer = self.get_serializer(
+                    existing, data=request.data, partial=True
+                )
+                serializer.is_valid(raise_exception=True)
+                self.perform_update(serializer)
+                return Response(serializer.data)
+        return super().create(request, *args, **kwargs)
+
+
 class CitizenAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
     """
     View assignments grouped by citizen/customer (ward/customer filters).
@@ -471,6 +563,12 @@ class CitizenAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
                     queryset=DriverCollectionLog.objects.select_related(
                         "driver"
                     ).order_by("-timestamp"),
+                ),
+                Prefetch(
+                    "customer_statuses",
+                    queryset=AssignmentCustomerStatus.objects.select_related(
+                        "customer", "updated_by"
+                    ).order_by("-updated_at"),
                 ),
             )
             .annotate(total_status_changes=Count("status_history"))
