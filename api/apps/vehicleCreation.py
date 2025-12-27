@@ -33,6 +33,10 @@ class VehicleCreation(models.Model):
         Fuel, on_delete=models.SET_NULL, null=True, blank=True
     )
 
+    capacity = models.CharField(max_length=50, blank=True, null=True)
+    fuel_efficiency = models.CharField(max_length=50, blank=True, null=True)
+    last_maintenance = models.DateField(blank=True, null=True)
+
     state = models.ForeignKey(State, on_delete=models.SET_NULL, null=True, blank=True)
     district = models.ForeignKey(District, on_delete=models.SET_NULL, null=True, blank=True)
     city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True, blank=True)
