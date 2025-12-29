@@ -69,6 +69,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "DailyAssignments",
         "StaffAssignments",
         "CollectionLogs",
+        "AssignmentCustomerStatuses",
         "CitizenAssignments",
     },
      # Grievance
@@ -234,6 +235,7 @@ class ModulePermissionMiddleware(MiddlewareMixin):
                 "Assignments",
                 "DailyAssignments",
                 "CollectionLogs",
+                "AssignmentCustomerStatuses",
             }
             slug_resource = _slug_to_resource_name(resource_slug)
             if slug_resource in operator_resources:

@@ -276,3 +276,66 @@ class DriverCollectionLog(models.Model):
 
     def __str__(self):
         return f"{self.driver} - {self.action} at {self.timestamp}"
+
+
+class AssignmentCustomerStatus(models.Model):
+    """
+    Per-customer assignment status tracked by operators.
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("collected", "Collected"),
+        ("skipped", "Skipped"),
+        ("later", "Later"),
+    ]
+
+    assignment = models.ForeignKey(
+        DailyAssignment,
+        on_delete=models.CASCADE,
+        related_name="customer_statuses",
+    )
+    customer = models.ForeignKey(
+        CustomerCreation,
+        on_delete=models.CASCADE,
+        related_name="assignment_statuses",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="pending",
+    )
+    skip_reason = models.CharField(max_length=255, null=True, blank=True)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assignment_customer_statuses",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True
+    )
+    longitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True
+    )
+
+    class Meta:
+        db_table = "api_assignment_customer_status"
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["assignment", "customer"],
+                name="uniq_assignment_customer_status",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["assignment", "-updated_at"]),
+            models.Index(fields=["customer", "-updated_at"]),
+            models.Index(fields=["status", "-updated_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.assignment} - {self.customer} ({self.status})"

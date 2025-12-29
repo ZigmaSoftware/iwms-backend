@@ -107,6 +107,7 @@ class LoginSerializer(serializers.Serializer):
                         "DailyAssignments": ["view", "add"],
                         "StaffAssignments": ["view"],
                         "CollectionLogs": ["add"],
+                        "AssignmentCustomerStatuses": ["add", "view"],
                     },
                     "customers": {
                         "Customercreations": ["view"],
