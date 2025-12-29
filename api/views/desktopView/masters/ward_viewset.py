@@ -4,49 +4,48 @@ from api.serializers.desktopView.masters.ward_serializer import WardSerializer
 
 
 class WardViewSet(viewsets.ModelViewSet):
-    queryset = Ward.objects.filter(is_deleted=False)
     serializer_class = WardSerializer
     lookup_field = "unique_id"
 
     def get_queryset(self):
-        queryset = Ward.objects.filter(is_deleted=False)
+        qs = (
+            Ward.objects
+            .filter(is_deleted=False)
+            .select_related(
+                "continent_id",
+                "country_id",
+                "state_id",
+                "district_id",
+                "city_id",
+                "zone_id",
+            )
+        )
 
-        zone_uid = self.request.query_params.get("zone")
-        city_uid = self.request.query_params.get("city")
-        district_uid = self.request.query_params.get("district")
-        state_uid = self.request.query_params.get("state")
-        country_uid = self.request.query_params.get("country")
-        continent_uid = self.request.query_params.get("continent")
-        is_active = self.request.query_params.get("is_active")
+        params = self.request.query_params
 
-        if zone_uid:
-            queryset = queryset.filter(zone_id__unique_id=zone_uid)
+        filter_map = {
+            "continent": "continent_id__unique_id",
+            "country": "country_id__unique_id",
+            "state": "state_id__unique_id",
+            "district": "district_id__unique_id",
+            "city": "city_id__unique_id",
+            "zone": "zone_id__unique_id",
+        }
 
-        if city_uid:
-            queryset = queryset.filter(city_id__unique_id=city_uid)
+        for param, field in filter_map.items():
+            value = params.get(param)
+            if value:
+                qs = qs.filter(**{field: value})
 
-        if district_uid:
-            queryset = queryset.filter(district_id__unique_id=district_uid)
-
-        if state_uid:
-            queryset = queryset.filter(state_id__unique_id=state_uid)
-
-        if country_uid:
-            queryset = queryset.filter(country_id__unique_id=country_uid)
-
-        if continent_uid:
-            queryset = queryset.filter(continent_id__unique_id=continent_uid)
-
+        is_active = params.get("is_active")
         if is_active is not None:
-            truthy = {"1", "true", "True"}
-            falsy = {"0", "false", "False"}
+            is_active = is_active.lower()
+            if is_active in ("1", "true", "yes"):
+                qs = qs.filter(is_active=True)
+            elif is_active in ("0", "false", "no"):
+                qs = qs.filter(is_active=False)
 
-            if is_active in truthy:
-                queryset = queryset.filter(is_active=True)
-            elif is_active in falsy:
-                queryset = queryset.filter(is_active=False)
-
-        return queryset
+        return qs
 
     def perform_destroy(self, instance):
         instance.delete()  # soft delete
