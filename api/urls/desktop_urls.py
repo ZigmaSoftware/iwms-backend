@@ -39,6 +39,7 @@ from ..views.desktopView.assignments.assignment_viewset import (
     DriverCollectionLogViewSet,
     StaffAssignmentHistoryViewSet,
 )
+from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 
 # Screen Management
 from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
@@ -105,7 +106,7 @@ router.register_group("role-assign", "citizen-assignments", CitizenAssignmentVie
 # ============================================================
 router.register_group("user-creation", "users-creation",  UserViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
-
+router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
 
 # ============================================================
 # GROUP: login

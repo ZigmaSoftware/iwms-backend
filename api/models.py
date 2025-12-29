@@ -42,6 +42,7 @@ from .apps.waste_collection_bluetooth import (
     WasteType,
     WasteCollectionMain
 )
+from .apps.stafftemplate import StaffTemplate
 
 
 __all__ = [
@@ -75,7 +76,8 @@ __all__ = [
     "StaffUserType",
     "UserScreen",
     "UserScreenPermission",
-    "LoginAudit"
+    "LoginAudit",
+    "StaffTemplate"
 
     # Vehicles
     "VehicleTypeCreation",

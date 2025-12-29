@@ -15,7 +15,7 @@ class LoginSerializer(serializers.Serializer):
         user = (
             User.objects
             .select_related(
-                "user_type",
+                "user_type_id",
                 "staffusertype_id",
                 "staff_id",
                 "customer_id",
@@ -39,7 +39,7 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid username or password")
 
         # USER TYPE VALIDATION
-        user_type = user.user_type.name.lower()
+        user_type = user.user_type_id.name.lower()
 
         if user_type == "customer":
             if not user.customer_id:

@@ -80,7 +80,8 @@ MODULE_RESOURCE_ALLOWLIST = {
     # User Creation
     "user-creation": {
         "UsersCreation",
-        "Staffcreation"
+        "Staffcreation",
+        "StafftemplateCreation",
     },
 
     # Customers

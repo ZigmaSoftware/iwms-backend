@@ -30,6 +30,7 @@ from .users.userscreenpermission_serializer import (
     UserScreenPermissionMultiScreenSerializer,
     ScreenActionSerializer
 )
+from .users.stafftemplate_serializer import StaffTemplateSerializer
 
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer

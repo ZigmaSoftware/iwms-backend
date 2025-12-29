@@ -11,7 +11,7 @@ class StaffPersonalSeeder:
                     "staff_unique_id": staff.staff_unique_id,
                     "gender": "Male",
                     "blood_group": "O+",
-                    "contact_mobile": "9999999999",
+                    "contact_mobile": f"900{staff.id:07d}",
                     "contact_email": f"{staff.employee_name.replace(' ', '').lower()}@example.com",
                 }
             )

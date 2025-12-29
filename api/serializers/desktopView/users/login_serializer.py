@@ -27,7 +27,7 @@ class LoginSerializer(serializers.Serializer):
         # FIND USER BY MULTIPLE MATCH FIELDS
         candidates = (
             User.objects
-            .select_related("user_type", "staffusertype_id", "staff_id", "customer_id","staff_id__personal_details")
+            .select_related("user_type_id", "staffusertype_id", "staff_id", "customer_id", "staff_id__personal_details")
             .filter(is_active=True, is_deleted=False)
             .filter(
                 Q(customer_id__customer_name__iexact=username) |
@@ -51,7 +51,7 @@ class LoginSerializer(serializers.Serializer):
         # --------------------------
         # USER TYPE VALIDATION
         # --------------------------
-        utype = user.user_type.name.lower()
+        utype = user.user_type_id.name.lower()
 
         if utype == "customer":
             if not user.customer_id:
@@ -73,7 +73,7 @@ class LoginSerializer(serializers.Serializer):
         # FETCH PERMISSIONS FOR THIS ROLE
         # --------------------------------
         queryset = UserScreenPermission.objects.filter(
-            usertype_id_id=user.user_type.unique_id,
+            usertype_id_id=user.user_type_id.unique_id,
             staffusertype_id_id=staffusertype_id,
             is_deleted=False,
             is_active=True

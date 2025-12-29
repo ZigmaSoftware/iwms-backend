@@ -14,23 +14,48 @@ class StaffOfficeSeeder:
                 "site_name": "HQ",
                 "salary_type": "Monthly",
             },
-            {
-                "employee_name": "Gokul",
-                "department": "Operations",
-                "designation": "Driver",
-                "grade": "B",
-                "site_name": "Depot",
-                "salary_type": "Monthly",
-            },
-            {
-                "employee_name": "Rahul",
-                "department": "Operations",
-                "designation": "Operator",
-                "grade": "B",
-                "site_name": "Depot",
-                "salary_type": "Monthly",
-            },
         ]
+
+        driver_names = [
+            "Gokul",
+            "Arjun",
+            "Vikram",
+            "Karan",
+            "Suresh",
+            "Mani",
+        ]
+        operator_names = [
+            "Rahul",
+            "Prakash",
+            "Deepak",
+            "Naveen",
+            "Santhosh",
+            "Ajay",
+        ]
+
+        for idx, name in enumerate(driver_names, start=1):
+            staff_list.append(
+                {
+                    "employee_name": name,
+                    "department": "Operations",
+                    "designation": "Driver",
+                    "grade": "B",
+                    "site_name": f"Depot-{(idx % 3) + 1}",
+                    "salary_type": "Monthly",
+                }
+            )
+
+        for idx, name in enumerate(operator_names, start=1):
+            staff_list.append(
+                {
+                    "employee_name": name,
+                    "department": "Operations",
+                    "designation": "Operator",
+                    "grade": "B",
+                    "site_name": f"Depot-{(idx % 3) + 1}",
+                    "salary_type": "Monthly",
+                }
+            )
 
         for staff_data in staff_list:
             StaffOfficeDetails.objects.get_or_create(
@@ -38,4 +63,4 @@ class StaffOfficeSeeder:
                 defaults=staff_data
             )
 
-        print("StaffOfficeDetails (Admin only) seeded")
+        print("StaffOfficeDetails seeded")
