@@ -34,7 +34,7 @@ class GroupedRouter(DefaultRouter):
             "viewset": viewset
         })
 
-        # 🔑 REGISTER WITH GROUP PREFIX
+        #  REGISTER WITH GROUP PREFIX
         return super().register(full_prefix, viewset, basename=base)
 
     def get_api_root_view(self, api_urls=None):

@@ -57,7 +57,7 @@ class PermissionSeeder(BaseSeeder):
                 "CitizenAssignments",
             ],
             "user-creation": [
-                "UsersCreation", "Staffcreation"
+                "UsersCreation", "Staffcreation", "StafftemplateCreation"
             ],
             "customers": [
                 "Customercreations", "Wastecollections",

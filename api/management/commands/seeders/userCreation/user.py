@@ -50,7 +50,7 @@ class UserSeeder:
         User.objects.update_or_create(
             staff_id=admin_staff,
             defaults={
-                "user_type": staff_type,
+                "user_type_id": staff_type,
                 "staffusertype_id": admin_role,
                 "customer_id": None,
                 "password": "admin@123",
@@ -97,7 +97,7 @@ class UserSeeder:
                 User.objects.update_or_create(
                     staff_id=staff_member,
                     defaults={
-                        "user_type": staff_type,
+                        "user_type_id": staff_type,
                         "staffusertype_id": role_obj,
                         "customer_id": None,
                         "password": special_password,
@@ -125,7 +125,7 @@ class UserSeeder:
                 if existing_user is None:
                     User.objects.create(
                         staff_id=staff_member,
-                        user_type=staff_type,
+                        user_type_id=staff_type,
                         staffusertype_id=role_obj,
                         customer_id=None,
                         password=default_password,
@@ -139,8 +139,8 @@ class UserSeeder:
                     continue
 
                 updates = {}
-                if existing_user.user_type_id != staff_type.unique_id:
-                    updates["user_type"] = staff_type
+                if existing_user.user_type_id != staff_type:
+                    updates["user_type_id"] = staff_type
                 if existing_user.staffusertype_id_id != role_obj.unique_id:
                     updates["staffusertype_id"] = role_obj
                 if existing_user.customer_id_id is not None:
@@ -204,7 +204,7 @@ class UserSeeder:
             User.objects.get_or_create(
                 customer_id=customer,
                 defaults={
-                    "user_type": customer_type,
+                    "user_type_id": customer_type,
                     "staff_id": None,
                     "staffusertype_id": None,
 
