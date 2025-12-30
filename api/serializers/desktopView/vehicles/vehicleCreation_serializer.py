@@ -1,12 +1,8 @@
 from rest_framework import serializers
+
 from api.apps.vehicleCreation import VehicleCreation
 from api.apps.vehicleTypeCreation import VehicleTypeCreation
 from api.apps.fuel import Fuel
-from api.apps.state import State
-from api.apps.district import District
-from api.apps.city import City
-from api.apps.zone import Zone
-from api.apps.ward import Ward
 from api.validators.unique_name_validator import unique_name_validator
 
 
@@ -43,69 +39,29 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    state_id = serializers.PrimaryKeyRelatedField(
-        source="state",
-        queryset=State.objects.all(),
-        required=False,
-        allow_null=True,
-    )
-    district_id = serializers.PrimaryKeyRelatedField(
-        source="district",
-        queryset=District.objects.all(),
-        required=False,
-        allow_null=True,
-    )
-    city_id = serializers.PrimaryKeyRelatedField(
-        source="city",
-        queryset=City.objects.all(),
-        required=False,
-        allow_null=True,
-    )
-    zone_id = serializers.PrimaryKeyRelatedField(
-        source="zone",
-        queryset=Zone.objects.all(),
-        required=False,
-        allow_null=True,
-    )
-    ward_id = serializers.PrimaryKeyRelatedField(
-        source="ward",
-        queryset=Ward.objects.all(),
-        required=False,
-        allow_null=True,
-    )
 
     vehicle_type_name = serializers.CharField(source="vehicle_type.vehicleType", read_only=True)
     fuel_type_name = serializers.CharField(source="fuel_type.fuel_type", read_only=True)
-    zone_name = serializers.CharField(source="zone.name", read_only=True)
-    ward_name = serializers.CharField(source="ward.name", read_only=True)
-    state_name = serializers.CharField(source="state.name", read_only=True)
-    district_name = serializers.CharField(source="district.name", read_only=True)
-    city_name = serializers.CharField(source="city.name", read_only=True)
 
     class Meta:
         model = VehicleCreation
         fields = [
             "id",
             "unique_id",
-            "vehicle_no",
-            "chase_no",
-            "imei_no",
-            "driver_name",
-            "driver_no",
             "vehicle_type_id",
             "fuel_type_id",
-            "state_id",
-            "district_id",
-            "city_id",
-            "zone_id",
-            "ward_id",
+            "vehicle_no",
+            "capacity",
+            "mileage_per_liter",
+            "service_record",
+            "vehicle_insurance",
+            "insurance_expiry_date",
+            "condition",
+            "fuel_tank_capacity",
+            "rc_upload",
+            "vehicle_insurance_file",
             "vehicle_type_name",
             "fuel_type_name",
-            "zone_name",
-            "ward_name",
-            "state_name",
-            "district_name",
-            "city_name",
             "is_active",
             "is_deleted",
             "created_at",

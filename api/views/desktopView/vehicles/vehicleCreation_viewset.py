@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework import viewsets
 from api.apps.vehicleCreation import VehicleCreation
-from api.serializers.desktopView.vehicles.vehiclecreation_serializer import VehicleCreationSerializer
+from api.serializers.desktopView.vehicles.vehicleCreation_serializer import VehicleCreationSerializer
 
 
 class VehicleCreationViewSet(viewsets.ModelViewSet):

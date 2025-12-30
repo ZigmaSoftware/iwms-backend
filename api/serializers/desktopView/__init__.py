@@ -33,7 +33,8 @@ from .users.userscreenpermission_serializer import (
 
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
-from .vehicles.vehiclecreation_serializer import VehicleCreationSerializer
+from .vehicles.vehicleAssigning_serializer import VehicleAssigningSerializer
+from .vehicles.vehicleCreation_serializer import VehicleCreationSerializer
 
 # Complaints
 from .complaints.complaint_serializer import ComplaintSerializer

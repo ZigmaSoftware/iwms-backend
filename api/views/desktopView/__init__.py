@@ -45,7 +45,8 @@ from .masters.staffcreation_viewset import StaffcreationViewset
 # Vehicles
 # ==============================
 from .vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
-from .vehicles.vehiclecreation_viewset import VehicleCreationViewSet
+from .vehicles.vehicleAssigning_viewset import VehicleAssigningViewSet
+from .vehicles.vehicleCreation_viewset import VehicleCreationViewSet
 
 # ==============================
 # Complaints
@@ -90,6 +91,7 @@ __all__ = [
 
     # Vehicles
     "VehicleTypeCreationViewSet",
+    "VehicleAssigningViewSet",
     "VehicleCreationViewSet",
 
     # Complaints
