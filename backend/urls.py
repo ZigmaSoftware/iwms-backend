@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from django.conf import settings
 from django.conf.urls.static import static
 
-# 🔹 Swagger imports
+# Swagger imports
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework.permissions import AllowAny
@@ -34,7 +34,7 @@ urlpatterns = [
     path("api/desktop/", include("api.urls.desktop_urls")),
     path("api/mobile/", include("api.urls.mobile_urls")),
 
-    # 🔐 Swagger UI
+    # Swagger UI
     path(
         "swagger/",
         schema_view.with_ui("swagger", cache_timeout=0),
