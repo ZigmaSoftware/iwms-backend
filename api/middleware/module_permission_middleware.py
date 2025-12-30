@@ -77,7 +77,6 @@ MODULE_RESOURCE_ALLOWLIST = {
         "MainCategory",
         "SubCategory",
     },
-
     # User Creation
     "user-creation": {
         "UsersCreation",
