@@ -44,7 +44,7 @@ class VehicleCreation(models.Model):
     service_record = models.TextField(blank=True, null=True)
     vehicle_insurance = models.CharField(max_length=100, blank=True, null=True)
     insurance_expiry_date = models.DateField(blank=True, null=True)
-    condition = models.CharField(
+    vehicle_condition = models.CharField(
         max_length=20,
         choices=ConditionChoices.choices,
         default=ConditionChoices.NEW,

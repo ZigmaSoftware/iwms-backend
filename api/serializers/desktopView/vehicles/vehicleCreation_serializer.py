@@ -56,7 +56,7 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
             "service_record",
             "vehicle_insurance",
             "insurance_expiry_date",
-            "condition",
+            "vehicle_condition",
             "fuel_tank_capacity",
             "rc_upload",
             "vehicle_insurance_file",
