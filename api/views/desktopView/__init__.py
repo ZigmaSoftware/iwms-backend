@@ -40,6 +40,9 @@ from .users.userscreenaction_viewset import UserScreenActionViewSet
 from .users.userscreenpermission_viewset import UserScreenPermissionViewSet
 from .masters.staffcreation_viewset import StaffcreationViewset
 from .users.stafftemplate_viewset import StaffTemplateViewSet
+from .routes.route_stop_viewset import RouteStopViewSet
+from .routes.route_run_viewset import RouteRunViewSet
+from .routes.daily_route_assignment_viewset import DailyRouteAssignmentViewSet
 
 # ==============================
 # Vehicles
@@ -88,6 +91,9 @@ __all__ = [
     "UserScreenPermissionViewSet",
     "StaffcreationViewset",
     "StaffTemplateViewSet",
+    "RouteStopViewSet",
+    "RouteRunViewSet",
+    "DailyRouteAssignmentViewSet",
 
     # Vehicles
     "VehicleTypeCreationViewSet",

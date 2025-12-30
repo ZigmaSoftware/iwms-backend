@@ -5,12 +5,20 @@ from api.apps.stafftemplate import StaffTemplate
 class StaffTemplateSerializer(serializers.ModelSerializer):
 
     primary_driver_name = serializers.CharField(
-        source="primary_driver_id.staffusertype_id.name",
-        read_only=True
+        source="primary_driver_id.staff_id.employee_name",
+        read_only=True,
     )
     primary_operator_name = serializers.CharField(
-        source="primary_operator_id.staffusertype_id.name",
-        read_only=True
+        source="primary_operator_id.staff_id.employee_name",
+        read_only=True,
+    )
+    secondary_driver_name = serializers.CharField(
+        source="secondary_driver_id.staff_id.employee_name",
+        read_only=True,
+    )
+    secondary_operator_name = serializers.CharField(
+        source="secondary_operator_id.staff_id.employee_name",
+        read_only=True,
     )
 
     class Meta:
@@ -21,10 +29,13 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
             "primary_driver_id",
             "primary_driver_name",
             "secondary_driver_id",
+            "secondary_driver_name",
 
             "primary_operator_id",
             "primary_operator_name",
             "secondary_operator_id",
+            "secondary_operator_name",
+            "extra_staff_ids",
 
             "is_active",
             "is_deleted",
@@ -38,6 +49,8 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
             "updated_at",
             "primary_driver_name",
             "primary_operator_name",
+            "secondary_driver_name",
+            "secondary_operator_name",
         ]
 
     def validate(self, attrs):
@@ -94,5 +107,25 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Same user cannot be assigned to multiple roles in a staff template."
             )
+
+        extra_staff_ids = attrs.get("extra_staff_ids")
+        if extra_staff_ids is None and instance:
+            extra_staff_ids = instance.extra_staff_ids
+
+        if extra_staff_ids:
+            if not isinstance(extra_staff_ids, list):
+                raise serializers.ValidationError(
+                    {"extra_staff_ids": "Expected a list of user IDs."}
+                )
+            extra_ids = [str(item) for item in extra_staff_ids if item]
+            if len(extra_ids) != len(set(extra_ids)):
+                raise serializers.ValidationError(
+                    {"extra_staff_ids": "Duplicate users are not allowed."}
+                )
+            overlap = set(extra_ids) & set(user_ids)
+            if overlap:
+                raise serializers.ValidationError(
+                    {"extra_staff_ids": "Extra staff cannot overlap primary/secondary roles."}
+                )
 
         return attrs
