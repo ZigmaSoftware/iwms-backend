@@ -43,6 +43,10 @@ from .apps.waste_collection_bluetooth import (
     WasteType,
     WasteCollectionMain
 )
+from .apps.stafftemplate import StaffTemplate
+from .apps.route_stop import RouteStop
+from .apps.route_run import RouteRun, RouteRunStop
+from .apps.daily_route_assignment import DailyRouteAssignment
 
 
 __all__ = [
@@ -76,7 +80,12 @@ __all__ = [
     "StaffUserType",
     "UserScreen",
     "UserScreenPermission",
-    "LoginAudit"
+    "LoginAudit",
+    "StaffTemplate",
+    "RouteStop",
+    "RouteRun",
+    "RouteRunStop",
+    "DailyRouteAssignment",
 
     # Vehicles
     "VehicleTypeCreation",

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from api.apps.ward import Ward
 from api.validators.unique_name_validator import unique_name_validator
 
+
 class WardSerializer(serializers.ModelSerializer):
     continent_name = serializers.CharField(source="continent_id.name", read_only=True)
     country_name   = serializers.CharField(source="country_id.name", read_only=True)
@@ -14,10 +15,9 @@ class WardSerializer(serializers.ModelSerializer):
         model = Ward
         fields = "__all__"
         read_only_fields = ["unique_id"]
-        validators = []
 
     def validate(self, attrs):
-        return unique_name_validator(
+        validator = unique_name_validator(
             Model=Ward,
             scope_fields=[
                 "continent_id",
@@ -25,6 +25,8 @@ class WardSerializer(serializers.ModelSerializer):
                 "state_id",
                 "district_id",
                 "city_id",
-                "zone_id"
-            ]
-        )(self, attrs)
+                "zone_id",
+            ],
+        )
+        validator(self, attrs)
+        return attrs

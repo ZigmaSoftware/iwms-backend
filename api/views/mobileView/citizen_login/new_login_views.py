@@ -20,7 +20,7 @@ class LoginViewSet(ViewSet):
         token = str(access)
 
         # Identify role
-        if user.user_type.name.lower() == "customer":
+        if user.user_type_id.name.lower() == "customer":
             name = user.customer_id.customer_name
             role = "customer"
         else:
@@ -29,7 +29,7 @@ class LoginViewSet(ViewSet):
 
         return Response({
             "unique_id": user.unique_id,
-            "user_type": user.user_type.name,
+            "user_type": user.user_type_id.name,
             "name": name,
             "role": role,
             "access_token": token,

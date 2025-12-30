@@ -53,10 +53,11 @@ class PermissionSeeder(BaseSeeder):
                 "DailyAssignments",
                 "StaffAssignments",
                 "CollectionLogs",
+                "AssignmentCustomerStatuses",
                 "CitizenAssignments",
             ],
             "user-creation": [
-                "UsersCreation", "Staffcreation"
+                "UsersCreation", "Staffcreation", "StafftemplateCreation"
             ],
             "customers": [
                 "Customercreations", "Wastecollections",
@@ -143,6 +144,7 @@ class PermissionSeeder(BaseSeeder):
                 "DailyAssignments": ["view", "add"],
                 "StaffAssignments": ["view"],
                 "CollectionLogs": ["add"],
+                "AssignmentCustomerStatuses": ["add", "view"],
             },
             "customers": {
                 "Customercreations": ["view"],
@@ -155,6 +157,7 @@ class PermissionSeeder(BaseSeeder):
                 "DailyAssignments": ["view", "add"],
                 "StaffAssignments": ["view"],
                 "CollectionLogs": ["add"],
+                "AssignmentCustomerStatuses": ["add", "view"],
             },
             "customers": {
                 "Customercreations": ["view"],

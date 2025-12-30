@@ -12,7 +12,7 @@ from .staffcreation import StaffOfficeDetails
 
 
 def generate_user_id():
-    return f"USER{generate_unique_id()}"
+    return f"USER-{generate_unique_id()}"
 
 
 class User(models.Model):
@@ -26,10 +26,11 @@ class User(models.Model):
         default=generate_user_id
     )
 
-    user_type = models.ForeignKey(
+    user_type_id = models.ForeignKey(
         UserType,
         on_delete=models.SET_NULL,
         null=True,
+         db_column="user_type_id",
         related_name="users"
     )
 
@@ -42,6 +43,7 @@ class User(models.Model):
         StaffUserType,
         on_delete=models.SET_NULL,
         null=True,
+        db_column="staffusertype_id",
         related_name="users_staff_usertype"
     )
 
@@ -50,6 +52,7 @@ class User(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         related_name="users_staff",
+        db_column="staff_id",
         to_field="staff_unique_id"
     )
 
@@ -61,6 +64,7 @@ class User(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         related_name="users_customer",
+        db_column="customer_id",
         to_field="unique_id"
     )
 
@@ -71,6 +75,7 @@ class User(models.Model):
         District,
         on_delete=models.SET_NULL,
         null=True,
+        db_column="district_id",
         related_name="users_district"
     )
 
@@ -78,6 +83,7 @@ class User(models.Model):
         City,
         on_delete=models.SET_NULL,
         null=True,
+        db_column="city_id",
         related_name="users_city"
     )
 
@@ -85,6 +91,7 @@ class User(models.Model):
         Zone,
         on_delete=models.SET_NULL,
         null=True,
+        db_column="zone_id",
         related_name="users_zone"
     )
 
@@ -92,6 +99,7 @@ class User(models.Model):
         Ward,
         on_delete=models.SET_NULL,
         null=True,
+        db_column="ward_id",
         related_name="users_ward"
     )
 
@@ -110,5 +118,5 @@ class User(models.Model):
         verbose_name_plural = "Users"
 
     def __str__(self):
-        user_type = self.user_type.name if self.user_type else "No Type"
+        user_type = self.user_type_id.name if self.user_type_id else "No Type"
         return f"{self.unique_id} ({user_type})"
