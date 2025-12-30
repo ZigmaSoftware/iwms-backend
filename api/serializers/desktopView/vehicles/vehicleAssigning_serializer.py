@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from api.apps.vehicleCreation import VehicleCreation
+from api.apps.vehicleAssigning import VehicleAssigning
 from api.apps.vehicleTypeCreation import VehicleTypeCreation
 from api.apps.fuel import Fuel
 from api.apps.state import State
@@ -28,7 +28,7 @@ class UniqueIdOrPkField(serializers.SlugRelatedField):
                 raise
 
 
-class VehicleCreationSerializer(serializers.ModelSerializer):
+class VehicleAssigningSerializer(serializers.ModelSerializer):
     vehicle_type_id = UniqueIdOrPkField(
         source="vehicle_type",
         slug_field="unique_id",
@@ -83,7 +83,7 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
     city_name = serializers.CharField(source="city.name", read_only=True)
 
     class Meta:
-        model = VehicleCreation
+        model = VehicleAssigning
         fields = [
             "id",
             "unique_id",
@@ -116,6 +116,6 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         return unique_name_validator(
-            Model=VehicleCreation,
+            Model=VehicleAssigning,
             name_field="vehicle_no",
         )(self, attrs)

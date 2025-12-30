@@ -29,7 +29,8 @@ from .apps.userscreenpermission import UserScreenPermission
 from .apps.userCreation import User
 
 from .apps.vehicleTypeCreation import VehicleTypeCreation
-from .apps.vehicleCreation import VehicleCreation
+from .apps.vehicleAssigning import VehicleAssigning
+
 
 from .apps.complaints import Complaint
 
@@ -88,7 +89,7 @@ __all__ = [
 
     # Vehicles
     "VehicleTypeCreation",
-    "VehicleCreation",
+    "VehicleAssigning",
 
     # Complaints
     "Complaint",

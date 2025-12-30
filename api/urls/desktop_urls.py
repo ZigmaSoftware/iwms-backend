@@ -51,7 +51,8 @@ from ..views.desktopView.users.userscreenpermission_viewset import UserScreenPer
 
 # Vehicles
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
-from ..views.desktopView.vehicles.vehiclecreation_viewset import VehicleCreationViewSet
+from ..views.desktopView.vehicles.vehicleAssigning_viewset import VehicleAssigningViewSet
+from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreationViewSet
 
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
@@ -151,6 +152,7 @@ router.register_group("grievance","sub-category", SubCategoryViewSet, basename="
 # ============================================================
 router.register_group("vehicles", "vehicle-type",     VehicleTypeCreationViewSet)
 router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
+router.register_group("vehicles", "vehicle-Assigning", VehicleAssigningViewSet)
 
 
 # ============================================================
