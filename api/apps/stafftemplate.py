@@ -53,6 +53,12 @@ class StaffTemplate(models.Model):
         blank=True
     )
 
+    extra_staff_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Additional staff user IDs linked to this template",
+    )
+
     # ---- STATUS ----
     is_active = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)
