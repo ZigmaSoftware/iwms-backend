@@ -2,7 +2,6 @@ from django.db import models
 from .utils.comfun import generate_unique_id
 from .userCreation import User
 
-
 def generate_stafftemplate_id():
     return f"STAFFTEMPLATE-{generate_unique_id()}"
 
