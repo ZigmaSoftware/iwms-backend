@@ -1,5 +1,6 @@
 from .apps.continent import Continent
 from .apps.country import Country
+from .apps.bin import Bin
 from .apps.state import State
 from .apps.district import District
 from .apps.city import City
@@ -28,7 +29,8 @@ from .apps.userscreenpermission import UserScreenPermission
 from .apps.userCreation import User
 
 from .apps.vehicleTypeCreation import VehicleTypeCreation
-from .apps.vehicleCreation import VehicleCreation
+from .apps.vehicleAssigning import VehicleAssigning
+
 
 from .apps.complaints import Complaint
 
@@ -41,6 +43,10 @@ from .apps.waste_collection_bluetooth import (
     WasteType,
     WasteCollectionMain
 )
+from .apps.stafftemplate import StaffTemplate
+from .apps.route_stop import RouteStop
+from .apps.route_run import RouteRun, RouteRunStop
+from .apps.daily_route_assignment import DailyRouteAssignment
 
 
 __all__ = [
@@ -52,6 +58,7 @@ __all__ = [
     "City",
     "Zone",
     "Ward",
+    "Bin",
 
     # Assets
     "Fuel",
@@ -73,11 +80,16 @@ __all__ = [
     "StaffUserType",
     "UserScreen",
     "UserScreenPermission",
-    "LoginAudit"
+    "LoginAudit",
+    "StaffTemplate",
+    "RouteStop",
+    "RouteRun",
+    "RouteRunStop",
+    "DailyRouteAssignment",
 
     # Vehicles
     "VehicleTypeCreation",
-    "VehicleCreation",
+    "VehicleAssigning",
 
     # Complaints
     "Complaint",

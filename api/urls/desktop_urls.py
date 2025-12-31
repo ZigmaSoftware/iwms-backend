@@ -1,4 +1,7 @@
 from django.urls import path, include
+
+from api.views.mobileView.grievance.main_category_viewset import MainCategoryViewSet
+from api.views.mobileView.grievance.sub_category_viewset import SubCategoryViewSet
 from .custom_router import GroupedRouter
 
 # ============================================================
@@ -7,6 +10,7 @@ from .custom_router import GroupedRouter
 # Masters
 from ..views.desktopView.masters.continent_viewset import ContinentViewSet
 from ..views.desktopView.masters.country_viewset import CountryViewSet
+from ..views.desktopView.masters.bin_viewset import BinViewSet
 from ..views.desktopView.masters.state_viewset import StateViewSet
 from ..views.desktopView.masters.district_viewset import DistrictViewSet
 from ..views.desktopView.masters.city_viewset import CityViewSet
@@ -30,11 +34,13 @@ from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
 from ..views.desktopView.users.user_viewset import UserViewSet
 from ..views.desktopView.users.login_viewset import LoginViewSet
 from ..views.desktopView.assignments.assignment_viewset import (
+    AssignmentCustomerStatusViewSet,
     CitizenAssignmentViewSet,
     DailyAssignmentViewSet,
     DriverCollectionLogViewSet,
     StaffAssignmentHistoryViewSet,
 )
+from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 
 # Screen Management
 from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
@@ -45,10 +51,17 @@ from ..views.desktopView.users.userscreenpermission_viewset import UserScreenPer
 
 # Vehicles
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
-from ..views.desktopView.vehicles.vehiclecreation_viewset import VehicleCreationViewSet
+from ..views.desktopView.vehicles.vehicleAssigning_viewset import VehicleAssigningViewSet
+from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreationViewSet
 
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
+
+# Routes
+from ..views.desktopView.routes.route_stop_viewset import RouteStopViewSet
+from ..views.desktopView.routes.route_run_viewset import RouteRunViewSet
+from ..views.desktopView.routes.daily_route_assignment_viewset import DailyRouteAssignmentViewSet
+from ..views.desktopView.routes.route_optimization_view import RouteOptimizationView
 
 
 router = GroupedRouter()
@@ -63,7 +76,7 @@ router.register_group("masters", "districts",     DistrictViewSet)
 router.register_group("masters", "cities",        CityViewSet)
 router.register_group("masters", "zones",         ZoneViewSet)
 router.register_group("masters", "wards",         WardViewSet)
-
+router.register_group("masters", "bins",          BinViewSet)
 
 # ============================================================
 # GROUP: ASSETS
@@ -92,8 +105,9 @@ router.register_group("role-assign","assignments", DailyAssignmentViewSet,)
 router.register_group("role-assign", "daily-assignments", DailyAssignmentViewSet)
 router.register_group("role-assign", "staff-assignments", StaffAssignmentHistoryViewSet)
 router.register_group("role-assign", "collection-logs", DriverCollectionLogViewSet)
+router.register_group("role-assign", "assignment-customer-statuses", AssignmentCustomerStatusViewSet)
 router.register_group("role-assign", "citizen-assignments", CitizenAssignmentViewSet)
-   
+
 
 
 # ============================================================
@@ -101,7 +115,14 @@ router.register_group("role-assign", "citizen-assignments", CitizenAssignmentVie
 # ============================================================
 router.register_group("user-creation", "users-creation",  UserViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
+router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
 
+# ============================================================
+# GROUP: ROUTES (template + runs + assignments)
+# ============================================================
+router.register_group("routes", "route-stops", RouteStopViewSet)
+router.register_group("routes", "route-runs", RouteRunViewSet)
+router.register_group("routes", "daily-route-assignments", DailyRouteAssignmentViewSet)
 
 # ============================================================
 # GROUP: login
@@ -117,12 +138,21 @@ router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customers", "feedbacks",         FeedBackViewSet)
 router.register_group("customers", "complaints", ComplaintViewSet)
 
+# ============================================================
+# GROUP: COMPLAINTS (mobile category endpoints)
+# ============================================================
+
+
+router.register_group("grievance","main-category", MainCategoryViewSet, basename="main-category")
+router.register_group("grievance","sub-category", SubCategoryViewSet, basename="sub-category")
+
 
 # ============================================================
 # GROUP: VEHICLES
 # ============================================================
 router.register_group("vehicles", "vehicle-type",     VehicleTypeCreationViewSet)
 router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
+router.register_group("vehicles", "vehicle-Assigning", VehicleAssigningViewSet)
 
 
 # ============================================================
@@ -130,4 +160,9 @@ router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
 # ============================================================
 urlpatterns = [
     path("", include(router.urls)),
+    path(
+        "routes/<str:route_id>/optimize/",
+        RouteOptimizationView.as_view(),
+        name="route-optimize",
+    ),
 ]

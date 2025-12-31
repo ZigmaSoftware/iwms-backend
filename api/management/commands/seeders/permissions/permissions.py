@@ -41,7 +41,7 @@ class PermissionSeeder(BaseSeeder):
         screen_structure = {
             "masters": [
                 "Continent", "Countries", "States", "Districts",
-                "Cities", "Zones", "Wards"
+                "Cities", "Zones", "Wards", "Bins"
             ],
             "assets": [
                 "Fuels", "Properties", "Subproperties"
@@ -53,10 +53,11 @@ class PermissionSeeder(BaseSeeder):
                 "DailyAssignments",
                 "StaffAssignments",
                 "CollectionLogs",
+                "AssignmentCustomerStatuses",
                 "CitizenAssignments",
             ],
             "user-creation": [
-                "UsersCreation", "Staffcreation"
+                "UsersCreation", "Staffcreation", "StafftemplateCreation"
             ],
             "customers": [
                 "Customercreations", "Wastecollections",
@@ -65,6 +66,10 @@ class PermissionSeeder(BaseSeeder):
             "vehicles": [
                 "VehicleType", "VehicleCreation"
             ],
+            "grievance": {
+        "MainCategory",
+        "SubCategory",
+    },
         }
 
         mainscreens = {}
@@ -93,6 +98,7 @@ class PermissionSeeder(BaseSeeder):
                         "is_deleted": False,
                     }
                 )
+
 
         # ==================================================
         # 4. USER SCREEN PERMISSIONS (STAFF → ADMIN)
@@ -138,6 +144,7 @@ class PermissionSeeder(BaseSeeder):
                 "DailyAssignments": ["view", "add"],
                 "StaffAssignments": ["view"],
                 "CollectionLogs": ["add"],
+                "AssignmentCustomerStatuses": ["add", "view"],
             },
             "customers": {
                 "Customercreations": ["view"],
@@ -150,6 +157,7 @@ class PermissionSeeder(BaseSeeder):
                 "DailyAssignments": ["view", "add"],
                 "StaffAssignments": ["view"],
                 "CollectionLogs": ["add"],
+                "AssignmentCustomerStatuses": ["add", "view"],
             },
             "customers": {
                 "Customercreations": ["view"],

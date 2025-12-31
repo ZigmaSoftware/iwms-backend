@@ -30,10 +30,15 @@ from .users.userscreenpermission_serializer import (
     UserScreenPermissionMultiScreenSerializer,
     ScreenActionSerializer
 )
+from .users.stafftemplate_serializer import StaffTemplateSerializer
+from .routes.route_stop_serializer import RouteStopSerializer
+from .routes.route_run_serializer import RouteRunSerializer, RouteRunStopSerializer
+from .routes.daily_route_assignment_serializer import DailyRouteAssignmentSerializer
 
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
-from .vehicles.vehiclecreation_serializer import VehicleCreationSerializer
+from .vehicles.vehicleAssigning_serializer import VehicleAssigningSerializer
+from .vehicles.vehicleCreation_serializer import VehicleCreationSerializer
 
 # Complaints
 from .complaints.complaint_serializer import ComplaintSerializer

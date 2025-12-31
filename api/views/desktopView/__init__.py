@@ -38,14 +38,18 @@ from .users.mainscreentype_viewset import MainScreenTypeViewSet
 from .users.mainscreen_viewset import MainScreenViewSet
 from .users.userscreenaction_viewset import UserScreenActionViewSet
 from .users.userscreenpermission_viewset import UserScreenPermissionViewSet
-
 from .masters.staffcreation_viewset import StaffcreationViewset
+from .users.stafftemplate_viewset import StaffTemplateViewSet
+from .routes.route_stop_viewset import RouteStopViewSet
+from .routes.route_run_viewset import RouteRunViewSet
+from .routes.daily_route_assignment_viewset import DailyRouteAssignmentViewSet
 
 # ==============================
 # Vehicles
 # ==============================
 from .vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
-from .vehicles.vehiclecreation_viewset import VehicleCreationViewSet
+from .vehicles.vehicleAssigning_viewset import VehicleAssigningViewSet
+from .vehicles.vehicleCreation_viewset import VehicleCreationViewSet
 
 # ==============================
 # Complaints
@@ -87,9 +91,14 @@ __all__ = [
     "UserScreenActionViewSet",
     "UserScreenPermissionViewSet",
     "StaffcreationViewset",
+    "StaffTemplateViewSet",
+    "RouteStopViewSet",
+    "RouteRunViewSet",
+    "DailyRouteAssignmentViewSet",
 
     # Vehicles
     "VehicleTypeCreationViewSet",
+    "VehicleAssigningViewSet",
     "VehicleCreationViewSet",
 
     # Complaints

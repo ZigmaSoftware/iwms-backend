@@ -42,7 +42,7 @@ class LoginViewSet(ViewSet):
         # -------------------------
         email = None
 
-        if user.user_type.name.lower() == "customer":
+        if user.user_type_id.name.lower() == "customer":
             name = user.customer_id.customer_name
             role = "customer"
             email = getattr(user.customer_id, "email", None)
@@ -58,7 +58,7 @@ class LoginViewSet(ViewSet):
         access = AccessToken.for_user(user)
 
         access["unique_id"] = user.unique_id
-        access["user_type"] = user.user_type.name
+        access["user_type"] = user.user_type_id.name
         access["name"] = name
         access["role"] = role
         access["email"] = email
@@ -89,7 +89,7 @@ class LoginViewSet(ViewSet):
         return Response(
             {
                 "unique_id": user.unique_id,
-                "user_type": user.user_type.name,
+                "user_type": user.user_type_id.name,
                 "name": name,
                 "role": role,
                 "permissions": permissions,

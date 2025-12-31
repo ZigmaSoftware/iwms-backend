@@ -5,6 +5,7 @@ from .district import DistrictSeeder
 from .city import CitySeeder
 from .zone import ZoneSeeder
 from .ward import WardSeeder
+from .bin import BinSeeder
 
 MASTER_SEEDERS = [
     ContinentSeeder,
@@ -14,4 +15,5 @@ MASTER_SEEDERS = [
     CitySeeder,
     ZoneSeeder,
     WardSeeder,
+    BinSeeder
 ]

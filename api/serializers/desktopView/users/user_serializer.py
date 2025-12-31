@@ -28,8 +28,8 @@ class UniqueIdOrPkField(serializers.SlugRelatedField):
 class UserSerializer(serializers.ModelSerializer):
 
     # ---------- USER TYPE DISPLAY ----------
-    user_type_name = serializers.CharField(source="user_type.name", read_only=True)
-    user_type_id = serializers.CharField(source="user_type.unique_id", read_only=True)
+    user_type_name = serializers.CharField(source="user_type_id.name", read_only=True)
+    user_type_id = serializers.CharField(source="user_type_id.unique_id", read_only=True)
 
     # ---------- STAFF BASIC DETAILS ----------
     staffusertype_name = serializers.CharField(source="staffusertype_id.name", read_only=True)
@@ -86,7 +86,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = "__all__"
         extra_kwargs = {
-            "user_type": {"write_only": True},
+            "user_type_id": {"write_only": True},
         }
         
 
@@ -96,7 +96,7 @@ class UserSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         instance = getattr(self, "instance", None)
 
-        user_type = attrs.get("user_type") or (instance.user_type if instance else None)
+        user_type = attrs.get("user_type_id") or (instance.user_type_id if instance else None)
         if not user_type:
             return attrs
 
