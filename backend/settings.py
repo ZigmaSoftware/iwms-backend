@@ -1,14 +1,11 @@
 from pathlib import Path
 import os
-# import pymysql
+import pymysql
 
-# pymysql.install_as_MySQLdb()
+pymysql.install_as_MySQLdb()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 from django.conf import settings
-
-
-
 
 # -------------------------------------------------------
 # SECRET KEY – use this one only (your exact key)
@@ -37,7 +34,7 @@ ALLOWED_HOSTS = [
     '192.168.5.92',
     "125.17.238.158",
     '10.80.216.123',
-    '192.168.4.70',
+    '192.168.4.58',
     '115.245.93.26',
     'testserver',
     '10.64.151.226',
@@ -184,7 +181,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://127\.0\.0\.1(:\d+)?$",
     r"^http://125\.17\.238\.158(:\d+)?$",
     r"^http://localhost(:\d+)?$",
-    r"^http://192\.168\.4\.75(:\d+)?$",
+    r"^http://192\.168\.4\.58(:\d+)?$",
     r"^http://192\.168\.5\.92(:\d+)?$",
     r"^http://115\.245\.93\.26(:\d+)?$", 
     r"^http://10\.64\.151\.226(:\d+)?$", #dhivya

@@ -3,7 +3,6 @@ from rest_framework.response import Response
 from api.apps.complaints import Complaint
 from api.serializers.desktopView.complaints.complaint_serializer import ComplaintSerializer
 
-
 class ComplaintViewSet(viewsets.ModelViewSet):
     serializer_class = ComplaintSerializer
     lookup_field = "unique_id"
