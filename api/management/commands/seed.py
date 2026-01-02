@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from api.management.commands.seeders.complaints import GRIEVANCE_SEEDERS
 from api.management.commands.seeders.masters import MASTER_SEEDERS
 from api.management.commands.seeders.assets import ASSET_SEEDERS
 from api.management.commands.seeders.role_assign import ROLE_ASSIGN_SEEDERS
@@ -21,6 +22,7 @@ ORDERED_GROUPS = [
     "customers",
     "user-creation",
     "vehicles",
+    "grievance"
 ]
 
 SEED_GROUPS = {
@@ -30,7 +32,8 @@ SEED_GROUPS = {
     "permission": PERMISSION_SEEDERS,
     "customers": CUSTOMER_SEEDERS,
     "user-creation": USER_CREATION_SEEDERS,
-    "vehicles": VEHICLE_SEEDERS,
+    "grievance": GRIEVANCE_SEEDERS,
+    "vehicles": VEHICLE_SEEDERS
 }
 
 # --------------------------------------------------

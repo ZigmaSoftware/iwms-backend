@@ -57,6 +57,7 @@ class UserSerializer(serializers.ModelSerializer):
     staff_contact_mobile = serializers.CharField(
         source="staff_id.personal_details.contact_mobile", read_only=True
     )
+    
     staff_contact_email = serializers.EmailField(
         source="staff_id.personal_details.contact_email", read_only=True
     )

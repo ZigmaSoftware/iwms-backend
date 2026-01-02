@@ -14,13 +14,12 @@ class StaffOfficeDetails(models.Model):
         default=generate_staff_unique_id
     )
     employee_name = models.CharField(max_length=200)
-    # employee_id = models.CharField(max_length=50, blank=True, null=True)
     doj = models.DateField(blank=True, null=True)
     department = models.CharField(max_length=200, blank=True, null=True)
     designation = models.CharField(max_length=200, blank=True, null=True)
-    department_id = models.CharField(max_length=30, blank=True,null=True)
+    department_id = models.CharField(max_length=30, blank=True, null=True)
     designation_id = models.CharField(max_length=20, blank=True, null=True)
-    
+
     grade = models.CharField(max_length=50, blank=True, null=True)
     site_name = models.CharField(max_length=200, blank=True, null=True)
     biometric_id = models.CharField(max_length=100, blank=True, null=True)
@@ -31,6 +30,18 @@ class StaffOfficeDetails(models.Model):
     active_status = models.BooleanField(default=True)
     salary_type = models.CharField(max_length=50, blank=True, null=True)
 
+    # ✅ NEW FIELDS
+    driving_licence_no = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True
+    )
+    driving_licence_file = models.FileField(
+        upload_to="staff_licences/",
+        blank=True,
+        null=True
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -40,8 +51,6 @@ class StaffOfficeDetails(models.Model):
 
     def __str__(self):
         return f"{self.employee_name} ({self.staff_unique_id})"
-
-
 class StaffPersonalDetails(models.Model):
     staff = models.OneToOneField(
         StaffOfficeDetails,
