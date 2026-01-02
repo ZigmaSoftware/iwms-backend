@@ -4,8 +4,27 @@ from api.apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 
 
 class StaffcreationSerializer(serializers.ModelSerializer):
-    # Expose staff ID as `unique_id` for frontend parity
+    # --------------------------------------------------
+    # Core identifiers
+    # --------------------------------------------------
     unique_id = serializers.CharField(source="staff_unique_id", read_only=True)
+
+    # --------------------------------------------------
+    # ✅ Office-level: Driving licence
+    # --------------------------------------------------
+    driving_licence_no = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    driving_licence_file = serializers.FileField(
+        required=False,
+        allow_null=True,
+    )
+
+    # --------------------------------------------------
+    # Personal details (flattened from StaffPersonalDetails)
+    # --------------------------------------------------
     marital_status = serializers.CharField(
         source="personal_details.marital_status",
         required=False,
@@ -64,6 +83,9 @@ class StaffcreationSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
+    # --------------------------------------------------
+    # Internal mapping for personal table
+    # --------------------------------------------------
     personal_field_names = [
         "marital_status",
         "dob",
@@ -82,7 +104,8 @@ class StaffcreationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
-            # "employee_id",
+
+            # Office details
             "employee_name",
             "doj",
             "department",
@@ -96,8 +119,15 @@ class StaffcreationSerializer(serializers.ModelSerializer):
             "staff_head",
             "employee_known",
             "photo",
+
+            # ✅ Driving licence
+            "driving_licence_no",
+            "driving_licence_file",
+
             "active_status",
             "salary_type",
+
+            # Personal details (flattened)
             "marital_status",
             "dob",
             "blood_group",
@@ -108,15 +138,19 @@ class StaffcreationSerializer(serializers.ModelSerializer):
             "permanent_address",
             "contact_mobile",
             "contact_email",
+
             "created_at",
             "updated_at",
         ]
+
         read_only_fields = ["id", "unique_id", "created_at", "updated_at"]
 
+    # --------------------------------------------------
+    # Helpers
+    # --------------------------------------------------
     def _pop_personal_data(self, validated_data):
         """
-        Pull personal detail payload out of validated data so it can be saved
-        against the StaffPersonalDetails model.
+        Extract personal detail payload for StaffPersonalDetails
         """
         personal_data = validated_data.pop("personal_details", {})
         return {
@@ -125,18 +159,28 @@ class StaffcreationSerializer(serializers.ModelSerializer):
             if field in personal_data
         }
 
+    # --------------------------------------------------
+    # Create
+    # --------------------------------------------------
     def create(self, validated_data):
         personal_data = self._pop_personal_data(validated_data)
+
         staff = StaffOfficeDetails.objects.create(**validated_data)
+
         StaffPersonalDetails.objects.create(
             staff=staff,
             staff_unique_id=staff.staff_unique_id,
             **personal_data,
         )
+
         return staff
 
+    # --------------------------------------------------
+    # Update
+    # --------------------------------------------------
     def update(self, instance, validated_data):
         personal_data = self._pop_personal_data(validated_data)
+
         staff = super().update(instance, validated_data)
 
         if personal_data:
@@ -145,10 +189,10 @@ class StaffcreationSerializer(serializers.ModelSerializer):
             )
             for attr, value in personal_data.items():
                 setattr(personal_instance, attr, value)
+
             personal_instance.staff_unique_id = staff.staff_unique_id
             personal_instance.save()
         else:
-            # Keep personal row in sync with current staff unique id if it already exists
             if hasattr(staff, "personal_details"):
                 staff.personal_details.staff_unique_id = staff.staff_unique_id
                 staff.personal_details.save(update_fields=["staff_unique_id"])
