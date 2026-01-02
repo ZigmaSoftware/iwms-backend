@@ -39,6 +39,13 @@ AUTH_ONLY_PREFIXES = (
 )
 
 # --------------------------------------------------
+# PUBLIC PATHS (NO AUTHZ/AUTH)
+# --------------------------------------------------
+PUBLIC_PREFIXES = (
+    "/media/",
+)
+
+# --------------------------------------------------
 # HARD RESOURCE ALLOWLIST (BUSINESS RULE)
 # --------------------------------------------------
 MODULE_RESOURCE_ALLOWLIST = {
@@ -95,6 +102,7 @@ MODULE_RESOURCE_ALLOWLIST = {
     # Vehicles
     "vehicles": {
         "VehicleType",
+        "VehicleAssigning",
         "VehicleCreation",
     },
 }
@@ -107,6 +115,14 @@ def _split_path(path):
 
 def _is_auth_only_path(path):
     return any(path.startswith(prefix) for prefix in AUTH_ONLY_PREFIXES)
+
+
+def _is_public_path(path):
+    media_prefix = getattr(settings, "MEDIA_URL", "/media/")
+    prefixes = set(PUBLIC_PREFIXES)
+    if media_prefix:
+        prefixes.add(media_prefix)
+    return any(path.startswith(prefix) for prefix in prefixes)
 
 
 def _module_and_resource_from_path(path):
@@ -201,6 +217,9 @@ class ModulePermissionMiddleware(MiddlewareMixin):
 
         # Allow OPTIONS / CORS preflight
         if request.method == "OPTIONS":
+            return None
+
+        if _is_public_path(request.path):
             return None
 
         if _is_auth_only_path(request.path):
