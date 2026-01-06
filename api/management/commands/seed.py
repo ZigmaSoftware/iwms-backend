@@ -1,12 +1,14 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from api.management.commands.seeders.complaints import GRIEVANCE_SEEDERS
 from api.management.commands.seeders.masters import MASTER_SEEDERS
 from api.management.commands.seeders.assets import ASSET_SEEDERS
 from api.management.commands.seeders.role_assign import ROLE_ASSIGN_SEEDERS
 from api.management.commands.seeders.permissions import PERMISSION_SEEDERS
 from api.management.commands.seeders.customers import CUSTOMER_SEEDERS
 from api.management.commands.seeders.userCreation import USER_CREATION_SEEDERS
+from api.management.commands.seeders.vehicles import VEHICLE_SEEDERS
 
 
 # --------------------------------------------------
@@ -19,6 +21,8 @@ ORDERED_GROUPS = [
     "permission",
     "customers",
     "user-creation",
+    "vehicles",
+    "grievance"
 ]
 
 SEED_GROUPS = {
@@ -28,6 +32,8 @@ SEED_GROUPS = {
     "permission": PERMISSION_SEEDERS,
     "customers": CUSTOMER_SEEDERS,
     "user-creation": USER_CREATION_SEEDERS,
+    "grievance": GRIEVANCE_SEEDERS,
+    "vehicles": VEHICLE_SEEDERS
 }
 
 # --------------------------------------------------
@@ -49,7 +55,7 @@ class Command(BaseCommand):
             type=str,
             help=(
                 "Seeder group: "
-                "masters | assets | role-assign | permission | customers | user-creation | all"
+                "masters | assets | role-assign | permission | customers | user-creation | vehicles | all"
             ),
         )
 
