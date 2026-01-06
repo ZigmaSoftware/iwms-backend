@@ -38,6 +38,11 @@ class Complaint(models.Model):
         PROGRESSING = "PROGRESSING", "Progressing"
         CLOSED = "CLOSED", "Closed"
 
+    class PriorityChoices(models.TextChoices):
+        HIGH = "HIGH", "High"
+        MEDIUM = "MEDIUM", "Medium"
+        LOW = "LOW", "Low"
+
     class CategoryChoices(models.TextChoices):
         COLLECTION = "COLLECTION", "Collection"
         TRANSPORT = "TRANSPORT", "Transport"
@@ -73,6 +78,11 @@ class Complaint(models.Model):
     image = models.FileField(upload_to=complaint_upload_path, null=True, blank=True)
 
     # ➜ NEW FIELDS
+    priority = models.CharField(
+        max_length=10,
+        choices=PriorityChoices.choices,
+        default=PriorityChoices.MEDIUM,
+    )
     status = models.CharField(
         max_length=20,
         choices=StatusChoices.choices,
