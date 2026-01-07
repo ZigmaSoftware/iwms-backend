@@ -51,8 +51,11 @@ class PermissionSeeder(BaseSeeder):
                 "Staffusertypes",
             ],
             "user-creation": [
-                "UsersCreation", "Staffcreation", "StafftemplateCreation",
-                "AlternativeStafftemplate"
+                "UsersCreation",
+                "Staffcreation",
+                "StafftemplateCreation",
+                "AlternativeStafftemplate",
+                "StafftemplateAuditLog",
             ],
             "customers": [
                 "Customercreations", "Wastecollections",
@@ -156,6 +159,7 @@ class PermissionSeeder(BaseSeeder):
                 "user-creation": {
                     "StafftemplateCreation": ["add", "view"],
                     "AlternativeStafftemplate": ["add", "view"],
+                    "StafftemplateAuditLog": ["view"],
                 },
             }),
         ]

@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from .userCreation import User
@@ -11,8 +12,8 @@ class StaffTemplateAuditLog(models.Model):
     class Action(models.TextChoices):
         CREATE = "CREATE", "Create"
         APPROVE = "APPROVE", "Approve"
-        APPLY = "APPLY", "Apply"
-        CANCEL = "CANCEL", "Cancel"
+        MODIFY = "MODIFY", "Modify"
+        DELETE = "DELETE", "Delete"
 
     class PerformedRole(models.TextChoices):
         SUPERVISOR = "SUPERVISOR", "Supervisor"
@@ -63,3 +64,21 @@ class StaffTemplateAuditLog(models.Model):
 
     def __str__(self):
         return f"{self.entity_type} | {self.entity_id} | {self.action}"
+
+    def clean(self):
+        if self.action == self.Action.APPROVE:
+            allowed_roles = {self.PerformedRole.ADMIN}
+        else:
+            allowed_roles = {
+                self.PerformedRole.SUPERVISOR,
+                self.PerformedRole.ADMIN,
+            }
+
+        if self.performed_role not in allowed_roles:
+            raise ValidationError(
+                {"performed_role": "Invalid role for this action."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
