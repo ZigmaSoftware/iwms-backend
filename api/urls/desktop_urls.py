@@ -33,7 +33,13 @@ from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
 from ..views.desktopView.users.user_viewset import UserViewSet
 from ..views.desktopView.users.login_viewset import LoginViewSet
-from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
+from ..views.desktopView.assignments.assignment_viewset import (
+    AssignmentCustomerStatusViewSet,
+    CitizenAssignmentViewSet,
+    DailyAssignmentViewSet,
+    DriverCollectionLogViewSet,
+    StaffAssignmentHistoryViewSet,
+)
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 from ..views.desktopView.users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
 
@@ -135,5 +141,5 @@ router.register_group("vehicles", "vehicle-Assigning", VehicleAssigningViewSet)
 # URLS
 # ============================================================
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]

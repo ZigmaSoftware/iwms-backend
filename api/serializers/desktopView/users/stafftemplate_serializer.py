@@ -1,64 +1,104 @@
 from rest_framework import serializers
+
 from api.apps.stafftemplate import StaffTemplate
+from api.apps.userCreation import User
+from api.serializers.desktopView.users.user_serializer import UniqueIdOrPkField
 
 
 class StaffTemplateSerializer(serializers.ModelSerializer):
 
-    primary_driver_name = serializers.CharField(
-        source="primary_driver_id.staff_id.employee_name",
+    driver_id = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=User.objects.filter(is_deleted=False),
+    )
+    operator_id = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=User.objects.filter(is_deleted=False),
+    )
+    created_by = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=User.objects.filter(is_deleted=False),
+    )
+    updated_by = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=User.objects.filter(is_deleted=False),
+    )
+    approved_by = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=User.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+
+    driver_name = serializers.CharField(
+        source="driver_id.staff_id.employee_name",
         read_only=True,
     )
-    primary_operator_name = serializers.CharField(
-        source="primary_operator_id.staff_id.employee_name",
+    operator_name = serializers.CharField(
+        source="operator_id.staff_id.employee_name",
         read_only=True,
     )
-    secondary_driver_name = serializers.CharField(
-        source="secondary_driver_id.staff_id.employee_name",
+    created_by_name = serializers.CharField(
+        source="created_by.staff_id.employee_name",
         read_only=True,
     )
-    secondary_operator_name = serializers.CharField(
-        source="secondary_operator_id.staff_id.employee_name",
+    updated_by_name = serializers.CharField(
+        source="updated_by.staff_id.employee_name",
         read_only=True,
+    )
+    approved_by_name = serializers.CharField(
+        source="approved_by.staff_id.employee_name",
+        read_only=True,
+    )
+
+    extra_operator_id = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=True,
     )
 
     class Meta:
         model = StaffTemplate
         fields = [
+            "id",
             "unique_id",
 
-            "primary_driver_id",
-            "primary_driver_name",
-            "secondary_driver_id",
-            "secondary_driver_name",
+            "driver_id",
+            "driver_name",
+            "operator_id",
+            "operator_name",
+            "extra_operator_id",
 
-            "primary_operator_id",
-            "primary_operator_name",
-            "secondary_operator_id",
-            "secondary_operator_name",
-            "extra_staff_ids",
+            "created_by",
+            "created_by_name",
+            "updated_by",
+            "updated_by_name",
+            "approved_by",
+            "approved_by_name",
 
-            "is_active",
-            "is_deleted",
+            "status",
+            "approval_status",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
+            "id",
             "unique_id",
-            "is_deleted",
             "created_at",
             "updated_at",
-            "primary_driver_name",
-            "primary_operator_name",
-            "secondary_driver_name",
-            "secondary_operator_name",
+            "driver_name",
+            "operator_name",
+            "created_by_name",
+            "updated_by_name",
+            "approved_by_name",
         ]
 
     def validate(self, attrs):
         """
         STRICT ROLE ENFORCEMENT
-        - Drivers → staffusertype.name == 'driver'
-        - Operators → staffusertype.name == 'operator'
-        - No duplicate user across roles
+        - Driver → staffusertype.name == 'driver'
+        - Operator → staffusertype.name == 'operator'
+        - No duplicate user across roles or extra operators
         """
 
         instance = getattr(self, "instance", None)
@@ -78,54 +118,75 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
                 })
 
             actual_role = user.staffusertype_id.name
-            if actual_role != expected_role:
+            if actual_role.lower() != expected_role:
                 raise serializers.ValidationError({
                     field_name: f"Only '{expected_role}' role allowed. Found '{actual_role}'."
                 })
 
-        # ---- ROLE CHECKS ----
-        validate_role(resolve("primary_driver_id"), "driver", "primary_driver_id")
-        validate_role(resolve("secondary_driver_id"), "driver", "secondary_driver_id")
+        driver = resolve("driver_id")
+        operator = resolve("operator_id")
 
-        validate_role(resolve("primary_operator_id"), "operator", "primary_operator_id")
-        validate_role(resolve("secondary_operator_id"), "operator", "secondary_operator_id")
+        # ---- ROLE CHECKS ----
+        validate_role(driver, "driver", "driver_id")
+        validate_role(operator, "operator", "operator_id")
 
         # ---- DUPLICATE PREVENTION ----
-        users = [
-            resolve("primary_driver_id"),
-            resolve("secondary_driver_id"),
-            resolve("primary_operator_id"),
-            resolve("secondary_operator_id"),
-        ]
-        user_ids = [
-            getattr(user, "unique_id", user)
-            for user in users
-            if user
-        ]
-
-        if len(user_ids) != len(set(user_ids)):
+        if driver and operator and driver.unique_id == operator.unique_id:
             raise serializers.ValidationError(
-                "Same user cannot be assigned to multiple roles in a staff template."
+                {"operator_id": "Driver and operator must be different users."}
             )
 
-        extra_staff_ids = attrs.get("extra_staff_ids")
-        if extra_staff_ids is None and instance:
-            extra_staff_ids = instance.extra_staff_ids
+        extra_operator_ids = attrs.get("extra_operator_id")
+        if extra_operator_ids is None and instance:
+            extra_operator_ids = instance.extra_operator_id
 
-        if extra_staff_ids:
-            if not isinstance(extra_staff_ids, list):
+        if extra_operator_ids is not None:
+            if not isinstance(extra_operator_ids, list):
                 raise serializers.ValidationError(
-                    {"extra_staff_ids": "Expected a list of user IDs."}
+                    {"extra_operator_id": "Expected a list of user IDs."}
                 )
-            extra_ids = [str(item) for item in extra_staff_ids if item]
+
+            extra_ids = [str(item) for item in extra_operator_ids if item]
             if len(extra_ids) != len(set(extra_ids)):
                 raise serializers.ValidationError(
-                    {"extra_staff_ids": "Duplicate users are not allowed."}
+                    {"extra_operator_id": "Duplicate users are not allowed."}
                 )
-            overlap = set(extra_ids) & set(user_ids)
-            if overlap:
+
+            if operator and operator.unique_id in extra_ids:
                 raise serializers.ValidationError(
-                    {"extra_staff_ids": "Extra staff cannot overlap primary/secondary roles."}
+                    {"extra_operator_id": "Extra operators cannot include the primary operator."}
                 )
+
+            if driver and driver.unique_id in extra_ids:
+                raise serializers.ValidationError(
+                    {"extra_operator_id": "Extra operators cannot include the driver."}
+                )
+
+            if extra_ids:
+                operators = User.objects.filter(
+                    unique_id__in=extra_ids,
+                    is_deleted=False,
+                )
+                found_ids = {user.unique_id for user in operators}
+                missing_ids = sorted(set(extra_ids) - found_ids)
+                if missing_ids:
+                    raise serializers.ValidationError({
+                        "extra_operator_id": (
+                            f"Unknown user IDs: {', '.join(missing_ids)}."
+                        )
+                    })
+
+                non_operators = [
+                    user.unique_id
+                    for user in operators
+                    if not user.staffusertype_id
+                    or user.staffusertype_id.name.lower() != "operator"
+                ]
+                if non_operators:
+                    raise serializers.ValidationError({
+                        "extra_operator_id": (
+                            "Only 'operator' role allowed in extra_operator_id."
+                        )
+                    })
 
         return attrs

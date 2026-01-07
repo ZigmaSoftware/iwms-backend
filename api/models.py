@@ -39,8 +39,6 @@ from .apps.waste_collection_bluetooth import (
     WasteCollectionMain
 )
 from .apps.stafftemplate import StaffTemplate
-from .apps.route_stop import RouteStop
-from .apps.route_run import RouteRun, RouteRunStop
 
 
 __all__ = [
@@ -76,10 +74,7 @@ __all__ = [
     "UserScreenPermission",
     "LoginAudit",
     "StaffTemplate",
-    "RouteStop",
-    "RouteRun",
-    "RouteRunStop",
-
+    
     # Vehicles
     "VehicleTypeCreation",
     "VehicleAssigning",
