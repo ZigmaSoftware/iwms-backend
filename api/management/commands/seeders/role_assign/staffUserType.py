@@ -38,5 +38,13 @@ class StaffUserTypeSeeder(BaseSeeder):
                 "is_deleted": False,
             }
         )
+        StaffUserType.objects.get_or_create(
+            usertype_id=staff_usertype,
+            name="supervisor",
+            defaults={
+                "is_active": True,
+                "is_deleted": False,
+            }
+        )
 
-        self.log("Staff user type 'admin' seeded for Staff")
+        self.log("Staff user types seeded for Staff")

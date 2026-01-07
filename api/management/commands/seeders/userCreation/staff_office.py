@@ -32,6 +32,11 @@ class StaffOfficeSeeder:
             "Santhosh",
             "Ajay",
         ]
+        supervisor_names = [
+            "Anita",
+            "Kumar",
+            "Priya",
+        ]
 
         for idx, name in enumerate(driver_names, start=1):
             staff_list.append(
@@ -52,6 +57,18 @@ class StaffOfficeSeeder:
                     "department": "Operations",
                     "designation": "Operator",
                     "grade": "B",
+                    "site_name": f"Depot-{(idx % 3) + 1}",
+                    "salary_type": "Monthly",
+                }
+            )
+
+        for idx, name in enumerate(supervisor_names, start=1):
+            staff_list.append(
+                {
+                    "employee_name": name,
+                    "department": "Operations",
+                    "designation": "Supervisor",
+                    "grade": "A",
                     "site_name": f"Depot-{(idx % 3) + 1}",
                     "salary_type": "Monthly",
                 }

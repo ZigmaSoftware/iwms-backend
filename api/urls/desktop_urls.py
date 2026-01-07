@@ -1,5 +1,6 @@
 from django.urls import path, include
 
+from api.views.desktopView.users.staffcreation_viewset import StaffcreationViewset
 from api.views.mobileView.grievance.main_category_viewset import MainCategoryViewSet
 from api.views.mobileView.grievance.sub_category_viewset import SubCategoryViewSet
 from .custom_router import GroupedRouter
@@ -33,13 +34,7 @@ from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
 from ..views.desktopView.users.user_viewset import UserViewSet
 from ..views.desktopView.users.login_viewset import LoginViewSet
-from ..views.desktopView.assignments.assignment_viewset import (
-    AssignmentCustomerStatusViewSet,
-    CitizenAssignmentViewSet,
-    DailyAssignmentViewSet,
-    DriverCollectionLogViewSet,
-    StaffAssignmentHistoryViewSet,
-)
+
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 from ..views.desktopView.users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
 

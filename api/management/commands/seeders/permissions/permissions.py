@@ -51,7 +51,8 @@ class PermissionSeeder(BaseSeeder):
                 "Staffusertypes",
             ],
             "user-creation": [
-                "UsersCreation", "Staffcreation", "StafftemplateCreation"
+                "UsersCreation", "Staffcreation", "StafftemplateCreation",
+                "AlternativeStafftemplate"
             ],
             "customers": [
                 "Customercreations", "Wastecollections",
@@ -110,6 +111,10 @@ class PermissionSeeder(BaseSeeder):
             name="operator",
             usertype_id=staff_type
         )
+        supervisor_role = StaffUserType.objects.get(
+            name="supervisor",
+            usertype_id=staff_type
+        )
 
         
         for main in mainscreens.values():
@@ -147,6 +152,12 @@ class PermissionSeeder(BaseSeeder):
         role_permission_sets = [
             (driver_role, driver_permissions),
             (operator_role, operator_permissions),
+            (supervisor_role, {
+                "user-creation": {
+                    "StafftemplateCreation": ["add", "view"],
+                    "AlternativeStafftemplate": ["add", "view"],
+                },
+            }),
         ]
 
         for staff_role, permission_map in role_permission_sets:
