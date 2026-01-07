@@ -1,3 +1,4 @@
+
 # Masters
 from .masters.continent_serializer import ContinentSerializer
 from .masters.country_serializer import CountrySerializer
@@ -31,7 +32,7 @@ from .users.userscreenpermission_serializer import (
     ScreenActionSerializer
 )
 from .users.stafftemplate_serializer import StaffTemplateSerializer
-
+from .users.alternative_stafftemplate_serializer import AlternativeStaffTemplateSerializer
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
 from .vehicles.vehicleAssigning_serializer import VehicleAssigningSerializer

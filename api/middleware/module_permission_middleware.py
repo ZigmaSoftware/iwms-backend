@@ -83,6 +83,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "UsersCreation",
         "Staffcreation",
         "StafftemplateCreation",
+        "AlternativeStafftemplate",
     },
 
     # Customers

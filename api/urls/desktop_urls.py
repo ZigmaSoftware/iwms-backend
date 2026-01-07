@@ -16,7 +16,7 @@ from ..views.desktopView.masters.district_viewset import DistrictViewSet
 from ..views.desktopView.masters.city_viewset import CityViewSet
 from ..views.desktopView.masters.zone_viewset import ZoneViewSet
 from ..views.desktopView.masters.ward_viewset import WardViewSet
-from ..views.desktopView.masters.staffcreation_viewset import StaffcreationViewset
+
 
 # Assets
 from ..views.desktopView.assets.fuel_viewset import FuelViewSet
@@ -33,7 +33,15 @@ from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
 from ..views.desktopView.users.user_viewset import UserViewSet
 from ..views.desktopView.users.login_viewset import LoginViewSet
+from ..views.desktopView.assignments.assignment_viewset import (
+    AssignmentCustomerStatusViewSet,
+    CitizenAssignmentViewSet,
+    DailyAssignmentViewSet,
+    DriverCollectionLogViewSet,
+    StaffAssignmentHistoryViewSet,
+)
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
+from ..views.desktopView.users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
 
 # Screen Management
 from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
@@ -49,8 +57,6 @@ from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreation
 
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
-
-
 
 router = GroupedRouter()
 
@@ -98,7 +104,7 @@ router.register_group("role-assign", "staffusertypes", StaffUserTypeViewSet)
 router.register_group("user-creation", "users-creation",  UserViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
-
+router.register_group("user-creation", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)
 
 # ============================================================
 # GROUP: login

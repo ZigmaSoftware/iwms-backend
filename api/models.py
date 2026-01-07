@@ -90,4 +90,5 @@ __all__ = [
     "WasteCollectionSub",
     "WasteType",
     "WasteCollectionMain",
+
 ]

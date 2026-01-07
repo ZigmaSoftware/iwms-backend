@@ -38,8 +38,9 @@ from .users.mainscreentype_viewset import MainScreenTypeViewSet
 from .users.mainscreen_viewset import MainScreenViewSet
 from .users.userscreenaction_viewset import UserScreenActionViewSet
 from .users.userscreenpermission_viewset import UserScreenPermissionViewSet
-from .masters.staffcreation_viewset import StaffcreationViewset
+from .users.staffcreation_viewset import StaffcreationViewset
 from .users.stafftemplate_viewset import StaffTemplateViewSet
+from .users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
 
 # ==============================
 # Vehicles
@@ -89,7 +90,7 @@ __all__ = [
     "UserScreenPermissionViewSet",
     "StaffcreationViewset",
     "StaffTemplateViewSet",
-   
+    "AlternativeStaffTemplateViewSet",
 
     # Vehicles
     "VehicleTypeCreationViewSet",
