@@ -57,11 +57,6 @@ from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreation
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
 
-# Routes
-from ..views.desktopView.routes.route_stop_viewset import RouteStopViewSet
-from ..views.desktopView.routes.route_run_viewset import RouteRunViewSet
-from ..views.desktopView.routes.daily_route_assignment_viewset import DailyRouteAssignmentViewSet
-from ..views.desktopView.routes.route_optimization_view import RouteOptimizationView
 
 
 router = GroupedRouter()
@@ -117,12 +112,6 @@ router.register_group("user-creation", "users-creation",  UserViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
 
-# ============================================================
-# GROUP: ROUTES (template + runs + assignments)
-# ============================================================
-router.register_group("routes", "route-stops", RouteStopViewSet)
-router.register_group("routes", "route-runs", RouteRunViewSet)
-router.register_group("routes", "daily-route-assignments", DailyRouteAssignmentViewSet)
 
 # ============================================================
 # GROUP: login
@@ -160,9 +149,4 @@ router.register_group("vehicles", "vehicle-Assigning", VehicleAssigningViewSet)
 # ============================================================
 urlpatterns = [
     path("", include(router.urls)),
-    path(
-        "routes/<str:route_id>/optimize/",
-        RouteOptimizationView.as_view(),
-        name="route-optimize",
-    ),
 ]
