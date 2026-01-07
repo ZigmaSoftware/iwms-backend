@@ -88,7 +88,7 @@ class AlternativeStaffTemplate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'alternative_staff_template'
+        db_table = 'api_alternative_staff_template'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['staff_template', 'effective_date']),

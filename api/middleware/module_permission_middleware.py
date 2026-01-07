@@ -43,6 +43,7 @@ AUTH_ONLY_PREFIXES = (
 # --------------------------------------------------
 PUBLIC_PREFIXES = (
     "/media/",
+    "/api/desktop/user-creation/alternative-stafftemplate/",
 )
 
 # --------------------------------------------------
