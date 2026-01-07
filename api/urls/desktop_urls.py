@@ -28,18 +28,11 @@ from ..views.desktopView.customers.customercreation_viewset import CustomerCreat
 from ..views.desktopView.customers.wastecollection_viewset import WasteCollectionViewSet
 from ..views.desktopView.customers.feedback_viewset import FeedBackViewSet
 
-# Users - Creation & Assignments
+# Users - Creation
 from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
 from ..views.desktopView.users.user_viewset import UserViewSet
 from ..views.desktopView.users.login_viewset import LoginViewSet
-from ..views.desktopView.assignments.assignment_viewset import (
-    AssignmentCustomerStatusViewSet,
-    CitizenAssignmentViewSet,
-    DailyAssignmentViewSet,
-    DriverCollectionLogViewSet,
-    StaffAssignmentHistoryViewSet,
-)
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 
 # Screen Management
@@ -57,11 +50,6 @@ from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreation
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
 
-# Routes
-from ..views.desktopView.routes.route_stop_viewset import RouteStopViewSet
-from ..views.desktopView.routes.route_run_viewset import RouteRunViewSet
-from ..views.desktopView.routes.daily_route_assignment_viewset import DailyRouteAssignmentViewSet
-from ..views.desktopView.routes.route_optimization_view import RouteOptimizationView
 
 
 router = GroupedRouter()
@@ -101,12 +89,6 @@ router.register_group("screen-management", "userscreenpermissions", UserScreenPe
 # ============================================================
 router.register_group("role-assign", "user-type",      UserTypeViewSet)
 router.register_group("role-assign", "staffusertypes", StaffUserTypeViewSet)
-router.register_group("role-assign","assignments", DailyAssignmentViewSet,)
-router.register_group("role-assign", "daily-assignments", DailyAssignmentViewSet)
-router.register_group("role-assign", "staff-assignments", StaffAssignmentHistoryViewSet)
-router.register_group("role-assign", "collection-logs", DriverCollectionLogViewSet)
-router.register_group("role-assign", "assignment-customer-statuses", AssignmentCustomerStatusViewSet)
-router.register_group("role-assign", "citizen-assignments", CitizenAssignmentViewSet)
 
 
 
@@ -117,12 +99,6 @@ router.register_group("user-creation", "users-creation",  UserViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
 
-# ============================================================
-# GROUP: ROUTES (template + runs + assignments)
-# ============================================================
-router.register_group("routes", "route-stops", RouteStopViewSet)
-router.register_group("routes", "route-runs", RouteRunViewSet)
-router.register_group("routes", "daily-route-assignments", DailyRouteAssignmentViewSet)
 
 # ============================================================
 # GROUP: login
@@ -160,9 +136,4 @@ router.register_group("vehicles", "vehicle-Assigning", VehicleAssigningViewSet)
 # ============================================================
 urlpatterns = [
     path("", include(router.urls)),
-    path(
-        "routes/<str:route_id>/optimize/",
-        RouteOptimizationView.as_view(),
-        name="route-optimize",
-    ),
 ]

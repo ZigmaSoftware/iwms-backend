@@ -72,12 +72,6 @@ MODULE_RESOURCE_ALLOWLIST = {
     "role-assign": {
         "UserType",
         "Staffusertypes",
-        "Assignments",
-        "DailyAssignments",
-        "StaffAssignments",
-        "CollectionLogs",
-        "AssignmentCustomerStatuses",
-        "CitizenAssignments",
     },
      # Grievance
     "grievance": {
@@ -247,17 +241,6 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         role = str(payload.get("role") or "").lower()
         if role == "admin":
             return None
-
-        if role == "operator" and module == "role-assign":
-            operator_resources = {
-                "Assignments",
-                "DailyAssignments",
-                "CollectionLogs",
-                "AssignmentCustomerStatuses",
-            }
-            slug_resource = _slug_to_resource_name(resource_slug)
-            if slug_resource in operator_resources:
-                return None
 
         permissions = payload.get("permissions", {})
         module_permissions = permissions.get(module, {})

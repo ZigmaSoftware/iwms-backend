@@ -9,7 +9,7 @@ from api.serializers.desktopView.users.stafftemplate_serializer import (
 class StaffTemplateViewSet(viewsets.ModelViewSet):
     """
     Staff Template API
-    - Soft delete enforced
+    - Status and approval filters
     - ERP-safe partial updates
     """
 
@@ -17,24 +17,29 @@ class StaffTemplateViewSet(viewsets.ModelViewSet):
     lookup_field = "unique_id"
 
     def get_queryset(self):
-        qs = StaffTemplate.objects.filter(is_deleted=False)
+        qs = StaffTemplate.objects.all()
 
-        is_active = self.request.query_params.get("is_active")
-        if is_active is not None:
-            qs = qs.filter(is_active=is_active.lower() == "true")
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+
+        approval_status = self.request.query_params.get("approval_status")
+        if approval_status:
+            qs = qs.filter(approval_status=approval_status)
 
         return qs.select_related(
-            "primary_driver_id",
-            "secondary_driver_id",
-            "primary_operator_id",
-            "secondary_operator_id",
+            "driver_id",
+            "operator_id",
+            "created_by",
+            "updated_by",
+            "approved_by",
         )
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         instance.delete()
         return Response(
-            {"detail": "Staff template soft-deleted successfully"},
+            {"detail": "Staff template deleted successfully"},
             status=status.HTTP_204_NO_CONTENT
         )
 

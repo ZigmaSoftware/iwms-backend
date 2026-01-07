@@ -49,12 +49,6 @@ class PermissionSeeder(BaseSeeder):
             "role-assign": [
                 "UserType",
                 "Staffusertypes",
-                "Assignments",
-                "DailyAssignments",
-                "StaffAssignments",
-                "CollectionLogs",
-                "AssignmentCustomerStatuses",
-                "CitizenAssignments",
             ],
             "user-creation": [
                 "UsersCreation", "Staffcreation", "StafftemplateCreation"
@@ -139,26 +133,12 @@ class PermissionSeeder(BaseSeeder):
                     order_no += 1
 
         driver_permissions = {
-            "role-assign": {
-                "Assignments": ["view", "add"],
-                "DailyAssignments": ["view", "add"],
-                "StaffAssignments": ["view"],
-                "CollectionLogs": ["add"],
-                "AssignmentCustomerStatuses": ["add", "view"],
-            },
             "customers": {
                 "Customercreations": ["view"],
             },
         }
 
         operator_permissions = {
-            "role-assign": {
-                "Assignments": ["view", "add"],
-                "DailyAssignments": ["view", "add"],
-                "StaffAssignments": ["view"],
-                "CollectionLogs": ["add"],
-                "AssignmentCustomerStatuses": ["add", "view"],
-            },
             "customers": {
                 "Customercreations": ["view"],
             },
