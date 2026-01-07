@@ -102,13 +102,6 @@ class LoginSerializer(serializers.Serializer):
             staff_role = user.staffusertype_id.name.lower()
             if staff_role in ["driver", "operator"]:
                 permissions = {
-                    "role-assign": {
-                        "Assignments": ["view", "add"],
-                        "DailyAssignments": ["view", "add"],
-                        "StaffAssignments": ["view"],
-                        "CollectionLogs": ["add"],
-                        "AssignmentCustomerStatuses": ["add", "view"],
-                    },
                     "customers": {
                         "Customercreations": ["view"],
                     },

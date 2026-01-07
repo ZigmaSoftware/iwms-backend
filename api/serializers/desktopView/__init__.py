@@ -31,10 +31,7 @@ from .users.userscreenpermission_serializer import (
     ScreenActionSerializer
 )
 from .users.stafftemplate_serializer import StaffTemplateSerializer
-from .routes.route_stop_serializer import RouteStopSerializer
-from .routes.route_run_serializer import RouteRunSerializer, RouteRunStopSerializer
-from .routes.daily_route_assignment_serializer import DailyRouteAssignmentSerializer
-
+from .users.alternative_stafftemplate_serializer import AlternativeStaffTemplateSerializer
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
 from .vehicles.vehicleAssigning_serializer import VehicleAssigningSerializer
