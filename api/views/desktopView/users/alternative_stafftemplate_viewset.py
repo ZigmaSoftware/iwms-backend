@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.db.models import Q
 
@@ -17,7 +17,7 @@ class AlternativeStaffTemplateViewSet(viewsets.ModelViewSet):
 
     queryset = AlternativeStaffTemplate.objects.all()
     serializer_class = AlternativeStaffTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         """

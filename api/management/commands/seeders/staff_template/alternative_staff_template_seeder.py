@@ -23,15 +23,16 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
             self.log("No StaffTemplate found. Seeder aborted.")
             return
 
-        users = User.objects.all()[:4]
-        if users.count() < 3:
-            self.log("Insufficient users found. Seeder aborted.")
+        # Pull auth users (model tied to AUTH_USER_MODEL)
+        users = list(User.objects.filter(is_active=True).order_by("id")[:4])
+        if len(users) < 3:
+            self.log("Insufficient auth users found (need at least 3). Seeder aborted.")
             return
 
         driver = users[0]
         operator = users[1]
         approver = users[2]
-        extra_operator = users[3] if users.count() > 3 else None
+        extra_operator = users[3] if len(users) > 3 else None
 
         # ---- SEED DATA ----
         AlternativeStaffTemplate.objects.get_or_create(
