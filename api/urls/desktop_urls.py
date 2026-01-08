@@ -1,6 +1,5 @@
 from django.urls import path, include
 
-from api.views.desktopView.users.staffcreation_viewset import StaffcreationViewset
 from api.views.mobileView.grievance.main_category_viewset import MainCategoryViewSet
 from api.views.mobileView.grievance.sub_category_viewset import SubCategoryViewSet
 from .custom_router import GroupedRouter
@@ -40,7 +39,7 @@ from ..views.desktopView.users.login_viewset import LoginViewSet
 from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 from ..views.desktopView.users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
-from ..views.desktopView.users.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
+from ..views.desktopView.users.routeplan_viewset import RoutePlanViewSet
 from ..views.desktopView.users.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
 from ..views.desktopView.users.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
 
@@ -53,7 +52,6 @@ from ..views.desktopView.users.userscreenpermission_viewset import UserScreenPer
 
 # Vehicles
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
-from ..views.desktopView.vehicles.vehicleAssigning_viewset import VehicleAssigningViewSet
 from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreationViewSet
 
 # Complaints
@@ -106,7 +104,7 @@ router.register_group("user-creation", "users-creation",  UserViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
 router.register_group("user-creation", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)
-router.register_group("user-creation", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
+router.register_group("user-creation", "route-plans",    RoutePlanViewSet)
 router.register_group("user-creation", "supervisor-zone-map", SupervisorZoneMapViewSet)
 router.register_group("user-creation", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
 
@@ -139,7 +137,6 @@ router.register_group("grievance","sub-category", SubCategoryViewSet, basename="
 # ============================================================
 router.register_group("vehicles", "vehicle-type",     VehicleTypeCreationViewSet)
 router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
-router.register_group("vehicles", "vehicle-Assigning", VehicleAssigningViewSet)
 
 
 # ============================================================
