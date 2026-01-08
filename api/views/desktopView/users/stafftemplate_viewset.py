@@ -15,6 +15,7 @@ class StaffTemplateViewSet(viewsets.ModelViewSet):
 
     serializer_class = StaffTemplateSerializer
     lookup_field = "unique_id"
+    permission_resource = "StaffTemplateCreation"
 
     def get_queryset(self):
         qs = StaffTemplate.objects.all()
@@ -46,3 +47,22 @@ class StaffTemplateViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         kwargs["partial"] = True  # critical for ERP ops
         return super().update(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        """
+        Tie audit fields to the authenticated user so the client
+        does not have to post created_by / updated_by.
+        """
+        user = getattr(self.request, "user", None)
+        serializer.save(
+            created_by=user,
+            updated_by=user,
+            approved_by=serializer.validated_data.get("approved_by"),
+        )
+
+    def perform_update(self, serializer):
+        user = getattr(self.request, "user", None)
+        serializer.save(
+            updated_by=user or serializer.instance.updated_by,
+            approved_by=serializer.validated_data.get("approved_by", serializer.instance.approved_by),
+        )

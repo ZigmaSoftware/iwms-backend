@@ -24,7 +24,6 @@ from .apps.userscreenpermission import UserScreenPermission
 from .apps.userCreation import User
 
 from .apps.vehicleTypeCreation import VehicleTypeCreation
-from .apps.vehicleAssigning import VehicleAssigning
 
 
 from .apps.complaints import Complaint
@@ -39,7 +38,8 @@ from .apps.waste_collection_bluetooth import (
     WasteCollectionMain
 )
 from .apps.stafftemplate import StaffTemplate
-from .apps.staff_template_audit_log import StaffTemplateAuditLog
+from .apps.alternative_staff_template import AlternativeStaffTemplate
+from .apps .routeplan import RoutePlan
 
 
 __all__ = [
@@ -75,11 +75,12 @@ __all__ = [
     "UserScreenPermission",
     "LoginAudit",
     "StaffTemplate",
-    "StaffTemplateAuditLog",
+    "AlternativeStaffTemplate",
+    "RoutelPlan",
+    
     
     # Vehicles
     "VehicleTypeCreation",
-    "VehicleAssigning",
 
     # Complaints
     "Complaint",
