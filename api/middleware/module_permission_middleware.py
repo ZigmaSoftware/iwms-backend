@@ -43,7 +43,6 @@ AUTH_ONLY_PREFIXES = (
 # --------------------------------------------------
 PUBLIC_PREFIXES = (
     "/media/",
-    # "/api/desktop/user-creation/alternative-stafftemplate/",
 )
 
 # --------------------------------------------------
@@ -86,6 +85,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "StafftemplateCreation",
         "AlternativeStaffTemplate",
         "StafftemplateAuditLog",
+        "SupervisorZoneMap",
     },
 
     # Customers
