@@ -1,8 +1,11 @@
 import uuid
 from django.db import models
+from .utils.comfun import generate_unique_id
 from django.conf import settings
 
 
+def generate_alternative_staff_template_id():
+    return f"ALTSTAFFTEMPLATE-{generate_unique_id()}"
 class AlternativeStaffTemplate(models.Model):
     """
     Purpose:

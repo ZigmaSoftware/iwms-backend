@@ -86,6 +86,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "AlternativeStaffTemplate",
         "StafftemplateAuditLog",
         "SupervisorZoneMap",
+        "SupervisorZoneAccessAudit",
     },
 
     # Customers
