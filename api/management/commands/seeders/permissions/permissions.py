@@ -62,9 +62,10 @@ class PermissionSeeder(BaseSeeder):
             ],
             "user-creation": [
                 "UsersCreation",
-                "StaffCreation",
-                "StaffTemplateCreation",
-                "AlternativeStaffTemplate",
+                "Staffcreation",
+                "StafftemplateCreation",
+                "AlternativeStafftemplate",
+                "StafftemplateAuditLog",
             ],
             "customers": [
                 "CustomerCreations",
@@ -114,14 +115,24 @@ class PermissionSeeder(BaseSeeder):
         # 4. ROLES
         # --------------------------------------------------
         staff_type = UserType.objects.get(name__iexact="staff")
+        admin_role = StaffUserType.objects.get(
+            name="admin",
+            usertype_id=staff_type
+        )
+        driver_role = StaffUserType.objects.get(
+            name="driver",
+            usertype_id=staff_type
+        )
+        operator_role = StaffUserType.objects.get(
+            name="operator",
+            usertype_id=staff_type
+        )
+        supervisor_role = StaffUserType.objects.get(
+            name="supervisor",
+            usertype_id=staff_type
+        )
 
-        admin_role = StaffUserType.objects.get(name="admin", usertype_id=staff_type)
-        driver_role = StaffUserType.objects.get(name="driver", usertype_id=staff_type)
-        operator_role = StaffUserType.objects.get(name="operator", usertype_id=staff_type)
-
-        # --------------------------------------------------
-        # 5. ADMIN → FULL ACCESS
-        # --------------------------------------------------
+        
         for main in mainscreens.values():
             screens = UserScreen.objects.filter(mainscreen_id=main)
             for screen in screens:
@@ -139,22 +150,31 @@ class PermissionSeeder(BaseSeeder):
                             "is_deleted": False,
                         }
                     )
+                    order_no += 1
 
-        # --------------------------------------------------
-        # 6. LIMITED ROLES
-        # --------------------------------------------------
-        limited_permissions = {
-            driver_role: {
-                "customers": {
-                    "CustomerCreations": ["view"],
-                }
-            },
-            operator_role: {
-                "customers": {
-                    "CustomerCreations": ["view"],
-                }
+        driver_permissions = {
+            "customers": {
+                "Customercreations": ["view"],
             },
         }
+
+        operator_permissions = {
+            "customers": {
+                "Customercreations": ["view"],
+            },
+        }
+
+        role_permission_sets = [
+            (driver_role, driver_permissions),
+            (operator_role, operator_permissions),
+            (supervisor_role, {
+                "user-creation": {
+                    "StafftemplateCreation": ["add", "view"],
+                    "AlternativeStafftemplate": ["add", "view"],
+                    "StafftemplateAuditLog": ["view"],
+                },
+            }),
+        ]
 
         for role, modules in limited_permissions.items():
             for module_name, screens in modules.items():
