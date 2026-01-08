@@ -1,6 +1,5 @@
 from django.urls import path, include
 
-from api.views.desktopView.users.staffcreation_viewset import StaffcreationViewset
 from api.views.mobileView.grievance.main_category_viewset import MainCategoryViewSet
 from api.views.mobileView.grievance.sub_category_viewset import SubCategoryViewSet
 from .custom_router import GroupedRouter
@@ -39,9 +38,6 @@ from ..views.desktopView.users.login_viewset import LoginViewSet
 from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 from ..views.desktopView.users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
-from ..views.desktopView.users.staff_template_audit_log_viewset import (
-    StaffTemplateAuditLogViewSet,
-)
 
 # Screen Management
 from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
@@ -105,7 +101,6 @@ router.register_group("user-creation", "users-creation",  UserViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
 router.register_group("user-creation", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)
-router.register_group("user-creation", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
 
 # ============================================================
 # GROUP: login

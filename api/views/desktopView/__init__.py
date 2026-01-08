@@ -40,7 +40,6 @@ from .users.userscreenaction_viewset import UserScreenActionViewSet
 from .users.userscreenpermission_viewset import UserScreenPermissionViewSet
 from .users.staffcreation_viewset import StaffcreationViewset
 from .users.stafftemplate_viewset import StaffTemplateViewSet
-from .users.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
 from .users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
 
 # ==============================
@@ -91,7 +90,6 @@ __all__ = [
     "UserScreenPermissionViewSet",
     "StaffcreationViewset",
     "StaffTemplateViewSet",
-    "StaffTemplateAuditLogViewSet",
     "AlternativeStaffTemplateViewSet",
 
     # Vehicles

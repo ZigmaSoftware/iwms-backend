@@ -98,8 +98,6 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
         STRICT ROLE ENFORCEMENT
         - Driver → staffusertype.name == 'driver'
         - Operator → staffusertype.name == 'operator'
-        - Created by → staffusertype.name == 'supervisor'
-        - Approved by → staffusertype.name == 'admin'
         - No duplicate user across roles or extra operators
         """
 
@@ -127,22 +125,10 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
 
         driver = resolve("driver_id")
         operator = resolve("operator_id")
-        created_by = resolve("created_by")
-        approved_by = resolve("approved_by")
 
         # ---- ROLE CHECKS ----
         validate_role(driver, "driver", "driver_id")
         validate_role(operator, "operator", "operator_id")
-        if not created_by:
-            raise serializers.ValidationError(
-                {"created_by": "created_by is required."}
-            )
-        if not approved_by:
-            raise serializers.ValidationError(
-                {"approved_by": "approved_by is required."}
-            )
-        validate_role(created_by, "supervisor", "created_by")
-        validate_role(approved_by, "admin", "approved_by")
 
         # ---- DUPLICATE PREVENTION ----
         if driver and operator and driver.unique_id == operator.unique_id:

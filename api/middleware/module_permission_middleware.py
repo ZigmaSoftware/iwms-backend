@@ -60,11 +60,10 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Staffusertypes",
     },
     "user-creation": {
-        "UsersCreation",
-        "Staffcreation",
-        "StafftemplateCreation",
+        "User",
+        "StaffcreationViewset",
+        "StaffTemplate",
         "AlternativeStaffTemplate",
-        "StafftemplateAuditLog",
     },
     "customers": {
         "CustomerCreation",
