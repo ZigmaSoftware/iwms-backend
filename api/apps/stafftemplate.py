@@ -84,7 +84,7 @@ class StaffTemplate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "staff_template"
+        db_table = "api_staff_template"
         indexes = [
             models.Index(fields=["status", "approval_status"]),
         ]
