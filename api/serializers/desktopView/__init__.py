@@ -32,6 +32,7 @@ from .users.userscreenpermission_serializer import (
     ScreenActionSerializer
 )
 from .users.stafftemplate_serializer import StaffTemplateSerializer
+from .users.staff_template_audit_log_serializer import StaffTemplateAuditLogSerializer
 from .users.alternative_stafftemplate_serializer import AlternativeStaffTemplateSerializer
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer

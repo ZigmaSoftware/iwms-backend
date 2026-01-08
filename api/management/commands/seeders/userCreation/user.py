@@ -84,6 +84,14 @@ class UserSeeder:
         except StaffUserType.DoesNotExist:
             raise Exception("Staff operator role missing. Run StaffUserTypeSeeder first.")
 
+        try:
+            supervisor_role = StaffUserType.objects.get(
+                name="supervisor",
+                usertype_id=staff_type
+            )
+        except StaffUserType.DoesNotExist:
+            raise Exception("Staff supervisor role missing. Run StaffUserTypeSeeder first.")
+
         def seed_staff_role(role_name, role_obj, default_password, special_names, special_password):
             name_filter = Q()
             for name in special_names:
@@ -183,6 +191,17 @@ class UserSeeder:
             operator_default_password,
             operator_special_names,
             operator_special_password,
+        )
+
+        supervisor_default_password = "supervisor@123"
+        supervisor_special_names = ["Anita", "Kumar", "Priya"]
+        supervisor_special_password = "supervisor@123"
+        seed_staff_role(
+            "supervisor",
+            supervisor_role,
+            supervisor_default_password,
+            supervisor_special_names,
+            supervisor_special_password,
         )
 
         # ==================================================
