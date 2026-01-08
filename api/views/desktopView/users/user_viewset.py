@@ -10,6 +10,7 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.filter(is_deleted=False)
     serializer_class = UserSerializer
     lookup_field = "unique_id"
+    permission_resource = "UsersCreation"
 
     def get_object(self):
         lookup_field = self.lookup_field

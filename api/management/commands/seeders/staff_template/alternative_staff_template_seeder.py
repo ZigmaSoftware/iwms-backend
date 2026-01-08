@@ -41,7 +41,7 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
             driver=driver,
             operator=operator,
             defaults={
-                "extra_operator": extra_operator,
+                "extra_operator": [str(extra_operator.pk)] if extra_operator else [],
                 "change_reason": "Temporary staff substitution",
                 "change_remarks": "Seeder-generated record for baseline validation",
                 "requested_by": driver,

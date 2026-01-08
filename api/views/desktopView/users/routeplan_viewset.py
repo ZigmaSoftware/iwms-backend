@@ -1,5 +1,4 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
 
 from api.apps.routeplan import RoutePlan
 from api.serializers.desktopView.users.routeplan_serializer import RoutePlanSerializer
@@ -12,8 +11,6 @@ class RoutePlanViewSet(viewsets.ModelViewSet):
 
     queryset = RoutePlan.objects.all()
     serializer_class = RoutePlanSerializer
-    permission_classes = [IsAuthenticated]
-
     # 🔒 REQUIRED if you are using ModulePermissionMiddleware
     permission_resource = "RoutePlan"
 

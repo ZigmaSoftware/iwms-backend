@@ -53,13 +53,12 @@ class AlternativeStaffTemplate(models.Model):
         related_name='alt_operator_templates'
     )
 
-    extra_operator = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        db_column='extra_operator_id',
-        related_name='alt_extra_operator_templates',
+    extra_operator = models.JSONField(
+        default=list,
+        blank=True,
         null=True,
-        blank=True
+        db_column='extra_operator_id',
+        help_text="List of extra operator IDs"
     )
 
     # ---- Change Justification ----

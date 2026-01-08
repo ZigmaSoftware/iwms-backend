@@ -59,9 +59,9 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Staffusertypes",
     },
     "user-creation": {
-        "User",
-        "StaffcreationViewset",
-        "StaffTemplate",
+        "UsersCreation",
+        "StaffCreation",
+        "StaffTemplateCreation",
         "AlternativeStaffTemplate",
         "RoutePlan",
         "SupervisorZoneMap",

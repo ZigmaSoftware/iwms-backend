@@ -12,6 +12,7 @@ class StaffcreationViewset(viewsets.ModelViewSet):
     queryset = StaffOfficeDetails.objects.select_related("personal_details").all()
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser)
+    permission_resource = "StaffCreation"
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = [

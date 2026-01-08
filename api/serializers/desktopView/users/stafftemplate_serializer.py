@@ -5,6 +5,29 @@ from api.apps.userCreation import User
 from api.serializers.desktopView.users.user_serializer import UniqueIdOrPkField
 
 
+class CommaSeparatedListField(serializers.ListField):
+    """
+    Accepts comma-separated strings or repeated form-data keys and
+    normalises them into a clean list.
+    """
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            data = [item.strip() for item in data.split(",") if item.strip()]
+        return super().to_internal_value(data)
+
+
+class BlankableUniqueIdField(UniqueIdOrPkField):
+    """
+    Treat empty strings as null so optional FK fields don't fail validation.
+    """
+
+    def to_internal_value(self, data):
+        if data in ("", None):
+            return None
+        return super().to_internal_value(data)
+
+
 class StaffTemplateSerializer(serializers.ModelSerializer):
 
     driver_id = UniqueIdOrPkField(
@@ -15,15 +38,17 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
         slug_field="unique_id",
         queryset=User.objects.filter(is_deleted=False),
     )
-    created_by = UniqueIdOrPkField(
+    created_by = BlankableUniqueIdField(
         slug_field="unique_id",
         queryset=User.objects.filter(is_deleted=False),
+        required=False,
     )
-    updated_by = UniqueIdOrPkField(
+    updated_by = BlankableUniqueIdField(
         slug_field="unique_id",
         queryset=User.objects.filter(is_deleted=False),
+        required=False,
     )
-    approved_by = UniqueIdOrPkField(
+    approved_by = BlankableUniqueIdField(
         slug_field="unique_id",
         queryset=User.objects.filter(is_deleted=False),
         required=False,
@@ -51,11 +76,7 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
-    extra_operator_id = serializers.ListField(
-        child=serializers.CharField(),
-        required=False,
-        allow_empty=True,
-    )
+    extra_operator_id = CommaSeparatedListField(child=serializers.CharField(), required=False, allow_empty=True)
 
     class Meta:
         model = StaffTemplate

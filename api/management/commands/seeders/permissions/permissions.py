@@ -150,21 +150,21 @@ class PermissionSeeder(BaseSeeder):
         limited_permissions = {
             driver_role: {
                 "customers": {
-                    "CustomerCreations": ["view"],
+                    "Customercreations": ["view"],
                 }
             },
             operator_role: {
                 "customers": {
-                    "CustomerCreations": ["view"],
+                    "Customercreations": ["view"],
                 }
             },
         }
 
-        # Provide view access to RoutePlan for operators and drivers by default
+        # Provide full CRUD access to RoutePlan for operators and drivers by default
         for role in (driver_role, operator_role):
             limited_permissions.setdefault(role, {}).setdefault(
                 "user-creation", {}
-            )["RoutePlan"] = ["view"]
+            )["RoutePlan"] = ["add", "view", "edit", "delete"]
 
         # Also grant view access to AlternativeStaffTemplate for operators and drivers
         for role in (driver_role, operator_role):

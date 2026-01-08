@@ -1,5 +1,4 @@
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from api.apps.alternative_staff_template import AlternativeStaffTemplate
@@ -18,7 +17,6 @@ class AlternativeStaffTemplateViewSet(viewsets.ModelViewSet):
 
     queryset = AlternativeStaffTemplate.objects.all()
     serializer_class = AlternativeStaffTemplateSerializer
-    permission_classes = [IsAuthenticated]
 
     # 🔒 CRITICAL: single source of truth for middleware
     permission_resource = "AlternativeStaffTemplate"
@@ -43,7 +41,6 @@ class AlternativeStaffTemplateViewSet(viewsets.ModelViewSet):
             "staff_template",
             "driver",
             "operator",
-            "extra_operator",
             "requested_by",
             "approved_by",
         )
