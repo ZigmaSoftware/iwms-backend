@@ -14,6 +14,22 @@ class StaffOfficeSeeder:
                 "site_name": "HQ",
                 "salary_type": "Monthly",
             },
+            {
+                "employee_name": "Supervisor A",
+                "department": "Operations",
+                "designation": "Supervisor",
+                "grade": "B",
+                "site_name": "Depot-1",
+                "salary_type": "Monthly",
+            },
+            {
+                "employee_name": "Supervisor B",
+                "department": "Operations",
+                "designation": "Supervisor",
+                "grade": "B",
+                "site_name": "Depot-2",
+                "salary_type": "Monthly",
+            },
         ]
 
         driver_names = [

@@ -46,7 +46,6 @@ from .users.alternative_stafftemplate_viewset import AlternativeStaffTemplateVie
 # Vehicles
 # ==============================
 from .vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
-from .vehicles.vehicleAssigning_viewset import VehicleAssigningViewSet
 from .vehicles.vehicleCreation_viewset import VehicleCreationViewSet
 
 # ==============================
@@ -94,7 +93,6 @@ __all__ = [
 
     # Vehicles
     "VehicleTypeCreationViewSet",
-    "VehicleAssigningViewSet",
     "VehicleCreationViewSet",
 
     # Complaints

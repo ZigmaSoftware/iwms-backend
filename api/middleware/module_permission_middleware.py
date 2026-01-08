@@ -64,6 +64,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "StaffcreationViewset",
         "StaffTemplate",
         "AlternativeStaffTemplate",
+        "RoutePlan",
     },
     "customers": {
         "CustomerCreation",

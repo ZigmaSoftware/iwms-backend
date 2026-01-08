@@ -65,6 +65,7 @@ class PermissionSeeder(BaseSeeder):
                 "StaffCreation",
                 "StaffTemplateCreation",
                 "AlternativeStaffTemplate",
+                "RoutePlan",
             ],
             "customers": [
                 "CustomerCreations",
@@ -155,6 +156,18 @@ class PermissionSeeder(BaseSeeder):
                 }
             },
         }
+
+        # Provide view access to RoutePlan for operators and drivers by default
+        for role in (driver_role, operator_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "user-creation", {}
+            )["RoutePlan"] = ["view"]
+
+        # Also grant view access to AlternativeStaffTemplate for operators and drivers
+        for role in (driver_role, operator_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "user-creation", {}
+            )["AlternativeStaffTemplate"] = ["view"]
 
         for role, modules in limited_permissions.items():
             for module_name, screens in modules.items():

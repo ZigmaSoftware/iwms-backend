@@ -1,0 +1,44 @@
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+
+from api.apps.routeplan import RoutePlan
+from api.serializers.desktopView.users.routeplan_serializer import RoutePlanSerializer
+
+
+class RoutePlanViewSet(viewsets.ModelViewSet):
+    """
+    Route Plan CRUD
+    """
+
+    queryset = RoutePlan.objects.all()
+    serializer_class = RoutePlanSerializer
+    permission_classes = [IsAuthenticated]
+
+    # 🔒 REQUIRED if you are using ModulePermissionMiddleware
+    permission_resource = "RoutePlan"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        district_id = self.request.query_params.get("district_id")
+        zone_id = self.request.query_params.get("zone_id")
+        vehicle_id = self.request.query_params.get("vehicle_id")
+        supervisor_id = self.request.query_params.get("supervisor_id")
+        status = self.request.query_params.get("status")
+
+        if district_id:
+            qs = qs.filter(district_id=district_id)
+
+        if zone_id:
+            qs = qs.filter(zone_id=zone_id)
+
+        if vehicle_id:
+            qs = qs.filter(vehicle_id=vehicle_id)
+
+        if supervisor_id:
+            qs = qs.filter(supervisor_id=supervisor_id)
+
+        if status:
+            qs = qs.filter(status=status)
+
+        return qs

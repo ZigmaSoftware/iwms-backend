@@ -35,7 +35,6 @@ from .users.stafftemplate_serializer import StaffTemplateSerializer
 from .users.alternative_stafftemplate_serializer import AlternativeStaffTemplateSerializer
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
-from .vehicles.vehicleAssigning_serializer import VehicleAssigningSerializer
 from .vehicles.vehicleCreation_serializer import VehicleCreationSerializer
 
 # Complaints
