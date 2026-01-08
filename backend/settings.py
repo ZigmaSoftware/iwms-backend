@@ -129,7 +129,9 @@ SWAGGER_SETTINGS = {
             "in": "header",
             "description": "Enter token as: Bearer <access_token>",
         }
-    }
+    },
+    "DEFAULT_AUTO_SCHEMA_CLASS": "api.utils.swagger.GroupedSwaggerAutoSchema",
+    "TAGS_SORTER": "alpha",
 }
 
 

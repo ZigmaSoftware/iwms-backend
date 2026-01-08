@@ -22,6 +22,7 @@ class CustomerTagViewSet(ModelViewSet):
     queryset = CustomerTag.objects.all()
     serializer_class = CustomerTagSerializer
     permission_resource = "CustomerTag"
+    
 
     def create(self, request, *args, **kwargs):
         """
