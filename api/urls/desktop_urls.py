@@ -29,6 +29,7 @@ from ..views.desktopView.assets.subproperty_viewset import SubPropertyViewSet
 from ..views.desktopView.customers.customercreation_viewset import CustomerCreationViewSet
 from ..views.desktopView.customers.wastecollection_viewset import WasteCollectionViewSet
 from ..views.desktopView.customers.feedback_viewset import FeedBackViewSet
+from ..views.desktopView.customers.customer_tag_viewset import CustomerTagViewSet   
 
 # Users - Creation
 # Users - Creation
@@ -122,6 +123,7 @@ router.register_group("customers", "customercreations", CustomerCreationViewSet)
 router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customers", "feedbacks",         FeedBackViewSet)
 router.register_group("customers", "complaints", ComplaintViewSet)
+router.register_group("customers", "customer-tag", CustomerTagViewSet)
 
 # ============================================================
 # GROUP: COMPLAINTS (mobile category endpoints)
