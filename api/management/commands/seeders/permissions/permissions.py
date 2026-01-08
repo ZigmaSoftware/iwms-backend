@@ -56,10 +56,15 @@ class PermissionSeeder(BaseSeeder):
                 "StafftemplateCreation",
                 "AlternativeStafftemplate",
                 "StafftemplateAuditLog",
+                "SupervisorZoneMap",
+                "SupervisorZoneAccessAudit",
             ],
             "customers": [
-                "Customercreations", "Wastecollections",
-                "Feedbacks", "Complaints"
+                "Customercreations",
+                "Wastecollections",
+                "Feedbacks",
+                "Complaints",
+                "CustomerTag",
             ],
             "vehicles": [
                 "VehicleType", "VehicleCreation"

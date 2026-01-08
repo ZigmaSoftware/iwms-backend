@@ -95,6 +95,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Wastecollections",
         "Feedbacks",
         "Complaints",
+        "CustomerTag",
     },
 
     # Vehicles
