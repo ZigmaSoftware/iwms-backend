@@ -34,7 +34,6 @@ AUTH_ONLY_PREFIXES = (
 
 PUBLIC_PREFIXES = (
     "/media/",
-    
 )
 
 # Explicitly declare which resources are valid under each protected module.
@@ -65,12 +64,15 @@ MODULE_RESOURCE_ALLOWLIST = {
         "StaffTemplate",
         "AlternativeStaffTemplate",
         "RoutePlan",
+        "SupervisorZoneMap",
+        "SupervisorZoneAccessAudit",
     },
     "customers": {
-        "CustomerCreation",
-        "WasteCollection",
-        "FeedBack",
-        "Complaint",
+        "Customercreations",
+        "Wastecollections",
+        "Feedbacks",
+        "Complaints",
+        "CustomerTag",
     },
     "vehicles": {
         "VehicleTypeCreation",

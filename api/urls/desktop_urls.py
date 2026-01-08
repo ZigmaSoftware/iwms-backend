@@ -28,6 +28,7 @@ from ..views.desktopView.assets.subproperty_viewset import SubPropertyViewSet
 from ..views.desktopView.customers.customercreation_viewset import CustomerCreationViewSet
 from ..views.desktopView.customers.wastecollection_viewset import WasteCollectionViewSet
 from ..views.desktopView.customers.feedback_viewset import FeedBackViewSet
+from ..views.desktopView.customers.customer_tag_viewset import CustomerTagViewSet   
 
 # Users - Creation
 # Users - Creation
@@ -38,9 +39,12 @@ from ..views.desktopView.users.login_viewset import LoginViewSet
 from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 from ..views.desktopView.users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
+from ..views.desktopView.users.staff_template_audit_log_viewset import (
+    StaffTemplateAuditLogViewSet,
+)
 from ..views.desktopView.users.routeplan_viewset import RoutePlanViewSet
-
-
+from ..views.desktopView.users.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
+from ..views.desktopView.users.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
 
 # Screen Management
 from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
@@ -104,6 +108,8 @@ router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
 router.register_group("user-creation", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)
 router.register_group("user-creation", "route-plans",    RoutePlanViewSet)
+router.register_group("user-creation", "supervisor-zone-map", SupervisorZoneMapViewSet)
+router.register_group("user-creation", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
 
 # ============================================================
 # GROUP: login
@@ -118,6 +124,7 @@ router.register_group("customers", "customercreations", CustomerCreationViewSet)
 router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customers", "feedbacks",         FeedBackViewSet)
 router.register_group("customers", "complaints", ComplaintViewSet)
+router.register_group("customers", "customer-tag", CustomerTagViewSet)
 
 # ============================================================
 # GROUP: COMPLAINTS (mobile category endpoints)
