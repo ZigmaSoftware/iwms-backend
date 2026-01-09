@@ -78,9 +78,9 @@ MODULE_RESOURCE_ALLOWLIST = {
     },
     "vehicles": {
         "VehicleTypeCreation",
-        "VehicleAssigning",
         "VehicleCreation",
         "TripDefinition",
+        "BinLoadLog",
     },
     "grievance": {
         "MainCategory",
