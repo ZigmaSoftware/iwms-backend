@@ -32,4 +32,4 @@ class CustomerTag(models.Model):
     revoked_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = "customer_tag"
+        db_table = "api_customer_tag"
