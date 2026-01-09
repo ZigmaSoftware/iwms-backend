@@ -60,22 +60,33 @@ class RoutePlanSeeder:
                     supervisor = supervisor_cycle[sup_index % sup_len]
                     sup_index += 1
 
-                    obj, is_created = RoutePlan.objects.update_or_create(
+                    defaults = {
+                        "supervisor_id": supervisor.id,
+                        "status": "ACTIVE",
+                        "is_active": True,
+                        "is_deleted": False,
+                    }
+
+                    qs = RoutePlan.objects.filter(
                         district_id=district.unique_id,
                         zone_id=zone.unique_id,
                         vehicle_id=vehicle.id,
-                        defaults={
-                            "supervisor_id": supervisor.id,
-                            "status": "ACTIVE",
-                            "is_active": True,
-                            "is_deleted": False,
-                        }
-                    )
+                    ).order_by("id")
 
-                    if is_created:
-                        created += 1
-                    else:
+                    existing = qs.first()
+                    if existing:
+                        for key, value in defaults.items():
+                            setattr(existing, key, value)
+                        existing.save(update_fields=list(defaults.keys()))
                         updated += 1
+                    else:
+                        RoutePlan.objects.create(
+                            district_id=district.unique_id,
+                            zone_id=zone.unique_id,
+                            vehicle_id=vehicle.id,
+                            **defaults,
+                        )
+                        created += 1
 
         # --------------------------------------------------
         # SUMMARY

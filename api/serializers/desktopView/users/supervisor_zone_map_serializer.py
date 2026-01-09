@@ -28,7 +28,23 @@ class SupervisorZoneMapSerializer(serializers.ModelSerializer):
     # VALIDATIONS
     # -----------------------------
     def validate_zone_ids(self, value):
-        if not isinstance(value, list) or not value:
+        if isinstance(value, str):
+            value = [item.strip() for item in value.split(",") if item.strip()]
+        elif isinstance(value, (list, tuple)):
+            normalized = []
+            for item in value:
+                if item in ("", None):
+                    continue
+                if isinstance(item, str):
+                    parts = [part.strip() for part in item.split(",") if part.strip()]
+                    normalized.extend(parts)
+                else:
+                    normalized.append(str(item))
+            value = normalized
+        else:
+            value = []
+
+        if not value:
             raise serializers.ValidationError(
                 "zone_ids must be a non-empty list of zone IDs"
             )
