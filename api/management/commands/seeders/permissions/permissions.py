@@ -78,6 +78,7 @@ class PermissionSeeder(BaseSeeder):
                 "Feedbacks",
                 "Complaints",
                 "CustomerTag",
+                "HouseholdPickupEvent",
             ],
             "vehicles": [
                 "VehicleType",
@@ -224,6 +225,11 @@ class PermissionSeeder(BaseSeeder):
             limited_permissions.setdefault(role, {}).setdefault(
                 "user-creation", {}
             )["AlternativeStaffTemplate"] = ["view"]
+
+        # Operator access for household pickup events
+        limited_permissions.setdefault(operator_role, {}).setdefault(
+            "customers", {}
+        )["HouseholdPickupEvent"] = ["add", "view", "edit", "delete"]
 
         for role, modules in limited_permissions.items():
             for module_name, screens in modules.items():

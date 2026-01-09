@@ -29,6 +29,9 @@ from ..views.desktopView.customers.customercreation_viewset import CustomerCreat
 from ..views.desktopView.customers.wastecollection_viewset import WasteCollectionViewSet
 from ..views.desktopView.customers.feedback_viewset import FeedBackViewSet
 from ..views.desktopView.customers.customer_tag_viewset import CustomerTagViewSet   
+from ..views.desktopView.customers.household_pickup_event_viewset import (
+    HouseholdPickupEventViewSet,
+)
 
 # Users - Creation
 # Users - Creation
@@ -126,6 +129,7 @@ router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customers", "feedbacks",         FeedBackViewSet)
 router.register_group("customers", "complaints", ComplaintViewSet)
 router.register_group("customers", "customer-tag", CustomerTagViewSet)
+router.register_group("customers", "household-pickup-event", HouseholdPickupEventViewSet)
 
 # ============================================================
 # GROUP: COMPLAINTS (mobile category endpoints)
