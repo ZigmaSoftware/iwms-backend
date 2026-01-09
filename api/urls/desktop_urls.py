@@ -39,6 +39,9 @@ from ..views.desktopView.users.login_viewset import LoginViewSet
 from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 from ..views.desktopView.users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
+from ..views.desktopView.users.staff_template_audit_log_viewset import (
+    StaffTemplateAuditLogViewSet,
+)
 from ..views.desktopView.users.routeplan_viewset import RoutePlanViewSet
 from ..views.desktopView.users.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
 from ..views.desktopView.users.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
@@ -104,6 +107,7 @@ router.register_group("user-creation", "users-creation",  UserViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
 router.register_group("user-creation", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)
+router.register_group("user-creation", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
 router.register_group("user-creation", "route-plans",    RoutePlanViewSet)
 router.register_group("user-creation", "supervisor-zone-map", SupervisorZoneMapViewSet)
 router.register_group("user-creation", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)

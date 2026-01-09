@@ -31,12 +31,12 @@ class SupervisorZoneMap(models.Model):
         db_column="supervisor_id"
     )
 
-    district_id = models.BigIntegerField()
-    city_id = models.BigIntegerField()
+    district_id = models.CharField(max_length=30)
+    city_id = models.CharField(max_length=30)
 
-    # Example: [101, 102, 103]
+    # Example: ["ZONExxxx", "ZONEyyyy"]
     zone_ids = models.JSONField(
-        help_text="List of zone IDs the supervisor is authorized to operate in"
+        help_text="List of zone unique IDs the supervisor is authorized to operate in"
     )
 
     # -----------------------------
@@ -59,7 +59,7 @@ class SupervisorZoneMap(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "supervisor_zone_map"
+        db_table = "api_supervisor_zone_map"
         indexes = [
             models.Index(fields=["supervisor", "status"]),
             models.Index(fields=["district_id", "city_id"]),

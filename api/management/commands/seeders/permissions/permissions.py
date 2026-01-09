@@ -1,5 +1,7 @@
 # api/management/commands/seeders/permission_seeder.py
 
+from django.db.models import F
+
 from api.management.commands.seeders.base import BaseSeeder
 from api.apps.mainscreentype import MainScreenType
 from api.apps.userscreenaction import UserScreenAction
@@ -65,6 +67,7 @@ class PermissionSeeder(BaseSeeder):
                 "StaffCreation",
                 "StaffTemplateCreation",
                 "AlternativeStaffTemplate",
+                "StaffTemplateAuditLog",
                 "RoutePlan",
                 "SupervisorZoneMap",
                 "SupervisorZoneAccessAudit",
@@ -101,8 +104,15 @@ class PermissionSeeder(BaseSeeder):
             )
             mainscreens[main_name] = main
 
+            # Avoid unique_order_per_mainscreen conflicts while creating new screens.
+            order_offset = 1000
+            UserScreen.objects.filter(mainscreen_id=main).update(
+                order_no=F("order_no") + order_offset
+            )
+
+            ordered_screens = []
             for idx, screen_name in enumerate(screens, start=1):
-                UserScreen.objects.get_or_create(
+                screen, created = UserScreen.objects.get_or_create(
                     userscreen_name=screen_name,
                     defaults={
                         "mainscreen_id": main,
@@ -113,6 +123,49 @@ class PermissionSeeder(BaseSeeder):
                         "is_deleted": False,
                     }
                 )
+                if not created:
+                    update_fields = []
+                    desired_folder = screen_name.lower()
+
+                    if screen.mainscreen_id_id != main.unique_id:
+                        screen.mainscreen_id = main
+                        update_fields.append("mainscreen_id")
+
+                    if screen.folder_name != desired_folder:
+                        screen.folder_name = desired_folder
+                        update_fields.append("folder_name")
+
+                    if screen.icon_name != desired_folder:
+                        screen.icon_name = desired_folder
+                        update_fields.append("icon_name")
+
+                    if not screen.is_active or screen.is_deleted:
+                        screen.is_active = True
+                        screen.is_deleted = False
+                        update_fields.extend(["is_active", "is_deleted"])
+
+                    if update_fields:
+                        screen.save(update_fields=update_fields)
+
+                ordered_screens.append(screen)
+
+            ordered_ids = []
+            next_order = 1
+            for screen in ordered_screens:
+                screen.order_no = next_order
+                screen.is_active = True
+                screen.is_deleted = False
+                screen.save(update_fields=["order_no", "is_active", "is_deleted"])
+                ordered_ids.append(screen.unique_id)
+                next_order += 1
+
+            extra_screens = UserScreen.objects.filter(
+                mainscreen_id=main
+            ).exclude(unique_id__in=ordered_ids).order_by("order_no")
+            for screen in extra_screens:
+                screen.order_no = next_order
+                screen.save(update_fields=["order_no"])
+                next_order += 1
 
         # --------------------------------------------------
         # 4. ROLES

@@ -4,6 +4,7 @@ from rest_framework import status
 from django.db import transaction
 
 from api.apps.supervisor_zone_map import SupervisorZoneMap
+from api.apps.supervisor_zone_access_audit import SupervisorZoneAccessAudit
 from api.serializers.desktopView.users.supervisor_zone_map_serializer import (
     SupervisorZoneMapSerializer
 )
@@ -22,19 +23,49 @@ class SupervisorZoneMapViewSet(ModelViewSet):
     permission_resource = "SupervisorZoneMap"
 
     def create(self, request, *args, **kwargs):
+        user = getattr(request, "user", None)
+        if not user or not getattr(user, "staffusertype_id", None):
+            return Response(
+                {"detail": "Authentication required."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if user.staffusertype_id.name.lower() != "admin":
+            return Response(
+                {"detail": "Only admin can update supervisor zone mappings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         supervisor = serializer.validated_data["supervisor"]
+        new_zone_ids = serializer.validated_data["zone_ids"]
+        remarks = request.data.get("remarks")
 
         with transaction.atomic():
             # Deactivate existing ACTIVE mapping
-            SupervisorZoneMap.objects.filter(
+            existing = SupervisorZoneMap.objects.filter(
                 supervisor=supervisor,
                 status="ACTIVE"
-            ).update(status="INACTIVE")
+            ).select_for_update().first()
+
+            old_zone_ids = existing.zone_ids if existing else None
+
+            if existing:
+                existing.status = "INACTIVE"
+                existing.save(update_fields=["status"])
 
             instance = serializer.save()
+
+            SupervisorZoneAccessAudit.objects.create(
+                supervisor=supervisor,
+                old_zone_ids=old_zone_ids,
+                new_zone_ids=new_zone_ids,
+                performed_by=user,
+                performed_role="ADMIN",
+                remarks=remarks if isinstance(remarks, str) else None,
+            )
 
         return Response(
             SupervisorZoneMapSerializer(instance).data,
