@@ -83,6 +83,7 @@ class PermissionSeeder(BaseSeeder):
             "vehicles": [
                 "VehicleType",
                 "VehicleCreation",
+                "TripDefinition",
             ],
             "grievance": [
                 "MainCategory",
@@ -176,6 +177,7 @@ class PermissionSeeder(BaseSeeder):
         admin_role = StaffUserType.objects.get(name="admin", usertype_id=staff_type)
         driver_role = StaffUserType.objects.get(name="driver", usertype_id=staff_type)
         operator_role = StaffUserType.objects.get(name="operator", usertype_id=staff_type)
+        supervisor_role = StaffUserType.objects.get(name="supervisor", usertype_id=staff_type)
 
         # --------------------------------------------------
         # 5. ADMIN → FULL ACCESS
@@ -210,6 +212,11 @@ class PermissionSeeder(BaseSeeder):
             operator_role: {
                 "customers": {
                     "Customercreations": ["view"],
+                }
+            },
+            supervisor_role: {
+                "vehicles": {
+                    "TripDefinition": ["add", "view", "edit"],
                 }
             },
         }
@@ -263,5 +270,6 @@ class PermissionSeeder(BaseSeeder):
                                 "is_deleted": False,
                             }
                         )
+                        
 
         self.log("✅ Permission seeding completed successfully")

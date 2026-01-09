@@ -80,6 +80,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "VehicleTypeCreation",
         "VehicleAssigning",
         "VehicleCreation",
+        "TripDefinition",
     },
     "grievance": {
         "MainCategory",
