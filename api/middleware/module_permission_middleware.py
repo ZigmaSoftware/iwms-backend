@@ -53,6 +53,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Fuel",
         "Property",
         "SubProperty",
+        "ZonePropertyLoadTracker",
     },
     "role-assign": {
         "UserType",

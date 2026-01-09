@@ -23,6 +23,7 @@ from ..views.desktopView.masters.ward_viewset import WardViewSet
 from ..views.desktopView.assets.fuel_viewset import FuelViewSet
 from ..views.desktopView.assets.property_viewset import PropertyViewSet
 from ..views.desktopView.assets.subproperty_viewset import SubPropertyViewSet
+from ..views.desktopView.assets.zone_property_load_tracker_viewset import ZonePropertyLoadTrackerViewSet
 
 # Customer Modules
 from ..views.desktopView.customers.customercreation_viewset import CustomerCreationViewSet
@@ -85,6 +86,7 @@ router.register_group("masters", "bins",          BinViewSet)
 router.register_group("assets", "fuels",         FuelViewSet)
 router.register_group("assets", "properties",    PropertyViewSet)
 router.register_group("assets", "subproperties", SubPropertyViewSet)
+router.register_group("assets", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
 
 
 # ============================================================
