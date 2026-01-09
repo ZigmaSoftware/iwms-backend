@@ -74,6 +74,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Feedbacks",
         "Complaints",
         "CustomerTag",
+        "HouseholdPickupEvent",
     },
     "vehicles": {
         "VehicleTypeCreation",

@@ -13,6 +13,7 @@ class StaffOfficeSeeder:
                 "grade": "A",
                 "site_name": "HQ",
                 "salary_type": "Monthly",
+                "active_status": True,
             },
         ]
 
@@ -47,6 +48,7 @@ class StaffOfficeSeeder:
                     "grade": "B",
                     "site_name": f"Depot-{(idx % 3) + 1}",
                     "salary_type": "Monthly",
+                    "active_status": True,
                 }
             )
 
@@ -59,6 +61,7 @@ class StaffOfficeSeeder:
                     "grade": "B",
                     "site_name": f"Depot-{(idx % 3) + 1}",
                     "salary_type": "Monthly",
+                    "active_status": True,
                 }
             )
 
