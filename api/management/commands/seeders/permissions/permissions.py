@@ -57,6 +57,7 @@ class PermissionSeeder(BaseSeeder):
                 "Fuels",
                 "Properties",
                 "Subproperties",
+                "ZonePropertyLoadTracker",
             ],
             "role-assign": [
                 "UserType",
@@ -243,6 +244,11 @@ class PermissionSeeder(BaseSeeder):
         limited_permissions.setdefault(operator_role, {}).setdefault(
             "vehicles", {}
         )["BinLoadLog"] = ["add", "view", "edit"]
+
+        # Supervisor access for zone property load tracker
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "assets", {}
+        )["ZonePropertyLoadTracker"] = ["add", "view", "edit"]
 
         for role, modules in limited_permissions.items():
             for module_name, screens in modules.items():
