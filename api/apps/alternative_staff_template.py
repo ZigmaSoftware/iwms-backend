@@ -1,7 +1,7 @@
 import uuid
 from django.db import models
 from .utils.comfun import generate_unique_id
-from django.conf import settings
+from .userCreation import User
 
 
 def generate_alternative_staff_template_id():
@@ -40,14 +40,14 @@ class AlternativeStaffTemplate(models.Model):
 
     # ---- Staff Assignment ----
     driver = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        User,
         on_delete=models.PROTECT,
         db_column='driver_id',
         related_name='alt_driver_templates'
     )
 
     operator = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        User,
         on_delete=models.PROTECT,
         db_column='operator_id',
         related_name='alt_operator_templates'
@@ -67,17 +67,19 @@ class AlternativeStaffTemplate(models.Model):
 
     # ---- Approval Workflow ----
     requested_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        User,
         on_delete=models.PROTECT,
         db_column='requested_by',
         related_name='alt_staff_requested'
     )
 
     approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        User,
         on_delete=models.PROTECT,
         db_column='approved_by',
-        related_name='alt_staff_approved'
+        related_name='alt_staff_approved',
+        null=True,
+        blank=True
     )
 
     approval_status = models.CharField(

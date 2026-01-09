@@ -11,6 +11,7 @@ class RoutePlanViewSet(viewsets.ModelViewSet):
 
     queryset = RoutePlan.objects.all()
     serializer_class = RoutePlanSerializer
+    lookup_field = "unique_id"
     # 🔒 REQUIRED if you are using ModulePermissionMiddleware
     permission_resource = "RoutePlan"
 

@@ -3,9 +3,7 @@ from datetime import date
 from api.management.commands.seeders.base import BaseSeeder
 from api.apps.alternative_staff_template import AlternativeStaffTemplate
 from api.apps.stafftemplate import StaffTemplate
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from api.apps.userCreation import User
 
 
 class AlternativeStaffTemplateSeeder(BaseSeeder):
