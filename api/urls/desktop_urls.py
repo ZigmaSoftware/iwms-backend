@@ -29,6 +29,9 @@ from ..views.desktopView.customers.customercreation_viewset import CustomerCreat
 from ..views.desktopView.customers.wastecollection_viewset import WasteCollectionViewSet
 from ..views.desktopView.customers.feedback_viewset import FeedBackViewSet
 from ..views.desktopView.customers.customer_tag_viewset import CustomerTagViewSet   
+from ..views.desktopView.customers.household_pickup_event_viewset import (
+    HouseholdPickupEventViewSet,
+)
 
 # Users - Creation
 # Users - Creation
@@ -56,6 +59,8 @@ from ..views.desktopView.users.userscreenpermission_viewset import UserScreenPer
 # Vehicles
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreationViewSet
+from ..views.desktopView.vehicles.trip_definition_viewset import TripDefinitionViewSet
+from ..views.desktopView.vehicles.bin_load_log_viewset import BinLoadLogViewSet
 
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
@@ -126,6 +131,7 @@ router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customers", "feedbacks",         FeedBackViewSet)
 router.register_group("customers", "complaints", ComplaintViewSet)
 router.register_group("customers", "customer-tag", CustomerTagViewSet)
+router.register_group("customers", "household-pickup-event", HouseholdPickupEventViewSet)
 
 # ============================================================
 # GROUP: COMPLAINTS (mobile category endpoints)
@@ -141,6 +147,8 @@ router.register_group("grievance","sub-category", SubCategoryViewSet, basename="
 # ============================================================
 router.register_group("vehicles", "vehicle-type",     VehicleTypeCreationViewSet)
 router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
+router.register_group("vehicles", "trip-definition",  TripDefinitionViewSet)
+router.register_group("vehicles", "bin-load-log",    BinLoadLogViewSet)
 
 
 # ============================================================

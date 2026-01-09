@@ -78,10 +78,13 @@ class PermissionSeeder(BaseSeeder):
                 "Feedbacks",
                 "Complaints",
                 "CustomerTag",
+                "HouseholdPickupEvent",
             ],
             "vehicles": [
                 "VehicleType",
                 "VehicleCreation",
+                "TripDefinition",
+                "BinLoadLog",
             ],
             "grievance": [
                 "MainCategory",
@@ -175,6 +178,7 @@ class PermissionSeeder(BaseSeeder):
         admin_role = StaffUserType.objects.get(name="admin", usertype_id=staff_type)
         driver_role = StaffUserType.objects.get(name="driver", usertype_id=staff_type)
         operator_role = StaffUserType.objects.get(name="operator", usertype_id=staff_type)
+        supervisor_role = StaffUserType.objects.get(name="supervisor", usertype_id=staff_type)
 
         # --------------------------------------------------
         # 5. ADMIN → FULL ACCESS
@@ -211,6 +215,11 @@ class PermissionSeeder(BaseSeeder):
                     "Customercreations": ["view"],
                 }
             },
+            supervisor_role: {
+                "vehicles": {
+                    "TripDefinition": ["add", "view", "edit"],
+                }
+            },
         }
 
         # Provide full CRUD access to RoutePlan for operators and drivers by default
@@ -224,6 +233,16 @@ class PermissionSeeder(BaseSeeder):
             limited_permissions.setdefault(role, {}).setdefault(
                 "user-creation", {}
             )["AlternativeStaffTemplate"] = ["view"]
+
+        # Operator access for household pickup events
+        limited_permissions.setdefault(operator_role, {}).setdefault(
+            "customers", {}
+        )["HouseholdPickupEvent"] = ["add", "view", "edit", "delete"]
+
+        # Operator access for bin load logs
+        limited_permissions.setdefault(operator_role, {}).setdefault(
+            "vehicles", {}
+        )["BinLoadLog"] = ["add", "view", "edit"]
 
         for role, modules in limited_permissions.items():
             for module_name, screens in modules.items():
@@ -257,5 +276,6 @@ class PermissionSeeder(BaseSeeder):
                                 "is_deleted": False,
                             }
                         )
+                        
 
         self.log("✅ Permission seeding completed successfully")
