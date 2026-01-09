@@ -14,7 +14,22 @@ class CommaSeparatedListField(serializers.ListField):
     def to_internal_value(self, data):
         if isinstance(data, str):
             data = [item.strip() for item in data.split(",") if item.strip()]
+        elif isinstance(data, (list, tuple)):
+            normalized = []
+            for item in data:
+                if item in ("", None):
+                    continue
+                if isinstance(item, str):
+                    normalized.extend([part.strip() for part in item.split(",") if part.strip()])
+                else:
+                    normalized.append(item)
+            data = normalized
         return super().to_internal_value(data)
+
+    def to_representation(self, value):
+        if value is None:
+            return []
+        return super().to_representation(value)
 
 
 class BlankableUniqueIdField(UniqueIdOrPkField):
@@ -55,26 +70,11 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
-    driver_name = serializers.CharField(
-        source="driver_id.staff_id.employee_name",
-        read_only=True,
-    )
-    operator_name = serializers.CharField(
-        source="operator_id.staff_id.employee_name",
-        read_only=True,
-    )
-    created_by_name = serializers.CharField(
-        source="created_by.staff_id.employee_name",
-        read_only=True,
-    )
-    updated_by_name = serializers.CharField(
-        source="updated_by.staff_id.employee_name",
-        read_only=True,
-    )
-    approved_by_name = serializers.CharField(
-        source="approved_by.staff_id.employee_name",
-        read_only=True,
-    )
+    driver_name = serializers.SerializerMethodField()
+    operator_name = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+    updated_by_name = serializers.SerializerMethodField()
+    approved_by_name = serializers.SerializerMethodField()
 
     extra_operator_id = CommaSeparatedListField(child=serializers.CharField(), required=False, allow_empty=True)
 
@@ -211,3 +211,26 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
                     })
 
         return attrs
+
+    def _resolve_staff_name(self, user):
+        if not user:
+            return None
+        staff = getattr(user, "staff_id", None)
+        if staff and getattr(staff, "employee_name", None):
+            return staff.employee_name
+        return getattr(user, "username", None) or getattr(user, "unique_id", None)
+
+    def get_driver_name(self, obj):
+        return self._resolve_staff_name(getattr(obj, "driver_id", None))
+
+    def get_operator_name(self, obj):
+        return self._resolve_staff_name(getattr(obj, "operator_id", None))
+
+    def get_created_by_name(self, obj):
+        return self._resolve_staff_name(getattr(obj, "created_by", None))
+
+    def get_updated_by_name(self, obj):
+        return self._resolve_staff_name(getattr(obj, "updated_by", None))
+
+    def get_approved_by_name(self, obj):
+        return self._resolve_staff_name(getattr(obj, "approved_by", None))
