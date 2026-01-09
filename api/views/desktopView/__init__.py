@@ -49,6 +49,7 @@ from .users.alternative_stafftemplate_viewset import AlternativeStaffTemplateVie
 # ==============================
 from .vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from .vehicles.vehicleCreation_viewset import VehicleCreationViewSet
+from .vehicles.trip_instance_viewset import TripInstanceViewSet
 
 # ==============================
 # Complaints
@@ -98,6 +99,7 @@ __all__ = [
     # Vehicles
     "VehicleTypeCreationViewSet",
     "VehicleCreationViewSet",
+    "TripInstanceViewSet",
 
     # Complaints
     "ComplaintViewSet",

@@ -28,7 +28,7 @@ class TripDefinitionSeeder(BaseSeeder):
             self.log("❌ TripDefinitionSeeder skipped (missing dependencies)")
             return
 
-        TripDefinition.objects.get_or_create(
+        trip_def, created = TripDefinition.objects.get_or_create(
             routeplan=routeplan,
             staff_template=staff_template,
             property=property_obj,
@@ -37,8 +37,13 @@ class TripDefinitionSeeder(BaseSeeder):
                 "trip_trigger_weight_kg": 800,
                 "max_vehicle_capacity_kg": 3000,
                 "status": TripDefinition.Status.ACTIVE,
-                "approval_status": TripDefinition.ApprovalStatus.PENDING,
+                "approval_status": TripDefinition.ApprovalStatus.APPROVED,
             }
         )
+
+        if not created and trip_def.approval_status != TripDefinition.ApprovalStatus.APPROVED:
+            trip_def.approval_status = TripDefinition.ApprovalStatus.APPROVED
+            trip_def.status = TripDefinition.Status.ACTIVE
+            trip_def.save(update_fields=["approval_status", "status"])
 
         self.log("✅ TripDefinition seeded")

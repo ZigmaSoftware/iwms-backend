@@ -38,6 +38,7 @@ from .users.alternative_stafftemplate_serializer import AlternativeStaffTemplate
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
 from .vehicles.vehicleCreation_serializer import VehicleCreationSerializer
+from .vehicles.trip_instance_serializer import TripInstanceSerializer
 
 # Complaints
 from .complaints.complaint_serializer import ComplaintSerializer
