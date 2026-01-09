@@ -66,6 +66,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "RoutePlan",
         "SupervisorZoneMap",
         "SupervisorZoneAccessAudit",
+        "StaffTemplateAuditLog",
     },
     "customers": {
         "Customercreations",

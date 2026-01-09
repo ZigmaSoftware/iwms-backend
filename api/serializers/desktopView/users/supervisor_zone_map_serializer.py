@@ -33,9 +33,9 @@ class SupervisorZoneMapSerializer(serializers.ModelSerializer):
                 "zone_ids must be a non-empty list of zone IDs"
             )
 
-        if not all(isinstance(z, int) for z in value):
+        if not all(isinstance(z, str) and z.strip() for z in value):
             raise serializers.ValidationError(
-                "zone_ids must contain only integers"
+                "zone_ids must contain only zone unique_id strings"
             )
 
         return value
