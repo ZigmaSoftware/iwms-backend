@@ -93,7 +93,7 @@ class HouseholdPickupEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "household_pickup_event"
+        db_table = "api_household_pickup_event"
         ordering = ["-pickup_time"]
         indexes = [
             models.Index(fields=["pickup_time"]),
