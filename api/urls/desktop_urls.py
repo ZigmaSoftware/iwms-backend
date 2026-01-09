@@ -60,6 +60,7 @@ from ..views.desktopView.users.userscreenpermission_viewset import UserScreenPer
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreationViewSet
 from ..views.desktopView.vehicles.trip_definition_viewset import TripDefinitionViewSet
+from ..views.desktopView.vehicles.bin_load_log_viewset import BinLoadLogViewSet
 
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
@@ -147,6 +148,7 @@ router.register_group("grievance","sub-category", SubCategoryViewSet, basename="
 router.register_group("vehicles", "vehicle-type",     VehicleTypeCreationViewSet)
 router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
 router.register_group("vehicles", "trip-definition",  TripDefinitionViewSet)
+router.register_group("vehicles", "bin-load-log",    BinLoadLogViewSet)
 
 
 # ============================================================

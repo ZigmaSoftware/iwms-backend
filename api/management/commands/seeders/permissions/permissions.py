@@ -84,6 +84,7 @@ class PermissionSeeder(BaseSeeder):
                 "VehicleType",
                 "VehicleCreation",
                 "TripDefinition",
+                "BinLoadLog",
             ],
             "grievance": [
                 "MainCategory",
@@ -237,6 +238,11 @@ class PermissionSeeder(BaseSeeder):
         limited_permissions.setdefault(operator_role, {}).setdefault(
             "customers", {}
         )["HouseholdPickupEvent"] = ["add", "view", "edit", "delete"]
+
+        # Operator access for bin load logs
+        limited_permissions.setdefault(operator_role, {}).setdefault(
+            "vehicles", {}
+        )["BinLoadLog"] = ["add", "view", "edit"]
 
         for role, modules in limited_permissions.items():
             for module_name, screens in modules.items():
