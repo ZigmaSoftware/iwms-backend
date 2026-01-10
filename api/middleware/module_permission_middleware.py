@@ -84,6 +84,9 @@ MODULE_RESOURCE_ALLOWLIST = {
         "TripDefinition",
         "BinLoadLog",
         "TripInstance",
+        "TripAttendance",
+        "VehicleTripAudit",
+        "TripExceptionLog",
     },
     "grievance": {
         "MainCategory",

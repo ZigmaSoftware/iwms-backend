@@ -1,0 +1,80 @@
+from django.db import models
+from api.apps.trip_instance import TripInstance
+from api.apps.userCreation import User
+from api.apps.vehicleCreation import VehicleCreation
+
+
+def trip_attendance_upload_path(instance, filename):
+    role = "staff"
+    staff_type = getattr(instance.staff, "staffusertype_id", None)
+    if staff_type and staff_type.name:
+        role = staff_type.name.lower()
+    return f"uploads/trip_attendance/{role}/{filename}"
+
+
+class TripAttendance(models.Model):
+    """
+    Periodic attendance capture during a running trip.
+    Enforces staff presence, prevents swapping & malpractice.
+    """
+
+    class Source(models.TextChoices):
+        MOBILE = "MOBILE", "Mobile App"
+        VEHICLE_CAM = "VEHICLE_CAM", "Vehicle Camera"
+
+    id = models.BigAutoField(primary_key=True)
+
+    trip_instance = models.ForeignKey(
+        TripInstance,
+        on_delete=models.PROTECT,
+        related_name="attendances",
+        db_column="trip_instance_id",
+        to_field="unique_id"
+    )
+
+    staff = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="trip_attendance",
+        db_column="staff_id",
+        to_field="unique_id"
+    )
+
+    vehicle = models.ForeignKey(
+        VehicleCreation,
+        on_delete=models.PROTECT,
+        related_name="trip_attendance",
+        db_column="vehicle_id",
+        to_field="unique_id"
+    )
+
+    attendance_time = models.DateTimeField()
+
+    latitude = models.DecimalField(max_digits=10, decimal_places=7)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7)
+
+    photo = models.ImageField(
+        upload_to=trip_attendance_upload_path,
+        null=True,
+        blank=True
+    )
+
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "api_trip_attendance"
+        ordering = ["-attendance_time"]
+        verbose_name = "Trip Attendance"
+        verbose_name_plural = "Trip Attendances"
+        indexes = [
+            models.Index(fields=["trip_instance", "staff"]),
+            models.Index(fields=["attendance_time"]),
+        ]
+
+    def __str__(self):
+        return f"{self.trip_instance_id} | {self.staff_id} | {self.attendance_time}"
