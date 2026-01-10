@@ -43,6 +43,7 @@ from .users.staffcreation_viewset import StaffcreationViewset
 from .users.stafftemplate_viewset import StaffTemplateViewSet
 from .users.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
 from .users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
+from .users.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
 
 # ==============================
 # Vehicles
@@ -95,6 +96,7 @@ __all__ = [
     "StaffTemplateViewSet",
     "StaffTemplateAuditLogViewSet",
     "AlternativeStaffTemplateViewSet",
+    "UnassignedStaffPoolViewSet",
 
     # Vehicles
     "VehicleTypeCreationViewSet",

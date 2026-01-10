@@ -72,6 +72,7 @@ class PermissionSeeder(BaseSeeder):
                 "RoutePlan",
                 "SupervisorZoneMap",
                 "SupervisorZoneAccessAudit",
+                "UnassignedStaffPool",
             ],
             "customers": [
                 "Customercreations",
@@ -255,6 +256,11 @@ class PermissionSeeder(BaseSeeder):
         limited_permissions.setdefault(supervisor_role, {}).setdefault(
             "vehicles", {}
         )["TripInstance"] = ["view", "edit"]
+
+        # Supervisor access for unassigned staff pool
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "user-creation", {}
+        )["UnassignedStaffPool"] = ["add", "view", "edit"]
 
         for role, modules in limited_permissions.items():
             for module_name, screens in modules.items():

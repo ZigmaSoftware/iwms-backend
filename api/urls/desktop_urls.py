@@ -49,6 +49,7 @@ from ..views.desktopView.users.staff_template_audit_log_viewset import (
 from ..views.desktopView.users.routeplan_viewset import RoutePlanViewSet
 from ..views.desktopView.users.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
 from ..views.desktopView.users.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
+from ..views.desktopView.users.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
 
 # Screen Management
 from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
@@ -119,6 +120,7 @@ router.register_group("user-creation", "stafftemplate-audit-log", StaffTemplateA
 router.register_group("user-creation", "route-plans",    RoutePlanViewSet)
 router.register_group("user-creation", "supervisor-zone-map", SupervisorZoneMapViewSet)
 router.register_group("user-creation", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
+router.register_group("user-creation", "unassigned-staff-pool", UnassignedStaffPoolViewSet)
 
 # ============================================================
 # GROUP: login
