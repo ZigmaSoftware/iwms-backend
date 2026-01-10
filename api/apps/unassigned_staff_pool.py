@@ -184,5 +184,3 @@ class UnassignedStaffPool(models.Model):
                     ward=ward,
                     defaults=payload,
                 )
-
-
