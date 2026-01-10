@@ -36,8 +36,15 @@ class VehicleTripAuditSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "idle_seconds", "created_at"]
 
     def validate(self, attrs):
-        lat = attrs.get("gps_lat", [])
-        lon = attrs.get("gps_lon", [])
+        instance = getattr(self, "instance", None)
+
+        lat = attrs.get("gps_lat")
+        lon = attrs.get("gps_lon")
+
+        if lat is None and instance:
+            lat = instance.gps_lat
+        if lon is None and instance:
+            lon = instance.gps_lon
 
         if not lat or not lon:
             raise serializers.ValidationError("GPS arrays cannot be empty")
@@ -54,13 +61,16 @@ class VehicleTripAuditSerializer(serializers.ModelSerializer):
         except (TypeError, ValueError):
             raise serializers.ValidationError("GPS arrays must be numeric values")
 
-        trip = attrs["trip_instance"]
+        trip = attrs.get("trip_instance") or (instance.trip_instance if instance else None)
+        if not trip:
+            raise serializers.ValidationError("Trip instance is required")
         if trip.status != "IN_PROGRESS":
             raise serializers.ValidationError(
                 "GPS audit allowed only for in-progress trips"
             )
 
-        if attrs.get("vehicle") != trip.vehicle:
+        vehicle = attrs.get("vehicle") or (instance.vehicle if instance else None)
+        if vehicle and vehicle != trip.vehicle:
             raise serializers.ValidationError("Vehicle does not match trip instance")
 
         return attrs
