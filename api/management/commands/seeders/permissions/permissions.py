@@ -88,6 +88,9 @@ class PermissionSeeder(BaseSeeder):
                 "TripDefinition",
                 "BinLoadLog",
                 "TripInstance",
+                "TripAttendance",
+                "VehicleTripAudit",
+                "TripExceptionLog",
             ],
             "grievance": [
                 "MainCategory",
@@ -256,6 +259,39 @@ class PermissionSeeder(BaseSeeder):
         limited_permissions.setdefault(supervisor_role, {}).setdefault(
             "vehicles", {}
         )["TripInstance"] = ["view", "edit"]
+
+        # Operator/driver access for trip attendance
+        for role in (operator_role, driver_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "vehicles", {}
+            )["TripAttendance"] = ["add", "view", "edit"]
+
+        # Supervisor access for trip attendance (full)
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "vehicles", {}
+        )["TripAttendance"] = ["add", "view", "edit", "delete"]
+
+        # Operator/driver access for vehicle trip audit
+        for role in (operator_role, driver_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "vehicles", {}
+            )["VehicleTripAudit"] = ["add", "view", "edit"]
+
+        # Supervisor access for vehicle trip audit (full)
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "vehicles", {}
+        )["VehicleTripAudit"] = ["add", "view", "edit", "delete"]
+
+        # Operator/driver access for trip exception log
+        for role in (operator_role, driver_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "vehicles", {}
+            )["TripExceptionLog"] = ["add", "view", "edit"]
+
+        # Supervisor access for trip exception log (full)
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "vehicles", {}
+        )["TripExceptionLog"] = ["add", "view", "edit", "delete"]
 
         # Supervisor access for unassigned staff pool
         limited_permissions.setdefault(supervisor_role, {}).setdefault(

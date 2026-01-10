@@ -36,10 +36,13 @@ from .users.stafftemplate_serializer import StaffTemplateSerializer
 from .users.staff_template_audit_log_serializer import StaffTemplateAuditLogSerializer
 from .users.alternative_stafftemplate_serializer import AlternativeStaffTemplateSerializer
 from .users.unassigned_staff_pool_serializer import UnassignedStaffPoolSerializer
+from .users.trip_attendance_serializer import TripAttendanceSerializer
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
 from .vehicles.vehicleCreation_serializer import VehicleCreationSerializer
 from .vehicles.trip_instance_serializer import TripInstanceSerializer
+from .vehicles.vehicle_trip_audit_serializer import VehicleTripAuditSerializer
+from .vehicles.trip_exception_log_serializer import TripExceptionLogSerializer
 
 # Complaints
 from .complaints.complaint_serializer import ComplaintSerializer
