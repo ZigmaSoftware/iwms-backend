@@ -42,7 +42,7 @@ class ZonePropertyLoadTracker(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "zone_property_load_tracker"
+        db_table = "api_zone_property_load_tracker"
         verbose_name = "Zone Property Load Tracker"
         verbose_name_plural = "Zone Property Load Trackers"
         unique_together = (
