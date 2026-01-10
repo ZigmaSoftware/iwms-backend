@@ -68,6 +68,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "SupervisorZoneMap",
         "SupervisorZoneAccessAudit",
         "StaffTemplateAuditLog",
+        "UnassignedStaffPool",
     },
     "customers": {
         "Customercreations",

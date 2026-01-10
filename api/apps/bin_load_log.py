@@ -66,6 +66,7 @@ class BinLoadLog(models.Model):
         from django.db import transaction
         from api.apps.trip_definition import TripDefinition
         from api.apps.trip_instance import TripInstance
+        from api.apps.unassigned_staff_pool import UnassignedStaffPool
 
         trip_def = (
             TripDefinition.objects.select_related("routeplan", "staff_template")
@@ -120,5 +121,7 @@ class BinLoadLog(models.Model):
             )
             self.processed = True
             self.save(update_fields=["processed"])
+
+            UnassignedStaffPool.refresh_for_trip_instance(instance)
 
         return instance
