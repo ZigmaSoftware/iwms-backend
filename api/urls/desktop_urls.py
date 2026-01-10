@@ -23,6 +23,7 @@ from ..views.desktopView.masters.ward_viewset import WardViewSet
 from ..views.desktopView.assets.fuel_viewset import FuelViewSet
 from ..views.desktopView.assets.property_viewset import PropertyViewSet
 from ..views.desktopView.assets.subproperty_viewset import SubPropertyViewSet
+from ..views.desktopView.assets.zone_property_load_tracker_viewset import ZonePropertyLoadTrackerViewSet
 
 # Customer Modules
 from ..views.desktopView.customers.customercreation_viewset import CustomerCreationViewSet
@@ -48,6 +49,7 @@ from ..views.desktopView.users.staff_template_audit_log_viewset import (
 from ..views.desktopView.users.routeplan_viewset import RoutePlanViewSet
 from ..views.desktopView.users.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
 from ..views.desktopView.users.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
+from ..views.desktopView.users.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
 
 # Screen Management
 from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
@@ -60,6 +62,7 @@ from ..views.desktopView.users.userscreenpermission_viewset import UserScreenPer
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreationViewSet
 from ..views.desktopView.vehicles.trip_definition_viewset import TripDefinitionViewSet
+from ..views.desktopView.vehicles.trip_instance_viewset import TripInstanceViewSet
 from ..views.desktopView.vehicles.bin_load_log_viewset import BinLoadLogViewSet
 
 # Complaints
@@ -85,6 +88,7 @@ router.register_group("masters", "bins",          BinViewSet)
 router.register_group("assets", "fuels",         FuelViewSet)
 router.register_group("assets", "properties",    PropertyViewSet)
 router.register_group("assets", "subproperties", SubPropertyViewSet)
+router.register_group("assets", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
 
 
 # ============================================================
@@ -116,6 +120,7 @@ router.register_group("user-creation", "stafftemplate-audit-log", StaffTemplateA
 router.register_group("user-creation", "route-plans",    RoutePlanViewSet)
 router.register_group("user-creation", "supervisor-zone-map", SupervisorZoneMapViewSet)
 router.register_group("user-creation", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
+router.register_group("user-creation", "unassigned-staff-pool", UnassignedStaffPoolViewSet)
 
 # ============================================================
 # GROUP: login
@@ -148,6 +153,7 @@ router.register_group("grievance","sub-category", SubCategoryViewSet, basename="
 router.register_group("vehicles", "vehicle-type",     VehicleTypeCreationViewSet)
 router.register_group("vehicles", "vehicle-creation", VehicleCreationViewSet)
 router.register_group("vehicles", "trip-definition",  TripDefinitionViewSet)
+router.register_group("vehicles", "trip-instance",    TripInstanceViewSet)
 router.register_group("vehicles", "bin-load-log",    BinLoadLogViewSet)
 
 

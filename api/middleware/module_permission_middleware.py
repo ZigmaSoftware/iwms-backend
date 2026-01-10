@@ -53,6 +53,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Fuel",
         "Property",
         "SubProperty",
+        "ZonePropertyLoadTracker",
     },
     "role-assign": {
         "UserType",
@@ -67,6 +68,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "SupervisorZoneMap",
         "SupervisorZoneAccessAudit",
         "StaffTemplateAuditLog",
+        "UnassignedStaffPool",
     },
     "customers": {
         "Customercreations",
@@ -81,6 +83,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "VehicleCreation",
         "TripDefinition",
         "BinLoadLog",
+        "TripInstance",
     },
     "grievance": {
         "MainCategory",

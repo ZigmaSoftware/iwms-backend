@@ -43,12 +43,14 @@ from .users.staffcreation_viewset import StaffcreationViewset
 from .users.stafftemplate_viewset import StaffTemplateViewSet
 from .users.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
 from .users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
+from .users.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
 
 # ==============================
 # Vehicles
 # ==============================
 from .vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from .vehicles.vehicleCreation_viewset import VehicleCreationViewSet
+from .vehicles.trip_instance_viewset import TripInstanceViewSet
 
 # ==============================
 # Complaints
@@ -94,10 +96,12 @@ __all__ = [
     "StaffTemplateViewSet",
     "StaffTemplateAuditLogViewSet",
     "AlternativeStaffTemplateViewSet",
+    "UnassignedStaffPoolViewSet",
 
     # Vehicles
     "VehicleTypeCreationViewSet",
     "VehicleCreationViewSet",
+    "TripInstanceViewSet",
 
     # Complaints
     "ComplaintViewSet",

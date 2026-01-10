@@ -35,9 +35,11 @@ from .users.userscreenpermission_serializer import (
 from .users.stafftemplate_serializer import StaffTemplateSerializer
 from .users.staff_template_audit_log_serializer import StaffTemplateAuditLogSerializer
 from .users.alternative_stafftemplate_serializer import AlternativeStaffTemplateSerializer
+from .users.unassigned_staff_pool_serializer import UnassignedStaffPoolSerializer
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
 from .vehicles.vehicleCreation_serializer import VehicleCreationSerializer
+from .vehicles.trip_instance_serializer import TripInstanceSerializer
 
 # Complaints
 from .complaints.complaint_serializer import ComplaintSerializer

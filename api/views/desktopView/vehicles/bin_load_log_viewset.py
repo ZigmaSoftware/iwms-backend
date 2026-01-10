@@ -19,6 +19,10 @@ class BinLoadLogViewSet(ModelViewSet):
     permission_resource = "BinLoadLog"
     swagger_tags = ["Desktop / Assets"]
 
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        instance.trigger_trip_instance()
+
     def destroy(self, request, *args, **kwargs):
         return Response(
             {"detail": "Deletion of load logs is not allowed"},
