@@ -69,8 +69,8 @@ class HouseholdPickupEventSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        source = attrs.get("source")
-        weight = attrs.get("weight_kg")
+        source = attrs.get("source", getattr(self.instance, "source", None))
+        weight = attrs.get("weight_kg", getattr(self.instance, "weight_kg", None))
 
         if source == HouseholdPickupEvent.Source.HOUSEHOLD_WASTE and weight is None:
             raise serializers.ValidationError(

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from api.apps.customercreation import CustomerCreation
 
 
@@ -33,3 +34,10 @@ class CustomerTag(models.Model):
 
     class Meta:
         db_table = "api_customer_tag"
+
+    def revoke(self):
+        if self.status == self.Status.REVOKED:
+            return
+        self.status = self.Status.REVOKED
+        self.revoked_at = timezone.now()
+        self.save(update_fields=["status", "revoked_at"])
