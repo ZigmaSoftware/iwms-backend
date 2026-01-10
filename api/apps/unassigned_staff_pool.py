@@ -86,7 +86,7 @@ class UnassignedStaffPool(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "unassigned_staff_pool"
+        db_table = "api_unassigned_staff_pool"
         verbose_name = "Unassigned Staff Pool"
         verbose_name_plural = "Unassigned Staff Pools"
         ordering = ["-created_at"]
@@ -184,9 +184,3 @@ class UnassignedStaffPool(models.Model):
                     ward=ward,
                     defaults=payload,
                 )
-
-class Meta:
-        db_table = "api_unassigned_staff_pool"
-        verbose_name = "Unassigned Staff Pool"
-        verbose_name_plural = "Unassigned Staff Pools"
-        ordering = ["-created_at"]
