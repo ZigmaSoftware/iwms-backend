@@ -34,8 +34,7 @@ class SubProperty(models.Model):
         ordering = ["sub_property_name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["property_id", "sub_property_name"],  # FIXED
-                condition=models.Q(is_deleted=False),
+                fields=["property_id", "sub_property_name", "is_deleted"],
                 name="unique_sub_property_per_property_not_deleted"
             )
         ]

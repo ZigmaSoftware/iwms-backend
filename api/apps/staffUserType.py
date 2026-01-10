@@ -44,8 +44,7 @@ class StaffUserType(models.Model):
         verbose_name_plural = "Staff User Types"
         constraints = [
             models.UniqueConstraint(
-                fields=["usertype_id", "name"],
-                condition=models.Q(is_deleted=False),
+                fields=["usertype_id", "name", "is_deleted"],
                 name="unique_staff_role_per_usertype_not_deleted"
             )
         ]
