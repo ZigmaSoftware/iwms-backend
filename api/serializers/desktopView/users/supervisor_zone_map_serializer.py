@@ -57,11 +57,16 @@ class SupervisorZoneMapSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        supervisor = attrs.get("supervisor")
-        status = attrs.get("status", "ACTIVE")
+        instance = getattr(self, "instance", None)
+        supervisor = (
+            attrs.get("supervisor")
+            if "supervisor" in attrs
+            else getattr(instance, "supervisor", None)
+        )
+        status = attrs.get("status", getattr(instance, "status", "ACTIVE"))
 
         # Prevent multiple ACTIVE assignments
-        if status == "ACTIVE":
+        if status == "ACTIVE" and supervisor:
             qs = SupervisorZoneMap.objects.filter(
                 supervisor=supervisor,
                 status="ACTIVE"

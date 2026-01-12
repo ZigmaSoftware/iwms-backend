@@ -1,6 +1,7 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import NotAuthenticated
 from django.utils import timezone
 
 from api.apps.trip_attendance import TripAttendance
@@ -23,11 +24,13 @@ class TripAttendanceViewSet(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         user = getattr(request, "user", None)
-        role = (
-            user.staffusertype_id.name.lower()
-            if user and user.staffusertype_id
-            else None
-        )
+        if not user or getattr(user, "is_anonymous", False):
+            raise NotAuthenticated("Authentication required")
+        payload = getattr(request, "jwt_payload", None)
+        role = (payload.get("role") or "").lower() if isinstance(payload, dict) else None
+        if not role and user:
+            staff_type = getattr(user, "staffusertype_id", None)
+            role = staff_type.name.lower() if staff_type else None
 
         data = request.data.copy()
         data["attendance_time"] = timezone.now()
@@ -66,11 +69,13 @@ class TripAttendanceViewSet(ModelViewSet):
             )
 
         user = getattr(request, "user", None)
-        role = (
-            user.staffusertype_id.name.lower()
-            if user and user.staffusertype_id
-            else None
-        )
+        if not user or getattr(user, "is_anonymous", False):
+            raise NotAuthenticated("Authentication required")
+        payload = getattr(request, "jwt_payload", None)
+        role = (payload.get("role") or "").lower() if isinstance(payload, dict) else None
+        if not role and user:
+            staff_type = getattr(user, "staffusertype_id", None)
+            role = staff_type.name.lower() if staff_type else None
 
         if role in {"operator", "driver"}:
             instance = self.get_object()
