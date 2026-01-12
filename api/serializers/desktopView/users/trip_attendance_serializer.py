@@ -43,10 +43,18 @@ class TripAttendanceSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def validate(self, attrs):
-        trip = attrs["trip_instance"]
-        staff = attrs["staff"]
+        instance = getattr(self, "instance", None)
+        trip = attrs.get("trip_instance") if "trip_instance" in attrs else getattr(instance, "trip_instance", None)
+        staff = attrs.get("staff") if "staff" in attrs else getattr(instance, "staff", None)
+        vehicle = attrs.get("vehicle") if "vehicle" in attrs else getattr(instance, "vehicle", None)
 
-        # Trip must be active
+        if instance:
+            return attrs
+
+        if not trip or not staff:
+            return attrs
+
+        # Trip must be active (create only)
         if trip.status != "IN_PROGRESS":
             raise serializers.ValidationError(
                 "Attendance allowed only for in-progress trips"
@@ -74,12 +82,12 @@ class TripAttendanceSerializer(serializers.ModelSerializer):
                 "Attendance allowed only for operator or driver"
             )
 
-        if attrs.get("vehicle") != trip.vehicle:
+        if vehicle != trip.vehicle:
             raise serializers.ValidationError(
                 "Vehicle does not match trip instance"
             )
 
-        # 45-minute rule enforcement
+        # 45-minute rule enforcement (create only)
         last = (
             TripAttendance.objects
             .filter(trip_instance=trip, staff=staff)
