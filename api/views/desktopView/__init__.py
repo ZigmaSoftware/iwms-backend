@@ -25,6 +25,7 @@ from .assets.subproperty_viewset import SubPropertyViewSet
 from .customers.customercreation_viewset import CustomerCreationViewSet
 from .customers.wastecollection_viewset import WasteCollectionViewSet
 from .customers.feedback_viewset import FeedBackViewSet
+from .customers.household_pickup_event_viewset import HouseholdPickupEventViewSet
 
 # ==============================
 # Users
@@ -38,18 +39,21 @@ from .users.mainscreentype_viewset import MainScreenTypeViewSet
 from .users.mainscreen_viewset import MainScreenViewSet
 from .users.userscreenaction_viewset import UserScreenActionViewSet
 from .users.userscreenpermission_viewset import UserScreenPermissionViewSet
-from .masters.staffcreation_viewset import StaffcreationViewset
+from .users.staffcreation_viewset import StaffcreationViewset
 from .users.stafftemplate_viewset import StaffTemplateViewSet
-from .routes.route_stop_viewset import RouteStopViewSet
-from .routes.route_run_viewset import RouteRunViewSet
-from .routes.daily_route_assignment_viewset import DailyRouteAssignmentViewSet
+from .users.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
+from .users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
+from .users.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
+from .users.trip_attendance_viewset import TripAttendanceViewSet
 
 # ==============================
 # Vehicles
 # ==============================
 from .vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
-from .vehicles.vehicleAssigning_viewset import VehicleAssigningViewSet
 from .vehicles.vehicleCreation_viewset import VehicleCreationViewSet
+from .vehicles.trip_instance_viewset import TripInstanceViewSet
+from .vehicles.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
+from .vehicles.trip_exception_log_viewset import TripExceptionLogViewSet
 
 # ==============================
 # Complaints
@@ -79,6 +83,7 @@ __all__ = [
     "CustomerCreationViewSet",
     "WasteCollectionViewSet",
     "FeedBackViewSet",
+    "HouseholdPickupEventViewSet",
 
     # Users
     "UserTypeViewSet",
@@ -92,14 +97,17 @@ __all__ = [
     "UserScreenPermissionViewSet",
     "StaffcreationViewset",
     "StaffTemplateViewSet",
-    "RouteStopViewSet",
-    "RouteRunViewSet",
-    "DailyRouteAssignmentViewSet",
+    "StaffTemplateAuditLogViewSet",
+    "AlternativeStaffTemplateViewSet",
+    "UnassignedStaffPoolViewSet",
+    "TripAttendanceViewSet",
 
     # Vehicles
     "VehicleTypeCreationViewSet",
-    "VehicleAssigningViewSet",
     "VehicleCreationViewSet",
+    "TripInstanceViewSet",
+    "VehicleTripAuditViewSet",
+    "TripExceptionLogViewSet",
 
     # Complaints
     "ComplaintViewSet",

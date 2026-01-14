@@ -1,3 +1,7 @@
+# api/management/commands/seeders/permission_seeder.py
+
+from django.db.models import F
+
 from api.management.commands.seeders.base import BaseSeeder
 from api.apps.mainscreentype import MainScreenType
 from api.apps.userscreenaction import UserScreenAction
@@ -12,17 +16,17 @@ class PermissionSeeder(BaseSeeder):
     name = "permission_full"
 
     def run(self):
-        # ==================================================
+        # --------------------------------------------------
         # 1. MAIN SCREEN TYPE
-        # ==================================================
+        # --------------------------------------------------
         megamenu, _ = MainScreenType.objects.get_or_create(
             type_name="megamenu",
             defaults={"is_active": True, "is_deleted": False}
         )
 
-        # ==================================================
-        # 2. USER SCREEN ACTIONS
-        # ==================================================
+        # --------------------------------------------------
+        # 2. ACTIONS
+        # --------------------------------------------------
         actions = {}
         for name in ["add", "view", "edit", "delete"]:
             action, _ = UserScreenAction.objects.get_or_create(
@@ -35,45 +39,68 @@ class PermissionSeeder(BaseSeeder):
             )
             actions[name] = action
 
-        # ==================================================
-        # 3. MAIN SCREENS + USER SCREENS (YOUR DATA ONLY)
-        # ==================================================
+        # --------------------------------------------------
+        # 3. SCREENS (MATCH VIEWSET NAMES EXACTLY)
+        # --------------------------------------------------
         screen_structure = {
             "masters": [
-                "Continent", "Countries", "States", "Districts",
-                "Cities", "Zones", "Wards", "Bins"
+                "Continent",
+                "Countries",
+                "States",
+                "Districts",
+                "Cities",
+                "Zones",
+                "Wards",
+                "Bins",
             ],
             "assets": [
-                "Fuels", "Properties", "Subproperties"
+                "Fuels",
+                "Properties",
+                "Subproperties",
+                "ZonePropertyLoadTracker",
             ],
             "role-assign": [
                 "UserType",
-                "Staffusertypes",
-                "Assignments",
-                "DailyAssignments",
-                "StaffAssignments",
-                "CollectionLogs",
-                "AssignmentCustomerStatuses",
-                "CitizenAssignments",
+                "StaffUserTypes",
             ],
             "user-creation": [
-                "UsersCreation", "Staffcreation", "StafftemplateCreation"
+                "UsersCreation",
+                "StaffCreation",
+                "StaffTemplateCreation",
+                "AlternativeStaffTemplate",
+                "StaffTemplateAuditLog",
+                "RoutePlan",
+                "SupervisorZoneMap",
+                "SupervisorZoneAccessAudit",
+                "UnassignedStaffPool",
             ],
             "customers": [
-                "Customercreations", "Wastecollections",
-                "Feedbacks", "Complaints"
+                "Customercreations",
+                "Wastecollections",
+                "Feedbacks",
+                "Complaints",
+                "CustomerTag",
+                "HouseholdPickupEvent",
             ],
             "vehicles": [
-                "VehicleType", "VehicleCreation"
+                "VehicleType",
+                "VehicleCreation",
+                "TripDefinition",
+                "BinLoadLog",
+                "TripInstance",
+                "TripAttendance",
+                "VehicleTripAudit",
+                "TripExceptionLog",
             ],
-            "grievance": {
-        "MainCategory",
-        "SubCategory",
-    },
+            "grievance": [
+                "MainCategory",
+                "SubCategory",
+            ],
         }
 
         mainscreens = {}
-        for order, (main_name, userscreens) in enumerate(screen_structure.items(), start=1):
+
+        for order, (main_name, screens) in enumerate(screen_structure.items(), start=1):
             main, _ = MainScreen.objects.get_or_create(
                 mainscreen_name=main_name,
                 defaults={
@@ -86,43 +113,86 @@ class PermissionSeeder(BaseSeeder):
             )
             mainscreens[main_name] = main
 
-            for idx, us_name in enumerate(userscreens, start=1):
-                UserScreen.objects.get_or_create(
-                    userscreen_name=us_name,
+            # Avoid unique_order_per_mainscreen conflicts while creating new screens.
+            order_offset = 1000
+            UserScreen.objects.filter(mainscreen_id=main).update(
+                order_no=F("order_no") + order_offset
+            )
+
+            ordered_screens = []
+            for idx, screen_name in enumerate(screens, start=1):
+                screen, created = UserScreen.objects.get_or_create(
+                    userscreen_name=screen_name,
                     defaults={
                         "mainscreen_id": main,
-                        "folder_name": us_name.lower(),
-                        "icon_name": us_name.lower(),
+                        "folder_name": screen_name.lower(),
+                        "icon_name": screen_name.lower(),
                         "order_no": idx,
                         "is_active": True,
                         "is_deleted": False,
                     }
                 )
+                if not created:
+                    update_fields = []
+                    desired_folder = screen_name.lower()
 
+                    if screen.mainscreen_id_id != main.unique_id:
+                        screen.mainscreen_id = main
+                        update_fields.append("mainscreen_id")
 
-        # ==================================================
-        # 4. USER SCREEN PERMISSIONS (STAFF → ADMIN)
-        # ==================================================
+                    if screen.folder_name != desired_folder:
+                        screen.folder_name = desired_folder
+                        update_fields.append("folder_name")
+
+                    if screen.icon_name != desired_folder:
+                        screen.icon_name = desired_folder
+                        update_fields.append("icon_name")
+
+                    if not screen.is_active or screen.is_deleted:
+                        screen.is_active = True
+                        screen.is_deleted = False
+                        update_fields.extend(["is_active", "is_deleted"])
+
+                    if update_fields:
+                        screen.save(update_fields=update_fields)
+
+                ordered_screens.append(screen)
+
+            ordered_ids = []
+            next_order = 1
+            for screen in ordered_screens:
+                screen.order_no = next_order
+                screen.is_active = True
+                screen.is_deleted = False
+                screen.save(update_fields=["order_no", "is_active", "is_deleted"])
+                ordered_ids.append(screen.unique_id)
+                next_order += 1
+
+            extra_screens = UserScreen.objects.filter(
+                mainscreen_id=main
+            ).exclude(unique_id__in=ordered_ids).order_by("order_no")
+            for screen in extra_screens:
+                screen.order_no = next_order
+                screen.save(update_fields=["order_no"])
+                next_order += 1
+
+        # --------------------------------------------------
+        # 4. ROLES
+        # --------------------------------------------------
         staff_type = UserType.objects.get(name__iexact="staff")
-        admin_role = StaffUserType.objects.get(
-            name="admin",
-            usertype_id=staff_type
-        )
-        driver_role = StaffUserType.objects.get(
-            name="driver",
-            usertype_id=staff_type
-        )
-        operator_role = StaffUserType.objects.get(
-            name="operator",
-            usertype_id=staff_type
-        )
 
-        
+        admin_role = StaffUserType.objects.get(name="admin", usertype_id=staff_type)
+        driver_role = StaffUserType.objects.get(name="driver", usertype_id=staff_type)
+        operator_role = StaffUserType.objects.get(name="operator", usertype_id=staff_type)
+        supervisor_role = StaffUserType.objects.get(name="supervisor", usertype_id=staff_type)
+
+        # --------------------------------------------------
+        # 5. ADMIN → FULL ACCESS
+        # --------------------------------------------------
         for main in mainscreens.values():
             screens = UserScreen.objects.filter(mainscreen_id=main)
             for screen in screens:
-                order_no = 1
-                for action in actions.values():
+                for order_no, action in enumerate(actions.values(), start=1):
                     UserScreenPermission.objects.get_or_create(
                         usertype_id=staff_type,
                         staffusertype_id=admin_role,
@@ -136,59 +206,120 @@ class PermissionSeeder(BaseSeeder):
                             "is_deleted": False,
                         }
                     )
-                    order_no += 1
 
-        driver_permissions = {
-            "role-assign": {
-                "Assignments": ["view", "add"],
-                "DailyAssignments": ["view", "add"],
-                "StaffAssignments": ["view"],
-                "CollectionLogs": ["add"],
-                "AssignmentCustomerStatuses": ["add", "view"],
+        # --------------------------------------------------
+        # 6. LIMITED ROLES
+        # --------------------------------------------------
+        limited_permissions = {
+            driver_role: {
+                "customers": {
+                    "Customercreations": ["view"],
+                }
             },
-            "customers": {
-                "Customercreations": ["view"],
+            operator_role: {
+                "customers": {
+                    "Customercreations": ["view"],
+                }
             },
-        }
-
-        operator_permissions = {
-            "role-assign": {
-                "Assignments": ["view", "add"],
-                "DailyAssignments": ["view", "add"],
-                "StaffAssignments": ["view"],
-                "CollectionLogs": ["add"],
-                "AssignmentCustomerStatuses": ["add", "view"],
-            },
-            "customers": {
-                "Customercreations": ["view"],
+            supervisor_role: {
+                "vehicles": {
+                    "TripDefinition": ["add", "view", "edit"],
+                }
             },
         }
 
-        role_permission_sets = [
-            (driver_role, driver_permissions),
-            (operator_role, operator_permissions),
-        ]
+        # Provide full CRUD access to RoutePlan for operators and drivers by default
+        for role in (driver_role, operator_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "user-creation", {}
+            )["RoutePlan"] = ["add", "view", "edit", "delete"]
 
-        for staff_role, permission_map in role_permission_sets:
-            for main_name, screens in permission_map.items():
-                main = mainscreens.get(main_name)
+        # Also grant view access to AlternativeStaffTemplate for operators and drivers
+        for role in (driver_role, operator_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "user-creation", {}
+            )["AlternativeStaffTemplate"] = ["view"]
+
+        # Operator access for household pickup events
+        limited_permissions.setdefault(operator_role, {}).setdefault(
+            "customers", {}
+        )["HouseholdPickupEvent"] = ["add", "view", "edit", "delete"]
+
+        # Operator access for bin load logs
+        limited_permissions.setdefault(operator_role, {}).setdefault(
+            "vehicles", {}
+        )["BinLoadLog"] = ["add", "view", "edit"]
+
+        # Supervisor access for zone property load tracker
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "assets", {}
+        )["ZonePropertyLoadTracker"] = ["add", "view", "edit"]
+
+        # Supervisor access for trip instances (view + update only)
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "vehicles", {}
+        )["TripInstance"] = ["view", "edit"]
+
+        # Operator/driver access for trip attendance
+        for role in (operator_role, driver_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "vehicles", {}
+            )["TripAttendance"] = ["add", "view", "edit"]
+
+        # Supervisor access for trip attendance (full)
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "vehicles", {}
+        )["TripAttendance"] = ["add", "view", "edit", "delete"]
+
+        # Operator/driver access for vehicle trip audit
+        for role in (operator_role, driver_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "vehicles", {}
+            )["VehicleTripAudit"] = ["add", "view", "edit"]
+
+        # Supervisor access for vehicle trip audit (full)
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "vehicles", {}
+        )["VehicleTripAudit"] = ["add", "view", "edit", "delete"]
+
+        # Operator/driver access for trip exception log
+        for role in (operator_role, driver_role):
+            limited_permissions.setdefault(role, {}).setdefault(
+                "vehicles", {}
+            )["TripExceptionLog"] = ["add", "view", "edit"]
+
+        # Supervisor access for trip exception log (full)
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "vehicles", {}
+        )["TripExceptionLog"] = ["add", "view", "edit", "delete"]
+
+        # Supervisor access for unassigned staff pool
+        limited_permissions.setdefault(supervisor_role, {}).setdefault(
+            "user-creation", {}
+        )["UnassignedStaffPool"] = ["add", "view", "edit"]
+
+        for role, modules in limited_permissions.items():
+            for module_name, screens in modules.items():
+                main = mainscreens.get(module_name)
                 if not main:
                     continue
+
                 for screen_name, action_names in screens.items():
                     screen = UserScreen.objects.filter(
                         mainscreen_id=main,
-                        userscreen_name=screen_name,
+                        userscreen_name=screen_name
                     ).first()
                     if not screen:
                         continue
-                    order_no = 1
-                    for action_name in action_names:
+
+                    for order_no, action_name in enumerate(action_names, start=1):
                         action = actions.get(action_name)
                         if not action:
                             continue
+
                         UserScreenPermission.objects.get_or_create(
                             usertype_id=staff_type,
-                            staffusertype_id=staff_role,
+                            staffusertype_id=role,
                             mainscreen_id=main,
                             userscreen_id=screen,
                             userscreenaction_id=action,
@@ -199,6 +330,6 @@ class PermissionSeeder(BaseSeeder):
                                 "is_deleted": False,
                             }
                         )
-                        order_no += 1
+                        
 
-        self.log("✅ Full permission structure seeded successfully")
+        self.log("✅ Permission seeding completed successfully")

@@ -1,22 +1,31 @@
-# core/management/commands/seeders/customers/customer_creation.py
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.continent import Continent
+
 from api.apps.country import Country
 from api.apps.state import State
 from api.apps.district import District
 from api.apps.city import City
 from api.apps.zone import Zone
 from api.apps.ward import Ward
+
 from api.apps.customercreation import CustomerCreation
+from api.apps.customer_tag import CustomerTag
+
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
+
+from api.apps.utils.customer_tag_utils import (
+    generate_customer_tag_code,
+    generate_customer_qr
+)
 
 
 class CustomerCreationSeeder(BaseSeeder):
     name = "customer_creation"
 
     def run(self):
-        # ---- Location hierarchy ----
+        # --------------------------------------------------
+        # LOCATION HIERARCHY
+        # --------------------------------------------------
         country = Country.objects.get(name="India")
         state = State.objects.get(name="Tamil Nadu")
         district = District.objects.get(name="Chennai")
@@ -24,10 +33,21 @@ class CustomerCreationSeeder(BaseSeeder):
         zone = Zone.objects.get(name="Zone 1")
         ward = Ward.objects.get(name="Ward 1")
 
-        # ---- Property hierarchy ----
-        property_obj = Property.objects.get(property_name="Residential", is_deleted=False)
-        sub_property_obj = SubProperty.objects.get(sub_property_name="Apartment", is_deleted=False)
+        # --------------------------------------------------
+        # PROPERTY HIERARCHY
+        # --------------------------------------------------
+        property_obj = Property.objects.get(
+            property_name="Residential",
+            is_deleted=False
+        )
+        sub_property_obj = SubProperty.objects.get(
+            sub_property_name="Apartment",
+            is_deleted=False
+        )
 
+        # --------------------------------------------------
+        # CUSTOMER SEED DATA
+        # --------------------------------------------------
         customers = [
             {
                 "customer_name": "Sameer",
@@ -40,11 +60,13 @@ class CustomerCreationSeeder(BaseSeeder):
                 "longitude": "77.5015",
                 "id_no": "AADHAAR-7890-1",
             },
-           
         ]
 
+        # --------------------------------------------------
+        # CREATE CUSTOMERS + HOUSEHOLD QR
+        # --------------------------------------------------
         for entry in customers:
-            CustomerCreation.objects.get_or_create(
+            customer, created = CustomerCreation.objects.get_or_create(
                 customer_name=entry["customer_name"],
                 contact_no=entry["contact_no"],
                 defaults={
@@ -69,4 +91,38 @@ class CustomerCreationSeeder(BaseSeeder):
                 }
             )
 
-        self.log("Customer creation seeded")
+            # --------------------------------------------------
+            # HOUSEHOLD QR (MANDATORY)
+            # --------------------------------------------------
+            tag_exists = CustomerTag.objects.filter(
+                customer=customer,
+                status=CustomerTag.Status.ACTIVE
+            ).exists()
+
+            if not tag_exists:
+                # Deterministic, admin-readable code
+                tag_code = generate_customer_tag_code(
+                city_code=city.name[:3],
+                ward_code=ward.name.replace("Ward", "").strip()
+)
+
+
+
+                qr_image = generate_customer_qr(
+                    payload={
+                        "type": "HOUSEHOLD",
+                        "customer_id": customer.unique_id,
+                        "tag_code": tag_code,
+                        "zone": zone.name,
+                        "ward": ward.name,
+                    }
+                )
+
+                CustomerTag.objects.create(
+                    customer=customer,
+                    tag_code=tag_code,
+                    qr_image=qr_image,
+                    status=CustomerTag.Status.ACTIVE,
+                )
+
+        self.log("✅ Customers and household QR tags seeded successfully")

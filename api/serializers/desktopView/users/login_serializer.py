@@ -102,17 +102,34 @@ class LoginSerializer(serializers.Serializer):
             staff_role = user.staffusertype_id.name.lower()
             if staff_role in ["driver", "operator"]:
                 permissions = {
-                    "role-assign": {
-                        "Assignments": ["view", "add"],
-                        "DailyAssignments": ["view", "add"],
-                        "StaffAssignments": ["view"],
-                        "CollectionLogs": ["add"],
-                        "AssignmentCustomerStatuses": ["add", "view"],
-                    },
                     "customers": {
                         "Customercreations": ["view"],
                     },
+                    "user-creation": {
+                        "RoutePlan": ["add", "view", "edit", "delete"],
+                        "AlternativeStaffTemplate": ["view"],
+                    },
                 }
+
+        # Merge minimal defaults for driver/operator so they retain RoutePlan access
+        if utype == "staff":
+            staff_role = user.staffusertype_id.name.lower() if user.staffusertype_id else ""
+            if staff_role in ["driver", "operator"]:
+                defaults = {
+                    "customers": {
+                        "Customercreations": ["view"],
+                    },
+                    "user-creation": {
+                        "RoutePlan": ["add", "view", "edit", "delete"],
+                        "AlternativeStaffTemplate": ["view"],
+                    },
+                }
+
+                for module_name, screens in defaults.items():
+                    module_perms = permissions.setdefault(module_name, {})
+                    for screen_name, actions in screens.items():
+                        existing = set(module_perms.get(screen_name, []))
+                        module_perms[screen_name] = list(existing.union(actions))
 
         attrs["user"] = user
         attrs["permissions"] = permissions

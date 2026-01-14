@@ -9,6 +9,8 @@ from api.management.commands.seeders.permissions import PERMISSION_SEEDERS
 from api.management.commands.seeders.customers import CUSTOMER_SEEDERS
 from api.management.commands.seeders.userCreation import USER_CREATION_SEEDERS
 from api.management.commands.seeders.vehicles import VEHICLE_SEEDERS
+from api.management.commands.seeders.staff_template import STAFF_SEEDERS
+
 
 
 # --------------------------------------------------
@@ -22,7 +24,8 @@ ORDERED_GROUPS = [
     "customers",
     "user-creation",
     "vehicles",
-    "grievance"
+    "grievance",
+    "staff",
 ]
 
 SEED_GROUPS = {
@@ -33,7 +36,8 @@ SEED_GROUPS = {
     "customers": CUSTOMER_SEEDERS,
     "user-creation": USER_CREATION_SEEDERS,
     "grievance": GRIEVANCE_SEEDERS,
-    "vehicles": VEHICLE_SEEDERS
+    "vehicles": VEHICLE_SEEDERS,
+    "staff": STAFF_SEEDERS,
 }
 
 # --------------------------------------------------

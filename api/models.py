@@ -16,11 +16,6 @@ from .apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 from .apps.customercreation import CustomerCreation
 from .apps.wastecollection import WasteCollection
 from .apps.feedback import FeedBack
-from .apps.assignment import (
-    DailyAssignment,
-    AssignmentStatusHistory,
-    DriverCollectionLog,
-)
 
 from .apps.userscreen import UserScreen
 from .apps.userType import UserType
@@ -29,7 +24,6 @@ from .apps.userscreenpermission import UserScreenPermission
 from .apps.userCreation import User
 
 from .apps.vehicleTypeCreation import VehicleTypeCreation
-from .apps.vehicleAssigning import VehicleAssigning
 
 
 from .apps.complaints import Complaint
@@ -44,9 +38,8 @@ from .apps.waste_collection_bluetooth import (
     WasteCollectionMain
 )
 from .apps.stafftemplate import StaffTemplate
-from .apps.route_stop import RouteStop
-from .apps.route_run import RouteRun, RouteRunStop
-from .apps.daily_route_assignment import DailyRouteAssignment
+from .apps.alternative_staff_template import AlternativeStaffTemplate
+from .apps .routeplan import RoutePlan
 
 
 __all__ = [
@@ -82,14 +75,12 @@ __all__ = [
     "UserScreenPermission",
     "LoginAudit",
     "StaffTemplate",
-    "RouteStop",
-    "RouteRun",
-    "RouteRunStop",
-    "DailyRouteAssignment",
-
+    "AlternativeStaffTemplate",
+    "RoutelPlan",
+    
+    
     # Vehicles
     "VehicleTypeCreation",
-    "VehicleAssigning",
 
     # Complaints
     "Complaint",
@@ -103,8 +94,4 @@ __all__ = [
     "WasteType",
     "WasteCollectionMain",
 
-    # Assignments
-    "DailyAssignment",
-    "AssignmentStatusHistory",
-    "DriverCollectionLog",
 ]

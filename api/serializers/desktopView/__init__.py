@@ -1,3 +1,4 @@
+
 # Masters
 from .masters.continent_serializer import ContinentSerializer
 from .masters.country_serializer import CountrySerializer
@@ -16,6 +17,7 @@ from .assets.subproperty_serializer import SubPropertySerializer
 from .customers.customercreation_serializer import CustomerCreationSerializer
 from .customers.wastecollection_serializer import WasteCollectionSerializer
 from .customers.feedback_serializer import FeedBackSerializer
+from .customers.household_pickup_event_serializer import HouseholdPickupEventSerializer
 
 # Users
 from .users.usertype_serializer import UserTypeSerializer
@@ -31,14 +33,16 @@ from .users.userscreenpermission_serializer import (
     ScreenActionSerializer
 )
 from .users.stafftemplate_serializer import StaffTemplateSerializer
-from .routes.route_stop_serializer import RouteStopSerializer
-from .routes.route_run_serializer import RouteRunSerializer, RouteRunStopSerializer
-from .routes.daily_route_assignment_serializer import DailyRouteAssignmentSerializer
-
+from .users.staff_template_audit_log_serializer import StaffTemplateAuditLogSerializer
+from .users.alternative_stafftemplate_serializer import AlternativeStaffTemplateSerializer
+from .users.unassigned_staff_pool_serializer import UnassignedStaffPoolSerializer
+from .users.trip_attendance_serializer import TripAttendanceSerializer
 # Vehicles
 from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
-from .vehicles.vehicleAssigning_serializer import VehicleAssigningSerializer
 from .vehicles.vehicleCreation_serializer import VehicleCreationSerializer
+from .vehicles.trip_instance_serializer import TripInstanceSerializer
+from .vehicles.vehicle_trip_audit_serializer import VehicleTripAuditSerializer
+from .vehicles.trip_exception_log_serializer import TripExceptionLogSerializer
 
 # Complaints
 from .complaints.complaint_serializer import ComplaintSerializer
