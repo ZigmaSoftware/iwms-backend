@@ -1,3 +1,5 @@
+import re
+
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework import status
@@ -23,6 +25,21 @@ class CustomerTagViewSet(ModelViewSet):
     serializer_class = CustomerTagSerializer
     permission_resource = "CustomerTag"
     
+    def _get_city_code(self, city):
+        if getattr(city, "short_code", None):
+            return city.short_code
+        return (city.name or "")[:3]
+
+    def _get_ward_code(self, ward):
+        ward_no = getattr(ward, "ward_no", None)
+        if ward_no:
+            return str(ward_no)
+
+        match = re.search(r"\d+", getattr(ward, "name", "") or "")
+        if match:
+            return match.group(0)
+
+        return None
 
     def create(self, request, *args, **kwargs):
         """
@@ -40,12 +57,26 @@ class CustomerTagViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        city_code = customer.city.short_code if hasattr(customer.city, "short_code") else customer.city.name[:3]
-        ward_no = int(customer.ward.id)
+        city_code = self._get_city_code(customer.city).upper()
+        ward_code = self._get_ward_code(customer.ward)
+
+        if not ward_code:
+            return Response(
+                {"detail": "Ward must include a numeric identifier to issue tag"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         with transaction.atomic():
-            tag_code = generate_customer_tag_code(city_code, ward_no)
-            qr_file = generate_customer_qr(tag_code)
+            tag_code = generate_customer_tag_code(city_code, ward_code)
+            qr_payload = {
+                "v": 1,
+                "type": "HOUSEHOLD",
+                "customer_id": customer.unique_id,
+                "tag_code": tag_code,
+                "zone": customer.zone.name if customer.zone else None,
+                "ward": customer.ward.name if customer.ward else None,
+            }
+            qr_file = generate_customer_qr(qr_payload)
 
             instance = CustomerTag.objects.create(
                 customer=customer,

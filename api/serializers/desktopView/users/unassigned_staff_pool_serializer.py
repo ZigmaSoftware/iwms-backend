@@ -59,8 +59,9 @@ class UnassignedStaffPoolSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def validate(self, attrs):
-        operator = attrs.get("operator")
-        driver = attrs.get("driver")
+        instance = getattr(self, "instance", None)
+        operator = attrs.get("operator") if "operator" in attrs else getattr(instance, "operator", None)
+        driver = attrs.get("driver") if "driver" in attrs else getattr(instance, "driver", None)
 
         if not operator and not driver:
             raise serializers.ValidationError(
@@ -84,8 +85,8 @@ class UnassignedStaffPoolSerializer(serializers.ModelSerializer):
                     {"driver_id": "Selected user is not a driver."}
                 )
 
-            zone = attrs.get("zone")
-            ward = attrs.get("ward")
+            zone = attrs.get("zone") if "zone" in attrs else getattr(instance, "zone", None)
+            ward = attrs.get("ward") if "ward" in attrs else getattr(instance, "ward", None)
 
             if staff.zone_id_id and zone and staff.zone_id_id != zone.unique_id:
                 raise serializers.ValidationError(

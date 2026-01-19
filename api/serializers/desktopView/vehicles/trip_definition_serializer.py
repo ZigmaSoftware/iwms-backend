@@ -55,10 +55,19 @@ class TripDefinitionSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        trigger = attrs.get("trip_trigger_weight_kg")
-        capacity = attrs.get("max_vehicle_capacity_kg")
+        instance = getattr(self, "instance", None)
+        trigger = (
+            attrs.get("trip_trigger_weight_kg")
+            if "trip_trigger_weight_kg" in attrs
+            else getattr(instance, "trip_trigger_weight_kg", None)
+        )
+        capacity = (
+            attrs.get("max_vehicle_capacity_kg")
+            if "max_vehicle_capacity_kg" in attrs
+            else getattr(instance, "max_vehicle_capacity_kg", None)
+        )
 
-        if trigger >= capacity:
+        if trigger is not None and capacity is not None and trigger >= capacity:
             raise serializers.ValidationError(
                 "Trigger weight must be less than vehicle capacity"
             )
