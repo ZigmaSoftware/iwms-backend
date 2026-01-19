@@ -22,15 +22,32 @@ class TripAttendanceViewSet(ModelViewSet):
     permission_resource = "TripAttendance"
     swagger_tags = ["Desktop / Trip Attendance"]
 
-    def create(self, request, *args, **kwargs):
+    @staticmethod
+    def _resolve_user(request):
         user = getattr(request, "user", None)
-        if not user or getattr(user, "is_anonymous", False):
-            raise NotAuthenticated("Authentication required")
-        payload = getattr(request, "jwt_payload", None)
-        role = (payload.get("role") or "").lower() if isinstance(payload, dict) else None
-        if not role and user:
-            staff_type = getattr(user, "staffusertype_id", None)
-            role = staff_type.name.lower() if staff_type else None
+        if getattr(user, "unique_id", None):
+            return user
+
+        raw_request = getattr(request, "_request", None)
+        raw_user = getattr(raw_request, "user", None)
+        if getattr(raw_user, "unique_id", None):
+            return raw_user
+
+        return None
+
+    def create(self, request, *args, **kwargs):
+        user = self._resolve_user(request)
+        if not user:
+            return Response(
+                {"detail": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        role = (
+            user.staffusertype_id.name.lower()
+            if user and user.staffusertype_id
+            else None
+        )
 
         data = request.data.copy()
         data["attendance_time"] = timezone.now()
@@ -68,14 +85,18 @@ class TripAttendanceViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user = getattr(request, "user", None)
-        if not user or getattr(user, "is_anonymous", False):
-            raise NotAuthenticated("Authentication required")
-        payload = getattr(request, "jwt_payload", None)
-        role = (payload.get("role") or "").lower() if isinstance(payload, dict) else None
-        if not role and user:
-            staff_type = getattr(user, "staffusertype_id", None)
-            role = staff_type.name.lower() if staff_type else None
+        user = self._resolve_user(request)
+        if not user:
+            return Response(
+                {"detail": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        role = (
+            user.staffusertype_id.name.lower()
+            if user and user.staffusertype_id
+            else None
+        )
 
         if role in {"operator", "driver"}:
             instance = self.get_object()

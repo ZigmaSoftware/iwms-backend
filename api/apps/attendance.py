@@ -27,6 +27,7 @@ class Recognized(models.Model):
     recognition_time = models.TimeField()
 
     class Meta:
+        db_table = "api_attendance_recognized"
         indexes = [
             models.Index(fields=["emp_id"])
         ]
