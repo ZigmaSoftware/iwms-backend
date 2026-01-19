@@ -4,35 +4,38 @@ from api.serializers.desktopView.masters.zone_serializer import ZoneSerializer
 
 
 class ZoneViewSet(viewsets.ModelViewSet):
-    queryset = Zone.objects.filter(is_deleted=False)
     serializer_class = ZoneSerializer
     lookup_field = "unique_id"
 
     def get_queryset(self):
-        queryset = Zone.objects.filter(is_deleted=False)
+        qs = (
+            Zone.objects
+            .filter(is_deleted=False)
+            .select_related(
+                "continent_id",
+                "country_id",
+                "state_id",
+                "district_id",
+                "city_id",
+            )
+        )
 
-        city_uid = self.request.query_params.get("city")
-        district_uid = self.request.query_params.get("district")
-        state_uid = self.request.query_params.get("state")
-        country_uid = self.request.query_params.get("country")
-        continent_uid = self.request.query_params.get("continent")
+        params = self.request.query_params
 
-        if city_uid:
-            queryset = queryset.filter(city_id__unique_id=city_uid)
+        filter_map = {
+            "continent": "continent_id__unique_id",
+            "country": "country_id__unique_id",
+            "state": "state_id__unique_id",
+            "district": "district_id__unique_id",
+            "city": "city_id__unique_id",
+        }
 
-        if district_uid:
-            queryset = queryset.filter(district_id__unique_id=district_uid)
+        for param, field in filter_map.items():
+            value = params.get(param)
+            if value:
+                qs = qs.filter(**{field: value})
 
-        if state_uid:
-            queryset = queryset.filter(state_id__unique_id=state_uid)
-
-        if country_uid:
-            queryset = queryset.filter(country_id__unique_id=country_uid)
-
-        if continent_uid:
-            queryset = queryset.filter(continent_id__unique_id=continent_uid)
-
-        return queryset
+        return qs
 
     def perform_destroy(self, instance):
-        instance.delete()
+        instance.delete()  # soft delete
