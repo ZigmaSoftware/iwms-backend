@@ -55,14 +55,14 @@ class SupervisorZoneMapViewSet(ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        supervisor = serializer.validated_data["supervisor"]
+        supervisor = serializer.validated_data["supervisor_id"]
         new_zone_ids = serializer.validated_data["zone_ids"]
         remarks = request.data.get("remarks")
 
         with transaction.atomic():
             # Deactivate existing ACTIVE mapping
             existing = SupervisorZoneMap.objects.filter(
-                supervisor=supervisor,
+                supervisor_id=supervisor,
                 status="ACTIVE"
             ).select_for_update().first()
 
@@ -110,7 +110,7 @@ class SupervisorZoneMapViewSet(ModelViewSet):
         remarks = request.data.get("remarks")
 
         SupervisorZoneAccessAudit.objects.create(
-            supervisor=updated_instance.supervisor,
+            supervisor=updated_instance.supervisor_id,
             old_zone_ids=old_zone_ids,
             new_zone_ids=new_zone_ids,
             performed_by=user,

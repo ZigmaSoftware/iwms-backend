@@ -106,15 +106,15 @@ class HouseholdPickupEventSeeder(BaseSeeder):
             )
 
             HouseholdPickupEvent.objects.get_or_create(
-                customer=customer,
+                customer_id=customer,
                 pickup_time=pickup_time,
-                collector_staff=operator,
-                vehicle=vehicle,
+                collector_staff_id=operator,
+                vehicle_id=vehicle,
                 source=source,
                 defaults={
-                    "zone": zone,
-                    "property": property_obj,
-                    "sub_property": sub_property_obj,
+                    "zone_id": zone,
+                    "property_id": property_obj,
+                    "sub_property_id": sub_property_obj,
                     "weight_kg": 5 + idx if source == HouseholdPickupEvent.Source.HOUSEHOLD_WASTE else None,
                 },
             )

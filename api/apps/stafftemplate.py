@@ -7,7 +7,6 @@ def generate_stafftemplate_id():
 
 
 class StaffTemplate(models.Model):
-    id = models.BigAutoField(primary_key=True)
     unique_id = models.CharField(
         max_length=40,
         unique=True,

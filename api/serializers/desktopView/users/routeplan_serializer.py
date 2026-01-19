@@ -11,7 +11,7 @@ class RoutePlanSerializer(serializers.ModelSerializer):
             "id",
             "unique_id",
             "district_id",
-            "zone_id",
+            "city_id",
             "vehicle_id",
             "supervisor_id",
             "status",

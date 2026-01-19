@@ -26,8 +26,6 @@ class TripInstance(models.Model):
         COMPLETED = "COMPLETED", "Completed"
         CANCELLED = "CANCELLED", "Cancelled"
 
-    id = models.BigAutoField(primary_key=True)
-
     unique_id = models.CharField(
         max_length=36,
         unique=True,

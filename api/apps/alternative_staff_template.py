@@ -6,6 +6,8 @@ from .userCreation import User
 
 def generate_alternative_staff_template_id():
     return f"ALTSTAFFTEMPLATE-{generate_unique_id()}"
+
+
 class AlternativeStaffTemplate(models.Model):
     """
     Purpose:
@@ -20,8 +22,6 @@ class AlternativeStaffTemplate(models.Model):
     )
 
     # ---- Core Identifiers ----
-    id = models.BigAutoField(primary_key=True)
-
     unique_id = models.UUIDField(
         default=uuid.uuid4,
         editable=False,
@@ -39,21 +39,23 @@ class AlternativeStaffTemplate(models.Model):
     effective_date = models.DateField()
 
     # ---- Staff Assignment ----
-    driver = models.ForeignKey(
+    driver_id = models.ForeignKey(
         User,
-        on_delete=models.PROTECT,
-        db_column='driver_id',
+        on_delete=models.PROTECT,  # FIXED
+        db_column="driver_id",
+        to_field="unique_id",
         related_name='alt_driver_templates'
     )
 
-    operator = models.ForeignKey(
+    operator_id = models.ForeignKey(
         User,
-        on_delete=models.PROTECT,
-        db_column='operator_id',
+        on_delete=models.PROTECT,  # FIXED
+        db_column="operator_id",
+        to_field="unique_id",
         related_name='alt_operator_templates'
     )
 
-    extra_operator = models.JSONField(
+    extra_operator_id = models.JSONField(
         default=list,
         blank=True,
         null=True,

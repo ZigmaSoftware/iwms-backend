@@ -19,7 +19,7 @@ class RoutePlanViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
 
         district_id = self.request.query_params.get("district_id")
-        zone_id = self.request.query_params.get("zone_id")
+        city_id = self.request.query_params.get("city_id")
         vehicle_id = self.request.query_params.get("vehicle_id")
         supervisor_id = self.request.query_params.get("supervisor_id")
         status = self.request.query_params.get("status")
@@ -27,8 +27,8 @@ class RoutePlanViewSet(viewsets.ModelViewSet):
         if district_id:
             qs = qs.filter(district_id=district_id)
 
-        if zone_id:
-            qs = qs.filter(zone_id=zone_id)
+        if city_id:
+            qs = qs.filter(city_id=city_id)
 
         if vehicle_id:
             qs = qs.filter(vehicle_id=vehicle_id)

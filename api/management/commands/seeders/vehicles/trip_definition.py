@@ -29,10 +29,10 @@ class TripDefinitionSeeder(BaseSeeder):
             return
 
         trip_def, created = TripDefinition.objects.get_or_create(
-            routeplan=routeplan,
-            staff_template=staff_template,
-            property=property_obj,
-            sub_property=sub_property_obj,
+            routeplan_id=routeplan,
+            staff_template_id=staff_template,
+            property_id=property_obj,
+            sub_property_id=sub_property_obj,
             defaults={
                 "trip_trigger_weight_kg": 800,
                 "max_vehicle_capacity_kg": 3000,

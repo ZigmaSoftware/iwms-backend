@@ -6,8 +6,7 @@ from api.apps.userCreation import User
 class SupervisorZoneMapSerializer(serializers.ModelSerializer):
     supervisor_id = serializers.SlugRelatedField(
         slug_field="unique_id",
-        queryset=User.objects.all(),
-        source="supervisor"
+        queryset=User.objects.all()
     )
 
     class Meta:
@@ -59,16 +58,16 @@ class SupervisorZoneMapSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         instance = getattr(self, "instance", None)
         supervisor = (
-            attrs.get("supervisor")
-            if "supervisor" in attrs
-            else getattr(instance, "supervisor", None)
+            attrs.get("supervisor_id")
+            if "supervisor_id" in attrs
+            else getattr(instance, "supervisor_id", None)
         )
         status = attrs.get("status", getattr(instance, "status", "ACTIVE"))
 
         # Prevent multiple ACTIVE assignments
         if status == "ACTIVE" and supervisor:
             qs = SupervisorZoneMap.objects.filter(
-                supervisor=supervisor,
+                supervisor_id=supervisor,
                 status="ACTIVE"
             )
             if self.instance:
