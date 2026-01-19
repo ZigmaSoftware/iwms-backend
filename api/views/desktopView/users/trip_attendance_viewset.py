@@ -22,6 +22,19 @@ class TripAttendanceViewSet(ModelViewSet):
     permission_resource = "TripAttendance"
     swagger_tags = ["Desktop / Trip Attendance"]
 
+    @staticmethod
+    def _resolve_user(request):
+        user = getattr(request, "user", None)
+        if getattr(user, "unique_id", None):
+            return user
+
+        raw_request = getattr(request, "_request", None)
+        raw_user = getattr(raw_request, "user", None)
+        if getattr(raw_user, "unique_id", None):
+            return raw_user
+
+        return None
+
     def create(self, request, *args, **kwargs):
         user = getattr(request, "user", None)
         if not user or getattr(user, "is_anonymous", False):
