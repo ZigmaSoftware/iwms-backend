@@ -34,7 +34,7 @@ class TripDefinition(models.Model):
         editable=False
     )
 
-    routeplan = models.ForeignKey(
+    routeplan_id = models.ForeignKey(
         RoutePlan,
         on_delete=models.PROTECT,
         db_column="routeplan_id",
@@ -42,7 +42,7 @@ class TripDefinition(models.Model):
         related_name="trip_definitions"
     )
 
-    staff_template = models.ForeignKey(
+    staff_template_id = models.ForeignKey(
         StaffTemplate,
         on_delete=models.PROTECT,
         db_column="staff_template_id",
@@ -50,7 +50,7 @@ class TripDefinition(models.Model):
         related_name="trip_definitions"
     )
 
-    property = models.ForeignKey(
+    property_id = models.ForeignKey(
         Property,
         on_delete=models.PROTECT,
         db_column="property_id",
@@ -58,7 +58,7 @@ class TripDefinition(models.Model):
         related_name="trip_definitions"
     )
 
-    sub_property = models.ForeignKey(
+    sub_property_id = models.ForeignKey(
         SubProperty,
         on_delete=models.PROTECT,
         db_column="sub_property_id",

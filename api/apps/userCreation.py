@@ -30,7 +30,7 @@ class User(models.Model):
         UserType,
         on_delete=models.SET_NULL,
         null=True,
-         db_column="user_type_id",
+        db_column="user_type_id",
         related_name="users"
     )
 

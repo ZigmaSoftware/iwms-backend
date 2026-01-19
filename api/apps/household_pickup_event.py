@@ -2,11 +2,16 @@ from django.db import models
 from django.utils import timezone
 
 from api.apps.customercreation import CustomerCreation
+from api.apps.waste_collection_bluetooth import generate_unique_id
 from api.apps.zone import Zone
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
 from api.apps.userCreation import User
 from api.apps.vehicleCreation import VehicleCreation
+
+
+def generate_householdpickup_id():
+    return f"HOUSEHOLDPICKUP-{generate_unique_id('HP')}"
 
 
 class HouseholdPickupEvent(models.Model):
@@ -20,7 +25,14 @@ class HouseholdPickupEvent(models.Model):
         HOUSEHOLD_BIN = "HOUSEHOLD_BIN", "Household Bin"
         OTHERS = "OTHERS", "Others / Manual"
 
-    customer = models.ForeignKey(
+    unique_id = models.CharField(
+        max_length=36,
+        unique=True,
+        default=generate_householdpickup_id,
+        editable=False
+    )
+
+    customer_id = models.ForeignKey(
         CustomerCreation,
         on_delete=models.PROTECT,
         related_name="pickup_events",
@@ -28,7 +40,7 @@ class HouseholdPickupEvent(models.Model):
         to_field="unique_id",
     )
 
-    zone = models.ForeignKey(
+    zone_id = models.ForeignKey(
         Zone,
         on_delete=models.PROTECT,
         related_name="pickup_events",
@@ -36,7 +48,7 @@ class HouseholdPickupEvent(models.Model):
         to_field="unique_id",
     )
 
-    property = models.ForeignKey(
+    property_id = models.ForeignKey(
         Property,
         on_delete=models.PROTECT,
         related_name="pickup_events",
@@ -44,7 +56,7 @@ class HouseholdPickupEvent(models.Model):
         to_field="unique_id",
     )
 
-    sub_property = models.ForeignKey(
+    sub_property_id = models.ForeignKey(
         SubProperty,
         on_delete=models.PROTECT,
         related_name="pickup_events",
@@ -67,7 +79,7 @@ class HouseholdPickupEvent(models.Model):
         help_text="Evidence photo (optional)"
     )
 
-    collector_staff = models.ForeignKey(
+    collector_staff_id = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
         related_name="collected_pickups",
@@ -76,7 +88,7 @@ class HouseholdPickupEvent(models.Model):
         help_text="Operator / collector user"
     )
 
-    vehicle = models.ForeignKey(
+    vehicle_id = models.ForeignKey(
         VehicleCreation,
         on_delete=models.PROTECT,
         related_name="pickup_events",
@@ -97,8 +109,8 @@ class HouseholdPickupEvent(models.Model):
         ordering = ["-pickup_time"]
         indexes = [
             models.Index(fields=["pickup_time"]),
-            models.Index(fields=["zone"]),
-            models.Index(fields=["collector_staff"]),
+            models.Index(fields=["zone_id"]),
+            models.Index(fields=["collector_staff_id"]),
             models.Index(fields=["source"]),
         ]
 

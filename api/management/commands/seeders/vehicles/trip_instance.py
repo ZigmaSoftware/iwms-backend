@@ -36,9 +36,11 @@ class TripInstanceSeeder(BaseSeeder):
             self.log("TripInstanceSeeder skipped (active trip instance exists).")
             return
 
-        routeplan = trip_def.routeplan
-        zone = Zone.objects.filter(unique_id=routeplan.zone_id).first()
-        vehicle = VehicleCreation.objects.filter(id=routeplan.vehicle_id).first()
+        routeplan = trip_def.routeplan_id
+        zone = Zone.objects.filter(city_id=routeplan.city_id).first()
+        if not zone:
+            zone = Zone.objects.first()
+        vehicle = routeplan.vehicle_id
 
         if not zone or not vehicle:
             self.log("TripInstanceSeeder skipped (routeplan mapping missing).")
@@ -49,8 +51,8 @@ class TripInstanceSeeder(BaseSeeder):
                 processed=False,
                 zone=zone,
                 vehicle=vehicle,
-                property=trip_def.property,
-                sub_property=trip_def.sub_property,
+                property=trip_def.property_id,
+                sub_property=trip_def.sub_property_id,
             )
             .order_by("-event_time")
             .first()
@@ -60,8 +62,8 @@ class TripInstanceSeeder(BaseSeeder):
             bin_log = BinLoadLog.objects.create(
                 zone=zone,
                 vehicle=vehicle,
-                property=trip_def.property,
-                sub_property=trip_def.sub_property,
+                property=trip_def.property_id,
+                sub_property=trip_def.sub_property_id,
                 weight_kg=trip_def.trip_trigger_weight_kg,
                 source_type=BinLoadLog.SourceType.MANUAL,
                 event_time=timezone.now(),
