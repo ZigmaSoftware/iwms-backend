@@ -44,6 +44,7 @@ class BlankableUniqueIdField(UniqueIdOrPkField):
 
 
 class StaffTemplateSerializer(serializers.ModelSerializer):
+    display_code = serializers.CharField(read_only=True)
 
     driver_id = UniqueIdOrPkField(
         slug_field="unique_id",
@@ -83,6 +84,7 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
+            "display_code",
 
             "driver_id",
             "driver_name",
@@ -105,6 +107,7 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "unique_id",
+            "display_code",
             "created_at",
             "updated_at",
             "driver_name",

@@ -1,12 +1,20 @@
 from django.db import models
 from api.apps.userCreation import User
+from .utils.comfun import generate_unique_id
 
+def generate_supervisor_zone_access_audit_id():
+    return f"SZAA-{generate_unique_id()}"
 
 class SupervisorZoneAccessAudit(models.Model):
     # -----------------------------
     # SYSTEM IDENTITY
     # -----------------------------
-    id = models.BigAutoField(primary_key=True)
+    unique_id = models.CharField(
+        max_length=40,
+        primary_key=True,
+        default=generate_supervisor_zone_access_audit_id,
+        editable=False,
+    )
 
     # -----------------------------
     # ACTOR & SUBJECT

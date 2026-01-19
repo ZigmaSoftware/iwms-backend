@@ -1,21 +1,26 @@
 from django.db import models
+from django.db.models import Max
 from .utils.comfun import generate_unique_id
 from .userCreation import User
 
+
+# ------------------------------------------------------------------
+# SYSTEM UNIQUE ID (Machine-readable)
+# ------------------------------------------------------------------
 def generate_stafftemplate_id():
-    return f"STAFFTEMPLATE-{generate_unique_id()}"
+    return f"STF-{generate_unique_id(length=6)}"
 
 
 class StaffTemplate(models.Model):
-    id = models.BigAutoField(primary_key=True)
+    # ---------------- SYSTEM ID ----------------
     unique_id = models.CharField(
-        max_length=40,
+        max_length=20,
         unique=True,
         default=generate_stafftemplate_id,
         editable=False
     )
 
-    # ---- DRIVER ROLES ----
+    # ---------------- DRIVER ROLE ----------------
     driver_id = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
@@ -24,7 +29,7 @@ class StaffTemplate(models.Model):
         to_field="unique_id"
     )
 
-    # ---- OPERATOR ROLES ----
+    # ---------------- OPERATOR ROLE ----------------
     operator_id = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
@@ -32,44 +37,58 @@ class StaffTemplate(models.Model):
         db_column="operator_id",
         to_field="unique_id"
     )
+
     extra_operator_id = models.JSONField(
         default=list,
         blank=True,
         help_text="List of additional operator unique IDs"
     )
+
+    # ---------------- HUMAN READABLE BUSINESS CODE ----------------
+    display_code = models.CharField(
+        max_length=100,
+        unique=True,
+        db_index=True,
+        editable=False,
+        help_text="Supervisor friendly identifier (e.g. RAVI-KART-01)"
+    )
+
+    # ---------------- AUDIT FIELDS ----------------
     created_by = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
-        related_name="Stafftemplate_created",
+        related_name="stafftemplate_created",
         db_column="created_by",
         to_field="unique_id"
     )
     updated_by = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
-        related_name="Stafftemplate_updated",
+        related_name="stafftemplate_updated",
         db_column="updated_by",
         to_field="unique_id"
     )
     approved_by = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
-        related_name="Stafftemplate_approved",
+        related_name="stafftemplate_approved",
         db_column="approved_by",
         to_field="unique_id",
         null=True,
         blank=True
     )
 
-    STATUS_CHOICES =(
+    # ---------------- STATUS ----------------
+    STATUS_CHOICES = (
         ("ACTIVE", "Active"),
         ("INACTIVE", "Inactive"),
     )
-    APPROVAL_STATUS_CHOICES =(
+    APPROVAL_STATUS_CHOICES = (
         ("PENDING", "Pending"),
         ("APPROVED", "Approved"),
         ("REJECTED", "Rejected"),
     )
+
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
@@ -80,16 +99,67 @@ class StaffTemplate(models.Model):
         choices=APPROVAL_STATUS_CHOICES,
         default="PENDING"
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # ---------------- META ----------------
     class Meta:
         db_table = "api_staff_template"
         indexes = [
             models.Index(fields=["status", "approval_status"]),
+            models.Index(fields=["display_code"]),
         ]
         ordering = ["-created_at"]
 
+    # ------------------------------------------------------------------
+    # DISPLAY CODE GENERATION (Enterprise Safe)
+    # ------------------------------------------------------------------
+    def _generate_display_code(self):
+        """
+        Format: <DRIVER>-<OPERATOR>-<SEQ>
+        Example: RAVI-KART-01
+        """
+
+        def resolve_staff_name(user, fallback):
+            if not user:
+                return fallback
+            staff = getattr(user, "staff_id", None)
+            if staff and getattr(staff, "employee_name", None):
+                return staff.employee_name
+            return fallback
+
+        driver_name = resolve_staff_name(self.driver_id, "DRV")[:4].upper()
+        operator_name = resolve_staff_name(self.operator_id, "OPR")[:4].upper()
+
+        base_code = f"{driver_name}-{operator_name}"
+
+        # Find highest existing sequence
+        last_code = (
+            StaffTemplate.objects
+            .filter(display_code__startswith=base_code)
+            .aggregate(max_code=Max("display_code"))
+            .get("max_code")
+        )
+
+        if last_code:
+            try:
+                last_seq = int(last_code.split("-")[-1])
+            except ValueError:
+                last_seq = 0
+        else:
+            last_seq = 0
+
+        next_seq = last_seq + 1
+        return f"{base_code}-{next_seq:02d}"
+
+    # ------------------------------------------------------------------
+    # OVERRIDE SAVE
+    # ------------------------------------------------------------------
+    def save(self, *args, **kwargs):
+        if not self.display_code:
+            self.display_code = self._generate_display_code()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        
-        return self.unique_id
+        return self.display_code

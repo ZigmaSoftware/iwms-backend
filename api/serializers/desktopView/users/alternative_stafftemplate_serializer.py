@@ -63,12 +63,17 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         required=False,
         allow_empty=True,
     )
+    staff_template_display_code = serializers.CharField(
+        source="staff_template.display_code",
+        read_only=True,
+    )
     class Meta:
         model = AlternativeStaffTemplate
         fields = [
             'id',
             'unique_id',
             'staff_template',
+            'staff_template_display_code',
             'effective_date',
             'driver',
             'operator',
@@ -83,6 +88,7 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'unique_id',
+            'staff_template_display_code',
             'created_at',
         ]
 

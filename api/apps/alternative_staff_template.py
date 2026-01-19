@@ -20,8 +20,6 @@ class AlternativeStaffTemplate(models.Model):
     )
 
     # ---- Core Identifiers ----
-    id = models.BigAutoField(primary_key=True)
-
     unique_id = models.UUIDField(
         default=uuid.uuid4,
         editable=False,

@@ -11,8 +11,6 @@ class SupervisorZoneMap(models.Model):
     # -----------------------------
     # SYSTEM IDENTITY
     # -----------------------------
-    id = models.BigAutoField(primary_key=True)
-
     unique_id = models.CharField(
         max_length=36,
         unique=True,

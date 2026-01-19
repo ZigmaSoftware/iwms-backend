@@ -4,6 +4,7 @@ from api.apps.zone import Zone
 from api.apps.vehicleCreation import VehicleCreation
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
+from api.apps.bin import Bin
 
 
 class BinLoadLogSerializer(serializers.ModelSerializer):
@@ -32,14 +33,23 @@ class BinLoadLogSerializer(serializers.ModelSerializer):
         queryset=SubProperty.objects.all()
     )
 
+    bin_id = serializers.SlugRelatedField(
+        source="bin",
+        slug_field="unique_id",
+        queryset=Bin.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = BinLoadLog
         fields = [
-            "id",
+            "unique_id",
             "zone_id",
             "vehicle_id",
             "property_id",
             "sub_property_id",
+            "bin_id",
             "weight_kg",
             "source_type",
             "event_time",
@@ -47,7 +57,7 @@ class BinLoadLogSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = [
-            "id",
+            "unique_id",
             "processed",
             "created_at",
         ]
