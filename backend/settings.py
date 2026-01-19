@@ -41,7 +41,8 @@ ALLOWED_HOSTS = [
     '10.205.101.232',
     '10.244.208.158',
     '10.183.250.158',  
-    '192.168.5.92'
+    '192.168.5.92',
+    '192.168.7.176'
     
     
 ]
@@ -167,7 +168,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
-    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'api.authentication.jwt.JWTUserAuthentication',
+    ],
 }
 
 # -------------------------------------------------------
@@ -190,6 +193,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://10\.205\.101\.232(:\d+)?$", #dhivya
     r"^http://10\.244\.208\.158(:\d+)?$",  
     r"^http://10\.183\.250\.158(:\d+)?$",
+    r"^http://192\.168\.7\.176(:\d+)?$",
 
     
    

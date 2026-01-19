@@ -11,7 +11,7 @@ from rest_framework.permissions import AllowAny
 
 
 def home(request):
-    return HttpResponse("Django backend is running! Try /api/desktop/ or /api/mobile/")
+    return HttpResponse("Django backend is running! Try /api/desktop/")
 
 
 #  Swagger schema with JWT support
@@ -32,7 +32,7 @@ urlpatterns = [
 
     # APIs
     path("api/desktop/", include("api.urls.desktop_urls")),
-    path("api/mobile/", include("api.urls.mobile_urls")),
+    path("api/desktop/", include("api.urls.mobile_urls")),
 
     # Swagger UI
     path(
