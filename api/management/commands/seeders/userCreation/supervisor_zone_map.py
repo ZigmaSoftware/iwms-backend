@@ -68,12 +68,15 @@ class SupervisorZoneMapSeeder:
 
             new_zone_ids = [zone.unique_id for zone in zone_sample if zone.unique_id]
 
+            district_obj = zone_list[0].district_id if zone_list else None
+            city_obj = zone_list[0].city_id if zone_list else None
+
             if not new_zone_ids:
                 print(f"Skipping {supervisor.unique_id}: no valid zone IDs.")
                 continue
 
             existing = SupervisorZoneMap.objects.filter(
-                supervisor=supervisor,
+                supervisor_id=supervisor,
                 status="ACTIVE",
             ).first()
 
@@ -87,9 +90,9 @@ class SupervisorZoneMapSeeder:
                     existing.save(update_fields=["status"])
 
                 SupervisorZoneMap.objects.create(
-                    supervisor=supervisor,
-                    district_id=district_uid,
-                    city_id=city_uid,
+                    supervisor_id=supervisor,
+                    district_id=district_obj,
+                    city_id=city_obj,
                     zone_ids=new_zone_ids,
                     status="ACTIVE",
                 )

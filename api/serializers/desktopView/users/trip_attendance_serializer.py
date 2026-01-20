@@ -29,7 +29,7 @@ class TripAttendanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = TripAttendance
         fields = [
-            "id",
+            "unique_id",
             "trip_instance_id",
             "staff_id",
             "vehicle_id",
@@ -40,7 +40,7 @@ class TripAttendanceSerializer(serializers.ModelSerializer):
             "source",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["unique_id", "created_at"]
 
     def validate(self, attrs):
         instance = getattr(self, "instance", None)

@@ -3,7 +3,8 @@ from api.apps.routeplan import RoutePlan
 from api.apps.district import District
 from api.apps.zone import Zone
 from api.apps.vehicleCreation import VehicleCreation
-from api.apps.staffcreation import StaffOfficeDetails
+from api.apps.staffUserType import StaffUserType
+from api.apps.userCreation import User
 
 
 class RoutePlanSeeder:
@@ -18,9 +19,15 @@ class RoutePlanSeeder:
         districts = District.objects.filter(is_deleted=False)
         zones = Zone.objects.filter(is_deleted=False)
         vehicles = VehicleCreation.objects.filter(is_deleted=False, is_active=True)
-        supervisors = StaffOfficeDetails.objects.filter(
-            designation__iexact="supervisor",
-            active_status=True
+        try:
+            supervisor_role = StaffUserType.objects.get(name__iexact="supervisor")
+        except StaffUserType.DoesNotExist:
+            raise Exception("Supervisor role missing. Run StaffUserTypeSeeder first.")
+
+        supervisors = User.objects.filter(
+            staffusertype_id=supervisor_role,
+            is_active=True,
+            is_deleted=False,
         )
 
         if not districts.exists():
@@ -55,22 +62,23 @@ class RoutePlanSeeder:
             for zone in district_zones:
                 # Vehicles are not associated with zones currently; use all active vehicles
                 zone_vehicles = vehicles
+                city_obj = zone.city_id
 
                 for vehicle in zone_vehicles:
                     supervisor = supervisor_cycle[sup_index % sup_len]
                     sup_index += 1
 
                     defaults = {
-                        "supervisor_id": supervisor.id,
+                        "supervisor_id": supervisor,
                         "status": "ACTIVE",
                         "is_active": True,
                         "is_deleted": False,
                     }
 
                     qs = RoutePlan.objects.filter(
-                        district_id=district.unique_id,
-                        zone_id=zone.unique_id,
-                        vehicle_id=vehicle.id,
+                        district_id=district,
+                        city_id=city_obj,
+                        vehicle_id=vehicle,
                     ).order_by("id")
 
                     existing = qs.first()
@@ -81,9 +89,9 @@ class RoutePlanSeeder:
                         updated += 1
                     else:
                         RoutePlan.objects.create(
-                            district_id=district.unique_id,
-                            zone_id=zone.unique_id,
-                            vehicle_id=vehicle.id,
+                            district_id=district,
+                            city_id=city_obj,
+                            vehicle_id=vehicle,
                             **defaults,
                         )
                         created += 1

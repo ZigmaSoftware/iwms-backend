@@ -42,8 +42,8 @@ class AlternativeStaffTemplateViewSet(viewsets.ModelViewSet):
 
         return qs.select_related(
             "staff_template",
-            "driver",
-            "operator",
+            "driver_id",
+            "operator_id",
             "requested_by",
             "approved_by",
         )

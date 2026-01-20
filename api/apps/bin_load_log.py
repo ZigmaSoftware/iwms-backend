@@ -94,14 +94,14 @@ class BinLoadLog(models.Model):
         from api.apps.unassigned_staff_pool import UnassignedStaffPool
 
         trip_def = (
-            TripDefinition.objects.select_related("routeplan", "staff_template")
+            TripDefinition.objects.select_related("routeplan_id", "staff_template_id")
             .filter(
                 status=TripDefinition.Status.ACTIVE,
                 approval_status=TripDefinition.ApprovalStatus.APPROVED,
-                property=self.property,
-                sub_property=self.sub_property,
-                routeplan__zone_id=self.zone.unique_id,
-                routeplan__vehicle_id=self.vehicle.id,
+                property_id=self.property,
+                sub_property_id=self.sub_property,
+                routeplan_id__city_id=self.zone.city_id,
+                routeplan_id__vehicle_id=self.vehicle,
             )
             .order_by("-created_at")
             .first()
@@ -132,7 +132,7 @@ class BinLoadLog(models.Model):
         with transaction.atomic():
             instance = TripInstance.objects.create(
                 trip_definition=trip_def,
-                staff_template=trip_def.staff_template,
+                staff_template=trip_def.staff_template_id,
                 alternative_staff_template=None,
                 zone=self.zone,
                 vehicle=self.vehicle,

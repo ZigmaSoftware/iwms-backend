@@ -36,10 +36,10 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
         AlternativeStaffTemplate.objects.get_or_create(
             staff_template=staff_template,
             effective_date=date.today(),
-            driver=driver,
-            operator=operator,
+            driver_id=driver,
+            operator_id=operator,
             defaults={
-                "extra_operator": [str(extra_operator.pk)] if extra_operator else [],
+                "extra_operator_id": [str(extra_operator.pk)] if extra_operator else [],
                 "change_reason": "Temporary staff substitution",
                 "change_remarks": "Seeder-generated record for baseline validation",
                 "requested_by": driver,

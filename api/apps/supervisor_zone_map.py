@@ -21,7 +21,7 @@ class SupervisorZoneMap(models.Model):
     # -----------------------------
     # SUPERVISOR & LOCATION
     # -----------------------------
-    supervisor = models.ForeignKey(
+    supervisor_id = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
         related_name="zone_assignments",
@@ -29,8 +29,19 @@ class SupervisorZoneMap(models.Model):
         db_column="supervisor_id"
     )
 
-    district_id = models.CharField(max_length=30)
-    city_id = models.CharField(max_length=30)
+    district_id = models.ForeignKey(
+        "District",
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        db_column="district_id"
+    )
+
+    city_id = models.ForeignKey(
+        "City",
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        db_column="city_id"
+    )
 
     # Example: ["ZONExxxx", "ZONEyyyy"]
     zone_ids = models.JSONField(
@@ -58,11 +69,11 @@ class SupervisorZoneMap(models.Model):
 
     class Meta:
         db_table = "api_supervisor_zone_map"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["supervisor", "status"]),
+            models.Index(fields=["supervisor_id", "status"]),  
             models.Index(fields=["district_id", "city_id"]),
         ]
-        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.supervisor_id} → {self.zone_ids}"
