@@ -58,7 +58,7 @@ def generate_customer_qr(payload: dict) -> ContentFile:
     {
         "v": 1,
         "type": "HOUSEHOLD",
-        "customer_id": "CUS-XXXX",
+        "customer_id": "USER-XXXX",
         "tag_code": "CT-CHN-W01-000001",
         "zone": "Zone 1",
         "ward": "Ward 1"
