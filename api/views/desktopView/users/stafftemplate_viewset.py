@@ -4,6 +4,7 @@ from rest_framework.exceptions import NotAuthenticated
 
 from api.apps.userCreation import User
 from api.apps.stafftemplate import StaffTemplate
+from api.apps.staff_template_audit_log import StaffTemplateAuditLog
 from api.serializers.desktopView.users.stafftemplate_serializer import (
     StaffTemplateSerializer
 )
@@ -76,17 +77,50 @@ class StaffTemplateViewSet(viewsets.ModelViewSet):
         user = self._resolve_request_user()
         if not user:
             raise NotAuthenticated("Authentication required")
-        serializer.save(
+        instance = serializer.save(
             created_by=user,
             updated_by=user,
             approved_by=serializer.validated_data.get("approved_by"),
+        )
+        self._log_audit(
+            user=user,
+            action=StaffTemplateAuditLog.Action.CREATE,
+            entity_id=instance.unique_id,
+            remarks=None,
         )
 
     def perform_update(self, serializer):
         user = self._resolve_request_user()
         if not user:
             raise NotAuthenticated("Authentication required")
-        serializer.save(
+        instance = serializer.save(
             updated_by=user or serializer.instance.updated_by,
             approved_by=serializer.validated_data.get("approved_by", serializer.instance.approved_by),
+        )
+        self._log_audit(
+            user=user,
+            action=StaffTemplateAuditLog.Action.MODIFY,
+            entity_id=instance.unique_id,
+            remarks=None,
+        )
+
+    def _resolve_performed_role(self, user):
+        role = getattr(getattr(user, "staffusertype_id", None), "name", "") or ""
+        role = role.lower()
+        if role == "admin":
+            return StaffTemplateAuditLog.PerformedRole.ADMIN
+        if role == "supervisor":
+            return StaffTemplateAuditLog.PerformedRole.SUPERVISOR
+        return StaffTemplateAuditLog.PerformedRole.SUPERVISOR
+
+    def _log_audit(self, user, action, entity_id, remarks=None):
+        if not user:
+            return
+        StaffTemplateAuditLog.objects.create(
+            entity_type=StaffTemplateAuditLog.EntityType.STAFF_TEMPLATE,
+            entity_id=str(entity_id),
+            action=action,
+            performed_by=user,
+            performed_role=self._resolve_performed_role(user),
+            change_remarks=remarks if isinstance(remarks, str) else None,
         )

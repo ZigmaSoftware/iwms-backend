@@ -35,7 +35,7 @@ class ZonePropertyLoadTrackerSerializer(serializers.ModelSerializer):
     class Meta:
         model = ZonePropertyLoadTracker
         fields = [
-            "id",
+            "unique_id",
             "zone_id",
             "vehicle_id",
             "property_id",
@@ -44,6 +44,6 @@ class ZonePropertyLoadTrackerSerializer(serializers.ModelSerializer):
             "last_updated",
         ]
         read_only_fields = [
-            "id",
+            "unique_id",
             "last_updated",
         ]

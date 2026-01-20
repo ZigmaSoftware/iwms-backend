@@ -3,6 +3,12 @@ from api.apps.zone import Zone
 from api.apps.vehicleCreation import VehicleCreation
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
+from api.apps.bin import Bin
+from .utils.comfun import generate_unique_id
+
+
+def generate_bin_load_log_id():
+    return f"BLL-{generate_unique_id()}"
 
 
 class BinLoadLog(models.Model):
@@ -11,6 +17,14 @@ class BinLoadLog(models.Model):
         WEIGHBRIDGE = "WEIGHBRIDGE", "Weighbridge"
         SENSOR = "SENSOR", "Sensor"
         MANUAL = "MANUAL", "Manual"
+
+    # ---------- Identity ----------
+    unique_id = models.CharField(
+        max_length=40,
+        primary_key=True,
+        default=generate_bin_load_log_id,
+        editable=False,
+    )
 
     zone = models.ForeignKey(
         Zone,
@@ -34,6 +48,17 @@ class BinLoadLog(models.Model):
         SubProperty,
         on_delete=models.PROTECT,
         related_name="bin_load_logs"
+    )
+
+    bin = models.ForeignKey(
+        Bin,
+        on_delete=models.PROTECT,
+        related_name="load_logs",
+        to_field="unique_id",
+        db_column="bin_id",
+        null=True,
+        blank=True,
+        help_text="The specific bin this load was collected from"
     )
 
     weight_kg = models.PositiveIntegerField()

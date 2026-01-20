@@ -8,6 +8,7 @@ from api.apps.zone import Zone
 from api.apps.vehicleCreation import VehicleCreation
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
+from api.apps.bin import Bin
 
 
 class BinLoadLogSeeder(BaseSeeder):
@@ -20,6 +21,7 @@ class BinLoadLogSeeder(BaseSeeder):
         )
         property_obj = Property.objects.filter(is_deleted=False).first()
         sub_property_obj = SubProperty.objects.filter(is_deleted=False).first()
+        bins = list(Bin.objects.filter(is_active=True, is_deleted=False)[:2])
 
         if not zones or not vehicles or not property_obj or not sub_property_obj:
             self.log("BinLoadLogSeeder skipped (missing dependencies).")
@@ -30,6 +32,7 @@ class BinLoadLogSeeder(BaseSeeder):
 
         for idx, zone in enumerate(zones):
             vehicle = vehicles[idx % len(vehicles)]
+            bin_obj = bins[idx % len(bins)] if bins else None
             event_time = start_time + timedelta(minutes=15 * idx)
 
             _, was_created = BinLoadLog.objects.get_or_create(
@@ -42,6 +45,7 @@ class BinLoadLogSeeder(BaseSeeder):
                     "weight_kg": 250 + (idx * 50),
                     "source_type": BinLoadLog.SourceType.MANUAL,
                     "processed": False,
+                    "bin": bin_obj,
                 },
             )
 

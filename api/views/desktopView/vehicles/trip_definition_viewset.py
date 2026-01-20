@@ -15,10 +15,10 @@ class TripDefinitionViewSet(ModelViewSet):
     """
 
     queryset = TripDefinition.objects.select_related(
-        "routeplan",
-        "staff_template",
-        "property",
-        "sub_property",
+        "routeplan_id",
+        "staff_template_id",
+        "property_id",
+        "sub_property_id",
     )
 
     serializer_class = TripDefinitionSerializer

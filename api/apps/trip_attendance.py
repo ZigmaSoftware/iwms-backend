@@ -2,7 +2,9 @@ from django.db import models
 from api.apps.trip_instance import TripInstance
 from api.apps.userCreation import User
 from api.apps.vehicleCreation import VehicleCreation
-
+from api.apps.utils.comfun import generate_unique_id
+def generate_trip_attendance_id():
+    return f"TRIPATT-{generate_unique_id()}"    
 
 def trip_attendance_upload_path(instance, filename):
     role = "staff"
@@ -22,7 +24,12 @@ class TripAttendance(models.Model):
         MOBILE = "MOBILE", "Mobile App"
         VEHICLE_CAM = "VEHICLE_CAM", "Vehicle Camera"
 
-    id = models.BigAutoField(primary_key=True)
+    unique_id = models.CharField(
+        max_length=40,
+        primary_key=True,
+        default=generate_trip_attendance_id,
+        editable=False,
+    )
 
     trip_instance = models.ForeignKey(
         TripInstance,
