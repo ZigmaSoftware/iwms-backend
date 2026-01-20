@@ -4,6 +4,7 @@ from api.apps.userCreation import User
 
 
 class SupervisorZoneAccessAuditSerializer(serializers.ModelSerializer):
+    unique_id = serializers.CharField(read_only=True)
     supervisor_id = serializers.SlugRelatedField(
         source="supervisor",
         slug_field="unique_id",
@@ -18,7 +19,7 @@ class SupervisorZoneAccessAuditSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupervisorZoneAccessAudit
         fields = [
-            "id",
+            "unique_id",
             "supervisor_id",
             "old_zone_ids",
             "new_zone_ids",

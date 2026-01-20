@@ -3,6 +3,11 @@ from api.apps.zone import Zone
 from api.apps.vehicleCreation import VehicleCreation
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
+from .utils.comfun import generate_unique_id
+
+
+def generate_zone_property_load_tracker_id():
+    return f"ZPLT-{generate_unique_id()}"   
 
 
 class ZonePropertyLoadTracker(models.Model):
@@ -10,9 +15,14 @@ class ZonePropertyLoadTracker(models.Model):
     Live state table.
     Tracks pending, undispatched load per zone + property (+ vehicle).
     """
-
-    id = models.BigAutoField(primary_key=True)
-
+    
+    unique_id = models.CharField(
+        max_length=40,
+        primary_key=True,
+        default=generate_zone_property_load_tracker_id,
+        editable=False,
+    )
+    
     zone = models.ForeignKey(
         Zone,
         on_delete=models.PROTECT,

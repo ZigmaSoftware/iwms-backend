@@ -40,10 +40,12 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         queryset=StaffTemplate.objects.all(),
     )
     driver = UniqueIdOrPkField(
+        source="driver_id",
         slug_field="unique_id",
         queryset=User.objects.filter(is_deleted=False),
     )
     operator = UniqueIdOrPkField(
+        source="operator_id",
         slug_field="unique_id",
         queryset=User.objects.filter(is_deleted=False),
     )
@@ -59,9 +61,14 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     extra_operator = CommaSeparatedListField(
+        source="extra_operator_id",
         child=serializers.CharField(),
         required=False,
         allow_empty=True,
+    )
+    staff_template_display_code = serializers.CharField(
+        source="staff_template.display_code",
+        read_only=True,
     )
     class Meta:
         model = AlternativeStaffTemplate
@@ -69,6 +76,7 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
             'id',
             'unique_id',
             'staff_template',
+            'staff_template_display_code',
             'effective_date',
             'driver',
             'operator',
@@ -83,6 +91,7 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'unique_id',
+            'staff_template_display_code',
             'created_at',
         ]
 
@@ -93,22 +102,22 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         """
         instance = getattr(self, "instance", None)
 
-        def resolve(field_name):
-            if field_name in attrs:
-                return attrs.get(field_name)
-            return getattr(instance, field_name) if instance else None
+        def resolve(source_name):
+            if source_name in attrs:
+                return attrs.get(source_name)
+            return getattr(instance, source_name) if instance else None
 
-        driver = resolve("driver")
-        operator = resolve("operator")
+        driver = resolve("driver_id")
+        operator = resolve("operator_id")
 
         if driver and operator and driver == operator:
             raise serializers.ValidationError(
                 "Driver and Operator cannot be the same user."
             )
 
-        extra_operator = attrs.get("extra_operator")
+        extra_operator = attrs.get("extra_operator_id")
         if extra_operator is None and instance:
-            extra_operator = instance.extra_operator
+            extra_operator = instance.extra_operator_id
 
         if extra_operator is not None:
             if not isinstance(extra_operator, list):
@@ -149,6 +158,6 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
                         )
                     })
 
-            attrs["extra_operator"] = extra_ids
+            attrs["extra_operator_id"] = extra_ids
 
         return attrs

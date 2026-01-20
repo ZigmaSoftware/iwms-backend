@@ -23,7 +23,7 @@ class VehicleTripAuditSerializer(serializers.ModelSerializer):
     class Meta:
         model = VehicleTripAudit
         fields = [
-            "id",
+            "unique_id",
             "trip_instance_id",
             "vehicle_id",
             "gps_lat",
@@ -33,7 +33,7 @@ class VehicleTripAuditSerializer(serializers.ModelSerializer):
             "captured_at",
             "created_at",
         ]
-        read_only_fields = ["id", "idle_seconds", "created_at"]
+        read_only_fields = ["unique_id", "idle_seconds", "created_at"]
 
     def validate(self, attrs):
         instance = getattr(self, "instance", None)

@@ -1,5 +1,10 @@
 from django.db import models
 from api.apps.trip_instance import TripInstance
+from api.apps.utils.comfun import generate_unique_id
+
+
+def generate_trip_exception_id():
+    return generate_unique_id()
 
 
 class TripExceptionLog(models.Model):
@@ -17,8 +22,13 @@ class TripExceptionLog(models.Model):
     class DetectedBy(models.TextChoices):
         SYSTEM = "SYSTEM", "System"
         SUPERVISOR = "SUPERVISOR", "Supervisor"
-
-    id = models.BigAutoField(primary_key=True)
+        
+    unique_id = models.CharField(
+        max_length=40,
+        primary_key=True,
+        default=generate_trip_exception_id,
+        editable=False,
+    )
 
     trip_instance = models.ForeignKey(
         TripInstance,
