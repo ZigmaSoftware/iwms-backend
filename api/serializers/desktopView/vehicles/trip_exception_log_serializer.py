@@ -14,14 +14,14 @@ class TripExceptionLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = TripExceptionLog
         fields = [
-            "id",
+            "unique_id",
             "trip_instance_id",
             "exception_type",
             "remarks",
             "detected_by",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["unique_id", "created_at"]
 
     def validate(self, attrs):
         trip = attrs["trip_instance"]

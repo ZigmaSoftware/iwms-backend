@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
 
 from api.apps.alternative_staff_template import AlternativeStaffTemplate
+from api.apps.staff_template_audit_log import StaffTemplateAuditLog
 from api.apps.userCreation import User
 from api.serializers.desktopView.users.alternative_stafftemplate_serializer import (
     AlternativeStaffTemplateSerializer
@@ -41,8 +42,8 @@ class AlternativeStaffTemplateViewSet(viewsets.ModelViewSet):
 
         return qs.select_related(
             "staff_template",
-            "driver",
-            "operator",
+            "driver_id",
+            "operator_id",
             "requested_by",
             "approved_by",
         )
@@ -68,9 +69,27 @@ class AlternativeStaffTemplateViewSet(viewsets.ModelViewSet):
         user = self._resolve_request_user()
         if not user:
             raise NotAuthenticated("Authentication required")
-        serializer.save(
+        instance = serializer.save(
             approval_status="PENDING",
             requested_by=user,
+        )
+        self._log_audit(
+            user=user,
+            action=StaffTemplateAuditLog.Action.CREATE,
+            entity_id=instance.unique_id,
+            remarks=instance.change_remarks,
+        )
+
+    def perform_update(self, serializer):
+        user = self._resolve_request_user()
+        if not user:
+            raise NotAuthenticated("Authentication required")
+        instance = serializer.save()
+        self._log_audit(
+            user=user,
+            action=StaffTemplateAuditLog.Action.MODIFY,
+            entity_id=instance.unique_id,
+            remarks=instance.change_remarks,
         )
 
     def update(self, request, *args, **kwargs):
@@ -83,3 +102,24 @@ class AlternativeStaffTemplateViewSet(viewsets.ModelViewSet):
             )
 
         return super().update(request, *args, **kwargs)
+
+    def _resolve_performed_role(self, user):
+        role = getattr(getattr(user, "staffusertype_id", None), "name", "") or ""
+        role = role.lower()
+        if role == "admin":
+            return StaffTemplateAuditLog.PerformedRole.ADMIN
+        if role == "supervisor":
+            return StaffTemplateAuditLog.PerformedRole.SUPERVISOR
+        return StaffTemplateAuditLog.PerformedRole.SUPERVISOR
+
+    def _log_audit(self, user, action, entity_id, remarks=None):
+        if not user:
+            return
+        StaffTemplateAuditLog.objects.create(
+            entity_type=StaffTemplateAuditLog.EntityType.ALTERNATIVE_TEMPLATE,
+            entity_id=str(entity_id),
+            action=action,
+            performed_by=user,
+            performed_role=self._resolve_performed_role(user),
+            change_remarks=remarks if isinstance(remarks, str) else None,
+        )

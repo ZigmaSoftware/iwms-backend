@@ -1,6 +1,11 @@
 from django.db import models
 from api.apps.trip_instance import TripInstance
 from api.apps.vehicleCreation import VehicleCreation
+from api.apps.utils.comfun import generate_unique_id
+
+
+def generate_vehicle_trip_audit_id():
+    return f"VTA-{generate_unique_id()}"    
 
 
 class VehicleTripAudit(models.Model):
@@ -9,7 +14,12 @@ class VehicleTripAudit(models.Model):
     and compliance analysis.
     """
 
-    id = models.BigAutoField(primary_key=True)
+    unique_id = models.CharField(
+        max_length=40,
+        primary_key=True,
+        default=generate_vehicle_trip_audit_id,
+        editable=False,
+    )
 
     trip_instance = models.ForeignKey(
         TripInstance,

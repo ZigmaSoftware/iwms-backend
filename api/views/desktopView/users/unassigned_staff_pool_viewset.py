@@ -15,10 +15,16 @@ class UnassignedStaffPoolViewSet(ModelViewSet):
     Used by system + supervisors.
     """
 
-    queryset = UnassignedStaffPool.objects.all()
     serializer_class = UnassignedStaffPoolSerializer
     permission_resource = "UnassignedStaffPool"
     swagger_tags = ["Desktop / Staff Availability"]
+
+    def get_queryset(self):
+        qs = UnassignedStaffPool.objects.all()
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            return qs.filter(status=status_param)
+        return qs.filter(status=UnassignedStaffPool.Status.AVAILABLE)
 
     def perform_create(self, serializer):
         self._validate_trip_instance_alignment(serializer.validated_data)
