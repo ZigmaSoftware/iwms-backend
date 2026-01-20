@@ -5,8 +5,18 @@ from .userCreation import User
 def generate_stafftemplate_id():
     return f"STAFFTEMPLATE-{generate_unique_id()}"
 
-
 class StaffTemplate(models.Model):
+    
+    class ApprovalStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    class Status(models.TextChoices):
+        ACTIVE = "ACTIVE", "Active"
+        INACTIVE = "INACTIVE", "Inactive"
+
+
     unique_id = models.CharField(
         max_length=40,
         unique=True,
@@ -60,25 +70,18 @@ class StaffTemplate(models.Model):
         blank=True
     )
 
-    STATUS_CHOICES =(
-        ("ACTIVE", "Active"),
-        ("INACTIVE", "Inactive"),
-    )
-    APPROVAL_STATUS_CHOICES =(
-        ("PENDING", "Pending"),
-        ("APPROVED", "Approved"),
-        ("REJECTED", "Rejected"),
-    )
-    status = models.CharField(
-        max_length=10,
-        choices=STATUS_CHOICES,
-        default="INACTIVE"
-    )
     approval_status = models.CharField(
         max_length=10,
-        choices=APPROVAL_STATUS_CHOICES,
-        default="PENDING"
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.PENDING
     )
+
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.ACTIVE
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
