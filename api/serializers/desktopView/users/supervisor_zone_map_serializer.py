@@ -2,12 +2,68 @@ from rest_framework import serializers
 from api.apps.supervisor_zone_map import SupervisorZoneMap
 from api.apps.userCreation import User
 
+from rest_framework import serializers
 
+from api.apps.supervisor_zone_map import SupervisorZoneMap
+from api.apps.userCreation import User
+from api.apps.zone import Zone
+from api.apps.ward import Ward
+
+
+# ============================================================
+# WARD SERIALIZER
+# ============================================================
+class WardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ward
+        fields = [
+            "unique_id",
+            "name",
+            "area_type",
+            "coordinates",
+            "geofencing_type",
+            "geofencing_color",
+        ]
+
+
+# ============================================================
+# ZONE SERIALIZER (WITH WARDS)
+# ============================================================
+class ZoneWithWardsSerializer(serializers.ModelSerializer):
+    wards = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Zone
+        fields = [
+            "unique_id",
+            "name",
+            "city_id",
+            "district_id",
+            "area_type",
+            "coordinates",
+            "geofencing_type",
+            "geofencing_color",
+            "wards",
+        ]
+
+    def get_wards(self, obj):
+        wards = obj.ward_set.filter(
+            is_active=True,
+            is_deleted=False
+        )
+        return WardSerializer(wards, many=True).data
+
+
+# ============================================================
+# SUPERVISOR → ZONE → WARD MAPPING SERIALIZER
+# ============================================================
 class SupervisorZoneMapSerializer(serializers.ModelSerializer):
     supervisor_id = serializers.SlugRelatedField(
         slug_field="unique_id",
         queryset=User.objects.all()
     )
+
+    zones = serializers.SerializerMethodField()
 
     class Meta:
         model = SupervisorZoneMap
@@ -18,14 +74,29 @@ class SupervisorZoneMapSerializer(serializers.ModelSerializer):
             "district_id",
             "city_id",
             "zone_ids",
+            "zones",          # mapped zones + wards
             "status",
             "created_at",
         ]
         read_only_fields = ["id", "unique_id", "created_at"]
 
-    # -----------------------------
+    # ------------------------------------------------------------
+    # ZONE + WARD MAPPING
+    # ------------------------------------------------------------
+    def get_zones(self, obj):
+        zones = Zone.objects.filter(
+            unique_id__in=obj.zone_ids,
+            is_active=True,
+            is_deleted=False
+        ).prefetch_related(
+            "ward_set"
+        )
+
+        return ZoneWithWardsSerializer(zones, many=True).data
+
+    # ------------------------------------------------------------
     # VALIDATIONS
-    # -----------------------------
+    # ------------------------------------------------------------
     def validate_zone_ids(self, value):
         if isinstance(value, str):
             value = [item.strip() for item in value.split(",") if item.strip()]
