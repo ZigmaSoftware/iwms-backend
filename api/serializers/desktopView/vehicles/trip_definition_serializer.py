@@ -10,25 +10,21 @@ from api.apps.subproperty import SubProperty
 class TripDefinitionSerializer(serializers.ModelSerializer):
 
     routeplan_id = serializers.SlugRelatedField(
-        source="routeplan",
         slug_field="unique_id",
         queryset=RoutePlan.objects.all()
     )
 
     staff_template_id = serializers.SlugRelatedField(
-        source="staff_template",
         slug_field="unique_id",
         queryset=StaffTemplate.objects.all()
     )
 
     property_id = serializers.SlugRelatedField(
-        source="property",
         slug_field="unique_id",
         queryset=Property.objects.all()
     )
 
     sub_property_id = serializers.SlugRelatedField(
-        source="sub_property",
         slug_field="unique_id",
         queryset=SubProperty.objects.all()
     )
