@@ -12,7 +12,14 @@ class GroupedRouter(DefaultRouter):
         super().__init__(*args, **kwargs)
         self.group_map = OrderedDict()
 
-    def register_group(self, group, prefix, viewset, basename=None):
+    def register_group(
+        self,
+        group,
+        prefix,
+        viewset,
+        basename=None,
+        include_group_in_prefix=True,
+    ):
         """
         group    → masters / assets / customers
         prefix   → continents / fuels
@@ -23,9 +30,10 @@ class GroupedRouter(DefaultRouter):
             self.group_map[group] = []
 
         base = basename or f"{group}-{prefix}".replace("/", "-")
-
-        #  THIS IS THE FIX
-        full_prefix = f"{group}/{prefix}"
+        if include_group_in_prefix:
+            full_prefix = f"{group}/{prefix}"
+        else:
+            full_prefix = prefix
 
         self.group_map[group].append({
             "prefix": prefix,

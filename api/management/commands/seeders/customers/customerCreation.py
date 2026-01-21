@@ -9,6 +9,7 @@ from api.apps.ward import Ward
 
 from api.apps.customercreation import CustomerCreation
 from api.apps.customer_tag import CustomerTag
+from api.apps.userCreation import User
 
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
@@ -94,16 +95,23 @@ class CustomerCreationSeeder(BaseSeeder):
             # --------------------------------------------------
             # HOUSEHOLD QR (MANDATORY)
             # --------------------------------------------------
+            user = User.objects.filter(customer_id=customer).first()
+            if not user:
+                continue
+
             tag_exists = CustomerTag.objects.filter(
-                customer=customer,
+                customer=user,
                 status=CustomerTag.Status.ACTIVE
             ).exists()
 
             if not tag_exists:
                 # Deterministic, admin-readable code
                 tag_code = generate_customer_tag_code(
-                city_code=city.name[:3],
-                ward_code=ward.name.replace("Ward", "").strip()
+                city_code=(customer.city.name if customer.city else city.name)[:3],
+                ward_code=(
+                    customer.ward.name.replace("Ward", "").strip()
+                    if customer.ward else ward.name.replace("Ward", "").strip()
+                )
 )
 
 
@@ -111,15 +119,15 @@ class CustomerCreationSeeder(BaseSeeder):
                 qr_image = generate_customer_qr(
                     payload={
                         "type": "HOUSEHOLD",
-                        "customer_id": customer.unique_id,
+                        "customer_id": user.unique_id,
                         "tag_code": tag_code,
-                        "zone": zone.name,
-                        "ward": ward.name,
+                        "zone": customer.zone.name if customer.zone else zone.name,
+                        "ward": customer.ward.name if customer.ward else ward.name,
                     }
                 )
 
                 CustomerTag.objects.create(
-                    customer=customer,
+                    customer=user,
                     tag_code=tag_code,
                     qr_image=qr_image,
                     status=CustomerTag.Status.ACTIVE,
