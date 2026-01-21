@@ -1,5 +1,10 @@
 from django.db import models
 from api.apps.utils.comfun import generate_unique_id
+from .city import City
+from .district import District
+from .zone import Zone
+from .vehicleCreation import VehicleCreation
+from .userCreation import User
 
 
 def generate_routeplan_id():
@@ -15,7 +20,7 @@ class RoutePlan(models.Model):
     )
 
     district_id = models.ForeignKey(
-        "District",
+        District,
         on_delete=models.PROTECT,
         to_field="unique_id",
         db_column="district_id",
@@ -23,15 +28,23 @@ class RoutePlan(models.Model):
     )
 
     city_id = models.ForeignKey(
-        "City",
+        City,
         on_delete=models.PROTECT,
         to_field="unique_id",
         db_column="city_id",
         related_name="route_plans"
     )
+    
+    zone_id = models.ForeignKey(
+        Zone,
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        db_column="zone_id",
+        related_name="route_plans"
+    )
 
     vehicle_id = models.ForeignKey(
-        "VehicleCreation",
+        VehicleCreation,
         on_delete=models.PROTECT,
         to_field="unique_id",
         db_column="vehicle_id",
@@ -39,7 +52,7 @@ class RoutePlan(models.Model):
     )
 
     supervisor_id = models.ForeignKey(
-        "User",
+        User,
         on_delete=models.PROTECT,
         to_field="unique_id",
         db_column="supervisor_id",
