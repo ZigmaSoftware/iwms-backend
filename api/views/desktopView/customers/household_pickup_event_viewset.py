@@ -15,12 +15,12 @@ class HouseholdPickupEventViewSet(ModelViewSet):
     """
 
     queryset = HouseholdPickupEvent.objects.select_related(
-        "customer",
-        "zone",
-        "property",
-        "sub_property",
-        "collector_staff",
-        "vehicle",
+        "customer_id",
+        "zone_id",
+        "property_id",
+        "sub_property_id",
+        "collector_staff_id",
+        "vehicle_id",
     )
     serializer_class = HouseholdPickupEventSerializer
 

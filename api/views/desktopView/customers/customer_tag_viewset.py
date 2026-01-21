@@ -23,6 +23,7 @@ class CustomerTagViewSet(ModelViewSet):
 
     queryset = CustomerTag.objects.all()
     serializer_class = CustomerTagSerializer
+    lookup_field = "unique_id"
     permission_resource = "CustomerTag"
     
     def _get_city_code(self, city):
@@ -50,15 +51,26 @@ class CustomerTagViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         customer = serializer.validated_data["customer"]
+        customer_profile = getattr(customer, "customer_id", None)
+        if not customer_profile:
+            return Response(
+                {"detail": "Selected user has no customer profile"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if CustomerTag.objects.filter(customer=customer).exists():
+            return Response(
+                {"detail": "Customer tag already exists for this user"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        if not customer.city or not customer.ward:
+        if not customer_profile.city or not customer_profile.ward:
             return Response(
                 {"detail": "Customer must have city and ward to issue tag"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        city_code = self._get_city_code(customer.city).upper()
-        ward_code = self._get_ward_code(customer.ward)
+        city_code = self._get_city_code(customer_profile.city).upper()
+        ward_code = self._get_ward_code(customer_profile.ward)
 
         if not ward_code:
             return Response(
@@ -73,8 +85,8 @@ class CustomerTagViewSet(ModelViewSet):
                 "type": "HOUSEHOLD",
                 "customer_id": customer.unique_id,
                 "tag_code": tag_code,
-                "zone": customer.zone.name if customer.zone else None,
-                "ward": customer.ward.name if customer.ward else None,
+                "zone": customer_profile.zone.name if customer_profile.zone else None,
+                "ward": customer_profile.ward.name if customer_profile.ward else None,
             }
             qr_file = generate_customer_qr(qr_payload)
 
@@ -92,17 +104,34 @@ class CustomerTagViewSet(ModelViewSet):
     def update(self, request, *args, **kwargs):
         """
         ADMIN + SUPERVISOR.
-        Only revocation allowed.
+        Only status updates allowed.
         """
         instance = self.get_object()
-
-        if instance.status == "REVOKED":
+        status_value = request.data.get("status")
+        if not status_value:
             return Response(
-                {"detail": "Tag already revoked"},
+                {"detail": "Status is required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        instance.revoke()
+        valid_statuses = {choice[0] for choice in CustomerTag.Status.choices}
+        if status_value not in valid_statuses:
+            return Response(
+                {"detail": "Invalid status"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if instance.status == status_value:
+            return Response(
+                {"detail": "Status already set"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if status_value == CustomerTag.Status.INACTIVE:
+            instance.deactivate()
+        else:
+            instance.status = status_value
+            instance.save(update_fields=["status", "updated_at"])
 
         return Response(
             CustomerTagSerializer(instance).data,

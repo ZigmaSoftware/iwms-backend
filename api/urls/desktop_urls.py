@@ -1,7 +1,5 @@
 from django.urls import path, include
 
-from api.views.mobileView.grievance.main_category_viewset import MainCategoryViewSet
-from api.views.mobileView.grievance.sub_category_viewset import SubCategoryViewSet
 from .custom_router import GroupedRouter
 
 # ============================================================
@@ -39,7 +37,7 @@ from ..views.desktopView.customers.household_pickup_event_viewset import (
 from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
 from ..views.desktopView.users.user_viewset import UserViewSet
-from ..views.desktopView.users.login_viewset import LoginViewSet
+from ..views.desktopView.users.login_viewset import LoginViewSet as DesktopLoginViewSet
 from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
 from ..views.desktopView.users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
@@ -70,6 +68,20 @@ from ..views.desktopView.vehicles.bin_load_log_viewset import BinLoadLogViewSet
 
 # Complaints
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
+
+# Mobile
+from api.views.mobileView.citizen_login.new_login_views import (
+    LoginViewSet as MobileLoginViewSet,
+)
+from api.views.mobileView.grievance.main_category_viewset import MainCategoryViewSet
+from api.views.mobileView.grievance.sub_category_viewset import SubCategoryViewSet
+from api.views.mobileView.waste_collection_bluetooth.waste_bluetooth_viewset import (WasteCollectionBluetoothViewSet,)
+from api.views.mobileView.attendance_view.register import RegisterViewSet
+from api.views.mobileView.attendance_view.recognize import RecognizeViewSet
+from api.views.mobileView.attendance_view.employee_viewset import EmployeeViewSet
+from api.views.mobileView.attendance_view.staff_profile_viewset import StaffProfileViewSet
+from api.views.mobileView.attendance_view.attendance_list import AttendanceListViewSet
+
 
 router = GroupedRouter()
 
@@ -129,7 +141,7 @@ router.register_group("vehicles", "trip-attendance", TripAttendanceViewSet)
 # ============================================================
 # GROUP: login
 # ============================================================
-router.register_group("login", "login-user",      LoginViewSet)
+router.register_group("login", "login-user",      DesktopLoginViewSet)
 
 
 # ============================================================
@@ -163,10 +175,78 @@ router.register_group("vehicles", "vehicle-trip-audit",    VehicleTripAuditViewS
 router.register_group("vehicles", "trip-exception-log",    TripExceptionLogViewSet)
 
 
+
+# ============================================================
+# GROUP: MOBILE URLS
+# ============================================================
+router.register_group(
+    "mobile",
+    "login",
+    MobileLoginViewSet,
+    basename="mobile-login",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "main-category",
+    MainCategoryViewSet,
+    basename="mobile-main-category",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "sub-category",
+    SubCategoryViewSet,
+    basename="mobile-sub-category",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "register",
+    RegisterViewSet,
+    basename="mobile-register",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "recognize",
+    RecognizeViewSet,
+    basename="mobile-recognize",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "employee",
+    EmployeeViewSet,
+    basename="mobile-employee",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "staff-profile",
+    StaffProfileViewSet,
+    basename="mobile-staff-profile",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "waste",
+    WasteCollectionBluetoothViewSet,
+    basename="mobile-waste-collection",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "attendance-list",
+    AttendanceListViewSet,
+    basename="mobile-attendance-list",
+    include_group_in_prefix=False,
+)
+
+
 # ============================================================
 # URLS
 # ============================================================
 urlpatterns = [
     path("", include(router.urls)),
-    path('', include(router.urls)),
 ]
