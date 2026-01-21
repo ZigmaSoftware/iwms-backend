@@ -66,10 +66,28 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         required=False,
         allow_empty=True,
     )
+    driver_name = serializers.SerializerMethodField(read_only=True)
+    operator_name = serializers.SerializerMethodField(read_only=True)
     staff_template_display_code = serializers.CharField(
         source="staff_template.display_code",
         read_only=True,
     )
+
+    def get_driver_name(self, obj):
+        staff = getattr(getattr(obj, "driver_id", None), "staff_id", None)
+        return getattr(staff, "employee_name", None) or getattr(
+            getattr(obj, "driver_id", None),
+            "unique_id",
+            None,
+        )
+
+    def get_operator_name(self, obj):
+        staff = getattr(getattr(obj, "operator_id", None), "staff_id", None)
+        return getattr(staff, "employee_name", None) or getattr(
+            getattr(obj, "operator_id", None),
+            "unique_id",
+            None,
+        )
     class Meta:
         model = AlternativeStaffTemplate
         fields = [
@@ -79,7 +97,9 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
             'staff_template_display_code',
             'effective_date',
             'driver',
+            'driver_name',
             'operator',
+            'operator_name',
             'extra_operator',
             'change_reason',
             'change_remarks',

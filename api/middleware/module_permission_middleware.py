@@ -30,6 +30,14 @@ PROTECTED_MODULES = [
 AUTH_ONLY_PREFIXES = (
     "/api/mobile/main-category/",
     "/api/mobile/sub-category/",
+    "/api/desktop/main-category/",
+    "/api/desktop/sub-category/",
+    "/api/desktop/register/",
+    "/api/desktop/recognize/",
+    "/api/desktop/employee/",
+    "/api/desktop/staff-profile/",
+    "/api/desktop/waste/",
+    "/api/desktop/attendance-list/",
 )
 
 PUBLIC_PREFIXES = (
