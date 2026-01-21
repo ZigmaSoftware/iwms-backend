@@ -18,7 +18,13 @@ class AlternativeStaffTemplateViewSet(viewsets.ModelViewSet):
     - Filter by status, date, template
     """
 
-    queryset = AlternativeStaffTemplate.objects.all()
+    queryset = AlternativeStaffTemplate.objects.select_related(
+        "staff_template",
+        "driver_id",
+        "operator_id",
+        "driver_id__staff_id",
+        "operator_id__staff_id",
+    )
     serializer_class = AlternativeStaffTemplateSerializer
 
     # 🔒 CRITICAL: single source of truth for middleware

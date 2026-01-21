@@ -11,37 +11,31 @@ from api.apps.vehicleCreation import VehicleCreation
 class HouseholdPickupEventSerializer(serializers.ModelSerializer):
 
     customer_id = serializers.SlugRelatedField(
-        source="customer",
         slug_field="unique_id",
         queryset=CustomerCreation.objects.all()
     )
 
     zone_id = serializers.SlugRelatedField(
-        source="zone",
         slug_field="unique_id",
         queryset=Zone.objects.all()
     )
 
     property_id = serializers.SlugRelatedField(
-        source="property",
         slug_field="unique_id",
         queryset=Property.objects.all()
     )
 
     sub_property_id = serializers.SlugRelatedField(
-        source="sub_property",
         slug_field="unique_id",
         queryset=SubProperty.objects.all()
     )
 
     collector_staff_id = serializers.SlugRelatedField(
-        source="collector_staff",
         slug_field="unique_id",
         queryset=User.objects.all()
     )
 
     vehicle_id = serializers.SlugRelatedField(
-        source="vehicle",
         slug_field="unique_id",
         queryset=VehicleCreation.objects.all()
     )

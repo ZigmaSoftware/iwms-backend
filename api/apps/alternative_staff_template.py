@@ -1,4 +1,3 @@
-import uuid
 from django.db import models
 from .utils.comfun import generate_unique_id
 from .userCreation import User
@@ -22,10 +21,11 @@ class AlternativeStaffTemplate(models.Model):
     )
 
     # ---- Core Identifiers ----
-    unique_id = models.UUIDField(
-        default=uuid.uuid4,
-        editable=False,
-        unique=True
+    unique_id = models.CharField(
+        max_length=50,
+        unique=True,
+        default=generate_alternative_staff_template_id,
+        editable=False
     )
 
     # ---- Business Mapping ----
