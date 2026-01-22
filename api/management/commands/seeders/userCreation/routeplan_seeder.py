@@ -12,39 +12,20 @@ class RoutePlanSeeder:
     def run(self):
         print("Seeding Route Plans...")
 
-        # --------------------------------------------------
-        # VALIDATE DEPENDENCIES
-        # --------------------------------------------------
         districts = District.objects.filter(is_deleted=False)
         zones = Zone.objects.filter(is_deleted=False)
-        vehicles = VehicleCreation.objects.filter(is_deleted=False, is_active=True)
+        vehicles = VehicleCreation.objects.filter(
+            is_deleted=False,
+            is_active=True
+        )
 
-        try:
-            supervisor_role = StaffUserType.objects.get(name__iexact="supervisor")
-        except StaffUserType.DoesNotExist:
-            raise Exception("Supervisor role missing. Run StaffUserTypeSeeder first.")
-
+        supervisor_role = StaffUserType.objects.get(name__iexact="supervisor")
         supervisors = User.objects.filter(
             staffusertype_id=supervisor_role,
             is_active=True,
             is_deleted=False,
         )
 
-        if not districts.exists():
-            raise Exception("District master missing. Run masters seeder first.")
-
-        if not zones.exists():
-            raise Exception("Zone master missing. Run masters seeder first.")
-
-        if not vehicles.exists():
-            raise Exception("No active vehicles found. Seed vehicles first.")
-
-        if not supervisors.exists():
-            raise Exception("No supervisors found. Seed staff first.")
-
-        # --------------------------------------------------
-        # SEED LOGIC (CONTROLLED, NON-EXPLOSIVE)
-        # --------------------------------------------------
         supervisor_cycle = list(supervisors)
         sup_len = len(supervisor_cycle)
         sup_index = 0
@@ -53,25 +34,14 @@ class RoutePlanSeeder:
         updated = 0
 
         for district in districts:
-            # Zones linked to district via unique_id
             district_zones = zones.filter(district_id=district.unique_id)
 
-            if not district_zones.exists():
-                continue
-
             for zone in district_zones:
-                city_obj = zone.city_id  # FK object
+                city_obj = zone.city_id
 
                 for vehicle in vehicles:
                     supervisor = supervisor_cycle[sup_index % sup_len]
                     sup_index += 1
-
-                    defaults = {
-                        "supervisor_id": supervisor,
-                        "status": "ACTIVE",
-                        "is_active": True,
-                        "is_deleted": False,
-                    }
 
                     qs = RoutePlan.objects.filter(
                         district_id=district,
@@ -79,14 +49,14 @@ class RoutePlanSeeder:
                         zone_id=zone,
                         vehicle_id=vehicle,
                         is_deleted=False,
-                    ).order_by("id")
+                    )
 
                     existing = qs.first()
 
                     if existing:
-                        for key, value in defaults.items():
-                            setattr(existing, key, value)
-                        existing.save(update_fields=list(defaults.keys()))
+                        existing.supervisor_id = supervisor
+                        existing.display_code = None  # regenerate
+                        existing.save()
                         updated += 1
                     else:
                         RoutePlan.objects.create(
@@ -94,13 +64,12 @@ class RoutePlanSeeder:
                             city_id=city_obj,
                             zone_id=zone,
                             vehicle_id=vehicle,
-                            **defaults,
+                            supervisor_id=supervisor,
+                            is_active=True,
+                            is_deleted=False,
                         )
                         created += 1
 
-        # --------------------------------------------------
-        # SUMMARY
-        # --------------------------------------------------
         print(
             f"RoutePlan seeding completed | Created: {created}, Updated: {updated}"
         )

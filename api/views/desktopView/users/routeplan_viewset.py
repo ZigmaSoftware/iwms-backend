@@ -1,6 +1,8 @@
 from rest_framework import viewsets
 from api.apps.routeplan import RoutePlan
-from api.serializers.desktopView.users.routeplan_serializer import RoutePlanSerializer
+from api.serializers.desktopView.users.routeplan_serializer import (
+    RoutePlanSerializer
+)
 
 
 class RoutePlanViewSet(viewsets.ModelViewSet):
@@ -23,29 +25,24 @@ class RoutePlanViewSet(viewsets.ModelViewSet):
             "supervisor_id__staffusertype_id",
         ).filter(is_deleted=False)
 
-        district_id = self.request.query_params.get("district_id")
-        city_id = self.request.query_params.get("city_id")
-        zone_id = self.request.query_params.get("zone_id")
-        vehicle_id = self.request.query_params.get("vehicle_id")
-        supervisor_id = self.request.query_params.get("supervisor_id")
-        status = self.request.query_params.get("status")
+        params = self.request.query_params
 
-        if district_id:
-            qs = qs.filter(district_id=district_id)
+        if params.get("district_id"):
+            qs = qs.filter(district_id=params["district_id"])
 
-        if city_id:
-            qs = qs.filter(city_id=city_id)
+        if params.get("city_id"):
+            qs = qs.filter(city_id=params["city_id"])
 
-        if zone_id:
-            qs = qs.filter(zone_id=zone_id)
+        if params.get("zone_id"):
+            qs = qs.filter(zone_id=params["zone_id"])
 
-        if vehicle_id:
-            qs = qs.filter(vehicle_id=vehicle_id)
+        if params.get("vehicle_id"):
+            qs = qs.filter(vehicle_id=params["vehicle_id"])
 
-        if supervisor_id:
-            qs = qs.filter(supervisor_id=supervisor_id)
+        if params.get("supervisor_id"):
+            qs = qs.filter(supervisor_id=params["supervisor_id"])
 
-        if status:
-            qs = qs.filter(status=status)
+        if params.get("is_active"):
+            qs = qs.filter(status=params["is_active"])
 
         return qs
