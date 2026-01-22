@@ -1,5 +1,4 @@
 from api.apps.routeplan import RoutePlan
-
 from api.apps.district import District
 from api.apps.zone import Zone
 from api.apps.vehicleCreation import VehicleCreation
@@ -19,6 +18,7 @@ class RoutePlanSeeder:
         districts = District.objects.filter(is_deleted=False)
         zones = Zone.objects.filter(is_deleted=False)
         vehicles = VehicleCreation.objects.filter(is_deleted=False, is_active=True)
+
         try:
             supervisor_role = StaffUserType.objects.get(name__iexact="supervisor")
         except StaffUserType.DoesNotExist:
@@ -53,18 +53,16 @@ class RoutePlanSeeder:
         updated = 0
 
         for district in districts:
-            # District uses `unique_id` as primary key
+            # Zones linked to district via unique_id
             district_zones = zones.filter(district_id=district.unique_id)
 
             if not district_zones.exists():
                 continue
 
             for zone in district_zones:
-                # Vehicles are not associated with zones currently; use all active vehicles
-                zone_vehicles = vehicles
-                city_obj = zone.city_id
+                city_obj = zone.city_id  # FK object
 
-                for vehicle in zone_vehicles:
+                for vehicle in vehicles:
                     supervisor = supervisor_cycle[sup_index % sup_len]
                     sup_index += 1
 
@@ -78,10 +76,13 @@ class RoutePlanSeeder:
                     qs = RoutePlan.objects.filter(
                         district_id=district,
                         city_id=city_obj,
+                        zone_id=zone,
                         vehicle_id=vehicle,
+                        is_deleted=False,
                     ).order_by("id")
 
                     existing = qs.first()
+
                     if existing:
                         for key, value in defaults.items():
                             setattr(existing, key, value)
@@ -91,6 +92,7 @@ class RoutePlanSeeder:
                         RoutePlan.objects.create(
                             district_id=district,
                             city_id=city_obj,
+                            zone_id=zone,
                             vehicle_id=vehicle,
                             **defaults,
                         )
@@ -99,4 +101,6 @@ class RoutePlanSeeder:
         # --------------------------------------------------
         # SUMMARY
         # --------------------------------------------------
-        print(f"RoutePlan seeding completed | Created: {created}, Updated: {updated}")
+        print(
+            f"RoutePlan seeding completed | Created: {created}, Updated: {updated}"
+        )
