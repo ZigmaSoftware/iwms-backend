@@ -25,7 +25,6 @@ from .assets.subproperty_viewset import SubPropertyViewSet
 from .customers.customercreation_viewset import CustomerCreationViewSet
 from .customers.wastecollection_viewset import WasteCollectionViewSet
 from .customers.feedback_viewset import FeedBackViewSet
-from .customers.household_pickup_event_viewset import HouseholdPickupEventViewSet
 
 # ==============================
 # Users
@@ -83,7 +82,6 @@ __all__ = [
     "CustomerCreationViewSet",
     "WasteCollectionViewSet",
     "FeedBackViewSet",
-    "HouseholdPickupEventViewSet",
 
     # Users
     "UserTypeViewSet",

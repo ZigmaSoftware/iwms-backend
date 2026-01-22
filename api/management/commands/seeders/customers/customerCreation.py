@@ -8,16 +8,10 @@ from api.apps.zone import Zone
 from api.apps.ward import Ward
 
 from api.apps.customercreation import CustomerCreation
-from api.apps.customer_tag import CustomerTag
 from api.apps.userCreation import User
 
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
-
-from api.apps.utils.customer_tag_utils import (
-    generate_customer_tag_code,
-    generate_customer_qr
-)
 
 
 class CustomerCreationSeeder(BaseSeeder):
@@ -99,38 +93,4 @@ class CustomerCreationSeeder(BaseSeeder):
             if not user:
                 continue
 
-            tag_exists = CustomerTag.objects.filter(
-                customer=user,
-                status=CustomerTag.Status.ACTIVE
-            ).exists()
-
-            if not tag_exists:
-                # Deterministic, admin-readable code
-                tag_code = generate_customer_tag_code(
-                city_code=(customer.city.name if customer.city else city.name)[:3],
-                ward_code=(
-                    customer.ward.name.replace("Ward", "").strip()
-                    if customer.ward else ward.name.replace("Ward", "").strip()
-                )
-)
-
-
-
-                qr_image = generate_customer_qr(
-                    payload={
-                        "type": "HOUSEHOLD",
-                        "customer_id": user.unique_id,
-                        "tag_code": tag_code,
-                        "zone": customer.zone.name if customer.zone else zone.name,
-                        "ward": customer.ward.name if customer.ward else ward.name,
-                    }
-                )
-
-                CustomerTag.objects.create(
-                    customer=user,
-                    tag_code=tag_code,
-                    qr_image=qr_image,
-                    status=CustomerTag.Status.ACTIVE,
-                )
-
-        self.log("✅ Customers and household QR tags seeded successfully")
+        self.log("✅ Customers seeded successfully")

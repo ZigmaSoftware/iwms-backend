@@ -1,7 +1,16 @@
 from django.db import models
 
+from api.apps.staffcreation import StaffOfficeDetails
+
+
 class Employee(models.Model):
-    emp_id = models.CharField(max_length=50, unique=True)
+    emp_id = models.OneToOneField(
+        StaffOfficeDetails,
+        on_delete=models.PROTECT,
+        to_field="staff_unique_id",
+        db_column="emp_id",
+        related_name="attendance_profile",
+    )
     name = models.CharField(max_length=100)
     department = models.CharField(max_length=100)
     image_path = models.CharField(max_length=255)
@@ -15,7 +24,13 @@ class Employee(models.Model):
         ]
 
 class Recognized(models.Model):
-    emp_id = models.CharField(max_length=50)
+    emp_id = models.ForeignKey(
+        StaffOfficeDetails,
+        on_delete=models.PROTECT,
+        to_field="staff_unique_id",
+        db_column="emp_id",
+        related_name="recognitions",
+    )
     emp_id_raw = models.CharField(max_length=50, null=True)
     name = models.CharField(max_length=100)
     records = models.DateTimeField()
