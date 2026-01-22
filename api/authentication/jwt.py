@@ -22,6 +22,8 @@ class JWTUserAuthentication(BaseAuthentication):
             return None
 
         token = auth.split(" ", 1)[1].strip()
+        # Remove all whitespace characters including newlines from the token
+        token = ''.join(token.split())
         if not token:
             return None
 

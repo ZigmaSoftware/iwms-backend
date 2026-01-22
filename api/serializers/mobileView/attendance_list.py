@@ -21,15 +21,12 @@ class AttendanceListSerializer(serializers.ModelSerializer):
         ]
 
     def get_captured_image(self, obj):
-        """
-        Convert stored Windows / absolute path → public MEDIA URL
-        """
         if not obj.captured_image_path:
             return None
 
+        if isinstance(obj.captured_image_path, (bytes, bytearray, memoryview)):
+            return None
+
         path = str(obj.captured_image_path)
-
-        # Extract filename only
         filename = os.path.basename(path)
-
         return f"{settings.MEDIA_URL}captured_images/{filename}"
