@@ -6,6 +6,7 @@ from api.apps.stafftemplate import StaffTemplate
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
 from api.apps.userCreation import User
+from api.serializers.desktopView.users.user_serializer import UniqueIdOrPkField
 
 
 # ==========================================================
@@ -43,24 +44,28 @@ class TripDefinitionSerializer(serializers.ModelSerializer):
     # ------------------------------------------------------
     # INPUT FIELDS (WRITE-ONLY | FK unique_id)
     # ------------------------------------------------------
-    routeplan_id = serializers.PrimaryKeyRelatedField(
+    routeplan_id = UniqueIdOrPkField(
+        slug_field="unique_id",
         queryset=RoutePlan.objects.all(),
-        write_only=True
+        write_only=True,
     )
 
-    staff_template_id = serializers.PrimaryKeyRelatedField(
+    staff_template_id = UniqueIdOrPkField(
+        slug_field="unique_id",
         queryset=StaffTemplate.objects.all(),
-        write_only=True
+        write_only=True,
     )
 
-    property_id = serializers.PrimaryKeyRelatedField(
+    property_id = UniqueIdOrPkField(
+        slug_field="unique_id",
         queryset=Property.objects.all(),
-        write_only=True
+        write_only=True,
     )
 
-    sub_property_id = serializers.PrimaryKeyRelatedField(
+    sub_property_id = UniqueIdOrPkField(
+        slug_field="unique_id",
         queryset=SubProperty.objects.all(),
-        write_only=True
+        write_only=True,
     )
 
     # ------------------------------------------------------
@@ -120,7 +125,7 @@ class TripDefinitionSerializer(serializers.ModelSerializer):
                 "employee_name",
                 None
             ),
-            "status": rp.status,
+           "display_code": rp.display_code,
         }
 
     def get_staff_template(self, obj):
@@ -192,3 +197,16 @@ class TripDefinitionSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+
+class TripDefinitionSwaggerSerializer(TripDefinitionSerializer):
+    """
+    Use a writable approval_status so swagger shows the field even though it is read-only in practice.
+    """
+
+    class Meta(TripDefinitionSerializer.Meta):
+        read_only_fields = tuple(
+            field
+            for field in TripDefinitionSerializer.Meta.read_only_fields
+            if field != "approval_status"
+        )

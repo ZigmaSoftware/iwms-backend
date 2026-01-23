@@ -1,10 +1,12 @@
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework import status
 
 from api.apps.trip_definition import TripDefinition
 from api.serializers.desktopView.vehicles.trip_definition_serializer import (
-    TripDefinitionSerializer
+    TripDefinitionSerializer,
+    TripDefinitionSwaggerSerializer,
 )
 
 
@@ -25,12 +27,17 @@ class TripDefinitionViewSet(ModelViewSet):
     swagger_tags = ["Desktop / Operations / Trip Definition"]
     permission_resource = "TripDefinition"
 
+    @swagger_auto_schema(request_body=TripDefinitionSwaggerSerializer)
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
     def destroy(self, request, *args, **kwargs):
         return Response(
             {"detail": "Trip definitions cannot be deleted"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
 
+    @swagger_auto_schema(request_body=TripDefinitionSwaggerSerializer)
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
 
