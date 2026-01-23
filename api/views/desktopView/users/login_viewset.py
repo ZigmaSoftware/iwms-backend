@@ -42,6 +42,7 @@ class LoginViewSet(ViewSet):
         # -------------------------
         email = None
         emp_id = None
+        employee_id = None
 
         if user.user_type_id.name.lower() == "customer":
             name = user.customer_id.customer_name
@@ -53,6 +54,9 @@ class LoginViewSet(ViewSet):
             if hasattr(user.staff_id, "personal_details"):
                 email = user.staff_id.personal_details.contact_email
             emp_id = getattr(user.staff_id, "staff_unique_id", None)
+            employee_id = getattr(user.staff_id, "emp_id", None)
+            if not employee_id and getattr(user.staff_id, "id", None) is not None:
+                employee_id = f"{user.staff_id.id:08d}"
 
         # -------------------------
         # JWT CREATION
@@ -66,6 +70,7 @@ class LoginViewSet(ViewSet):
         access["email"] = email
         access["permissions"] = permissions
         access["emp_id"] = emp_id
+        access["employee_id"] = employee_id
 
         iat = access["iat"]
         exp = access["exp"]
@@ -99,6 +104,7 @@ class LoginViewSet(ViewSet):
                 "access_token": token,
                 "email": email,
                 "emp_id": emp_id,
+                "employee_id": employee_id,
             },
             status=status.HTTP_200_OK
         )

@@ -4,11 +4,12 @@ from api.apps.staffcreation import StaffOfficeDetails
 
 
 class Employee(models.Model):
-    emp_id = models.OneToOneField(
+    emp_id = models.CharField(max_length=8, unique=True)
+    staff = models.OneToOneField(
         StaffOfficeDetails,
         on_delete=models.PROTECT,
         to_field="staff_unique_id",
-        db_column="emp_id",
+        db_column="staff_id",
         related_name="attendance_profile",
     )
     name = models.CharField(max_length=100)
@@ -21,16 +22,18 @@ class Employee(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["emp_id"]),
+            models.Index(fields=["staff"]),
         ]
 
 class Recognized(models.Model):
-    emp_id = models.ForeignKey(
+    staff = models.ForeignKey(
         StaffOfficeDetails,
         on_delete=models.PROTECT,
         to_field="staff_unique_id",
-        db_column="emp_id",
+        db_column="staff_id",
         related_name="recognitions",
     )
+    emp_id = models.CharField(max_length=8)
     emp_id_raw = models.CharField(max_length=50, null=True)
     name = models.CharField(max_length=100)
     records = models.DateTimeField()
@@ -40,9 +43,11 @@ class Recognized(models.Model):
     longitude = models.CharField(max_length=50)
     recognition_date = models.DateField()
     recognition_time = models.TimeField()
+    punch_type = models.CharField(max_length=3, default="IN")
 
     class Meta:
         db_table = "api_attendance_recognized"
         indexes = [
-            models.Index(fields=["emp_id"])
+            models.Index(fields=["emp_id"]),
+            models.Index(fields=["staff"]),
         ]

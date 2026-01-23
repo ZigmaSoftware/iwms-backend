@@ -1,11 +1,17 @@
+import os
+import requests
+
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import NotAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.utils import timezone
+from django.conf import settings
 
 from api.apps.trip_attendance import TripAttendance
 from api.apps.trip_instance import TripInstance
+from api.apps.attendance import Employee
 from api.serializers.desktopView.users.trip_attendance_serializer import (
     TripAttendanceSerializer
 )
@@ -21,6 +27,7 @@ class TripAttendanceViewSet(ModelViewSet):
     serializer_class = TripAttendanceSerializer
     permission_resource = "TripAttendance"
     swagger_tags = ["Desktop / Trip Attendance"]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @staticmethod
     def _resolve_user(request):
@@ -34,6 +41,54 @@ class TripAttendanceViewSet(ModelViewSet):
             return raw_user
 
         return None
+
+    @staticmethod
+    def _verify_face(staff, photo):
+        if not photo:
+            return False, "photo is required"
+
+        employee = Employee.objects.filter(staff=staff).first()
+        if not employee or not employee.image_path:
+            return False, "Employee face is not registered"
+
+        source_rel = str(employee.image_path or "")
+        source_path = os.path.join(settings.MEDIA_ROOT, source_rel)
+        if not os.path.exists(source_path):
+            return False, "Registered face image not found"
+
+        url = "http://125.17.238.158:8000/api/v1/verification/verify"
+        headers = {"x-api-key": "c4bb2855-e789-45e4-8dcd-903f03e03f2f"}
+
+        try:
+            photo.seek(0)
+            with open(source_path, "rb") as src:
+                files = {
+                    "source_image": ("source.jpg", src, "image/jpeg"),
+                    "target_image": (
+                        photo.name,
+                        photo,
+                        getattr(photo, "content_type", "image/jpeg"),
+                    ),
+                }
+                resp = requests.post(url, headers=headers, files=files, timeout=30)
+
+            try:
+                res = resp.json()
+            except Exception:
+                return False, "Face API invalid response"
+
+            try:
+                score = float(res["result"][0]["face_matches"][0]["similarity"])
+            except Exception:
+                return False, "Face not detected"
+
+            if score < 0.95:
+                return False, "Face similarity not matched"
+
+            photo.seek(0)
+            return True, None
+        except Exception:
+            return False, "Face verification failed"
 
     def create(self, request, *args, **kwargs):
         user = self._resolve_user(request)
@@ -50,6 +105,8 @@ class TripAttendanceViewSet(ModelViewSet):
         )
 
         data = request.data.copy()
+        if request.FILES.get("photo"):
+            data["photo"] = request.FILES.get("photo")
         data["attendance_time"] = timezone.now()
 
         if data.get("trip_instance_id") and not data.get("vehicle_id"):
@@ -58,6 +115,35 @@ class TripAttendanceViewSet(ModelViewSet):
             ).select_related("vehicle").first()
             if trip and trip.vehicle:
                 data["vehicle_id"] = trip.vehicle.unique_id
+        if not data.get("trip_instance_id"):
+            trip = (
+                TripInstance.objects
+                .filter(
+                    staff_template__operator_id_id=user.unique_id,
+                    status__in=["IN_PROGRESS", "READY"],
+                )
+                .order_by("-created_at")
+                .select_related("vehicle")
+                .first()
+            )
+            if not trip:
+                trip = (
+                    TripInstance.objects
+                    .filter(
+                        staff_template__driver_id_id=user.unique_id,
+                        status__in=["IN_PROGRESS", "READY"],
+                    )
+                    .order_by("-created_at")
+                    .select_related("vehicle")
+                    .first()
+                )
+            if not trip:
+                return Response(
+                    {"detail": "No active trip instance found."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            data["trip_instance_id"] = trip.unique_id
+            data["vehicle_id"] = trip.vehicle.unique_id if trip.vehicle else None
 
         if role in {"operator", "driver"}:
             if data.get("staff_id") and data.get("staff_id") != user.unique_id:
@@ -69,6 +155,15 @@ class TripAttendanceViewSet(ModelViewSet):
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
+
+        if data.get("source") == "MOBILE":
+            photo = request.FILES.get("photo")
+            ok, error = self._verify_face(user.staff_id, photo)
+            if not ok:
+                return Response(
+                    {"detail": error},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         instance = serializer.save()
 
