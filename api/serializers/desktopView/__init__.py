@@ -17,8 +17,6 @@ from .assets.subproperty_serializer import SubPropertySerializer
 from .customers.customercreation_serializer import CustomerCreationSerializer
 from .customers.wastecollection_serializer import WasteCollectionSerializer
 from .customers.feedback_serializer import FeedBackSerializer
-from .customers.household_pickup_event_serializer import HouseholdPickupEventSerializer
-
 # Users
 from .users.usertype_serializer import UserTypeSerializer
 from .users.user_serializer import UserSerializer

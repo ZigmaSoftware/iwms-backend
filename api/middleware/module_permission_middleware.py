@@ -83,8 +83,6 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Wastecollections",
         "Feedbacks",
         "Complaints",
-        "CustomerTag",
-        "HouseholdPickupEvent",
     },
     "vehicles": {
         "VehicleTypeCreation",
@@ -123,9 +121,14 @@ def _extract_token(request):
 
 
 def _authenticate_request(request):
-    token = _extract_token(request)
-    if not token:
+    auth = request.headers.get("Authorization")
+
+    if not auth or not auth.startswith("Bearer "):
         return JsonResponse({"detail": "Authorization token missing"}, status=401)
+
+    token = auth.split(" ", 1)[1].strip()
+    # Remove all whitespace characters including newlines from the token
+    token = ''.join(token.split())
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
@@ -134,15 +137,21 @@ def _authenticate_request(request):
     except jwt.InvalidTokenError:
         return JsonResponse({"detail": "Invalid token"}, status=401)
 
-    try:
-        user = User.objects.get(unique_id=payload.get("unique_id"))
-    except User.DoesNotExist:
+    unique_id = payload.get("unique_id")
+    if not unique_id:
+        return JsonResponse({"detail": "Invalid token payload"}, status=401)
+
+    user = User.objects.filter(unique_id=unique_id).first()
+    if not user:
         return JsonResponse({"detail": "User not found"}, status=401)
 
+    # IMPORTANT: attach to BOTH layers
     request.user = user
     request.jwt_payload = payload
-    return None
+    if hasattr(request, "_request"):
+        request._request.user = user
 
+    return None
 
 class ModulePermissionMiddleware(MiddlewareMixin):
 

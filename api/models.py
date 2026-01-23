@@ -37,10 +37,8 @@ from .apps.auditlog import AuditLog
 
 # Customer / Waste / Feedback
 from .apps.customercreation import CustomerCreation
-from .apps.customer_tag import CustomerTag
 from .apps.wastecollection import WasteCollection
 from .apps.feedback import FeedBack
-from .apps.household_pickup_event import HouseholdPickupEvent
 from .apps.complaints import Complaint
 
 # Citizen Grievance
@@ -110,10 +108,8 @@ __all__ = [
     "AuditLog",
     # Customer / Waste / Feedback
     "CustomerCreation",
-    "CustomerTag",
     "WasteCollection",
     "FeedBack",
-    "HouseholdPickupEvent",
     "Complaint",
     # Citizen Grievance
     "MainCategory",
