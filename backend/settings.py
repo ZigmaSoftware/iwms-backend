@@ -19,6 +19,9 @@ SECRET_KEY = 'django-insecure-8$arlvxjc7$dw$(0!gyw)55qbm%9*az3wwr)6$7kku-dw6zoiz
 # -------------------------------------------------------
 ENVIRONMENT = os.getenv("DJANGO_ENV", "development")
 DEBUG = ENVIRONMENT != "production"
+TRIP_ATTENDANCE_COOLDOWN_MINUTES = int(
+    os.getenv("TRIP_ATTENDANCE_COOLDOWN_MINUTES", "1")
+)
 
 
 MEDIA_URL = '/media/'

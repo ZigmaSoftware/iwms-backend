@@ -71,7 +71,7 @@ class RegisterViewSet(ViewSet):
             return Response({"error": "Staff not found"}, status=404)
 
         existing = Employee.objects.filter(
-            emp_id=staff
+            staff=staff
         ).first()
 
         if existing:
@@ -98,6 +98,10 @@ class RegisterViewSet(ViewSet):
         department = request.data.get("department") or staff.department
         dob = parser.parse(request.data.get("dob")).date() if request.data.get("dob") else None
         blood_group = request.data.get("blood_group")
+        # Ensure display ID exists
+        if not staff.emp_id:
+            staff.emp_id = f"{staff.id:08d}"
+            staff.save(update_fields=["emp_id"])
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         qr_filename = generate_qr(emp_id, name, timestamp)
@@ -120,7 +124,8 @@ class RegisterViewSet(ViewSet):
         relative_image_path = f"emp_image/{image_filename}"
 
         emp = Employee.objects.create(
-            emp_id=staff,          # FK → staff_unique_id
+            emp_id=staff.emp_id,
+            staff=staff,
             name=name,
             department=department,
             image_path=relative_image_path,

@@ -17,6 +17,18 @@ class ZonePropertyLoadTrackerViewSet(ModelViewSet):
     permission_resource = "ZonePropertyLoadTracker"
     swagger_tags = ["Desktop / Vehicles"]
 
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        instance.create_audit_log()
+        instance.trigger_trip_instance()
+
+    def perform_update(self, serializer):
+        previous_weight = serializer.instance.current_weight_kg if serializer.instance else None
+        instance = serializer.save()
+        if "current_weight_kg" in serializer.validated_data and instance.current_weight_kg != previous_weight:
+            instance.create_audit_log()
+            instance.trigger_trip_instance()
+
     def destroy(self, request, *args, **kwargs):
         return Response(
             {"detail": "Deletion not allowed. Tracker is system-managed."},

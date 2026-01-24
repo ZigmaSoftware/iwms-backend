@@ -29,6 +29,7 @@ class StaffOfficeSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "staff_unique_id",
+            "emp_id",
             "employee_name",
             "department",
             "designation",
@@ -43,7 +44,7 @@ class StaffOfficeSerializer(serializers.ModelSerializer):
         Fetch photo from Employee table using staff_unique_id (STRING)
         """
         emp = Employee.objects.filter(
-            emp_id=obj.staff_unique_id
+            staff__staff_unique_id=obj.staff_unique_id
         ).first()
 
         if emp and emp.image_path:
@@ -85,7 +86,7 @@ class StaffUpdateSerializer(serializers.ModelSerializer):
         # Update Employee image using staff_unique_id
         if image_file:
             emp = Employee.objects.filter(
-                emp_id=instance.staff_unique_id
+                staff__staff_unique_id=instance.staff_unique_id
             ).first()
 
             if emp:

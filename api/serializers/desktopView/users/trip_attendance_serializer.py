@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.utils import timezone
+from django.conf import settings
 from api.apps.trip_attendance import TripAttendance
 from api.apps.trip_instance import TripInstance
 from api.apps.userCreation import User
@@ -87,7 +88,7 @@ class TripAttendanceSerializer(serializers.ModelSerializer):
                 "Vehicle does not match trip instance"
             )
 
-        # 45-minute rule enforcement (create only)
+        # Trip attendance cooldown enforcement (create only)
         last = (
             TripAttendance.objects
             .filter(trip_instance=trip, staff=staff)
@@ -96,10 +97,15 @@ class TripAttendanceSerializer(serializers.ModelSerializer):
         )
 
         if last:
+            cooldown_minutes = getattr(
+                settings,
+                "TRIP_ATTENDANCE_COOLDOWN_MINUTES",
+                45,
+            )
             delta = timezone.now() - last.attendance_time
-            if delta.total_seconds() < 45 * 60:
+            if delta.total_seconds() < cooldown_minutes * 60:
                 raise serializers.ValidationError(
-                    "Attendance already captured within last 45 minutes"
+                    f"Attendance already captured within last {cooldown_minutes} minutes"
                 )
 
         return attrs

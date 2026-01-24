@@ -80,8 +80,8 @@ class RecognizeViewSet(ViewSet):
                 status=400
             )
 
-        # Find registered employee (Employee.emp_id is FK -> StaffOfficeDetails with to_field staff_unique_id)
-        employee = Employee.objects.filter(emp_id__staff_unique_id=staff_unique_id).first()
+        # Find registered employee (Employee.staff stores the StaffOfficeDetails relation)
+        employee = Employee.objects.filter(staff__staff_unique_id=staff_unique_id).first()
         if not employee:
             return Response({"error": "Employee not registered"}, status=404)
 
@@ -142,8 +142,18 @@ class RecognizeViewSet(ViewSet):
 
         # Save recognition (match your model fields)
         now = datetime.datetime.now()
+        today = now.date()
+        last = (
+            Recognized.objects
+            .filter(staff=employee.staff, recognition_date=today)
+            .order_by("-records")
+            .first()
+        )
+        punch_type = "OUT" if last and last.punch_type == "IN" else "IN"
+
         Recognized.objects.create(
-            emp_id=employee.emp_id,              # FK -> StaffOfficeDetails instance (CORRECT)
+            staff=employee.staff,
+            emp_id=employee.emp_id,
             emp_id_raw=staff_unique_id,          # keep raw string too
             name=employee.name,
             records=now,                         # your model has records DateTimeField
@@ -151,8 +161,9 @@ class RecognizeViewSet(ViewSet):
             similarity_score=score,
             latitude=str(lat),
             longitude=str(lon),
-            recognition_date=now.date(),
+            recognition_date=today,
             recognition_time=now.time(),
+            punch_type=punch_type,
         )
 
         return Response(
@@ -162,6 +173,7 @@ class RecognizeViewSet(ViewSet):
                 "name": employee.name,
                 "score": score,
                 "captured_image": f"{settings.MEDIA_URL}{captured_rel}",
+                "punch_type": punch_type,
             },
             status=200
         )
