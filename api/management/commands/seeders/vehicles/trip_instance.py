@@ -3,7 +3,7 @@ from django.utils import timezone
 from api.management.commands.seeders.base import BaseSeeder
 from api.apps.trip_definition import TripDefinition
 from api.apps.trip_instance import TripInstance
-from api.apps.bin_load_log import BinLoadLog
+from api.apps.zone_property_load_tracker import ZonePropertyLoadTracker
 from api.apps.zone import Zone
 from api.apps.vehicleCreation import VehicleCreation
 
@@ -46,41 +46,20 @@ class TripInstanceSeeder(BaseSeeder):
             self.log("TripInstanceSeeder skipped (routeplan mapping missing).")
             return
 
-        bin_log = (
-            BinLoadLog.objects.filter(
-                processed=False,
-                zone=zone,
-                vehicle=vehicle,
-                property=trip_def.property_id,
-                sub_property=trip_def.sub_property_id,
-            )
-            .order_by("-event_time")
-            .first()
+        tracker, created = ZonePropertyLoadTracker.objects.get_or_create(
+            zone=zone,
+            vehicle=vehicle,
+            property=trip_def.property_id,
+            sub_property=trip_def.sub_property_id,
+            defaults={"current_weight_kg": trip_def.trip_trigger_weight_kg},
         )
 
-        if not bin_log:
-            bin_log = BinLoadLog.objects.create(
-                zone=zone,
-                vehicle=vehicle,
-                property=trip_def.property_id,
-                sub_property=trip_def.sub_property_id,
-                weight_kg=trip_def.trip_trigger_weight_kg,
-                source_type=BinLoadLog.SourceType.MANUAL,
-                event_time=timezone.now(),
-                processed=False,
-            )
-        else:
-            updates = {}
-            if bin_log.weight_kg < trip_def.trip_trigger_weight_kg:
-                updates["weight_kg"] = trip_def.trip_trigger_weight_kg
-            if bin_log.processed:
-                updates["processed"] = False
-            if updates:
-                BinLoadLog.objects.filter(pk=bin_log.pk).update(**updates)
-                for field, value in updates.items():
-                    setattr(bin_log, field, value)
+        if not created and tracker.current_weight_kg < trip_def.trip_trigger_weight_kg:
+            tracker.current_weight_kg = trip_def.trip_trigger_weight_kg
+            tracker.save(update_fields=["current_weight_kg"])
 
-        instance = bin_log.trigger_trip_instance()
+        tracker.create_audit_log(event_time=timezone.now())
+        instance = tracker.trigger_trip_instance()
         if instance:
             self.log("TripInstance seeded")
         else:
