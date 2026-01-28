@@ -53,7 +53,7 @@ class StaffOfficeDetails(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "api_officedetails"
+        db_table = "api_staff_officedetails"
         ordering = ["-id"]
 
     def __str__(self):
@@ -90,7 +90,7 @@ class StaffPersonalDetails(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "api_personaldetails"
+        db_table = "api_staff_personaldetails"
         ordering = ["-id"]
 
     def __str__(self):
