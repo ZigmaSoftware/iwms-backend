@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Max
 from .utils.comfun import generate_unique_id
 from .userCreation import User
 
@@ -41,7 +42,7 @@ class AlternativeStaffTemplate(models.Model):
     # ---- Staff Assignment ----
     driver_id = models.ForeignKey(
         User,
-        on_delete=models.PROTECT,  # FIXED
+        on_delete=models.PROTECT,
         db_column="driver_id",
         to_field="unique_id",
         related_name='alt_driver_templates'
@@ -49,7 +50,7 @@ class AlternativeStaffTemplate(models.Model):
 
     operator_id = models.ForeignKey(
         User,
-        on_delete=models.PROTECT,  # FIXED
+        on_delete=models.PROTECT,
         db_column="operator_id",
         to_field="unique_id",
         related_name='alt_operator_templates'
@@ -90,6 +91,15 @@ class AlternativeStaffTemplate(models.Model):
         default='PENDING'
     )
 
+    # ---- HUMAN READABLE BUSINESS CODE ----
+    display_code = models.CharField(
+        max_length=100,
+        unique=True,
+        db_index=True,
+        editable=False,
+        help_text="Human-friendly identifier (e.g. RAVI-KART-01-ALT-01)"
+    )
+
     # ---- Audit ----
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -99,7 +109,56 @@ class AlternativeStaffTemplate(models.Model):
         indexes = [
             models.Index(fields=['staff_template', 'effective_date']),
             models.Index(fields=['approval_status']),
+            models.Index(fields=['display_code']),
         ]
 
+    # ------------------------------------------------------------------
+    # DISPLAY CODE GENERATION
+    # ------------------------------------------------------------------
+    def _generate_display_code(self):
+        """
+        Format: <PARENT_DISPLAY_CODE>-ALT-<SEQ>
+        Example: RAVI-KART-01-ALT-01
+        
+        This creates a clear hierarchy showing:
+        - Which staff template this is an alternative for
+        - Sequential numbering for multiple alternatives
+        """
+        if not self.staff_template:
+            return f"UNKNOWN-ALT-{self.pk or '00'}"
+
+        parent_code = getattr(self.staff_template, 'display_code', None)
+        if not parent_code:
+            parent_code = f"TPL-{self.staff_template.pk}"
+
+        base_code = f"{parent_code}-ALT"
+
+        # Find highest existing sequence for this parent template
+        last_code = (
+            AlternativeStaffTemplate.objects
+            .filter(display_code__startswith=base_code)
+            .aggregate(max_code=Max("display_code"))
+            .get("max_code")
+        )
+
+        if last_code:
+            try:
+                last_seq = int(last_code.split("-")[-1])
+            except (ValueError, IndexError):
+                last_seq = 0
+        else:
+            last_seq = 0
+
+        next_seq = last_seq + 1
+        return f"{base_code}-{next_seq:02d}"
+
+    # ------------------------------------------------------------------
+    # OVERRIDE SAVE
+    # ------------------------------------------------------------------
+    def save(self, *args, **kwargs):
+        if not self.display_code:
+            self.display_code = self._generate_display_code()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.unique_id} | {self.staff_template_id} | {self.approval_status}"
+        return self.display_code
