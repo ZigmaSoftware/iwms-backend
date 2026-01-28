@@ -79,8 +79,6 @@ class PermissionSeeder(BaseSeeder):
                 "Wastecollections",
                 "Feedbacks",
                 "Complaints",
-                "CustomerTag",
-                "HouseholdPickupEvent",
             ],
             "vehicles": [
                 "VehicleType",
@@ -239,11 +237,6 @@ class PermissionSeeder(BaseSeeder):
             limited_permissions.setdefault(role, {}).setdefault(
                 "user-creation", {}
             )["AlternativeStaffTemplate"] = ["view"]
-
-        # Operator access for household pickup events
-        limited_permissions.setdefault(operator_role, {}).setdefault(
-            "customers", {}
-        )["HouseholdPickupEvent"] = ["add", "view", "edit", "delete"]
 
         # Operator access for bin load logs
         limited_permissions.setdefault(operator_role, {}).setdefault(

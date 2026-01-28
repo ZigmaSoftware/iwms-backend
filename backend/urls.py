@@ -32,7 +32,6 @@ urlpatterns = [
 
     # APIs
     path("api/desktop/", include("api.urls.desktop_urls")),
-    path("api/desktop/", include("api.urls.mobile_urls")),
 
     # Swagger UI
     path(

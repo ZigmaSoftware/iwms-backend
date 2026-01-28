@@ -72,6 +72,7 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         source="staff_template.display_code",
         read_only=True,
     )
+    display_code = serializers.CharField(read_only=True)
 
     def get_driver_name(self, obj):
         staff = getattr(getattr(obj, "driver_id", None), "staff_id", None)
@@ -88,11 +89,13 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
             "unique_id",
             None,
         )
+    
     class Meta:
         model = AlternativeStaffTemplate
         fields = [
             'id',
             'unique_id',
+            'display_code',
             'staff_template',
             'staff_template_display_code',
             'effective_date',
@@ -111,6 +114,7 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'unique_id',
+            'display_code',
             'staff_template_display_code',
             'created_at',
         ]

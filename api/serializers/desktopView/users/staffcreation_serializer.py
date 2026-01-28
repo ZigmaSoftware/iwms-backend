@@ -8,6 +8,7 @@ class StaffcreationSerializer(serializers.ModelSerializer):
     # Core identifiers
     # --------------------------------------------------
     unique_id = serializers.CharField(source="staff_unique_id", read_only=True)
+    emp_id = serializers.CharField(read_only=True)
 
     # --------------------------------------------------
     # ✅ Office-level: Driving licence
@@ -104,6 +105,7 @@ class StaffcreationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
+            "emp_id",
 
             # Office details
             "employee_name",

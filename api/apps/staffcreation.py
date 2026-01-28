@@ -13,6 +13,13 @@ class StaffOfficeDetails(models.Model):
         unique=True,
         default=generate_staff_unique_id
     )
+    emp_id = models.CharField(
+        max_length=8,
+        unique=True,
+        blank=True,
+        null=True,
+        editable=False,
+    )
     employee_name = models.CharField(max_length=200)
     doj = models.DateField(blank=True, null=True)
     department = models.CharField(max_length=200, blank=True, null=True)
@@ -46,11 +53,22 @@ class StaffOfficeDetails(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "api_officedetails"
+        db_table = "api_staff_officedetails"
         ordering = ["-id"]
 
     def __str__(self):
         return f"{self.employee_name} ({self.staff_unique_id})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        if not self.emp_id:
+            display_id = f"{self.id:08d}"
+            StaffOfficeDetails.objects.filter(
+                pk=self.pk,
+                emp_id__isnull=True,
+            ).update(emp_id=display_id)
+            self.emp_id = display_id
 class StaffPersonalDetails(models.Model):
     staff = models.OneToOneField(
         StaffOfficeDetails,
@@ -72,7 +90,7 @@ class StaffPersonalDetails(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "api_personaldetails"
+        db_table = "api_staff_personaldetails"
         ordering = ["-id"]
 
     def __str__(self):

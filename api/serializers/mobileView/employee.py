@@ -1,14 +1,21 @@
 from rest_framework import serializers
 from api.apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 from api.apps.attendance import Employee
+from django.conf import settings
+
 
 class StaffPersonalSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffPersonalDetails
         fields = [
-            "dob", "blood_group", "marital_status", "gender",
-            "present_address", "permanent_address"
+            "dob",
+            "blood_group",
+            "marital_status",
+            "gender",
+            "present_address",
+            "permanent_address",
         ]
+
 
 class StaffOfficeSerializer(serializers.ModelSerializer):
     personal = StaffPersonalSerializer(
@@ -22,29 +29,35 @@ class StaffOfficeSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "staff_unique_id",
+            "emp_id",
             "employee_name",
             "department",
             "designation",
             "site_name",
             "doj",
             "photo",
-            "personal"
+            "personal",
         ]
 
     def get_photo(self, obj):
         """
-        Fetch photo from Employee table using staff_unique_id
+        Fetch photo from Employee table using staff_unique_id (STRING)
         """
         emp = Employee.objects.filter(
-            emp_id=obj.staff_unique_id
+            staff__staff_unique_id=obj.staff_unique_id
         ).first()
 
         if emp and emp.image_path:
-            # If ImageField
-            if hasattr(emp.image_path, "url"):
+            # Handle potential binary data
+            if isinstance(emp.image_path, (bytes, bytearray, memoryview)):
+                return None
+            
+            # If it's a string path, try to get URL
+            if hasattr(emp.image_path, 'url'):
                 return emp.image_path.url
-            # If raw path stored
-            return str(emp.image_path)
+            
+            # If it's just a string path, return it
+            return emp.image_path if emp.image_path else None
 
         return None
 class StaffUpdateSerializer(serializers.ModelSerializer):
@@ -67,13 +80,13 @@ class StaffUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         image_file = validated_data.pop("photo", None)
 
-        # Update StaffOfficeDetails
+        # Update staff core fields
         instance = super().update(instance, validated_data)
 
-        # Update Employee table image
+        # Update Employee image using staff_unique_id
         if image_file:
             emp = Employee.objects.filter(
-                emp_id=instance.staff_unique_id
+                staff__staff_unique_id=instance.staff_unique_id
             ).first()
 
             if emp:
