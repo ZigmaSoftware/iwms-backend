@@ -13,6 +13,7 @@ class StaffcreationViewset(viewsets.ModelViewSet):
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser)
     permission_resource = "StaffCreation"
+    lookup_field = "staff_unique_id"
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = [

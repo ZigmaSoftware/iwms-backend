@@ -11,7 +11,7 @@ class StaffcreationSerializer(serializers.ModelSerializer):
     emp_id = serializers.CharField(read_only=True)
 
     # --------------------------------------------------
-    # ✅ Office-level: Driving licence
+    #  Office-level: Driving licence
     # --------------------------------------------------
     driving_licence_no = serializers.CharField(
         required=False,
@@ -122,7 +122,7 @@ class StaffcreationSerializer(serializers.ModelSerializer):
             "employee_known",
             "photo",
 
-            # ✅ Driving licence
+            #  Driving licence
             "driving_licence_no",
             "driving_licence_file",
 
