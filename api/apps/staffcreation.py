@@ -37,7 +37,7 @@ class StaffOfficeDetails(models.Model):
     active_status = models.BooleanField(default=True)
     salary_type = models.CharField(max_length=50, blank=True, null=True)
 
-    # ✅ NEW FIELDS
+    # NEW FIELDS
     driving_licence_no = models.CharField(
         max_length=50,
         blank=True,
