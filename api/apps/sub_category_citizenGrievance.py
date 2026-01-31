@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from api.apps.main_category_citizenGrievance import MainCategory
 from api.apps.utils.comfun import generate_unique_id
 
@@ -7,7 +8,7 @@ def generate_subcategory_id():
     return f"CMPSC{generate_unique_id()}"
 
 
-class SubCategory(models.Model):
+class SubCategory(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=30,
         unique=True,

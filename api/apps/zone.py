@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from django.core.validators import RegexValidator
 
 from .continent import Continent
@@ -46,7 +47,7 @@ hex_color_validator = RegexValidator(
 # ----------------------------------
 # MODEL
 # ----------------------------------
-class Zone(models.Model):
+class Zone(CompanyProjectMixin, models.Model):
     # -----------------------------
     # SYSTEM IDENTIFIER
     # -----------------------------

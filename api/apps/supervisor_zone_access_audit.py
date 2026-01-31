@@ -1,11 +1,12 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from api.apps.userCreation import User
 from .utils.comfun import generate_unique_id
 
 def generate_supervisor_zone_access_audit_id():
     return f"SZAA-{generate_unique_id()}"
 
-class SupervisorZoneAccessAudit(models.Model):
+class SupervisorZoneAccessAudit(CompanyProjectMixin, models.Model):
     # -----------------------------
     # SYSTEM IDENTITY
     # -----------------------------

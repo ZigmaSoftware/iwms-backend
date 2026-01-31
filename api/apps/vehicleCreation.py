@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 
 from .fuel import Fuel
 from .vehicleTypeCreation import VehicleTypeCreation
@@ -17,7 +18,7 @@ def vehicle_insurance_upload_path(instance, filename):
     return f"uploads/vehicles/insurance/{instance.unique_id}_{filename}"
 
 
-class VehicleCreation(models.Model):
+class VehicleCreation(CompanyProjectMixin, models.Model):
     class ConditionChoices(models.TextChoices):
         NEW = "NEW", "New"
         SECOND_HAND = "SECOND_HAND", "Second Hand"

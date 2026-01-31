@@ -1,12 +1,13 @@
 
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
 
 def generate_mainuserscreen_id():
     """Generate a unique ID prefixed with MNSCRN."""
     return f"MNSCRN{generate_unique_id()}"
 
-class MainUserScreen(models.Model):
+class MainUserScreen(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=30,
         unique=True,

@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from django.db.models import Q
 from api.apps.userCreation import User
 from api.apps.utils.comfun import generate_unique_id
@@ -11,7 +12,7 @@ def generate_unassigned_staff_pool_id():
     return f"UNASSSTAFFPOOL-{generate_unique_id()}"
 
 
-class UnassignedStaffPool(models.Model):
+class UnassignedStaffPool(CompanyProjectMixin, models.Model):
     """
     Holds operators & drivers who are NOT currently assigned to any trip
     within a specific zone/ward.

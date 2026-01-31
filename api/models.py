@@ -12,6 +12,10 @@ from .apps.zone import Zone
 from .apps.ward import Ward
 from .apps.bin import Bin
 
+# Tenancy
+from .apps.company import Company
+from .apps.project import Project
+
 # Assets
 from .apps.fuel import Fuel
 from .apps.property import Property
@@ -85,6 +89,9 @@ __all__ = [
     "Zone",
     "Ward",
     "Bin",
+    # Tenancy
+    "Company",
+    "Project",
     # Assets
     "Fuel",
     "Property",

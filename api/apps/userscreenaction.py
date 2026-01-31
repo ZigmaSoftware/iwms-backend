@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
 
 
@@ -6,7 +7,7 @@ def generate_userscreenaction_id():
     return f"USERSCRNACT-{generate_unique_id()}"
 
 
-class UserScreenAction(models.Model):
+class UserScreenAction(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,

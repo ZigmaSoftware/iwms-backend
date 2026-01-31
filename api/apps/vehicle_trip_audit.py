@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from api.apps.trip_instance import TripInstance
 from api.apps.vehicleCreation import VehicleCreation
 from api.apps.utils.comfun import generate_unique_id
@@ -8,7 +9,7 @@ def generate_vehicle_trip_audit_id():
     return f"VTA-{generate_unique_id()}"    
 
 
-class VehicleTripAudit(models.Model):
+class VehicleTripAudit(CompanyProjectMixin, models.Model):
     """
     GPS & motion audit for trip replay, idle detection,
     and compliance analysis.

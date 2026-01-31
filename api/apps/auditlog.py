@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
 from api.apps.mainscreen import MainScreen
 from api.apps.userscreen import UserScreen
@@ -11,7 +12,7 @@ def generate_login_id():
     return f"AUDITLOG-{generate_unique_id()}"
 
 
-class AuditLog(models.Model):
+class AuditLog(CompanyProjectMixin, models.Model):
     # -------------------------------------------------
     # PRIMARY IDENTIFIER
     # -------------------------------------------------

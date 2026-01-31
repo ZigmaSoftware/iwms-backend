@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from django.core.validators import RegexValidator
 from .utils.comfun import generate_unique_id
 
@@ -28,7 +29,7 @@ hex_color_validator = RegexValidator(
 )
 
 
-class Ward(models.Model):
+class Ward(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,

@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .customercreation import CustomerCreation
 from .zone import Zone
 from .ward import Ward
@@ -32,7 +33,7 @@ def complaint_upload_path(instance, filename):
     return f"uploads/complaints/{instance.unique_id}_{filename}"
 
 
-class Complaint(models.Model):
+class Complaint(CompanyProjectMixin, models.Model):
 
     class StatusChoices(models.TextChoices):
         PROGRESSING = "PROGRESSING", "Progressing"

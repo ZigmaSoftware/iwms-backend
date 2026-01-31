@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from enum import Enum
 from .customercreation import CustomerCreation
 from .utils.comfun import generate_unique_id
@@ -16,7 +17,7 @@ class FeedbackCategory(Enum):
     POOR = "Poor"
 
 
-class FeedBack(models.Model):
+class FeedBack(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=30,
         unique=True,
