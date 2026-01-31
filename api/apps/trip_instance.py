@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from api.apps.trip_definition import TripDefinition
 from api.apps.stafftemplate import StaffTemplate
 from api.apps.alternative_staff_template import AlternativeStaffTemplate
@@ -17,7 +18,7 @@ def generate_trip_no():
     return f"TRIP-{generate_unique_id()}"
 
 
-class TripInstance(models.Model):
+class TripInstance(CompanyProjectMixin, models.Model):
 
     class Status(models.TextChoices):
         WAITING_FOR_LOAD = "WAITING_FOR_LOAD", "Waiting for Load"

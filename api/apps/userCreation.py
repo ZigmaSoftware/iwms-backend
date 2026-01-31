@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 
 from .utils.comfun import generate_unique_id
 from .userType import UserType
@@ -15,7 +16,7 @@ def generate_user_id():
     return f"USER-{generate_unique_id()}"
 
 
-class User(models.Model):
+class User(CompanyProjectMixin, models.Model):
 
     # -----------------------------
     # Core User Identity

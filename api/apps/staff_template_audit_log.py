@@ -1,10 +1,11 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 
 from .userCreation import User
 
 
-class StaffTemplateAuditLog(models.Model):
+class StaffTemplateAuditLog(CompanyProjectMixin, models.Model):
     class EntityType(models.TextChoices):
         STAFF_TEMPLATE = "STAFF_TEMPLATE", "Staff Template"
         ALTERNATIVE_TEMPLATE = "ALTERNATIVE_TEMPLATE", "Alternative Template"

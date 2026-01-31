@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
 
 
@@ -6,7 +7,7 @@ def generate_propertyName_id():
     return f"PROPERTY{generate_unique_id()}"
 
 
-class Property(models.Model):
+class Property(CompanyProjectMixin, models.Model):
 
     unique_id = models.CharField(
         max_length=40,

@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .country import Country
 from .state import State
 from .district import District
@@ -15,7 +16,7 @@ def generate_customer_id():
     """Generate readable prefixed ID, e.g., CUS-20251028001"""
     return f"CUS-{generate_unique_id()}"
 
-class CustomerCreation(models.Model):
+class CustomerCreation(CompanyProjectMixin, models.Model):
     class IDProofType(models.TextChoices):
         AADHAAR = "AADHAAR", "Aadhaar"
         VOTER_ID = "VOTER_ID", "Voter ID"

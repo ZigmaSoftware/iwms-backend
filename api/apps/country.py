@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .continent import Continent
 from .utils.comfun import generate_unique_id
 
@@ -7,7 +8,7 @@ def generate_country_id():
     return f"COUNTRY{generate_unique_id()}"
 
 
-class Country(models.Model):
+class Country(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,

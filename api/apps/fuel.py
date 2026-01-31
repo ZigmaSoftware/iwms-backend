@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 import uuid
 from .utils.comfun import generate_unique_id  # optional if you want prefixed IDs
 
@@ -7,7 +8,7 @@ def generate_fueltype_id():
     return f"FUEL-{generate_unique_id()}"
 
 
-class Fuel(models.Model):
+class Fuel(CompanyProjectMixin, models.Model):
     """
     Transport Master: Fuel Type
     -----------------------------------

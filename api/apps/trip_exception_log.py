@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from api.apps.trip_instance import TripInstance
 from api.apps.utils.comfun import generate_unique_id
 
@@ -7,7 +8,7 @@ def generate_trip_exception_id():
     return generate_unique_id()
 
 
-class TripExceptionLog(models.Model):
+class TripExceptionLog(CompanyProjectMixin, models.Model):
     """
     Immutable audit log for trip-level exceptions.
     """

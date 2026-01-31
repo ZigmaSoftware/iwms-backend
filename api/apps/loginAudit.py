@@ -1,5 +1,6 @@
 # api/models/login_audit.py
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
 
 
@@ -7,7 +8,7 @@ def generate_login_id():
     return f"LOGIN-{generate_unique_id()}"
 
 
-class LoginAudit(models.Model):
+class LoginAudit(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=100,
         unique=True,

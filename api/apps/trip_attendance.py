@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from api.apps.trip_instance import TripInstance
 from api.apps.userCreation import User
 from api.apps.vehicleCreation import VehicleCreation
@@ -14,7 +15,7 @@ def trip_attendance_upload_path(instance, filename):
     return f"uploads/trip_attendance/{role}/{filename}"
 
 
-class TripAttendance(models.Model):
+class TripAttendance(CompanyProjectMixin, models.Model):
     """
     Periodic attendance capture during a running trip.
     Enforces staff presence, prevents swapping & malpractice.

@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
 from .userType import UserType
 
@@ -7,7 +8,7 @@ def generate_staff_usertype_id():
     return f"STUSRTYPE{generate_unique_id()}"
 
 
-class StaffUserType(models.Model):
+class StaffUserType(CompanyProjectMixin, models.Model):
     STAFF_ROLE_CHOICES = [
         ("admin", "Admin"),
         ("operator", "Operator"),

@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
 from api.apps.mainscreen import MainScreen
 from api.apps.userscreen import UserScreen
@@ -11,7 +12,7 @@ def generate_userscreenpermission_id():
     return f"USERSCRNPERM-{generate_unique_id()}"
 
 
-class UserScreenPermission(models.Model):
+class UserScreenPermission(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=60,
         primary_key=True,

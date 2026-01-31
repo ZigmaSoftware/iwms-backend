@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from django.utils import timezone
 
 from api.apps.routeplan import RoutePlan
@@ -12,7 +13,7 @@ def generate_trip_definition_id():
     return f"TRIPDEF-{generate_unique_id()}"
 
 
-class TripDefinition(models.Model):
+class TripDefinition(CompanyProjectMixin, models.Model):
     """
     Defines WHEN a trip should exist.
     This is NOT a trip instance.

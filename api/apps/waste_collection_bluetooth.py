@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 import os, datetime, random, string
 from django.conf import settings
 from django.utils import timezone
@@ -25,14 +26,14 @@ def upload_image(image):
 
     return f"uploads/waste_collection_images/{filename}"
 
-class WasteType(models.Model):
+class WasteType(CompanyProjectMixin, models.Model):
     waste_type_name = models.CharField(max_length=255)
     is_deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = "waste_type_creation_master"
 
-class WasteCollectionSub(models.Model):
+class WasteCollectionSub(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(max_length=100, unique=True)
     screen_unique_id = models.CharField(max_length=100)
     customer_id = models.CharField(max_length=100)
@@ -49,7 +50,7 @@ class WasteCollectionSub(models.Model):
         db_table = "waste_collection_sub"
 
 
-class WasteCollectionMain(models.Model):
+class WasteCollectionMain(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(max_length=100, unique=True)
     screen_unique_id = models.CharField(max_length=100)
     collected_time = models.DateTimeField()

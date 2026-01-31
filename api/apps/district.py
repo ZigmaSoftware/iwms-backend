@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .country import Country
 from .state import State
 from .continent import Continent
@@ -7,7 +8,7 @@ from .utils.comfun import generate_unique_id
 def generate_district_id():
     return f"DIST{generate_unique_id()}"
 
-class District(models.Model):
+class District(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,

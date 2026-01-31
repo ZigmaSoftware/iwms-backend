@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
 
 
@@ -7,7 +8,7 @@ def generate_staff_unique_id():
     return f"ST-{generate_unique_id()}"
 
 
-class StaffOfficeDetails(models.Model):
+class StaffOfficeDetails(CompanyProjectMixin, models.Model):
     staff_unique_id = models.CharField(
         max_length=30,
         unique=True,
@@ -69,7 +70,7 @@ class StaffOfficeDetails(models.Model):
                 emp_id__isnull=True,
             ).update(emp_id=display_id)
             self.emp_id = display_id
-class StaffPersonalDetails(models.Model):
+class StaffPersonalDetails(CompanyProjectMixin, models.Model):
     staff = models.OneToOneField(
         StaffOfficeDetails,
         on_delete=models.CASCADE,

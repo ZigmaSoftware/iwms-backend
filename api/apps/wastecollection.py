@@ -1,4 +1,5 @@
 from django.db import models
+from .utils.tenancy import CompanyProjectMixin
 from .customercreation import CustomerCreation
 from .country import Country
 from .state import State
@@ -15,7 +16,7 @@ def generate_wastecollection_id():
     """Generate readable prefixed ID, e.g., WASTE-20251028001"""
     return f"WASTE-{generate_unique_id()}"
 
-class WasteCollection(models.Model):
+class WasteCollection(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=30,
         unique=True,
