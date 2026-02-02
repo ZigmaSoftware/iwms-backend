@@ -1,11 +1,12 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from api.views.tenant_viewset import TenantModelViewSet
 
 from api.apps.main_category_citizenGrievance import MainCategory
 from api.serializers.mobileView.grievance.maincategory_serializer import MainCategorySerializer
 
 
-class MainCategoryViewSet(viewsets.ModelViewSet):
+class MainCategoryViewSet(TenantModelViewSet):
     queryset = MainCategory.objects.filter(is_deleted=False).order_by("id")
     serializer_class = MainCategorySerializer
     lookup_field = "unique_id"

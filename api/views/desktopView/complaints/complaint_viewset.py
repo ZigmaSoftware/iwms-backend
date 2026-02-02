@@ -1,9 +1,10 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from api.views.tenant_viewset import TenantModelViewSet
 from api.apps.complaints import Complaint
 from api.serializers.desktopView.complaints.complaint_serializer import ComplaintSerializer
 
-class ComplaintViewSet(viewsets.ModelViewSet):
+class ComplaintViewSet(TenantModelViewSet):
     serializer_class = ComplaintSerializer
     lookup_field = "unique_id"
     queryset = Complaint.objects.filter(is_deleted=False).select_related(

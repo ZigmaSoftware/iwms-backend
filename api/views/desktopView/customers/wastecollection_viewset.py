@@ -1,8 +1,9 @@
 from rest_framework import viewsets
+from api.views.tenant_viewset import TenantModelViewSet
 from api.apps.wastecollection import WasteCollection
 from api.serializers.desktopView.customers.wastecollection_serializer import WasteCollectionSerializer
 
-class WasteCollectionViewSet(viewsets.ModelViewSet):
+class WasteCollectionViewSet(TenantModelViewSet):
     queryset = WasteCollection.objects.filter(is_deleted=False).select_related(
         "customer__ward","customer__zone","customer__city",
         "customer__district","customer__state","customer__country",

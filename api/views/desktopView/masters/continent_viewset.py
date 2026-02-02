@@ -1,3 +1,4 @@
+from api.views.tenant_viewset import TenantModelViewSet
 # from rest_framework import status, viewsets
 # from rest_framework.response import Response
 
@@ -7,7 +8,7 @@
 # from api.utils.audit_logger import create_audit_log
 
 
-# class ContinentViewSet(viewsets.ModelViewSet):
+# class ContinentViewSet(TenantModelViewSet):
 #     queryset = Continent.objects.filter(is_deleted=False)
 #     serializer_class = ContinentSerializer
 #     lookup_field = "unique_id"
@@ -93,7 +94,7 @@ from rest_framework import viewsets
 from api.apps.continent import Continent
 from api.serializers.desktopView.masters.continent_serializer import ContinentSerializer
 
-class ContinentViewSet(viewsets.ModelViewSet):
+class ContinentViewSet(TenantModelViewSet):
     queryset = Continent.objects.filter(is_deleted=False)
     serializer_class = ContinentSerializer
     lookup_field = "unique_id"

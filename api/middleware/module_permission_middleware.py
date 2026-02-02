@@ -2,10 +2,9 @@
 
 import jwt
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
-
-from api.apps.userCreation import User
 
 
 HTTP_ACTION_MAP = {
@@ -141,6 +140,7 @@ def _authenticate_request(request):
     if not unique_id:
         return JsonResponse({"detail": "Invalid token payload"}, status=401)
 
+    User = get_user_model()
     user = User.objects.filter(unique_id=unique_id).first()
     if not user:
         return JsonResponse({"detail": "User not found"}, status=401)
@@ -164,7 +164,15 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return None
 
         if any(request.path.startswith(p) for p in AUTH_ONLY_PREFIXES):
-            return _authenticate_request(request)
+            auth_error = _authenticate_request(request)
+            if auth_error:
+                return auth_error
+            if getattr(request.user, "is_superuser", False):
+                return JsonResponse(
+                    {"detail": "Platform super admin cannot use business endpoints"},
+                    status=403,
+                )
+            return None
 
         module, _ = _module_and_resource_from_path(request.path)
         if not module:
@@ -173,6 +181,12 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         auth_error = _authenticate_request(request)
         if auth_error:
             return auth_error
+
+        if getattr(request.user, "is_superuser", False):
+            return JsonResponse(
+                {"detail": "Platform super admin cannot use business endpoints"},
+                status=403,
+            )
 
         payload = request.jwt_payload
         role = (payload.get("role") or "").lower()

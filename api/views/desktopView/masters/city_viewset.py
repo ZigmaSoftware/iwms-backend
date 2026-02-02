@@ -1,9 +1,10 @@
 from rest_framework import viewsets
+from api.views.tenant_viewset import TenantModelViewSet
 from api.apps.city import City
 from api.serializers.desktopView.masters.city_serializer import CitySerializer
 
 
-class CityViewSet(viewsets.ModelViewSet):
+class CityViewSet(TenantModelViewSet):
     queryset = City.objects.filter(is_deleted=False)
     serializer_class = CitySerializer
     lookup_field = "unique_id"

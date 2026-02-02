@@ -28,8 +28,9 @@ class LoginSerializer(serializers.Serializer):
         candidates = (
             User.objects
             .select_related("user_type_id", "staffusertype_id", "staff_id", "customer_id", "staff_id__personal_details")
-            .filter(is_active=True, is_deleted=False)
+            .filter(is_active=True, is_deleted=False, is_superuser=False)
             .filter(
+                Q(username__iexact=username) |
                 Q(customer_id__customer_name__iexact=username) |
                 Q(customer_id__contact_no__iexact=username) |
                 Q(staff_id__employee_name__iexact=username) |
@@ -47,6 +48,9 @@ class LoginSerializer(serializers.Serializer):
 
         if not user:
             raise serializers.ValidationError("Invalid username or password")
+
+        if not user.user_type_id:
+            raise serializers.ValidationError("Invalid user type")
 
         # --------------------------
         # USER TYPE VALIDATION

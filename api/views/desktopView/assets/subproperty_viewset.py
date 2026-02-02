@@ -1,8 +1,9 @@
 from rest_framework import viewsets
+from api.views.tenant_viewset import TenantModelViewSet
 from api.apps.subproperty import SubProperty
 from api.serializers.desktopView.assets.subproperty_serializer import SubPropertySerializer
 
-class SubPropertyViewSet(viewsets.ModelViewSet):
+class SubPropertyViewSet(TenantModelViewSet):
     queryset = SubProperty.objects.filter(is_deleted=False)\
         .select_related("property_id")\
         .order_by("sub_property_name")

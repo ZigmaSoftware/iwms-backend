@@ -1,9 +1,10 @@
 from rest_framework import viewsets
+from api.views.tenant_viewset import TenantModelViewSet
 from api.apps.zone import Zone
 from api.serializers.desktopView.masters.zone_serializer import ZoneSerializer
 
 
-class ZoneViewSet(viewsets.ModelViewSet):
+class ZoneViewSet(TenantModelViewSet):
     serializer_class = ZoneSerializer
     lookup_field = "unique_id"
 

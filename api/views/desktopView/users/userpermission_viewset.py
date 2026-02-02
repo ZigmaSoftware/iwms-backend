@@ -1,10 +1,11 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from api.views.tenant_viewset import TenantModelViewSet
 from django.db import transaction
 from api.apps.userpermission import UserPermission
 from api.serializers.desktopView.users.userpermission_serializer import UserPermissionSerializer
 
-class UserPermissionViewSet(viewsets.ModelViewSet):
+class UserPermissionViewSet(TenantModelViewSet):
     queryset = UserPermission.objects.filter(is_delete=False)
     serializer_class = UserPermissionSerializer
 

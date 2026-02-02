@@ -1,10 +1,11 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from api.views.tenant_viewset import TenantModelViewSet
 from api.apps.bin import Bin
 from api.serializers.desktopView.masters.bin_serializer import BinSerializer
 
 
-class BinViewSet(viewsets.ModelViewSet):
+class BinViewSet(TenantModelViewSet):
     serializer_class = BinSerializer
     lookup_field = "unique_id"
 

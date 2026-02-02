@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
+from api.views.tenant_viewset import TenantModelViewSet
 
 from api.apps.alternative_staff_template import AlternativeStaffTemplate
 from api.apps.staff_template_audit_log import StaffTemplateAuditLog
@@ -10,7 +11,7 @@ from api.serializers.desktopView.users.alternative_stafftemplate_serializer impo
 )
 
 
-class AlternativeStaffTemplateViewSet(viewsets.ModelViewSet):
+class AlternativeStaffTemplateViewSet(TenantModelViewSet):
     """
     API Contract:
     - Create alternative staff mapping

@@ -171,7 +171,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # -------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'api.authentication.jwt.JWTUserAuthentication',
@@ -208,6 +208,11 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# -------------------------------------------------------
+# Custom User Model
+# -------------------------------------------------------
+AUTH_USER_MODEL = "api.User"
 
 # -------------------------------------------------------
 # JWT CONFIG (import at the end)

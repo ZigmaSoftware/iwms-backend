@@ -1,4 +1,11 @@
 from django.db import models
+from django.db.models import Q
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
+)
+
 from .utils.tenancy import CompanyProjectMixin
 
 from .utils.comfun import generate_unique_id
@@ -15,12 +22,69 @@ from .staffcreation import StaffOfficeDetails
 def generate_user_id():
     return f"USER-{generate_unique_id()}"
 
+class UserManager(BaseUserManager):
+    """
+    Custom user manager to support Django's createsuperuser flow.
 
-class User(CompanyProjectMixin, models.Model):
+    We intentionally keep 'username' only strictly required for platform super admins.
+    Staff/customer users can still authenticate via the existing business login flow.
+    """
+
+    def create_user(self, username=None, password=None, **extra_fields):
+        # DB constraint requires non-superusers to belong to a company.
+        is_superuser = bool(extra_fields.get("is_superuser"))
+        if not is_superuser and not extra_fields.get("company_id"):
+            raise ValueError("Non-superusers must belong to a company")
+
+        user = self.model(username=username, **extra_fields)
+        if password:
+            user.set_password(password)
+        else:
+            # Allow system-created users that will set a password later.
+            user.set_unusable_password()
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, username, password, **extra_fields):
+        if not username:
+            raise ValueError("Superuser must have a username")
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("is_deleted", False)
+        extra_fields["is_superuser"] = True  # from PermissionsMixin
+
+        # Platform authority must not be mixed with tenant/business identity.
+        extra_fields["company_id"] = None
+        extra_fields["project_id"] = None
+        extra_fields["user_type_id"] = None
+        extra_fields["staffusertype_id"] = None
+        extra_fields["staff_id"] = None
+        extra_fields["customer_id"] = None
+
+        user = self.model(username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+
+class User(CompanyProjectMixin, AbstractBaseUser, PermissionsMixin):
 
     # -----------------------------
     # Core User Identity
     # -----------------------------
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Required for platform super admins. Staff users may be created without it.",
+    )
+
+    email = models.EmailField(
+        null=True,
+        blank=True,
+    )
+
     unique_id = models.CharField(
         max_length=100,
         unique=True,
@@ -34,8 +98,6 @@ class User(CompanyProjectMixin, models.Model):
         db_column="user_type_id",
         related_name="users"
     )
-
-    password = models.CharField(max_length=128)
 
     # -----------------------------
     # STAFF-RELATED FIELDS
@@ -110,14 +172,45 @@ class User(CompanyProjectMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
 
+    is_staff = models.BooleanField(
+        default=False,
+        help_text="Django admin-site access flag (not a business role).",
+    )
     is_active = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)
+
+    objects = UserManager()
+
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = []
 
     class Meta:
         ordering = ["-id"]
         verbose_name = "User"
         verbose_name_plural = "Users"
+        constraints = [
+            # Platform super admins must not be attached to any tenant/business identity.
+            models.CheckConstraint(
+                name="platform_superuser_no_tenant_links",
+                check=(
+                    Q(is_superuser=False)
+                    | (
+                        Q(is_superuser=True)
+                        & Q(company_id__isnull=True)
+                        & Q(project_id__isnull=True)
+                        & Q(user_type_id__isnull=True)
+                        & Q(staffusertype_id__isnull=True)
+                        & Q(staff_id__isnull=True)
+                        & Q(customer_id__isnull=True)
+                    )
+                ),
+            ),
+            # Non-superusers must belong to a company (staff + customers are tenants).
+            models.CheckConstraint(
+                name="non_superuser_requires_company",
+                check=(Q(is_superuser=True) | Q(company_id__isnull=False)),
+            ),
+        ]
 
     def __str__(self):
-        user_type = self.user_type_id.name if self.user_type_id else "No Type"
-        return f"{self.unique_id} ({user_type})"
+        return self.username or self.unique_id

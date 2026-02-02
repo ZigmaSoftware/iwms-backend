@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IWMS Platform Console</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111c34;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #22c55e;
+        --danger: #ef4444;
+        --border: rgba(255,255,255,0.08);
+      }
+      body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background: radial-gradient(1200px 800px at 20% 10%, #1f2a52, var(--bg)); color: var(--text); }
+      .wrap { max-width: 980px; margin: 0 auto; padding: 28px 18px 64px; }
+      h1 { font-size: 22px; margin: 0 0 18px; letter-spacing: 0.2px; }
+      .sub { color: var(--muted); margin-bottom: 24px; }
+      .grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+      @media (min-width: 960px) { .grid { grid-template-columns: 1fr 1fr; } }
+      .card { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+      .card h2 { font-size: 14px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.12em; color: #cbd5e1; }
+      label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 6px; }
+      input, textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: rgba(0,0,0,0.2); color: var(--text); outline: none; }
+      textarea { min-height: 90px; resize: vertical; }
+      .row { display: grid; gap: 10px; grid-template-columns: 1fr; }
+      @media (min-width: 720px) { .row { grid-template-columns: 1fr 1fr; } }
+      button { margin-top: 12px; background: var(--accent); border: 0; color: #052e16; font-weight: 700; padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+      button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+      .status { margin-top: 10px; font-size: 12px; color: var(--muted); white-space: pre-wrap; }
+      .ok { color: #86efac; }
+      .bad { color: #fca5a5; }
+      .token { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; word-break: break-all; }
+      .topbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+      .pill { font-size: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <h1>IWMS Platform Console</h1>
+        <div class="pill" id="tokenPill">No platform token</div>
+      </div>
+      <div class="sub">Use this page to (1) log in as Platform Super Admin, (2) create a Company + Company Admin, and (3) create the Company’s first Project.</div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Platform Login</h2>
+          <label>Username</label>
+          <input id="platUsername" autocomplete="username" />
+          <label>Password</label>
+          <input id="platPassword" type="password" autocomplete="current-password" />
+          <button id="loginBtn">Login</button>
+          <button class="secondary" id="logoutBtn" type="button">Logout</button>
+          <div class="status" id="loginStatus"></div>
+        </div>
+
+        <div class="card">
+          <h2>Create Company + Company Admin</h2>
+          <label>Company name</label>
+          <input id="companyName" />
+          <label>Company description</label>
+          <textarea id="companyDesc"></textarea>
+
+          <div class="row">
+            <div>
+              <label>Admin username</label>
+              <input id="adminUsername" />
+            </div>
+            <div>
+              <label>Admin password</label>
+              <input id="adminPassword" type="password" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Admin employee name</label>
+              <input id="adminEmpName" />
+            </div>
+            <div>
+              <label>Admin email (optional)</label>
+              <input id="adminEmail" type="email" />
+            </div>
+          </div>
+
+          <button id="createCompanyBtn">Create Company</button>
+          <div class="status" id="companyStatus"></div>
+        </div>
+
+        <div class="card">
+          <h2>Company Admin Login</h2>
+          <label>Username (can be the admin username you created)</label>
+          <input id="companyUsername" autocomplete="username" />
+          <label>Password</label>
+          <input id="companyPassword" type="password" autocomplete="current-password" />
+          <button id="companyLoginBtn">Login</button>
+          <button class="secondary" id="companyLogoutBtn" type="button">Logout</button>
+          <div class="status" id="companyLoginStatus"></div>
+        </div>
+
+        <div class="card">
+          <h2>Create Additional Project (Company Admin)</h2>
+          <label>Project name</label>
+          <input id="companyProjectName" />
+          <label>Project description</label>
+          <textarea id="companyProjectDesc"></textarea>
+          <button id="createCompanyProjectBtn">Create Project</button>
+          <div class="status" id="companyProjectStatus"></div>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+          <h2>Create First Project (Platform Only)</h2>
+          <div class="row">
+            <div>
+              <label>Company unique_id</label>
+              <input id="projectCompanyId" placeholder="e.g. COMP..." />
+            </div>
+            <div>
+              <label>Project name</label>
+              <input id="projectName" />
+            </div>
+          </div>
+          <label>Project description</label>
+          <textarea id="projectDesc"></textarea>
+          <button id="createFirstProjectBtn">Create First Project</button>
+          <div class="status" id="projectStatus"></div>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+          <h2>Current Token</h2>
+          <div class="status token" id="tokenBox"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const TOKEN_KEY = 'iwms_platform_token';
+      const COMPANY_TOKEN_KEY = 'iwms_company_token';
+
+      function setStatus(el, ok, msg) {
+        el.className = 'status ' + (ok ? 'ok' : 'bad');
+        el.textContent = msg;
+      }
+
+      function getToken() {
+        return localStorage.getItem(TOKEN_KEY);
+      }
+
+      function setToken(token) {
+        if (token) localStorage.setItem(TOKEN_KEY, token);
+        else localStorage.removeItem(TOKEN_KEY);
+        renderToken();
+      }
+
+      function renderToken() {
+        const token = getToken();
+        document.getElementById('tokenBox').textContent = token || '';
+        document.getElementById('tokenPill').textContent = token ? 'Platform token loaded' : 'No platform token';
+      }
+
+      function getCompanyToken() {
+        return localStorage.getItem(COMPANY_TOKEN_KEY);
+      }
+
+      function setCompanyToken(token) {
+        if (token) localStorage.setItem(COMPANY_TOKEN_KEY, token);
+        else localStorage.removeItem(COMPANY_TOKEN_KEY);
+      }
+
+      async function api(path, body) {
+        const token = getToken();
+        const res = await fetch(path, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+          },
+          body: JSON.stringify(body || {}),
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { raw: text }; }
+        if (!res.ok) {
+          const msg = data?.detail || JSON.stringify(data);
+          throw new Error(msg);
+        }
+        return data;
+      }
+
+      async function companyApi(path, body) {
+        const token = getCompanyToken();
+        const res = await fetch(path, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+          },
+          body: JSON.stringify(body || {}),
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { raw: text }; }
+        if (!res.ok) {
+          const msg = data?.detail || JSON.stringify(data);
+          throw new Error(msg);
+        }
+        return data;
+      }
+
+      document.getElementById('loginBtn').addEventListener('click', async () => {
+        const statusEl = document.getElementById('loginStatus');
+        try {
+          const data = await api('/api/platform/auth/login/', {
+            username: document.getElementById('platUsername').value,
+            password: document.getElementById('platPassword').value,
+          });
+          setToken(data.access_token);
+          setStatus(statusEl, true, 'Logged in as platform super admin: ' + (data.username || '')); 
+        } catch (e) {
+          setStatus(statusEl, false, 'Login failed: ' + e.message);
+        }
+      });
+
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        setToken(null);
+        setStatus(document.getElementById('loginStatus'), true, 'Logged out');
+      });
+
+      document.getElementById('companyLoginBtn').addEventListener('click', async () => {
+        const statusEl = document.getElementById('companyLoginStatus');
+        try {
+          const data = await fetch('/api/desktop/login/login-user/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: document.getElementById('companyUsername').value,
+              password: document.getElementById('companyPassword').value,
+            }),
+          }).then(async (r) => {
+            const t = await r.text();
+            let j; try { j = JSON.parse(t); } catch { j = { raw: t }; }
+            if (!r.ok) throw new Error(j?.detail || JSON.stringify(j));
+            return j;
+          });
+
+          setCompanyToken(data.access_token);
+          setStatus(statusEl, true, 'Logged in as company admin. Company: ' + (data.company_unique_id || '(unknown)'));
+        } catch (e) {
+          setStatus(statusEl, false, 'Login failed: ' + e.message);
+        }
+      });
+
+      document.getElementById('companyLogoutBtn').addEventListener('click', () => {
+        setCompanyToken(null);
+        setStatus(document.getElementById('companyLoginStatus'), true, 'Logged out');
+      });
+
+      document.getElementById('createCompanyBtn').addEventListener('click', async () => {
+        const statusEl = document.getElementById('companyStatus');
+        try {
+          const data = await api('/api/platform/companies/', {
+            name: document.getElementById('companyName').value,
+            description: document.getElementById('companyDesc').value,
+            admin_username: document.getElementById('adminUsername').value,
+            admin_password: document.getElementById('adminPassword').value,
+            admin_employee_name: document.getElementById('adminEmpName').value,
+            admin_email: document.getElementById('adminEmail').value,
+          });
+          setStatus(statusEl, true, 'Company created: ' + data.company.unique_id + '\nAdmin user: ' + data.company_admin.username);
+          document.getElementById('projectCompanyId').value = data.company.unique_id;
+        } catch (e) {
+          setStatus(statusEl, false, 'Create company failed: ' + e.message);
+        }
+      });
+
+      document.getElementById('createFirstProjectBtn').addEventListener('click', async () => {
+        const statusEl = document.getElementById('projectStatus');
+        const companyId = document.getElementById('projectCompanyId').value.trim();
+        if (!companyId) {
+          setStatus(statusEl, false, 'Company unique_id is required');
+          return;
+        }
+        try {
+          const data = await api('/api/platform/companies/' + encodeURIComponent(companyId) + '/projects/first/', {
+            name: document.getElementById('projectName').value,
+            description: document.getElementById('projectDesc').value,
+          });
+          setStatus(statusEl, true, 'First project created: ' + data.project.unique_id);
+        } catch (e) {
+          setStatus(statusEl, false, 'Create project failed: ' + e.message);
+        }
+      });
+
+      document.getElementById('createCompanyProjectBtn').addEventListener('click', async () => {
+        const statusEl = document.getElementById('companyProjectStatus');
+        try {
+          const data = await companyApi('/api/company/projects/', {
+            name: document.getElementById('companyProjectName').value,
+            description: document.getElementById('companyProjectDesc').value,
+          });
+          setStatus(statusEl, true, 'Project created: ' + data.project.unique_id);
+        } catch (e) {
+          setStatus(statusEl, false, 'Create project failed: ' + e.message);
+        }
+      });
+
+      renderToken();
+    </script>
+  </body>
+</html>

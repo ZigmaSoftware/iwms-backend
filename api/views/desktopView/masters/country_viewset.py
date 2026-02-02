@@ -1,8 +1,9 @@
 from rest_framework import viewsets
+from api.views.tenant_viewset import TenantModelViewSet
 from api.apps.country import Country
 from api.serializers.desktopView.masters.country_serializer import CountrySerializer
 
-class CountryViewSet(viewsets.ModelViewSet):
+class CountryViewSet(TenantModelViewSet):
     queryset = Country.objects.filter(is_deleted=False)
     serializer_class = CountrySerializer
     lookup_field = "unique_id"
