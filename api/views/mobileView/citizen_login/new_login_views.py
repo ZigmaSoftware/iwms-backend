@@ -1,12 +1,14 @@
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import AccessToken
 
 from ....serializers.mobileView.citizenLogin.newlogin_serializer import LoginSerializer
 
 
 class LoginViewSet(ViewSet):
+    permission_classes = [AllowAny]
     queryset = []
 
     def create(self, request):
@@ -42,6 +44,8 @@ class LoginViewSet(ViewSet):
         access["email"] = email
         access["permissions"] = permissions
         access["emp_id"] = emp_id
+        access["company_unique_id"] = getattr(getattr(user, "company_id", None), "unique_id", None)
+        access["project_unique_id"] = getattr(getattr(user, "project_id", None), "unique_id", None)
         
         iat = access["iat"]
         exp = access["exp"]

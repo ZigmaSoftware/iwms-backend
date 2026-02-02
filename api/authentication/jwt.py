@@ -1,9 +1,8 @@
 import jwt
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-
-from api.apps.userCreation import User
 
 
 class JWTUserAuthentication(BaseAuthentication):
@@ -38,6 +37,7 @@ class JWTUserAuthentication(BaseAuthentication):
         if not unique_id:
             raise AuthenticationFailed("Invalid token")
 
+        User = get_user_model()
         user = User.objects.filter(unique_id=unique_id).first()
         if not user:
             raise AuthenticationFailed("User not found")

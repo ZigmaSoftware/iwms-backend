@@ -1,11 +1,12 @@
 from rest_framework import viewsets
+from api.views.tenant_viewset import TenantModelViewSet
 from api.apps.routeplan import RoutePlan
 from api.serializers.desktopView.users.routeplan_serializer import (
     RoutePlanSerializer
 )
 
 
-class RoutePlanViewSet(viewsets.ModelViewSet):
+class RoutePlanViewSet(TenantModelViewSet):
     """
     Route Plan CRUD
     """

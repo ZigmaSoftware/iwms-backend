@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from api.views.tenant_viewset import TenantModelViewSet
 from django.db import transaction
 
 from api.apps.userscreenpermission import UserScreenPermission
@@ -10,7 +11,7 @@ from api.serializers.desktopView.users.userscreenpermission_serializer import (
 )
 
 
-class UserScreenPermissionViewSet(viewsets.ModelViewSet):
+class UserScreenPermissionViewSet(TenantModelViewSet):
     queryset = UserScreenPermission.objects.filter(is_deleted=False)
     serializer_class = UserScreenPermissionSerializer
     lookup_field = "unique_id"

@@ -2,11 +2,12 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from api.views.tenant_viewset import TenantModelViewSet
 from api.apps.userCreation import User
 from api.serializers.desktopView.users.user_serializer import UserSerializer
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(TenantModelViewSet):
     queryset = User.objects.filter(is_deleted=False)
     serializer_class = UserSerializer
     lookup_field = "unique_id"

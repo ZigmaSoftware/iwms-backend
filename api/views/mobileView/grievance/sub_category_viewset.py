@@ -1,11 +1,12 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from api.views.tenant_viewset import TenantModelViewSet
 
 from api.apps.sub_category_citizenGrievance import SubCategory
 from api.serializers.mobileView.grievance.subcategory_serializer import SubCategorySerializer
 
 
-class SubCategoryViewSet(viewsets.ModelViewSet):
+class SubCategoryViewSet(TenantModelViewSet):
     queryset = SubCategory.objects.filter(is_deleted=False)
     serializer_class = SubCategorySerializer
     lookup_field = "unique_id"

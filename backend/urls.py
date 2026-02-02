@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
+from django.shortcuts import render
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -13,6 +14,8 @@ from rest_framework.permissions import AllowAny
 def home(request):
     return HttpResponse("Django backend is running! Try /api/desktop/")
 
+def platform_console(request):
+    return render(request, "platform_console.html")
 
 #  Swagger schema with JWT support
 schema_view = get_schema_view(
@@ -29,9 +32,13 @@ schema_view = get_schema_view(
 urlpatterns = [
     # Home
     path("", home),
+    path("platform/", platform_console),
+    path("admin/", admin.site.urls),
 
     # APIs
     path("api/desktop/", include("api.urls.desktop_urls")),
+    path("api/platform/", include("api.urls.platform_urls")),
+    path("api/company/", include("api.urls.company_urls")),
 
     # Swagger UI
     path(
