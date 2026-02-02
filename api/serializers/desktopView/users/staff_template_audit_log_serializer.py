@@ -1,9 +1,10 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.staff_template_audit_log import StaffTemplateAuditLog
 
 
-class StaffTemplateAuditLogSerializer(serializers.ModelSerializer):
+class StaffTemplateAuditLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     performed_by = serializers.SlugRelatedField(
         slug_field="unique_id",
         read_only=True,
@@ -16,6 +17,10 @@ class StaffTemplateAuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffTemplateAuditLog
         fields = [
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "id",
             "entity_type",
             "entity_id",

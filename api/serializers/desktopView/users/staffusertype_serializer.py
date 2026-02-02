@@ -1,9 +1,10 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.staffUserType import StaffUserType
 from api.validators.unique_name_validator import unique_name_validator
 
 
-class StaffUserTypeSerializer(serializers.ModelSerializer):
+class StaffUserTypeSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     # Extra field
     usertype_name = serializers.CharField(
         source="usertype_id.name",

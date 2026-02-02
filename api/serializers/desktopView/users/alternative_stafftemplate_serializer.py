@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.alternative_staff_template import AlternativeStaffTemplate
 from api.apps.stafftemplate import StaffTemplate
@@ -34,7 +35,7 @@ class CommaSeparatedListField(serializers.ListField):
         return super().to_representation(value)
 
 
-class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
+class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     staff_template = UniqueIdOrPkField(
         slug_field="unique_id",
         queryset=StaffTemplate.objects.all(),
@@ -95,6 +96,10 @@ class AlternativeStaffTemplateSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'unique_id',
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             'display_code',
             'staff_template',
             'staff_template_display_code',

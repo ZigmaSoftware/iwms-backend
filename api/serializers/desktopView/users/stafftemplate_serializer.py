@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.stafftemplate import StaffTemplate
 from api.apps.userCreation import User
@@ -43,7 +44,7 @@ class BlankableUniqueIdField(UniqueIdOrPkField):
         return super().to_internal_value(data)
 
 
-class StaffTemplateSerializer(serializers.ModelSerializer):
+class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     display_code = serializers.CharField(read_only=True)
 
     driver_id = UniqueIdOrPkField(
@@ -84,6 +85,10 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "display_code",
 
             "driver_id",

@@ -1,13 +1,18 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.main_category_citizenGrievance import MainCategory
 from api.validators.unique_name_validator import unique_name_validator
 
-class MainCategorySerializer(serializers.ModelSerializer):
+class MainCategorySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = MainCategory
         fields = [
             "id",
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "main_categoryName",
             "is_active"
         ]

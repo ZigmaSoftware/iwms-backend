@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from django.db.models import Q
 
 from api.apps.userCreation import User
@@ -26,7 +27,7 @@ class UniqueIdOrPkField(serializers.SlugRelatedField):
                 raise serializers.ValidationError("Invalid reference value")
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     # ---------- USER TYPE ----------
     user_type_id = UniqueIdOrPkField(

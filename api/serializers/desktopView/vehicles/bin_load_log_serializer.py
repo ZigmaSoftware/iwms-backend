@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.bin_load_log import BinLoadLog
 from api.apps.zone import Zone
@@ -8,7 +9,7 @@ from api.apps.subproperty import SubProperty
 from api.apps.bin import Bin
 
 
-class BinLoadLogSerializer(serializers.ModelSerializer):
+class BinLoadLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     # ------------------------------------------------------
     # WRITE-ONLY INPUT FIELDS (FK OBJECTS)
@@ -53,6 +54,10 @@ class BinLoadLogSerializer(serializers.ModelSerializer):
         model = BinLoadLog
         fields = [
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
 
             # write-only
             "zone",

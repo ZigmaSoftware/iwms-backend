@@ -1,7 +1,8 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.userpermission import UserPermission
 
-class UserPermissionSerializer(serializers.ModelSerializer):
+class UserPermissionSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     user_type_name = serializers.SerializerMethodField()
     main_screen_name = serializers.SerializerMethodField()
     user_screen_name = serializers.SerializerMethodField()
@@ -11,6 +12,10 @@ class UserPermissionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "user_type",
             "user_type_name",
             "main_screen",

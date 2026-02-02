@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from django.db import models
 from api.apps.userscreenpermission import UserScreenPermission
 from api.apps.userType import UserType
@@ -8,7 +9,7 @@ from api.apps.userscreen import UserScreen
 # =============================================================
 # SINGLE PERMISSION SERIALIZER (Used for GET, LIST)
 # =============================================================
-class UserScreenPermissionSerializer(serializers.ModelSerializer):
+class UserScreenPermissionSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     userscreen_name = serializers.CharField(source="userscreen_id.userscreen_name", read_only=True)
     userscreenaction_name = serializers.CharField(source="userscreenaction_id.action_name", read_only=True)
 

@@ -1,7 +1,8 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.mainscreen import MainScreen
 
-class MainScreenSerializer(serializers.ModelSerializer):
+class MainScreenSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     mainscreentype_name = serializers.CharField(
         source="mainscreentype_id.type_name",
         read_only=True

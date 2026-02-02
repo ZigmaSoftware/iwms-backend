@@ -1,13 +1,18 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 from api.apps.attendance import Employee
 from django.conf import settings
 
 
-class StaffPersonalSerializer(serializers.ModelSerializer):
+class StaffPersonalSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = StaffPersonalDetails
         fields = [
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "dob",
             "blood_group",
             "marital_status",
@@ -17,7 +22,7 @@ class StaffPersonalSerializer(serializers.ModelSerializer):
         ]
 
 
-class StaffOfficeSerializer(serializers.ModelSerializer):
+class StaffOfficeSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     personal = StaffPersonalSerializer(
         source="personal_details",
         read_only=True
@@ -27,6 +32,10 @@ class StaffOfficeSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffOfficeDetails
         fields = [
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "id",
             "staff_unique_id",
             "emp_id",
@@ -60,7 +69,7 @@ class StaffOfficeSerializer(serializers.ModelSerializer):
             return emp.image_path if emp.image_path else None
 
         return None
-class StaffUpdateSerializer(serializers.ModelSerializer):
+class StaffUpdateSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     dob = serializers.DateField(required=False)
     blood_group = serializers.CharField(required=False)
     photo = serializers.ImageField(required=False)
@@ -68,6 +77,10 @@ class StaffUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffOfficeDetails
         fields = [
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "employee_name",
             "department",
             "designation",

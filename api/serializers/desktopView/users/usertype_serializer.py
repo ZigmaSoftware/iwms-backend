@@ -1,7 +1,8 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.userType import UserType
 from api.validators.unique_name_validator import unique_name_validator
-class UserTypeSerializer(serializers.ModelSerializer):
+class UserTypeSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = UserType
         fields = '__all__'

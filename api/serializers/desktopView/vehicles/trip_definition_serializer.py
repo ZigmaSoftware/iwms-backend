@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.trip_definition import TripDefinition
 from api.apps.routeplan import RoutePlan
@@ -12,7 +13,7 @@ from api.serializers.desktopView.users.user_serializer import UniqueIdOrPkField
 # ==========================================================
 # MINI USER SERIALIZER (Driver / Operator)
 # ==========================================================
-class MiniUserSerializer(serializers.ModelSerializer):
+class MiniUserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     name = serializers.CharField(
         source="staff_id.employee_name",
         read_only=True
@@ -30,6 +31,10 @@ class MiniUserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "name",
             "mobile",
             "designation",
@@ -39,7 +44,7 @@ class MiniUserSerializer(serializers.ModelSerializer):
 # ==========================================================
 # TRIP DEFINITION SERIALIZER
 # ==========================================================
-class TripDefinitionSerializer(serializers.ModelSerializer):
+class TripDefinitionSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     # ------------------------------------------------------
     # INPUT FIELDS (WRITE-ONLY | FK unique_id)
@@ -83,6 +88,10 @@ class TripDefinitionSerializer(serializers.ModelSerializer):
         model = TripDefinition
         fields = (
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
 
             # write-only
             "routeplan_id",

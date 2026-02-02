@@ -3,6 +3,7 @@ from api.apps.userType import UserType
 from api.apps.staffUserType import StaffUserType
 from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.customercreation import CustomerCreation
+from api.apps.company import Company
 
 from django.db.models import Q
 
@@ -29,6 +30,21 @@ class UserSeeder:
         if not all([district, city, zone, ward]):
             raise Exception("Location masters missing. Run masters seeder first.")
 
+        # --------------------------------------------------
+        # TENANCY (company is required for non-superusers)
+        # --------------------------------------------------
+        company = Company.objects.filter(is_deleted=False).order_by("name").first()
+        if not company:
+            company, _ = Company.objects.update_or_create(
+                unique_id="COMP-SEED",
+                defaults={
+                    "name": "Seed Company",
+                    "description": "Auto-created by seed command",
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+
         # ==================================================
         # STAFF USER (ADMIN)
         # ==================================================
@@ -46,10 +62,12 @@ class UserSeeder:
             raise Exception("Staff admin role missing. Run StaffUserTypeSeeder first.")
 
         admin_staff = StaffOfficeDetails.objects.get(employee_name="Sathya")
+        admin_company = getattr(admin_staff, "company_id", None) or company
 
         User.objects.update_or_create(
             staff_id=admin_staff,
             defaults={
+                "company_id": admin_company,
                 "user_type_id": staff_type,
                 "staffusertype_id": admin_role,
                 "customer_id": None,
@@ -102,9 +120,11 @@ class UserSeeder:
             ).filter(name_filter)
 
             for staff_member in special_staff:
+                staff_company = getattr(staff_member, "company_id", None) or company
                 User.objects.update_or_create(
                     staff_id=staff_member,
                     defaults={
+                        "company_id": staff_company,
                         "user_type_id": staff_type,
                         "staffusertype_id": role_obj,
                         "customer_id": None,
@@ -129,10 +149,12 @@ class UserSeeder:
 
             for staff_member in staff_members:
                 existing_user = User.objects.filter(staff_id=staff_member).first()
+                staff_company = getattr(staff_member, "company_id", None) or company
 
                 if existing_user is None:
                     User.objects.create(
                         staff_id=staff_member,
+                        company_id=staff_company,
                         user_type_id=staff_type,
                         staffusertype_id=role_obj,
                         customer_id=None,
@@ -147,6 +169,8 @@ class UserSeeder:
                     continue
 
                 updates = {}
+                if existing_user.company_id_id is None:
+                    updates["company_id"] = staff_company
                 if existing_user.user_type_id != staff_type:
                     updates["user_type_id"] = staff_type
                 if existing_user.staffusertype_id_id != role_obj.unique_id:
@@ -220,9 +244,11 @@ class UserSeeder:
             return
 
         for customer in customers:
+            customer_company = getattr(customer, "company_id", None) or company
             User.objects.get_or_create(
                 customer_id=customer,
                 defaults={
+                    "company_id": customer_company,
                     "user_type_id": customer_type,
                     "staff_id": None,
                     "staffusertype_id": None,

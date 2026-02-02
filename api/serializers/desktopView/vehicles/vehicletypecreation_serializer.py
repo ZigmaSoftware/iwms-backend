@@ -1,9 +1,10 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.vehicleTypeCreation import VehicleTypeCreation
 from api.validators.unique_name_validator import unique_name_validator
 
 
-class VehicleTypeCreationSerializer(serializers.ModelSerializer):
+class VehicleTypeCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = VehicleTypeCreation
         fields = "__all__"

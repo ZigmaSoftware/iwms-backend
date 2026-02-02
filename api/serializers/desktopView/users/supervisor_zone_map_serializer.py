@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.supervisor_zone_map import SupervisorZoneMap
 from api.apps.userCreation import User
 
@@ -13,11 +14,15 @@ from api.apps.ward import Ward
 # ============================================================
 # WARD SERIALIZER
 # ============================================================
-class WardSerializer(serializers.ModelSerializer):
+class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Ward
         fields = [
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "name",
             "area_type",
             "coordinates",
@@ -29,13 +34,17 @@ class WardSerializer(serializers.ModelSerializer):
 # ============================================================
 # ZONE SERIALIZER (WITH WARDS)
 # ============================================================
-class ZoneWithWardsSerializer(serializers.ModelSerializer):
+class ZoneWithWardsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     wards = serializers.SerializerMethodField()
 
     class Meta:
         model = Zone
         fields = [
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "name",
             "city_id",
             "district_id",
@@ -57,7 +66,7 @@ class ZoneWithWardsSerializer(serializers.ModelSerializer):
 # ============================================================
 # SUPERVISOR → ZONE → WARD MAPPING SERIALIZER
 # ============================================================
-class SupervisorZoneMapSerializer(serializers.ModelSerializer):
+class SupervisorZoneMapSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     supervisor_id = serializers.SlugRelatedField(
         slug_field="unique_id",
         queryset=User.objects.all()
@@ -70,6 +79,10 @@ class SupervisorZoneMapSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "supervisor_id",
             "district_id",
             "city_id",
