@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import check_password, identify_hasher
 from django.db.models import Q
 from api.apps.userCreation import User
-from api.apps.userscreenpermission import UserScreenPermission
+from api.apps.companyuserscreenpermission import CompanyUserScreenPermission
 
 
 class LoginSerializer(serializers.Serializer):
@@ -76,7 +76,7 @@ class LoginSerializer(serializers.Serializer):
         # --------------------------------
         # FETCH PERMISSIONS FOR THIS ROLE
         # --------------------------------
-        queryset = UserScreenPermission.objects.filter(
+        queryset = CompanyUserScreenPermission.objects.filter(
             usertype_id_id=user.user_type_id.unique_id,
             staffusertype_id_id=staffusertype_id,
             is_deleted=False,

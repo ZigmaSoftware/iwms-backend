@@ -10,6 +10,8 @@ from api.apps.district import District
 from api.apps.city import City
 from api.apps.zone import Zone
 from api.apps.ward import Ward
+from api.apps.company import Company
+
 
 
 class UserSeeder:

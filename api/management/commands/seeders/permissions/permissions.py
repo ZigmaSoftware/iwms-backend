@@ -1,5 +1,3 @@
-# api/management/commands/seeders/permission_seeder.py
-
 from django.db.models import F
 
 from api.management.commands.seeders.base import BaseSeeder
@@ -7,9 +5,10 @@ from api.apps.mainscreentype import MainScreenType
 from api.apps.userscreenaction import UserScreenAction
 from api.apps.mainscreen import MainScreen
 from api.apps.userscreen import UserScreen
-from api.apps.userscreenpermission import UserScreenPermission
+from api.apps.companyuserscreenpermission import CompanyUserScreenPermission
 from api.apps.userType import UserType
 from api.apps.staffUserType import StaffUserType
+from api.apps.company import Company
 
 
 class PermissionSeeder(BaseSeeder):
@@ -17,11 +16,20 @@ class PermissionSeeder(BaseSeeder):
 
     def run(self):
         # --------------------------------------------------
+        # 0. COMPANIES
+        # --------------------------------------------------
+        companies = Company.objects.filter(is_deleted=False)
+
+        if not companies.exists():
+            self.log("❌ No companies found. Seed companies first.")
+            return
+
+        # --------------------------------------------------
         # 1. MAIN SCREEN TYPE
         # --------------------------------------------------
         megamenu, _ = MainScreenType.objects.get_or_create(
             type_name="megamenu",
-            defaults={"is_active": True, "is_deleted": False}
+            defaults={"is_active": True, "is_deleted": False},
         )
 
         # --------------------------------------------------
@@ -35,64 +43,43 @@ class PermissionSeeder(BaseSeeder):
                     "variable_name": name,
                     "is_active": True,
                     "is_deleted": False,
-                }
+                },
             )
             actions[name] = action
 
         # --------------------------------------------------
-        # 3. SCREENS (MATCH VIEWSET NAMES EXACTLY)
+        # 3. SCREENS
         # --------------------------------------------------
         screen_structure = {
             "masters": [
-                "Continent",
-                "Countries",
-                "States",
-                "Districts",
-                "Cities",
-                "Zones",
-                "Wards",
-                "Bins",
+                "Continent", "Countries", "States", "Districts",
+                "Cities", "Zones", "Wards", "Bins",
             ],
             "assets": [
-                "Fuels",
-                "Properties",
-                "Subproperties",
+                "Fuels", "Properties", "Subproperties",
                 "ZonePropertyLoadTracker",
             ],
             "role-assign": [
-                "UserType",
-                "StaffUserTypes",
+                "UserType", "StaffUserTypes",
             ],
             "user-creation": [
-                "UsersCreation",
-                "StaffCreation",
-                "StaffTemplateCreation",
-                "AlternativeStaffTemplate",
-                "StaffTemplateAuditLog",
-                "RoutePlan",
-                "SupervisorZoneMap",
-                "SupervisorZoneAccessAudit",
+                "UsersCreation", "StaffCreation",
+                "StaffTemplateCreation", "AlternativeStaffTemplate",
+                "StaffTemplateAuditLog", "RoutePlan",
+                "SupervisorZoneMap", "SupervisorZoneAccessAudit",
                 "UnassignedStaffPool",
             ],
             "customers": [
-                "Customercreations",
-                "Wastecollections",
-                "Feedbacks",
-                "Complaints",
+                "Customercreations", "Wastecollections",
+                "Feedbacks", "Complaints",
             ],
             "vehicles": [
-                "VehicleType",
-                "VehicleCreation",
-                "TripDefinition",
-                "BinLoadLog",
-                "TripInstance",
-                "TripAttendance",
-                "VehicleTripAudit",
-                "TripExceptionLog",
+                "VehicleType", "VehicleCreation", "TripDefinition",
+                "BinLoadLog", "TripInstance", "TripAttendance",
+                "VehicleTripAudit", "TripExceptionLog",
             ],
             "grievance": [
-                "MainCategory",
-                "SubCategory",
+                "MainCategory", "SubCategory",
             ],
         }
 
@@ -107,19 +94,17 @@ class PermissionSeeder(BaseSeeder):
                     "order_no": order,
                     "is_active": True,
                     "is_deleted": False,
-                }
+                },
             )
             mainscreens[main_name] = main
 
-            # Avoid unique_order_per_mainscreen conflicts while creating new screens.
-            order_offset = 1000
             UserScreen.objects.filter(mainscreen_id=main).update(
-                order_no=F("order_no") + order_offset
+                order_no=F("order_no") + 1000
             )
 
-            ordered_screens = []
+            ordered = []
             for idx, screen_name in enumerate(screens, start=1):
-                screen, created = UserScreen.objects.get_or_create(
+                screen, _ = UserScreen.objects.get_or_create(
                     userscreen_name=screen_name,
                     defaults={
                         "mainscreen_id": main,
@@ -128,51 +113,15 @@ class PermissionSeeder(BaseSeeder):
                         "order_no": idx,
                         "is_active": True,
                         "is_deleted": False,
-                    }
+                    },
                 )
-                if not created:
-                    update_fields = []
-                    desired_folder = screen_name.lower()
+                ordered.append(screen)
 
-                    if screen.mainscreen_id_id != main.unique_id:
-                        screen.mainscreen_id = main
-                        update_fields.append("mainscreen_id")
-
-                    if screen.folder_name != desired_folder:
-                        screen.folder_name = desired_folder
-                        update_fields.append("folder_name")
-
-                    if screen.icon_name != desired_folder:
-                        screen.icon_name = desired_folder
-                        update_fields.append("icon_name")
-
-                    if not screen.is_active or screen.is_deleted:
-                        screen.is_active = True
-                        screen.is_deleted = False
-                        update_fields.extend(["is_active", "is_deleted"])
-
-                    if update_fields:
-                        screen.save(update_fields=update_fields)
-
-                ordered_screens.append(screen)
-
-            ordered_ids = []
-            next_order = 1
-            for screen in ordered_screens:
-                screen.order_no = next_order
+            for idx, screen in enumerate(ordered, start=1):
+                screen.order_no = idx
                 screen.is_active = True
                 screen.is_deleted = False
                 screen.save(update_fields=["order_no", "is_active", "is_deleted"])
-                ordered_ids.append(screen.unique_id)
-                next_order += 1
-
-            extra_screens = UserScreen.objects.filter(
-                mainscreen_id=main
-            ).exclude(unique_id__in=ordered_ids).order_by("order_no")
-            for screen in extra_screens:
-                screen.order_no = next_order
-                screen.save(update_fields=["order_no"])
-                next_order += 1
 
         # --------------------------------------------------
         # 4. ROLES
@@ -185,134 +134,19 @@ class PermissionSeeder(BaseSeeder):
         supervisor_role = StaffUserType.objects.get(name="supervisor", usertype_id=staff_type)
 
         # --------------------------------------------------
-        # 5. ADMIN → FULL ACCESS
+        # 5. PERMISSIONS (COMPANY AWARE)
         # --------------------------------------------------
-        for main in mainscreens.values():
-            screens = UserScreen.objects.filter(mainscreen_id=main)
-            for screen in screens:
-                for order_no, action in enumerate(actions.values(), start=1):
-                    UserScreenPermission.objects.get_or_create(
-                        usertype_id=staff_type,
-                        staffusertype_id=admin_role,
-                        mainscreen_id=main,
-                        userscreen_id=screen,
-                        userscreenaction_id=action,
-                        defaults={
-                            "order_no": order_no,
-                            "description": f"{action.variable_name} {screen.userscreen_name}",
-                            "is_active": True,
-                            "is_deleted": False,
-                        }
-                    )
+        for company in companies:
+            self.log(f"🔹 Seeding permissions for company: {company.name}")
 
-        # --------------------------------------------------
-        # 6. LIMITED ROLES
-        # --------------------------------------------------
-        limited_permissions = {
-            driver_role: {
-                "customers": {
-                    "Customercreations": ["view"],
-                }
-            },
-            operator_role: {
-                "customers": {
-                    "Customercreations": ["view"],
-                }
-            },
-            supervisor_role: {
-                "vehicles": {
-                    "TripDefinition": ["add", "view", "edit"],
-                }
-            },
-        }
-
-        # Provide full CRUD access to RoutePlan for operators and drivers by default
-        for role in (driver_role, operator_role):
-            limited_permissions.setdefault(role, {}).setdefault(
-                "user-creation", {}
-            )["RoutePlan"] = ["add", "view", "edit", "delete"]
-
-        # Also grant view access to AlternativeStaffTemplate for operators and drivers
-        for role in (driver_role, operator_role):
-            limited_permissions.setdefault(role, {}).setdefault(
-                "user-creation", {}
-            )["AlternativeStaffTemplate"] = ["view"]
-
-        # Operator access for bin load logs
-        limited_permissions.setdefault(operator_role, {}).setdefault(
-            "vehicles", {}
-        )["BinLoadLog"] = ["add", "view", "edit"]
-
-        # Supervisor access for zone property load tracker
-        limited_permissions.setdefault(supervisor_role, {}).setdefault(
-            "assets", {}
-        )["ZonePropertyLoadTracker"] = ["add", "view", "edit"]
-
-        # Supervisor access for trip instances (view + update only)
-        limited_permissions.setdefault(supervisor_role, {}).setdefault(
-            "vehicles", {}
-        )["TripInstance"] = ["view", "edit"]
-
-        # Operator/driver access for trip attendance
-        for role in (operator_role, driver_role):
-            limited_permissions.setdefault(role, {}).setdefault(
-                "vehicles", {}
-            )["TripAttendance"] = ["add", "view", "edit"]
-
-        # Supervisor access for trip attendance (full)
-        limited_permissions.setdefault(supervisor_role, {}).setdefault(
-            "vehicles", {}
-        )["TripAttendance"] = ["add", "view", "edit", "delete"]
-
-        # Operator/driver access for vehicle trip audit
-        for role in (operator_role, driver_role):
-            limited_permissions.setdefault(role, {}).setdefault(
-                "vehicles", {}
-            )["VehicleTripAudit"] = ["add", "view", "edit"]
-
-        # Supervisor access for vehicle trip audit (full)
-        limited_permissions.setdefault(supervisor_role, {}).setdefault(
-            "vehicles", {}
-        )["VehicleTripAudit"] = ["add", "view", "edit", "delete"]
-
-        # Operator/driver access for trip exception log
-        for role in (operator_role, driver_role):
-            limited_permissions.setdefault(role, {}).setdefault(
-                "vehicles", {}
-            )["TripExceptionLog"] = ["add", "view", "edit"]
-
-        # Supervisor access for trip exception log (full)
-        limited_permissions.setdefault(supervisor_role, {}).setdefault(
-            "vehicles", {}
-        )["TripExceptionLog"] = ["add", "view", "edit", "delete"]
-
-        # Supervisor access for unassigned staff pool
-        limited_permissions.setdefault(supervisor_role, {}).setdefault(
-            "user-creation", {}
-        )["UnassignedStaffPool"] = ["add", "view", "edit"]
-
-        for role, modules in limited_permissions.items():
-            for module_name, screens in modules.items():
-                main = mainscreens.get(module_name)
-                if not main:
-                    continue
-
-                for screen_name, action_names in screens.items():
-                    screen = UserScreen.objects.filter(
-                        mainscreen_id=main,
-                        userscreen_name=screen_name
-                    ).first()
-                    if not screen:
-                        continue
-
-                    for order_no, action_name in enumerate(action_names, start=1):
-                        action = actions.get(action_name)
-                        if not action:
-                            continue
-
-                        UserScreenPermission.objects.get_or_create(
+            # ADMIN → FULL ACCESS
+            for main in mainscreens.values():
+                for screen in UserScreen.objects.filter(mainscreen_id=main):
+                    for order_no, action in enumerate(actions.values(), start=1):
+                        CompanyUserScreenPermission.objects.get_or_create(
+                            company_id=company,          # ✅ KEY CHANGE
                             usertype_id=staff_type,
-                            staffusertype_id=role,
+                            staffusertype_id=admin_role,
                             mainscreen_id=main,
                             userscreen_id=screen,
                             userscreenaction_id=action,
@@ -321,8 +155,60 @@ class PermissionSeeder(BaseSeeder):
                                 "description": f"{action.variable_name} {screen.userscreen_name}",
                                 "is_active": True,
                                 "is_deleted": False,
-                            }
+                            },
                         )
-                        
 
-        self.log("✅ Permission seeding completed successfully")
+            # LIMITED ROLES
+            limited_permissions = {
+                driver_role: {
+                    "customers": {
+                        "Customercreations": ["view"],
+                    }
+                },
+                operator_role: {
+                    "customers": {
+                        "Customercreations": ["view"],
+                    }
+                },
+                supervisor_role: {
+                    "vehicles": {
+                        "TripDefinition": ["add", "view", "edit"],
+                    }
+                },
+            }
+
+            for role, modules in limited_permissions.items():
+                for module_name, screens in modules.items():
+                    main = mainscreens.get(module_name)
+                    if not main:
+                        continue
+
+                    for screen_name, action_names in screens.items():
+                        screen = UserScreen.objects.filter(
+                            mainscreen_id=main,
+                            userscreen_name=screen_name,
+                        ).first()
+                        if not screen:
+                            continue
+
+                        for order_no, action_name in enumerate(action_names, start=1):
+                            action = actions.get(action_name)
+                            if not action:
+                                continue
+
+                            CompanyUserScreenPermission.objects.get_or_create(
+                                company_id=company,      # ✅ KEY CHANGE
+                                usertype_id=staff_type,
+                                staffusertype_id=role,
+                                mainscreen_id=main,
+                                userscreen_id=screen,
+                                userscreenaction_id=action,
+                                defaults={
+                                    "order_no": order_no,
+                                    "description": f"{action.variable_name} {screen.userscreen_name}",
+                                    "is_active": True,
+                                    "is_deleted": False,
+                                },
+                            )
+
+        self.log("✅ Permission seeding completed successfully (company-wise)")

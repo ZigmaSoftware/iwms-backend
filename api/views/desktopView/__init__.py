@@ -37,7 +37,7 @@ from .users.userscreen_viewset import UserScreenViewSet
 from .users.mainscreentype_viewset import MainScreenTypeViewSet
 from .users.mainscreen_viewset import MainScreenViewSet
 from .users.userscreenaction_viewset import UserScreenActionViewSet
-from .users.userscreenpermission_viewset import UserScreenPermissionViewSet
+from .users.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
 from .users.staffcreation_viewset import StaffcreationViewset
 from .users.stafftemplate_viewset import StaffTemplateViewSet
 from .users.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
@@ -92,7 +92,7 @@ __all__ = [
     "MainScreenViewSet",
     "UserScreenViewSet",
     "UserScreenActionViewSet",
-    "UserScreenPermissionViewSet",
+    "CompanyUserScreenPermissionViewSet",
     "StaffcreationViewset",
     "StaffTemplateViewSet",
     "StaffTemplateAuditLogViewSet",
