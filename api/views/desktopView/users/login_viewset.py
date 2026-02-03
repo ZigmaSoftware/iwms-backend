@@ -39,7 +39,7 @@ class LoginViewSet(ViewSet):
         user = serializer.validated_data["user"]
         permissions = serializer.validated_data["permissions"]
         user_type = serializer.validated_data.get("user_type", "staff")
-        staffusertype_id = serializer.validated_data.get("staffusertype_id")
+        profile_object = serializer.validated_data.get("profile_object")
 
         # -------------------------
         # ROLE RESOLUTION
@@ -51,20 +51,34 @@ class LoginViewSet(ViewSet):
         role = None
 
         if user_type == "customer":
-            name = user.customer_name
+            target = profile_object or user
+            name = getattr(target, "customer_name", None) or getattr(user, "customer_name", None)
             role = "customer"
+            email = getattr(target, "email", None) or getattr(user, "email", None)
+        elif user_type == "platform":
+            name = (
+                getattr(profile_object, "employee_name", None)
+                or getattr(profile_object, "username", None)
+                or getattr(user, "employee_name", None)
+                or getattr(user, "username", None)
+                or getattr(user, "email", None)
+                or "platform"
+            )
+            role = "platform"
             email = getattr(user, "email", None)
         else:
             # Staff login
-            name = user.employee_name
-            if user.staffusertype_id:
-                role = user.staffusertype_id.name
+            target = profile_object or user
+            name = getattr(target, "employee_name", None) or getattr(user, "username", None)
+            staff_role = getattr(target, "staffusertype_id", None) or getattr(user, "staffusertype_id", None)
+            if staff_role:
+                role = staff_role.name
             else:
                 role = "staff"
-            if hasattr(user, "personal_details"):
-                email = user.personal_details.contact_email
-            emp_id = getattr(user, "staff_unique_id", None)
-            employee_id = getattr(user, "emp_id", None)
+            if hasattr(target, "personal_details") and getattr(target, "personal_details"):
+                email = target.personal_details.contact_email
+            emp_id = getattr(target, "staff_unique_id", None)
+            employee_id = getattr(target, "emp_id", None) or getattr(user, "emp_id", None)
             if not employee_id and getattr(user, "id", None) is not None:
                 employee_id = f"{user.id:08d}"
 
@@ -74,10 +88,9 @@ class LoginViewSet(ViewSet):
         access = AccessToken.for_user(user)
 
         # Get the correct unique identifier based on user type
-        if user_type == "customer":
-            user_unique_id = user.unique_id
-        else:
-            user_unique_id = user.staff_unique_id
+        user_unique_id = getattr(user, "unique_id", None) or getattr(user, "staff_unique_id", None)
+        if not user_unique_id and getattr(user, "id", None) is not None:
+            user_unique_id = str(user.id)
 
         access["unique_id"] = user_unique_id
         access["user_type"] = user_type
