@@ -11,6 +11,7 @@ from api.management.commands.seeders.userCreation import USER_CREATION_SEEDERS
 from api.management.commands.seeders.vehicles import VEHICLE_SEEDERS
 from api.management.commands.seeders.staff_template import STAFF_SEEDERS
 from api.management.commands.seeders.company import COMPANY_SEEDERS
+from api.management.commands.seeders.platform import PLATFORM_SEEDERS
 
 
 
@@ -18,6 +19,7 @@ from api.management.commands.seeders.company import COMPANY_SEEDERS
 # ORDER MATTERS – DEFINE IT ONCE
 # --------------------------------------------------
 ORDERED_GROUPS = [
+    "platform",
     "masters",
     "assets",
     "role-assign",
@@ -31,6 +33,7 @@ ORDERED_GROUPS = [
 ]
 
 SEED_GROUPS = {
+    "platform": PLATFORM_SEEDERS,
     "masters": MASTER_SEEDERS,
     "assets": ASSET_SEEDERS,
     "company": COMPANY_SEEDERS,
@@ -62,7 +65,7 @@ class Command(BaseCommand):
             type=str,
             help=(
                 "Seeder group: "
-                "masters | assets | role-assign | permission | customers | user-creation | vehicles | all"
+                "platform | masters | assets | role-assign | permission | company | customers | user-creation | vehicles | all"
             ),
         )
 

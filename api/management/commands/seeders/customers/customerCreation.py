@@ -11,6 +11,8 @@ from api.apps.customercreation import CustomerCreation
 
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
+from api.apps.company import Company
+from api.apps.project import Project
 
 
 class CustomerCreationSeeder(BaseSeeder):
@@ -38,6 +40,11 @@ class CustomerCreationSeeder(BaseSeeder):
             sub_property_name="Apartment",
             is_deleted=False
         )
+
+        company = Company.objects.filter(is_deleted=False).first()
+        project = None
+        if company:
+            project = Project.objects.filter(company_id=company, is_deleted=False).first()
 
         # --------------------------------------------------
         # CUSTOMER SEED DATA
@@ -80,6 +87,8 @@ class CustomerCreationSeeder(BaseSeeder):
                     "id_no": entry["id_no"],
                     "property_ref": property_obj,
                     "sub_property": sub_property_obj,
+                    "company_id": company,
+                    "project_id": project,
                     "is_active": True,
                     "is_deleted": False,
                 }
