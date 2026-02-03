@@ -65,9 +65,6 @@ from ..views.desktopView.vehicles.bin_load_log_viewset import BinLoadLogViewSet
 from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
 
 # Mobile
-from api.views.mobileView.citizen_login.new_login_views import (
-    LoginViewSet as MobileLoginViewSet,
-)
 from api.views.mobileView.grievance.main_category_viewset import MainCategoryViewSet
 from api.views.mobileView.grievance.sub_category_viewset import SubCategoryViewSet
 from api.views.mobileView.waste_collection_bluetooth.waste_bluetooth_viewset import (WasteCollectionBluetoothViewSet,)
@@ -175,7 +172,7 @@ router.register_group("vehicles", "trip-exception-log",    TripExceptionLogViewS
 router.register_group(
     "mobile",
     "login",
-    MobileLoginViewSet,
+    DesktopLoginViewSet,
     basename="mobile-login",
     include_group_in_prefix=False,
 )

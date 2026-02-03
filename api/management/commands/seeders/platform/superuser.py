@@ -29,7 +29,7 @@ class PlatformSuperUserSeeder(BaseSeeder):
             self.log(f"Updated platform superuser: {username}")
             return
 
-        user = UserModel.objects.create_superuser(
+        UserModel.objects.create_superuser(
             username=username,
             password=password,
         )
