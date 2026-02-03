@@ -198,19 +198,30 @@ class UnassignedStaffPool(CompanyProjectMixin, models.Model):
                 "trip_instance": trip_instance,
             }
 
-            # For now, create pool entries without zone/ward if not available
-            # This may need to be adjusted based on business logic
+            zone = getattr(staff, "zone_id", None) or getattr(trip_instance, "zone", None)
+            ward = getattr(staff, "ward_id", None)
+
+            if not ward and zone:
+                ward = Ward.objects.filter(
+                    zone_id=getattr(zone, "unique_id", zone),
+                    is_active=True,
+                    is_deleted=False,
+                ).first()
+
+            if not zone or not ward:
+                continue
+
             if staff.staffusertype_id.name.lower() == "operator":
                 cls.objects.update_or_create(
                     operator=staff,
-                    zone=trip_instance.zone if trip_instance else None,
-                    ward=None,
+                    zone=zone,
+                    ward=ward,
                     defaults=defaults,
                 )
             elif staff.staffusertype_id.name.lower() == "driver":
                 cls.objects.update_or_create(
                     driver=staff,
-                    zone=trip_instance.zone if trip_instance else None,
-                    ward=None,
+                    zone=zone,
+                    ward=ward,
                     defaults=defaults,
                 )

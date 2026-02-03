@@ -3,6 +3,10 @@ from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
 from .userType import UserType
 from .staffUserType import StaffUserType
+from .district import District
+from .city import City
+from .zone import Zone
+from .ward import Ward
 
 
 def generate_staff_unique_id():
@@ -103,6 +107,45 @@ class StaffOfficeDetails(CompanyProjectMixin, models.Model):
         blank=True,
         db_column="staffusertype_id",
         related_name="staff_users"
+    )
+
+    # -----------------------------
+    # LOCATION FIELDS (match auth_user)
+    # -----------------------------
+    district_id = models.ForeignKey(
+        District,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="district_id",
+        related_name="staff_district"
+    )
+
+    city_id = models.ForeignKey(
+        City,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="city_id",
+        related_name="staff_city"
+    )
+
+    zone_id = models.ForeignKey(
+        Zone,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="zone_id",
+        related_name="staff_zone"
+    )
+
+    ward_id = models.ForeignKey(
+        Ward,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="ward_id",
+        related_name="staff_ward"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

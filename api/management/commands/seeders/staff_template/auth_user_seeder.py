@@ -2,6 +2,12 @@ from api.management.commands.seeders.base import BaseSeeder
 from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.staffUserType import StaffUserType
 from api.apps.userType import UserType
+from api.apps.company import Company
+from api.apps.project import Project
+from api.apps.district import District
+from api.apps.city import City
+from api.apps.zone import Zone
+from api.apps.ward import Ward
 
 
 class AuthUserSeeder(BaseSeeder):
@@ -11,6 +17,16 @@ class AuthUserSeeder(BaseSeeder):
         """
         Ensure at least three staff users exist with auth fields for alternative staff template links.
         """
+        company = Company.objects.filter(is_deleted=False).first()
+        project = None
+        if company:
+            project = Project.objects.filter(company_id=company, is_deleted=False).first()
+
+        district = District.objects.filter(is_deleted=False).first()
+        city = City.objects.filter(is_deleted=False).first()
+        zone = Zone.objects.filter(is_deleted=False).first()
+        ward = Ward.objects.filter(is_deleted=False).first()
+
         # Get or create staff user type
         try:
             staff_type = UserType.objects.get(name__iexact="staff")
@@ -49,6 +65,12 @@ class AuthUserSeeder(BaseSeeder):
                     "user_type_id": staff_type,
                     "staffusertype_id": role,
                     "password": password,
+                    "company_id": company,
+                    "project_id": project,
+                    "district_id": district,
+                    "city_id": city,
+                    "zone_id": zone,
+                    "ward_id": ward,
                     "is_active": True,
                     "is_deleted": False,
                 },
@@ -58,6 +80,12 @@ class AuthUserSeeder(BaseSeeder):
                 staff.user_type_id = staff_type
                 staff.staffusertype_id = role
                 staff.password = password
+                staff.company_id = company
+                staff.project_id = project
+                staff.district_id = district
+                staff.city_id = city
+                staff.zone_id = zone
+                staff.ward_id = ward
                 staff.is_active = True
                 staff.is_deleted = False
                 staff.save()
