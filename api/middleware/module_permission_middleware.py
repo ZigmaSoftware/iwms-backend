@@ -2,6 +2,7 @@
 
 import jwt
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from api.apps.staffcreation import StaffOfficeDetails
@@ -162,6 +163,20 @@ def _authenticate_request(request):
         request.jwt_payload = payload
         if hasattr(request, "_request"):
             request._request.user = customer
+        return None
+
+    # Fall back to Django User (platform super admins)
+    UserModel = get_user_model()
+    user = UserModel.objects.filter(unique_id=unique_id).first()
+    if not user:
+        user_id = payload.get("user_id")
+        if user_id:
+            user = UserModel.objects.filter(pk=user_id).first()
+    if user:
+        request.user = user
+        request.jwt_payload = payload
+        if hasattr(request, "_request"):
+            request._request.user = user
         return None
 
     return JsonResponse({"detail": "User not found"}, status=401)

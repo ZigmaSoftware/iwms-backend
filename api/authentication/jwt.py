@@ -56,4 +56,15 @@ class JWTUserAuthentication(BaseAuthentication):
             request.jwt_payload = payload
             return (customer, None)
 
+        # Fall back to Django User (platform super admin)
+        UserModel = get_user_model()
+        user = UserModel.objects.filter(unique_id=unique_id).first()
+        if not user:
+            user_id = payload.get("user_id")
+            if user_id:
+                user = UserModel.objects.filter(pk=user_id).first()
+        if user:
+            request.jwt_payload = payload
+            return (user, None)
+
         raise AuthenticationFailed("User not found")

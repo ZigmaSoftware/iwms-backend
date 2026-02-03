@@ -63,7 +63,7 @@ class PlatformCompanyCreateView(APIView):
         return Response(
             {
                 "company": {"unique_id": company.unique_id, "name": company.name},
-                "company_admin": {"unique_id": staff.unique_id, "username": staff.username},
+                "company_admin": {"unique_id": staff.staff_unique_id, "username": staff.username},
             },
             status=status.HTTP_201_CREATED,
         )
