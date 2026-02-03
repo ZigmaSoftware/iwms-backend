@@ -40,6 +40,11 @@ AUTH_ONLY_PREFIXES = (
     "/api/desktop/attendance-list/",
 )
 
+# Platform routes that should bypass all middleware permission checks
+PLATFORM_PREFIXES = (
+    "/api/platform/",
+)
+
 PUBLIC_PREFIXES = (
     "/media/",
 )
@@ -169,6 +174,10 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return None
 
         if any(request.path.startswith(p) for p in PUBLIC_PREFIXES):
+            return None
+
+        # Bypass all middleware checks for platform routes
+        if any(request.path.startswith(p) for p in PLATFORM_PREFIXES):
             return None
 
         if any(request.path.startswith(p) for p in AUTH_ONLY_PREFIXES):

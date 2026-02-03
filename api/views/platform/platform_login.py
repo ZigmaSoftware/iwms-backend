@@ -1,5 +1,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import check_password
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import AllowAny
@@ -11,6 +13,7 @@ from api.serializers.platform.platform_login_serializer import PlatformLoginSeri
 from api.apps.staffcreation import StaffOfficeDetails
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class PlatformLoginView(APIView):
     permission_classes = [AllowAny]
 

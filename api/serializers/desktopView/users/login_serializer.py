@@ -3,7 +3,7 @@ from django.contrib.auth.hashers import check_password, identify_hasher
 from django.db.models import Q
 from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.customercreation import CustomerCreation
-from api.apps.userscreenpermission import UserScreenPermission
+from api.apps.companyuserscreenpermission import CompanyUserScreenPermission
 from api.apps.userType import UserType
 
 
@@ -73,7 +73,7 @@ class LoginSerializer(serializers.Serializer):
 
             # Fetch permissions for this role
             if staffusertype_id:
-                queryset = UserScreenPermission.objects.filter(
+                queryset = CompanyUserScreenPermission.objects.filter(
                     usertype_id_id=user.user_type_id.unique_id,
                     staffusertype_id_id=staffusertype_id,
                     is_deleted=False,

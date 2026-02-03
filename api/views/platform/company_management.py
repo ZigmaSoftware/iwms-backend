@@ -1,4 +1,6 @@
 from django.db import transaction
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,6 +13,7 @@ from api.permissions.platform import PlatformSuperAdminOnly
 from api.serializers.platform.company_create_serializer import PlatformCompanyCreateSerializer
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class PlatformCompanyCreateView(APIView):
     permission_classes = [PlatformSuperAdminOnly]
 

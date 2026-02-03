@@ -50,7 +50,7 @@ from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewS
 from ..views.desktopView.users.mainscreen_viewset import MainScreenViewSet
 from ..views.desktopView.users.userscreen_viewset import UserScreenViewSet
 from ..views.desktopView.users.userscreenaction_viewset import UserScreenActionViewSet
-from ..views.desktopView.users.userscreenpermission_viewset import UserScreenPermissionViewSet
+from ..views.desktopView.users.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
 
 # Vehicles
 from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
@@ -108,7 +108,7 @@ router.register_group("screen-management", "mainscreentype",        MainScreenTy
 router.register_group("screen-management", "mainscreens",           MainScreenViewSet)
 router.register_group("screen-management", "userscreens",           UserScreenViewSet)
 router.register_group("screen-management", "userscreen-action",     UserScreenActionViewSet)
-router.register_group("screen-management", "userscreenpermissions", UserScreenPermissionViewSet)
+router.register_group("screen-management", "userscreenpermissions", CompanyUserScreenPermissionViewSet)
 
 
 # ============================================================

@@ -25,9 +25,9 @@ from .users.login_serializer import LoginSerializer
 from .users.userscreenaction_serializer import UserScreenActionSerializer
 from .users.mainscreentype_serializer import MainScreenTypeSerializer
 from .users.mainscreen_serializer import MainScreenSerializer
-from .users.userscreenpermission_serializer import (
-    UserScreenPermissionSerializer,
-    UserScreenPermissionMultiScreenSerializer,
+from .users.companyuserscreenpermission_serializer import (
+    CompanyUserScreenPermissionMultiScreenSerializer,
+    CompanyUserScreenPermissionSerializer,
     ScreenActionSerializer
 )
 from .users.stafftemplate_serializer import StaffTemplateSerializer

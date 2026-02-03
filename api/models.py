@@ -33,7 +33,7 @@ from .apps.mainscreentype import MainScreenType
 from .apps.mainscreen import MainScreen
 from .apps.userscreen import UserScreen
 from .apps.userscreenaction import UserScreenAction
-from .apps.userscreenpermission import UserScreenPermission
+from .apps.companyuserscreenpermission import CompanyUserScreenPermission
 from .apps.mainuserscreen import MainUserScreen
 from .apps.userpermission import UserPermission
 from .apps.loginAudit import LoginAudit
@@ -108,7 +108,7 @@ __all__ = [
     "MainScreen",
     "UserScreen",
     "UserScreenAction",
-    "UserScreenPermission",
+    "CompanyUserScreenPermission",
     "MainUserScreen",
     "UserPermission",
     "LoginAudit",

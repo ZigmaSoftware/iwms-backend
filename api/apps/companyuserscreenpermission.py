@@ -6,18 +6,19 @@ from api.apps.userscreen import UserScreen
 from api.apps.userType import UserType
 from api.apps.staffUserType import StaffUserType
 from api.apps.userscreenaction import UserScreenAction
+from api.apps.company import Company
 
 
-def generate_userscreenpermission_id():
-    return f"USERSCRNPERM-{generate_unique_id()}"
+def generate_companyuserscreenpermission_id():
+    return f"CMPUSERSCRNPERM-{generate_unique_id()}"
 
 
-class UserScreenPermission(CompanyProjectMixin, models.Model):
+class CompanyUserScreenPermission(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=60,
         primary_key=True,
         unique=True,
-        default=generate_userscreenpermission_id,
+        default=generate_companyuserscreenpermission_id,
         editable=False
     )
 
@@ -36,7 +37,13 @@ class UserScreenPermission(CompanyProjectMixin, models.Model):
         null=True,
         blank=True
     )
-
+    
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        to_field="unique_id", db_column="company_id",
+        related_name="userscreenpermissions"
+    )
     mainscreen_id = models.ForeignKey(
         MainScreen, on_delete=models.PROTECT,
         to_field="unique_id", db_column="mainscreen_id",
@@ -64,12 +71,19 @@ class UserScreenPermission(CompanyProjectMixin, models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = "api_companywiseuserscreenpermission"
         ordering = ["order_no"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["usertype_id", "staffusertype_id", "userscreen_id", "userscreenaction_id"],
-                name="unique_role_screen_action"
-            )
+        models.UniqueConstraint(
+            fields=[
+                "company_id",
+                "usertype_id",
+                "staffusertype_id",
+                "userscreen_id",
+                "userscreenaction_id",
+            ],
+            name="unique_company_role_screen_action"
+        )
         ]
 
 
