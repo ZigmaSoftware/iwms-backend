@@ -1,8 +1,9 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.property import Property
 from api.validators.unique_name_validator import unique_name_validator
 
-class PropertySerializer(serializers.ModelSerializer):
+class PropertySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Property
         fields = "__all__"

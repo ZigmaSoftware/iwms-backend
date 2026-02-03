@@ -1,6 +1,8 @@
 from django.db import models
 from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
+from .userType import UserType
+from .staffUserType import StaffUserType
 
 
 def generate_staff_unique_id():
@@ -38,7 +40,7 @@ class StaffOfficeDetails(CompanyProjectMixin, models.Model):
     active_status = models.BooleanField(default=True)
     salary_type = models.CharField(max_length=50, blank=True, null=True)
 
-    # NEW FIELDS
+    # Driving Licence Fields
     driving_licence_no = models.CharField(
         max_length=50,
         blank=True,
@@ -48,6 +50,59 @@ class StaffOfficeDetails(CompanyProjectMixin, models.Model):
         upload_to="staff_licences/",
         blank=True,
         null=True
+    )
+
+    # =============================================
+    # AUTHENTICATION FIELDS (from User model)
+    # =============================================
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Required for platform super admins. Staff users may be created without it."
+    )
+
+    email = models.EmailField(
+        null=True,
+        blank=True,
+    )
+
+    password = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        help_text="Django auth password field"
+    )
+
+    is_staff = models.BooleanField(
+        default=False,
+        help_text="Django admin-site access flag (not a business role).",
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    is_deleted = models.BooleanField(default=False)
+
+    is_superuser = models.BooleanField(default=False)
+
+    # Type Links
+    user_type_id = models.ForeignKey(
+        UserType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="user_type_id",
+        related_name="staff_users"
+    )
+
+    staffusertype_id = models.ForeignKey(
+        StaffUserType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="staffusertype_id",
+        related_name="staff_users"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -70,6 +125,16 @@ class StaffOfficeDetails(CompanyProjectMixin, models.Model):
                 emp_id__isnull=True,
             ).update(emp_id=display_id)
             self.emp_id = display_id
+
+    @property
+    def is_authenticated(self):
+        """
+        Always return True for authenticated users.
+        Required by Django REST Framework's permission system.
+        """
+        return True
+
+
 class StaffPersonalDetails(CompanyProjectMixin, models.Model):
     staff = models.OneToOneField(
         StaffOfficeDetails,

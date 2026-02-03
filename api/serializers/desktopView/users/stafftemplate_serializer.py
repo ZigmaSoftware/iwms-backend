@@ -1,7 +1,8 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.stafftemplate import StaffTemplate
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.serializers.desktopView.users.user_serializer import UniqueIdOrPkField
 
 
@@ -43,30 +44,30 @@ class BlankableUniqueIdField(UniqueIdOrPkField):
         return super().to_internal_value(data)
 
 
-class StaffTemplateSerializer(serializers.ModelSerializer):
+class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     display_code = serializers.CharField(read_only=True)
 
     driver_id = UniqueIdOrPkField(
-        slug_field="unique_id",
-        queryset=User.objects.filter(is_deleted=False),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
     )
     operator_id = UniqueIdOrPkField(
-        slug_field="unique_id",
-        queryset=User.objects.filter(is_deleted=False),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
     )
     created_by = BlankableUniqueIdField(
-        slug_field="unique_id",
-        queryset=User.objects.filter(is_deleted=False),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
         required=False,
     )
     updated_by = BlankableUniqueIdField(
-        slug_field="unique_id",
-        queryset=User.objects.filter(is_deleted=False),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
         required=False,
     )
     approved_by = BlankableUniqueIdField(
-        slug_field="unique_id",
-        queryset=User.objects.filter(is_deleted=False),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
@@ -84,6 +85,10 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "display_code",
 
             "driver_id",
@@ -155,7 +160,7 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
         validate_role(operator, "operator", "operator_id")
 
         # ---- DUPLICATE PREVENTION ----
-        if driver and operator and driver.unique_id == operator.unique_id:
+        if driver and operator and driver.staff_unique_id == operator.staff_unique_id:
             raise serializers.ValidationError(
                 {"operator_id": "Driver and operator must be different users."}
             )
@@ -187,11 +192,11 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
                 )
 
             if extra_ids:
-                operators = User.objects.filter(
-                    unique_id__in=extra_ids,
+                operators = StaffOfficeDetails.objects.filter(
+                    staff_unique_id__in=extra_ids,
                     is_deleted=False,
                 )
-                found_ids = {user.unique_id for user in operators}
+                found_ids = {staff.staff_unique_id for staff in operators}
                 missing_ids = sorted(set(extra_ids) - found_ids)
                 if missing_ids:
                     raise serializers.ValidationError({
@@ -201,10 +206,10 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
                     })
 
                 non_operators = [
-                    user.unique_id
-                    for user in operators
-                    if not user.staffusertype_id
-                    or user.staffusertype_id.name.lower() != "operator"
+                    staff.staff_unique_id
+                    for staff in operators
+                    if not staff.staffusertype_id
+                    or staff.staffusertype_id.name.lower() != "operator"
                 ]
                 if non_operators:
                     raise serializers.ValidationError({
@@ -215,13 +220,13 @@ class StaffTemplateSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    def _resolve_staff_name(self, user):
-        if not user:
+    def _resolve_staff_name(self, staff):
+        if not staff:
             return None
-        staff = getattr(user, "staff_id", None)
-        if staff and getattr(staff, "employee_name", None):
+        # StaffOfficeDetails has employee_name directly
+        if hasattr(staff, 'employee_name') and staff.employee_name:
             return staff.employee_name
-        return getattr(user, "username", None) or getattr(user, "unique_id", None)
+        return getattr(staff, "username", None) or getattr(staff, "staff_unique_id", None)
 
     def get_driver_name(self, obj):
         return self._resolve_staff_name(getattr(obj, "driver_id", None))

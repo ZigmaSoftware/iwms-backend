@@ -1,35 +1,40 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.trip_definition import TripDefinition
 from api.apps.routeplan import RoutePlan
 from api.apps.stafftemplate import StaffTemplate
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.serializers.desktopView.users.user_serializer import UniqueIdOrPkField
 
 
 # ==========================================================
-# MINI USER SERIALIZER (Driver / Operator)
+# MINI STAFF SERIALIZER (Driver / Operator)
 # ==========================================================
-class MiniUserSerializer(serializers.ModelSerializer):
+class MiniStaffSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     name = serializers.CharField(
-        source="staff_id.employee_name",
+        source="employee_name",
         read_only=True
     )
     mobile = serializers.CharField(
-        source="staff_id.personal_details.contact_mobile",
+        source="personal_details.contact_mobile",
         read_only=True
     )
     designation = serializers.CharField(
-        source="staff_id.designation",
+        source="designation",
         read_only=True
     )
 
     class Meta:
-        model = User
+        model = StaffOfficeDetails
         fields = (
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "name",
             "mobile",
             "designation",
@@ -39,7 +44,7 @@ class MiniUserSerializer(serializers.ModelSerializer):
 # ==========================================================
 # TRIP DEFINITION SERIALIZER
 # ==========================================================
-class TripDefinitionSerializer(serializers.ModelSerializer):
+class TripDefinitionSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     # ------------------------------------------------------
     # INPUT FIELDS (WRITE-ONLY | FK unique_id)
@@ -83,6 +88,10 @@ class TripDefinitionSerializer(serializers.ModelSerializer):
         model = TripDefinition
         fields = (
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
 
             # write-only
             "routeplan_id",
@@ -134,11 +143,11 @@ class TripDefinitionSerializer(serializers.ModelSerializer):
             "unique_id": st.unique_id,
             "display_code": st.display_code,
             "driver": (
-                MiniUserSerializer(st.driver_id, context=self.context).data
+                MiniStaffSerializer(st.driver_id, context=self.context).data
                 if st.driver_id else None
             ),
             "operator": (
-                MiniUserSerializer(st.operator_id, context=self.context).data
+                MiniStaffSerializer(st.operator_id, context=self.context).data
                 if st.operator_id else None
             ),
             "status": st.status,

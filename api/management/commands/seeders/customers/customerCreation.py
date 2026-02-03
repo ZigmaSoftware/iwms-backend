@@ -8,7 +8,6 @@ from api.apps.zone import Zone
 from api.apps.ward import Ward
 
 from api.apps.customercreation import CustomerCreation
-from api.apps.userCreation import User
 
 from api.apps.property import Property
 from api.apps.subproperty import SubProperty
@@ -58,7 +57,7 @@ class CustomerCreationSeeder(BaseSeeder):
         ]
 
         # --------------------------------------------------
-        # CREATE CUSTOMERS + HOUSEHOLD QR
+        # CREATE CUSTOMERS
         # --------------------------------------------------
         for entry in customers:
             customer, created = CustomerCreation.objects.get_or_create(
@@ -79,18 +78,14 @@ class CustomerCreationSeeder(BaseSeeder):
                     "longitude": entry["longitude"],
                     "id_proof_type": CustomerCreation.IDProofType.AADHAAR,
                     "id_no": entry["id_no"],
-                    "property": property_obj,
+                    "property_ref": property_obj,
                     "sub_property": sub_property_obj,
                     "is_active": True,
                     "is_deleted": False,
                 }
             )
 
-            # --------------------------------------------------
-            # HOUSEHOLD QR (MANDATORY)
-            # --------------------------------------------------
-            user = User.objects.filter(customer_id=customer).first()
-            if not user:
-                continue
+            if created:
+                self.log(f"Customer created: {customer.customer_name}")
 
         self.log("✅ Customers seeded successfully")

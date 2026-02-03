@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from .utils.tenancy import CompanyProjectMixin
 
-from .userCreation import User
+from .staffcreation import StaffOfficeDetails
 
 
 class StaffTemplateAuditLog(CompanyProjectMixin, models.Model):
@@ -37,11 +37,11 @@ class StaffTemplateAuditLog(CompanyProjectMixin, models.Model):
         choices=Action.choices,
     )
     performed_by = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="staff_template_audit_logs",
         db_column="performed_by",
-        to_field="unique_id",
+        to_field="staff_unique_id",
     )
     performed_role = models.CharField(
         max_length=20,

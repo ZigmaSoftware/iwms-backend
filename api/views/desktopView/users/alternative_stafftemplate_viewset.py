@@ -5,7 +5,7 @@ from api.views.tenant_viewset import TenantModelViewSet
 
 from api.apps.alternative_staff_template import AlternativeStaffTemplate
 from api.apps.staff_template_audit_log import StaffTemplateAuditLog
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.serializers.desktopView.users.alternative_stafftemplate_serializer import (
     AlternativeStaffTemplateSerializer
 )
@@ -23,8 +23,6 @@ class AlternativeStaffTemplateViewSet(TenantModelViewSet):
         "staff_template",
         "driver_id",
         "operator_id",
-        "driver_id__staff_id",
-        "operator_id__staff_id",
     )
     serializer_class = AlternativeStaffTemplateSerializer
 
@@ -68,7 +66,7 @@ class AlternativeStaffTemplateViewSet(TenantModelViewSet):
         payload = getattr(self.request, "jwt_payload", None) or getattr(raw_request, "jwt_payload", None)
         unique_id = payload.get("unique_id") if isinstance(payload, dict) else None
         if unique_id:
-            return User.objects.filter(unique_id=unique_id).first()
+            return StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
 
         return None
 

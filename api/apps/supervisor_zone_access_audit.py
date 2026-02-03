@@ -1,6 +1,6 @@
 from django.db import models
 from .utils.tenancy import CompanyProjectMixin
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from .utils.comfun import generate_unique_id
 
 def generate_supervisor_zone_access_audit_id():
@@ -21,18 +21,18 @@ class SupervisorZoneAccessAudit(CompanyProjectMixin, models.Model):
     # ACTOR & SUBJECT
     # -----------------------------
     supervisor = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="zone_access_audits",
-        to_field="unique_id",
+        to_field="staff_unique_id",
         db_column="supervisor_id"
     )
 
     performed_by = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="performed_zone_access_audits",
-        to_field="unique_id",
+        to_field="staff_unique_id",
         db_column="performed_by"
     )
 

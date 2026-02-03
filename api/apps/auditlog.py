@@ -4,7 +4,7 @@ from .utils.comfun import generate_unique_id
 from api.apps.mainscreen import MainScreen
 from api.apps.userscreen import UserScreen
 from api.apps.userscreenaction import UserScreenAction
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.staffUserType import StaffUserType
 
 
@@ -27,9 +27,9 @@ class AuditLog(CompanyProjectMixin, models.Model):
     # WHO performed the action
     # -------------------------------------------------
     user_id = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
-        to_field="unique_id",
+        to_field="staff_unique_id",
         db_column="user_id",
         related_name="audit_logs"
     )

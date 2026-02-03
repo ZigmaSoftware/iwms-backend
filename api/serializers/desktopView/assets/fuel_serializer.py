@@ -1,8 +1,9 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.fuel import Fuel
 from api.validators.unique_name_validator import unique_name_validator
 
-class FuelSerializer(serializers.ModelSerializer):
+class FuelSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Fuel
         fields = "__all__"

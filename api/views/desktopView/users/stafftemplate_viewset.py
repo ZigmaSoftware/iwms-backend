@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
 from api.views.tenant_viewset import TenantModelViewSet
 
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.stafftemplate import StaffTemplate
 from api.apps.staff_template_audit_log import StaffTemplateAuditLog
 from api.serializers.desktopView.users.stafftemplate_serializer import (
@@ -66,7 +66,7 @@ class StaffTemplateViewSet(TenantModelViewSet):
         payload = getattr(self.request, "jwt_payload", None) or getattr(raw_request, "jwt_payload", None)
         unique_id = payload.get("unique_id") if isinstance(payload, dict) else None
         if unique_id:
-            return User.objects.filter(unique_id=unique_id).first()
+            return StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
 
         return None
 

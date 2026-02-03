@@ -3,7 +3,7 @@ from api.apps.district import District
 from api.apps.zone import Zone
 from api.apps.vehicleCreation import VehicleCreation
 from api.apps.staffUserType import StaffUserType
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 
 
 class RoutePlanSeeder:
@@ -20,7 +20,7 @@ class RoutePlanSeeder:
         )
 
         supervisor_role = StaffUserType.objects.get(name__iexact="supervisor")
-        supervisors = User.objects.filter(
+        supervisors = StaffOfficeDetails.objects.filter(
             staffusertype_id=supervisor_role,
             is_active=True,
             is_deleted=False,

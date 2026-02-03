@@ -5,6 +5,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
+from api.apps.staffcreation import StaffOfficeDetails
+from api.apps.customercreation import CustomerCreation
 
 
 HTTP_ACTION_MAP = {
@@ -37,6 +39,11 @@ AUTH_ONLY_PREFIXES = (
     "/api/desktop/staff-profile/",
     "/api/desktop/waste/",
     "/api/desktop/attendance-list/",
+)
+
+# Platform routes that should bypass all middleware permission checks
+PLATFORM_PREFIXES = (
+    "/api/platform/",
 )
 
 PUBLIC_PREFIXES = (
@@ -140,18 +147,39 @@ def _authenticate_request(request):
     if not unique_id:
         return JsonResponse({"detail": "Invalid token payload"}, status=401)
 
-    User = get_user_model()
-    user = User.objects.filter(unique_id=unique_id).first()
+    # Try to find user in StaffOfficeDetails first (uses staff_unique_id)
+    staff = StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
+    if staff:
+        request.user = staff
+        request.jwt_payload = payload
+        if hasattr(request, "_request"):
+            request._request.user = staff
+        return None
+    
+    # Try to find user in CustomerCreation (uses unique_id)
+    customer = CustomerCreation.objects.filter(unique_id=unique_id).first()
+    if customer:
+        request.user = customer
+        request.jwt_payload = payload
+        if hasattr(request, "_request"):
+            request._request.user = customer
+        return None
+
+    # Fall back to Django User (platform super admins)
+    UserModel = get_user_model()
+    user = UserModel.objects.filter(unique_id=unique_id).first()
     if not user:
-        return JsonResponse({"detail": "User not found"}, status=401)
+        user_id = payload.get("user_id")
+        if user_id:
+            user = UserModel.objects.filter(pk=user_id).first()
+    if user:
+        request.user = user
+        request.jwt_payload = payload
+        if hasattr(request, "_request"):
+            request._request.user = user
+        return None
 
-    # IMPORTANT: attach to BOTH layers
-    request.user = user
-    request.jwt_payload = payload
-    if hasattr(request, "_request"):
-        request._request.user = user
-
-    return None
+    return JsonResponse({"detail": "User not found"}, status=401)
 
 class ModulePermissionMiddleware(MiddlewareMixin):
 
@@ -161,6 +189,10 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return None
 
         if any(request.path.startswith(p) for p in PUBLIC_PREFIXES):
+            return None
+
+        # Bypass all middleware checks for platform routes
+        if any(request.path.startswith(p) for p in PLATFORM_PREFIXES):
             return None
 
         if any(request.path.startswith(p) for p in AUTH_ONLY_PREFIXES):

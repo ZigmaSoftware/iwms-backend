@@ -1,8 +1,9 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.continent import Continent
 from api.validators.unique_name_validator import unique_name_validator
 
-class ContinentSerializer(serializers.ModelSerializer):
+class ContinentSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Continent
         fields = "__all__"

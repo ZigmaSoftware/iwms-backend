@@ -1,25 +1,26 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.unassigned_staff_pool import UnassignedStaffPool
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.zone import Zone
 from api.apps.ward import Ward
 from api.apps.trip_instance import TripInstance
 
 
-class UnassignedStaffPoolSerializer(serializers.ModelSerializer):
+class UnassignedStaffPoolSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     operator_id = serializers.SlugRelatedField(
         source="operator",
-        slug_field="unique_id",
-        queryset=User.objects.all(),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.all(),
         required=False,
         allow_null=True
     )
 
     driver_id = serializers.SlugRelatedField(
         source="driver",
-        slug_field="unique_id",
-        queryset=User.objects.all(),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.all(),
         required=False,
         allow_null=True
     )
@@ -47,6 +48,10 @@ class UnassignedStaffPoolSerializer(serializers.ModelSerializer):
     class Meta:
         model = UnassignedStaffPool
         fields = [
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "id",
             "operator_id",
             "driver_id",

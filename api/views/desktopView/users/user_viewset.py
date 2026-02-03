@@ -3,13 +3,13 @@ from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from api.views.tenant_viewset import TenantModelViewSet
-from api.apps.userCreation import User
-from api.serializers.desktopView.users.user_serializer import UserSerializer
+from api.apps.staffcreation import StaffOfficeDetails
+from api.serializers.desktopView.users.user_serializer import StaffSerializer
 
 
-class UserViewSet(TenantModelViewSet):
-    queryset = User.objects.filter(is_deleted=False)
-    serializer_class = UserSerializer
+class StaffViewSet(TenantModelViewSet):
+    queryset = StaffOfficeDetails.objects.filter(is_deleted=False)
+    serializer_class = StaffSerializer
     lookup_field = "unique_id"
     permission_resource = "UsersCreation"
 
@@ -27,4 +27,4 @@ class UserViewSet(TenantModelViewSet):
         instance = self.get_object()
         instance.is_deleted = True
         instance.save()
-        return Response({"message": "User soft deleted successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "Staff soft deleted successfully"}, status=status.HTTP_200_OK)

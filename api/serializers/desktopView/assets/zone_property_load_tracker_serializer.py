@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.zone_property_load_tracker import ZonePropertyLoadTracker
 from api.apps.zone import Zone
@@ -7,7 +8,7 @@ from api.apps.property import Property
 from api.apps.subproperty import SubProperty
 
 
-class ZonePropertyLoadTrackerSerializer(serializers.ModelSerializer):
+class ZonePropertyLoadTrackerSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     # ------------------------------------------------------
     # WRITE-ONLY INPUT (FK OBJECTS)
@@ -44,6 +45,10 @@ class ZonePropertyLoadTrackerSerializer(serializers.ModelSerializer):
         model = ZonePropertyLoadTracker
         fields = (
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
 
             # write-only
             "zone",

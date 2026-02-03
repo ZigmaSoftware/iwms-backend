@@ -1,8 +1,9 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.routeplan import RoutePlan
 
 
-class RoutePlanSerializer(serializers.ModelSerializer):
+class RoutePlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     SUPERVISOR_ROLE_NAME = "supervisor"
 
     district_name = serializers.CharField(
@@ -26,6 +27,10 @@ class RoutePlanSerializer(serializers.ModelSerializer):
         model = RoutePlan
         fields = [
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "display_code",
 
             "district_id",

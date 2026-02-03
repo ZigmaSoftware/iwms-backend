@@ -3,7 +3,6 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token as AuthToken
 
 from django.contrib.auth.hashers import check_password
-from django.contrib.auth.models import User
 from django.db.models import Q
 
 from api.apps.customercreation import CustomerCreation
@@ -74,6 +73,7 @@ class CitizenLoginViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Look up customer by contact_no or customer_name with the user_type
         customer = CustomerCreation.objects.filter(
             Q(contact_no__iexact=username) | Q(customer_name__iexact=username),
             is_active=True,
@@ -87,24 +87,15 @@ class CitizenLoginViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # if not self._password_matches(customer.password, password):
-        if(customer.password != password):
+        # Use CustomerCreation password directly (no Django User needed)
+        if not self._password_matches(customer.password, password):
             return Response(
                 {"status": False, "message": "Invalid credentials"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user, _ = User.objects.get_or_create(
-            username=customer.contact_no,
-            defaults={
-                "first_name": customer.customer_name,
-                "email": f"{customer.contact_no}@example.com",
-            },
-        )
-        user.is_active = True
-        user.save(update_fields=["is_active"])
-
-        token, _ = AuthToken.objects.get_or_create(user=user)
+        # Create or get token for the customer (use customer unique_id as username)
+        token, _ = AuthToken.objects.get_or_create(key=customer.unique_id)
         user_type_payload = {
             "id": user_type.id,
             "unique_id": user_type.unique_id,
@@ -119,10 +110,10 @@ class CitizenLoginViewSet(viewsets.ViewSet):
                 "user_type": user_type_payload,
                 "permissions": self._build_permission_payload(user_type),
                 "user": {
-                    "username": user.username,
-                    "email": user.email,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
+                    "unique_id": customer.unique_id,
+                    "username": customer.contact_no,
+                    "email": customer.email,
+                    "first_name": customer.customer_name,
                 },
             },
             status=status.HTTP_200_OK,

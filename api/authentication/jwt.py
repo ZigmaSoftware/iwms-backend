@@ -3,17 +3,24 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from api.apps.staffcreation import StaffOfficeDetails
+from api.apps.customercreation import CustomerCreation
 
 
 class JWTUserAuthentication(BaseAuthentication):
     """
-    Resolve a user from the Bearer token used by ModulePermissionMiddleware.
+    Resolve a user from the Bearer token.
+    Supports both Staff (StaffOfficeDetails) and Customer (CustomerCreation) authentication.
     """
 
     def authenticate(self, request):
         raw_request = getattr(request, "_request", None)
         existing_user = getattr(raw_request, "user", None)
-        if getattr(existing_user, "unique_id", None):
+        
+        # Check if already authenticated via other means
+        if hasattr(existing_user, 'staff_unique_id'):
+            return (existing_user, None)
+        if hasattr(existing_user, 'unique_id') and hasattr(existing_user, 'customer_name'):
             return (existing_user, None)
 
         auth = request.headers.get("Authorization")
@@ -37,10 +44,27 @@ class JWTUserAuthentication(BaseAuthentication):
         if not unique_id:
             raise AuthenticationFailed("Invalid token")
 
-        User = get_user_model()
-        user = User.objects.filter(unique_id=unique_id).first()
-        if not user:
-            raise AuthenticationFailed("User not found")
+        # Try to find user in StaffOfficeDetails first (uses staff_unique_id)
+        staff = StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
+        if staff:
+            request.jwt_payload = payload
+            return (staff, None)
+        
+        # Try to find user in CustomerCreation (uses unique_id)
+        customer = CustomerCreation.objects.filter(unique_id=unique_id).first()
+        if customer:
+            request.jwt_payload = payload
+            return (customer, None)
 
-        request.jwt_payload = payload
-        return (user, None)
+        # Fall back to Django User (platform super admin)
+        UserModel = get_user_model()
+        user = UserModel.objects.filter(unique_id=unique_id).first()
+        if not user:
+            user_id = payload.get("user_id")
+            if user_id:
+                user = UserModel.objects.filter(pk=user_id).first()
+        if user:
+            request.jwt_payload = payload
+            return (user, None)
+
+        raise AuthenticationFailed("User not found")

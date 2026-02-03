@@ -6,6 +6,7 @@ from .district import District
 from .city import City
 from .zone import Zone
 from .userType import UserType
+from .staffUserType import StaffUserType
 from .ward import Ward
 from .property import Property
 from .subproperty import SubProperty
@@ -56,11 +57,61 @@ class CustomerCreation(CompanyProjectMixin, models.Model):
     )
     id_no = models.CharField(max_length=100)
 
-    property = models.ForeignKey(Property, on_delete=models.PROTECT, related_name="customer_creation")
+    property_ref = models.ForeignKey(Property, on_delete=models.PROTECT, related_name="customer_creation", db_column="property")
     sub_property = models.ForeignKey(SubProperty, on_delete=models.PROTECT, related_name="customer_creation")
 
-    is_deleted = models.BooleanField(default=False)
+    # =============================================
+    # AUTHENTICATION FIELDS (from User model)
+    # =============================================
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Customer login identifier"
+    )
+
+    email = models.EmailField(
+        null=True,
+        blank=True,
+    )
+
+    password = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        help_text="Django auth password field"
+    )
+
+    is_staff = models.BooleanField(
+        default=False,
+        help_text="Django admin-site access flag.",
+    )
+
     is_active = models.BooleanField(default=True)
+
+    is_deleted = models.BooleanField(default=False)
+
+    is_superuser = models.BooleanField(default=False)
+
+    # Type Links
+    user_type_id = models.ForeignKey(
+        UserType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="user_type_id",
+        related_name="customer_users"
+    )
+
+    staffusertype_id = models.ForeignKey(
+        StaffUserType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="staffusertype_id",
+        related_name="customer_users"
+    )
 
     class Meta:
         verbose_name = "Customer"
@@ -80,3 +131,11 @@ class CustomerCreation(CompanyProjectMixin, models.Model):
         self.is_deleted = True
         self.is_active = False
         self.save(update_fields=["is_deleted", "is_active"])
+
+    @property
+    def is_authenticated(self):
+        """
+        Always return True for authenticated users.
+        Required by Django REST Framework's permission system.
+        """
+        return True

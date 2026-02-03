@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.vehicleCreation import VehicleCreation
 from api.apps.vehicleTypeCreation import VehicleTypeCreation
@@ -24,7 +25,7 @@ class UniqueIdOrPkField(serializers.SlugRelatedField):
                 raise
 
 
-class VehicleCreationSerializer(serializers.ModelSerializer):
+class VehicleCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     vehicle_type_id = UniqueIdOrPkField(
         source="vehicle_type",
         slug_field="unique_id",
@@ -48,6 +49,10 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "vehicle_type_id",
             "fuel_type_id",
             "vehicle_no",

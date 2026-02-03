@@ -1,9 +1,10 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.bin import Bin
 from api.validators.unique_name_validator import unique_name_validator
 
 
-class BinSerializer(serializers.ModelSerializer):
+class BinSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     ward_name = serializers.CharField(source="ward.name", read_only=True)
 
     ward_name = serializers.CharField(source="ward.name", read_only=True)
@@ -12,6 +13,10 @@ class BinSerializer(serializers.ModelSerializer):
         model = Bin
         fields = [
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "ward",
             "ward_name",
             "bin_name",

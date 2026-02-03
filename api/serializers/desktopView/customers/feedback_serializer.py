@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.feedback import FeedBack
 from api.apps.customercreation import CustomerCreation
 
@@ -23,7 +24,7 @@ class CustomerField(serializers.SlugRelatedField):
                 raise serializers.ValidationError("Invalid customer reference")
 
 
-class FeedBackSerializer(serializers.ModelSerializer):
+class FeedBackSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     customer = CustomerField(
         slug_field="unique_id",
         queryset=CustomerCreation.objects.all(),

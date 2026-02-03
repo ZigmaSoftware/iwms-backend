@@ -1,6 +1,6 @@
 from django.db.models import Q
 from rest_framework import viewsets
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from api.apps.project import Project
 
@@ -30,10 +30,16 @@ class TenantModelViewSet(viewsets.ModelViewSet):
             return None
 
         unique_id = self.request.headers.get(self.project_header) or self.request.query_params.get("project")
+        if not unique_id and self.request.method in ("POST", "PUT", "PATCH"):
+            # Swagger/tests often send project_id in JSON body; accept it, but validate it is in the same company.
+            unique_id = self.request.data.get("project_id") or self.request.data.get("project_unique_id")
         if not unique_id:
             return None
 
-        return Project.objects.filter(unique_id=unique_id, company_id=company).first()
+        project = Project.objects.filter(unique_id=unique_id, company_id=company).first()
+        if not project:
+            raise ValidationError({"project_id": "Invalid project_id for this company"})
+        return project
 
     def filter_queryset(self, queryset):
         queryset = super().filter_queryset(queryset)

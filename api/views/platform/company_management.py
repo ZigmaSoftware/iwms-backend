@@ -1,5 +1,6 @@
-from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,6 +13,7 @@ from api.permissions.platform import PlatformSuperAdminOnly
 from api.serializers.platform.company_create_serializer import PlatformCompanyCreateSerializer
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class PlatformCompanyCreateView(APIView):
     permission_classes = [PlatformSuperAdminOnly]
 
@@ -36,9 +38,17 @@ class PlatformCompanyCreateView(APIView):
             defaults={"is_active": True, "is_deleted": False},
         )
 
+        # Create staff with auth fields directly (no separate User model)
         staff = StaffOfficeDetails.objects.create(
             company_id=company,
             employee_name=data["admin_employee_name"],
+            username=data["admin_username"],
+            password=data["admin_password"],
+            user_type_id=staff_type,
+            staffusertype_id=admin_role,
+            is_staff=False,
+            is_active=True,
+            is_deleted=False,
         )
 
         email = data.get("admin_email")
@@ -50,23 +60,10 @@ class PlatformCompanyCreateView(APIView):
                 contact_email=email,
             )
 
-        User = get_user_model()
-        admin_user = User.objects.create_user(
-            username=data["admin_username"],
-            password=data["admin_password"],
-            company_id=company,
-            user_type_id=staff_type,
-            staffusertype_id=admin_role,
-            staff_id=staff,
-            is_staff=False,
-            is_active=True,
-            is_deleted=False,
-        )
-
         return Response(
             {
                 "company": {"unique_id": company.unique_id, "name": company.name},
-                "company_admin": {"unique_id": admin_user.unique_id, "username": admin_user.username},
+                "company_admin": {"unique_id": staff.staff_unique_id, "username": staff.username},
             },
             status=status.HTTP_201_CREATED,
         )

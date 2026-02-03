@@ -1,19 +1,20 @@
 from api.management.commands.seeders.base import BaseSeeder
 from api.apps.unassigned_staff_pool import UnassignedStaffPool
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.trip_instance import TripInstance
 from api.apps.ward import Ward
+from api.apps.zone import Zone
 
 
 class UnassignedStaffPoolSeeder(BaseSeeder):
     name = "unassigned_staff_pool"
 
     def run(self):
-        staff_qs = User.objects.filter(
+        staff_qs = StaffOfficeDetails.objects.filter(
             staffusertype_id__name__in=["driver", "operator"],
             is_active=True,
             is_deleted=False,
-        ).select_related("zone_id", "ward_id", "staffusertype_id")
+        ).select_related("staffusertype_id")
 
         if not staff_qs.exists():
             self.log("UnassignedStaffPoolSeeder skipped (no staff users).")
@@ -41,21 +42,32 @@ class UnassignedStaffPoolSeeder(BaseSeeder):
         updated = 0
 
         for staff in staff_qs:
-            if staff.unique_id in assigned_ids:
+            if staff.staff_unique_id in assigned_ids:
                 UnassignedStaffPool.objects.filter(
-                    operator_id=staff.unique_id
+                    operator_id=staff.staff_unique_id
                 ).update(status=UnassignedStaffPool.Status.ASSIGNED)
                 UnassignedStaffPool.objects.filter(
-                    driver_id=staff.unique_id
+                    driver_id=staff.staff_unique_id
                 ).update(status=UnassignedStaffPool.Status.ASSIGNED)
                 continue
 
-            zone = staff.zone_id
+            # Get zone from the latest trip for this staff's company/project
+            zone = None
+            trip_for_staff = latest_trip_per_zone.get(zone) if zone else None
+            if not trip_for_staff:
+                # Get any active trip
+                trip_for_staff = active_instances.first()
+            
+            if trip_for_staff:
+                zone = trip_for_staff.zone
+            
             if not zone:
                 continue
 
-            ward = staff.ward_id or Ward.objects.filter(
-                zone_id=zone.unique_id
+            ward = Ward.objects.filter(
+                zone_id=zone.unique_id,
+                is_active=True,
+                is_deleted=False
             ).first()
             if not ward:
                 continue

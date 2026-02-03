@@ -4,7 +4,8 @@ import jwt
 from django.conf import settings
 
 from api.apps.auditlog import AuditLog
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
+from api.apps.customercreation import CustomerCreation
 from api.utils.audit_context_resolver import resolve_audit_context
 from api.utils.audit_id_resolver import get_audit_ids
 
@@ -28,7 +29,7 @@ def create_audit_log(request, view_func, success, reason=None):
 
     try:
         log = AuditLog.objects.create(
-            user_id_id=user.unique_id,
+            user_id_id=getattr(user, 'staff_unique_id', None) or getattr(user, 'unique_id', None),
             staffusertype_id_id=getattr(user, "staffusertype_id_id", None),
 
             mainscreen_id=mainscreen_id,
@@ -56,7 +57,7 @@ def create_audit_log(request, view_func, success, reason=None):
 
 def _resolve_request_user(request):
     user = getattr(request, "user", None)
-    if getattr(user, "unique_id", None):
+    if hasattr(user, 'staff_unique_id') or hasattr(user, 'unique_id'):
         return user
 
     payload = getattr(request, "jwt_payload", None)
@@ -72,11 +73,20 @@ def _resolve_request_user(request):
     if not unique_id:
         return None
 
+    # Try StaffOfficeDetails first
     try:
-        return User.objects.only("unique_id", "staffusertype_id_id").get(
+        return StaffOfficeDetails.objects.only("staff_unique_id", "staffusertype_id_id").get(
+            staff_unique_id=unique_id
+        )
+    except StaffOfficeDetails.DoesNotExist:
+        pass
+
+    # Try CustomerCreation
+    try:
+        return CustomerCreation.objects.only("unique_id").get(
             unique_id=unique_id
         )
-    except User.DoesNotExist:
+    except CustomerCreation.DoesNotExist:
         return None
 
 

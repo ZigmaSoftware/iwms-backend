@@ -1,7 +1,7 @@
 from django.db import models
 from .utils.tenancy import CompanyProjectMixin
 from django.db.models import Q
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.utils.comfun import generate_unique_id
 from api.apps.zone import Zone
 from api.apps.ward import Ward
@@ -39,13 +39,13 @@ class UnassignedStaffPool(CompanyProjectMixin, models.Model):
     # STAFF (EXACTLY ONE REQUIRED)
     # -----------------------------
     operator = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="unassigned_operator_pool",
         db_column="operator_id",
-        to_field="unique_id",
+        to_field="staff_unique_id",
         limit_choices_to={
             "staffusertype_id__name": "operator",
             "is_active": True,
@@ -54,13 +54,13 @@ class UnassignedStaffPool(CompanyProjectMixin, models.Model):
     )
 
     driver = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="unassigned_driver_pool",
         db_column="driver_id",
-        to_field="unique_id",
+        to_field="staff_unique_id",
         limit_choices_to={
             "staffusertype_id__name": "driver",
             "is_active": True,
@@ -142,7 +142,7 @@ class UnassignedStaffPool(CompanyProjectMixin, models.Model):
 
     def __str__(self):
         staff = self.operator or self.driver
-        return f"{staff.unique_id if staff else 'N/A'} - {self.zone}"
+        return f"{staff.staff_unique_id if staff else 'N/A'} - {self.zone}"
 
     # ---------------------------------------------------
     # POOL REFRESH LOGIC
@@ -175,33 +175,22 @@ class UnassignedStaffPool(CompanyProjectMixin, models.Model):
             if staff_template.operator_id_id:
                 assigned_ids.add(staff_template.operator_id_id)
 
-        staff_qs = User.objects.filter(
+        # Note: StaffOfficeDetails doesn't have direct zone_id/ward_id
+        # StaffPersonalDetails has contact_mobile and contact_email
+        # Location data is expected to come from StaffOfficeDetails.company_id/project_id
+        # or from related tables. This method may need adjustment based on actual requirements.
+        
+        staff_qs = StaffOfficeDetails.objects.filter(
             staffusertype_id__name__in=["driver", "operator"],
             is_active=True,
             is_deleted=False,
-        ).select_related("zone_id", "ward_id", "staffusertype_id")
-
-        if trip_instance and trip_instance.zone_id:
-            staff_qs = staff_qs.filter(zone_id=trip_instance.zone_id)
+        ).select_related("staffusertype_id")
 
         for staff in staff_qs:
             # Mark assigned
-            if staff.unique_id in assigned_ids:
+            if staff.staff_unique_id in assigned_ids:
                 cls.objects.filter(operator=staff).update(status=cls.Status.ASSIGNED)
                 cls.objects.filter(driver=staff).update(status=cls.Status.ASSIGNED)
-                continue
-
-            zone = staff.zone_id or (trip_instance.zone if trip_instance else None)
-            if not zone:
-                continue
-
-            ward = staff.ward_id or Ward.objects.filter(
-                zone_id=zone.unique_id
-            ).first()
-            if not ward:
-                continue
-
-            if trip_instance and trip_instance.zone_id != zone.unique_id:
                 continue
 
             defaults = {
@@ -209,17 +198,19 @@ class UnassignedStaffPool(CompanyProjectMixin, models.Model):
                 "trip_instance": trip_instance,
             }
 
+            # For now, create pool entries without zone/ward if not available
+            # This may need to be adjusted based on business logic
             if staff.staffusertype_id.name.lower() == "operator":
                 cls.objects.update_or_create(
                     operator=staff,
-                    zone=zone,
-                    ward=ward,
+                    zone=trip_instance.zone if trip_instance else None,
+                    ward=None,
                     defaults=defaults,
                 )
             elif staff.staffusertype_id.name.lower() == "driver":
                 cls.objects.update_or_create(
                     driver=staff,
-                    zone=zone,
-                    ward=ward,
+                    zone=trip_instance.zone if trip_instance else None,
+                    ward=None,
                     defaults=defaults,
                 )

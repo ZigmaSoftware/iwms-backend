@@ -1,13 +1,14 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from django.utils import timezone
 from django.conf import settings
 from api.apps.trip_attendance import TripAttendance
 from api.apps.trip_instance import TripInstance
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.vehicleCreation import VehicleCreation
 
 
-class TripAttendanceSerializer(serializers.ModelSerializer):
+class TripAttendanceSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     trip_instance_id = serializers.SlugRelatedField(
         source="trip_instance",
@@ -17,8 +18,8 @@ class TripAttendanceSerializer(serializers.ModelSerializer):
 
     staff_id = serializers.SlugRelatedField(
         source="staff",
-        slug_field="unique_id",
-        queryset=User.objects.all()
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.all()
     )
 
     vehicle_id = serializers.SlugRelatedField(
@@ -31,6 +32,10 @@ class TripAttendanceSerializer(serializers.ModelSerializer):
         model = TripAttendance
         fields = [
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "trip_instance_id",
             "staff_id",
             "vehicle_id",
@@ -67,7 +72,7 @@ class TripAttendanceSerializer(serializers.ModelSerializer):
             )
 
         # Staff must belong to trip
-        if staff.unique_id not in [
+        if staff.staff_unique_id not in [
             trip.staff_template.operator_id_id,
             trip.staff_template.driver_id_id,
         ]:

@@ -3,7 +3,7 @@ from datetime import date
 from api.management.commands.seeders.base import BaseSeeder
 from api.apps.alternative_staff_template import AlternativeStaffTemplate
 from api.apps.stafftemplate import StaffTemplate
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 
 
 class AlternativeStaffTemplateSeeder(BaseSeeder):
@@ -12,7 +12,7 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
     def run(self):
         """
         Seeds AlternativeStaffTemplate with controlled baseline data.
-        Assumes StaffTemplate and User data already exist.
+        Assumes StaffTemplate and Staff data already exist.
         """
 
         # ---- FETCH REQUIRED DEPENDENCIES ----
@@ -21,16 +21,20 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
             self.log("No StaffTemplate found. Seeder aborted.")
             return
 
-        # Pull auth users (model tied to AUTH_USER_MODEL)
-        users = list(User.objects.filter(is_active=True).order_by("id")[:4])
-        if len(users) < 3:
-            self.log("Insufficient auth users found (need at least 3). Seeder aborted.")
+        # Pull staff from StaffOfficeDetails
+        staff_list = list(StaffOfficeDetails.objects.filter(
+            is_active=True,
+            is_deleted=False
+        ).order_by("id")[:4])
+        
+        if len(staff_list) < 3:
+            self.log("Insufficient staff found (need at least 3). Seeder aborted.")
             return
 
-        driver = users[0]
-        operator = users[1]
-        approver = users[2]
-        extra_operator = users[3] if len(users) > 3 else None
+        driver = staff_list[0]
+        operator = staff_list[1]
+        approver = staff_list[2]
+        extra_operator = staff_list[3] if len(staff_list) > 3 else None
 
         # ---- SEED DATA ----
         AlternativeStaffTemplate.objects.get_or_create(

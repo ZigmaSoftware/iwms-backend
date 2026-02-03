@@ -1,6 +1,7 @@
 from typing import Optional
 
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.customercreation import CustomerCreation
 from api.apps.country import Country
@@ -14,7 +15,7 @@ from api.apps.subproperty import SubProperty
 from api.validators.unique_name_validator import unique_name_validator
 
 
-class CustomerCreationSerializer(serializers.ModelSerializer):
+class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     # Rename FK inputs to *_id
     ward_id = serializers.PrimaryKeyRelatedField(
@@ -50,7 +51,7 @@ class CustomerCreationSerializer(serializers.ModelSerializer):
         queryset=Country.objects.all(),
     )
     property_id = serializers.PrimaryKeyRelatedField(
-        source="property",
+        source="property_ref",
         queryset=Property.objects.all(),
     )
     sub_property_id = serializers.PrimaryKeyRelatedField(
@@ -73,6 +74,10 @@ class CustomerCreationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "customer_name",
             "contact_no",
             "building_no",
@@ -147,7 +152,7 @@ class CustomerCreationSerializer(serializers.ModelSerializer):
         return getattr(related_obj, "name", None) if related_obj else None
 
     def _resolve_property_name(self, obj) -> Optional[str]:
-        related_obj = getattr(obj, "property", None)
+        related_obj = getattr(obj, "property_ref", None)
         return getattr(related_obj, "property_name", None) if related_obj else None
 
     def _resolve_sub_property_name(self, obj) -> Optional[str]:

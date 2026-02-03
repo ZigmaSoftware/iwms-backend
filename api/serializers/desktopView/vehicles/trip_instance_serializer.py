@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.trip_instance import TripInstance
 from api.apps.trip_definition import TripDefinition
 from api.apps.stafftemplate import StaffTemplate
@@ -9,7 +10,7 @@ from api.apps.property import Property
 from api.apps.subproperty import SubProperty
 
 
-class TripInstanceSerializer(serializers.ModelSerializer):
+class TripInstanceSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     trip_definition_id = serializers.SlugRelatedField(
         source="trip_definition",

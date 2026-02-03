@@ -1,9 +1,10 @@
 from rest_framework import serializers
+from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 
 
-class StaffcreationSerializer(serializers.ModelSerializer):
+class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     # --------------------------------------------------
     # Core identifiers
     # --------------------------------------------------
@@ -105,6 +106,10 @@ class StaffcreationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
             "emp_id",
 
             # Office details

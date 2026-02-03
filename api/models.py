@@ -28,7 +28,7 @@ from .apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 # Users & Access
 from .apps.userType import UserType
 from .apps.staffUserType import StaffUserType
-from .apps.userCreation import User
+from .apps.auth_user import User
 from .apps.mainscreentype import MainScreenType
 from .apps.mainscreen import MainScreen
 from .apps.userscreen import UserScreen
