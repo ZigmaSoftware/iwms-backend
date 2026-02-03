@@ -2,7 +2,7 @@ from django.db import models
 from .utils.tenancy import CompanyProjectMixin
 from django.db.models import Max
 from .utils.comfun import generate_unique_id
-from .userCreation import User
+from .staffcreation import StaffOfficeDetails
 
 
 def generate_alternative_staff_template_id():
@@ -42,18 +42,18 @@ class AlternativeStaffTemplate(CompanyProjectMixin, models.Model):
 
     # ---- Staff Assignment ----
     driver_id = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         db_column="driver_id",
-        to_field="unique_id",
+        to_field="staff_unique_id",
         related_name='alt_driver_templates'
     )
 
     operator_id = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         db_column="operator_id",
-        to_field="unique_id",
+        to_field="staff_unique_id",
         related_name='alt_operator_templates'
     )
 
@@ -71,14 +71,14 @@ class AlternativeStaffTemplate(CompanyProjectMixin, models.Model):
 
     # ---- Approval Workflow ----
     requested_by = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         db_column='requested_by',
         related_name='alt_staff_requested'
     )
 
     approved_by = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         db_column='approved_by',
         related_name='alt_staff_approved',

@@ -1,13 +1,20 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import check_password, identify_hasher
 from django.db.models import Q
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
+from api.apps.customercreation import CustomerCreation
 from api.apps.userscreenpermission import UserScreenPermission
+from api.apps.userType import UserType
 
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
+    login_type = serializers.ChoiceField(
+        choices=["staff", "customer"],
+        default="staff",
+        required=False
+    )
 
     @staticmethod
     def _password_matches(raw_password, stored_password):
@@ -23,102 +30,76 @@ class LoginSerializer(serializers.Serializer):
         
         username = attrs["username"].strip()
         password = attrs["password"].strip()
-
-        # FIND USER BY MULTIPLE MATCH FIELDS
-        candidates = (
-            User.objects
-            .select_related("user_type_id", "staffusertype_id", "staff_id", "customer_id", "staff_id__personal_details")
-            .filter(is_active=True, is_deleted=False, is_superuser=False)
-            .filter(
-                Q(username__iexact=username) |
-                Q(customer_id__customer_name__iexact=username) |
-                Q(customer_id__contact_no__iexact=username) |
-                Q(staff_id__employee_name__iexact=username) |
-                Q(staff_id__staff_unique_id__iexact=username) |
-                Q(unique_id__iexact=username) |
-                Q(staff_id__personal_details__contact_email__iexact=username) 
-            )
-        )
+        login_type = attrs.get("login_type", "staff")
 
         user = None
-        for candidate in candidates:
-            if self._password_matches(password, candidate.password):
-                user = candidate
-                break
-
-        if not user:
-            raise serializers.ValidationError("Invalid username or password")
-
-        if not user.user_type_id:
-            raise serializers.ValidationError("Invalid user type")
-
-        # --------------------------
-        # USER TYPE VALIDATION
-        # --------------------------
-        utype = user.user_type_id.name.lower()
-
-        if utype == "customer":
-            if not user.customer_id:
-                raise serializers.ValidationError("Customer profile not found")
-            staffusertype_id = None
-
-        elif utype == "staff":
-            if not user.staff_id:
-                raise serializers.ValidationError("Staff details missing")
-            if not user.staffusertype_id:
-                raise serializers.ValidationError("Staff role not assigned")
-
-            staffusertype_id = user.staffusertype_id.unique_id
-
-        else:
-            raise serializers.ValidationError("Unsupported user role type")
-
-        # --------------------------------
-        # FETCH PERMISSIONS FOR THIS ROLE
-        # --------------------------------
-        queryset = UserScreenPermission.objects.filter(
-            usertype_id_id=user.user_type_id.unique_id,
-            staffusertype_id_id=staffusertype_id,
-            is_deleted=False,
-            is_active=True
-        ).select_related(
-            "mainscreen_id",
-            "userscreen_id",
-            "userscreenaction_id"
-        ).order_by("order_no")
-
-        # Format permissions
         permissions = {}
-        for perm in queryset:
-            main_name = perm.mainscreen_id.mainscreen_name
-            screen_name = perm.userscreen_id.userscreen_name
-            action_name = perm.userscreenaction_id.action_name
+        user_type = None
+        staffusertype_id = None
 
-            if main_name not in permissions:
-                permissions[main_name] = {}
+        if login_type == "staff":
+            # Find staff by multiple match fields
+            candidates = (
+                StaffOfficeDetails.objects
+                .select_related("user_type_id", "staffusertype_id", "personal_details")
+                .filter(is_active=True, is_deleted=False, is_superuser=False)
+                .filter(
+                    Q(username__iexact=username) |
+                    Q(employee_name__iexact=username) |
+                    Q(staff_unique_id__iexact=username) |
+                    Q(personal_details__contact_email__iexact=username)
+                )
+            )
 
-            if screen_name not in permissions[main_name]:
-                permissions[main_name][screen_name] = []
+            for candidate in candidates:
+                if self._password_matches(password, candidate.password):
+                    user = candidate
+                    break
 
-            permissions[main_name][screen_name].append(action_name)
+            if not user:
+                raise serializers.ValidationError("Invalid username or password")
 
-        if not permissions and utype == "staff":
-            staff_role = user.staffusertype_id.name.lower()
-            if staff_role in ["driver", "operator"]:
-                permissions = {
-                    "customers": {
-                        "Customercreations": ["view"],
-                    },
-                    "user-creation": {
-                        "RoutePlan": ["add", "view", "edit", "delete"],
-                        "AlternativeStaffTemplate": ["view"],
-                    },
-                }
+            if not user.user_type_id:
+                raise serializers.ValidationError("Invalid user type")
 
-        # Merge minimal defaults for driver/operator so they retain RoutePlan access
-        if utype == "staff":
-            staff_role = user.staffusertype_id.name.lower() if user.staffusertype_id else ""
-            if staff_role in ["driver", "operator"]:
+            user_type = user.user_type_id.name.lower()
+
+            if user_type == "staff":
+                if not user.staffusertype_id:
+                    raise serializers.ValidationError("Staff role not assigned")
+                staffusertype_id = user.staffusertype_id.unique_id
+            else:
+                raise serializers.ValidationError("Unsupported user role type")
+
+            # Fetch permissions for this role
+            if staffusertype_id:
+                queryset = UserScreenPermission.objects.filter(
+                    usertype_id_id=user.user_type_id.unique_id,
+                    staffusertype_id_id=staffusertype_id,
+                    is_deleted=False,
+                    is_active=True
+                ).select_related(
+                    "mainscreen_id",
+                    "userscreen_id",
+                    "userscreenaction_id"
+                ).order_by("order_no")
+
+                # Format permissions
+                for perm in queryset:
+                    main_name = perm.mainscreen_id.mainscreen_name
+                    screen_name = perm.userscreen_id.userscreen_name
+                    action_name = perm.userscreenaction_id.action_name
+
+                    if main_name not in permissions:
+                        permissions[main_name] = {}
+
+                    if screen_name not in permissions[main_name]:
+                        permissions[main_name][screen_name] = []
+
+                    permissions[main_name][screen_name].append(action_name)
+
+            # Add minimal defaults for driver/operator
+            if user.staffusertype_id and user.staffusertype_id.name.lower() in ["driver", "operator"]:
                 defaults = {
                     "customers": {
                         "Customercreations": ["view"],
@@ -135,8 +116,34 @@ class LoginSerializer(serializers.Serializer):
                         existing = set(module_perms.get(screen_name, []))
                         module_perms[screen_name] = list(existing.union(actions))
 
+        else:  # customer login
+            candidates = (
+                CustomerCreation.objects
+                .filter(is_active=True, is_deleted=False, is_superuser=False)
+                .filter(
+                    Q(username__iexact=username) |
+                    Q(customer_name__iexact=username) |
+                    Q(contact_no__iexact=username)
+                )
+            )
+
+            for candidate in candidates:
+                if self._password_matches(password, candidate.password):
+                    user = candidate
+                    break
+
+            if not user:
+                raise serializers.ValidationError("Invalid username or password")
+
+            # Get customer user type
+            customer_user_type = UserType.objects.filter(name__iexact="customer").first()
+            if customer_user_type:
+                user_type = "customer"
+
         attrs["user"] = user
         attrs["permissions"] = permissions
+        attrs["user_type"] = user_type
+        attrs["staffusertype_id"] = staffusertype_id
 
         return attrs
 

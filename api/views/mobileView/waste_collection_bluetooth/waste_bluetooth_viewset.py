@@ -362,24 +362,12 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 1) Attempt to match directly on customer unique_id
+        # Match directly on customer unique_id
         customer = (
             CustomerCreation.objects
             .filter(unique_id=unique_id, is_deleted=False, is_active=True)
             .first()
         )
-
-        # 2) Fallback: match user unique_id -> customer_id
-        if customer is None:
-            from ....apps.userCreation import User
-
-            user = (
-                User.objects
-                .select_related("customer_id")
-                .filter(unique_id=unique_id, is_active=True, is_deleted=False)
-                .first()
-            )
-            customer = getattr(user, "customer_id", None)
 
         if not customer:
             return Response(

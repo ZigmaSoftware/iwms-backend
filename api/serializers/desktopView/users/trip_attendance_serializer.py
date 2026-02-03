@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.conf import settings
 from api.apps.trip_attendance import TripAttendance
 from api.apps.trip_instance import TripInstance
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.vehicleCreation import VehicleCreation
 
 
@@ -18,8 +18,8 @@ class TripAttendanceSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
 
     staff_id = serializers.SlugRelatedField(
         source="staff",
-        slug_field="unique_id",
-        queryset=User.objects.all()
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.all()
     )
 
     vehicle_id = serializers.SlugRelatedField(
@@ -72,7 +72,7 @@ class TripAttendanceSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
             )
 
         # Staff must belong to trip
-        if staff.unique_id not in [
+        if staff.staff_unique_id not in [
             trip.staff_template.operator_id_id,
             trip.staff_template.driver_id_id,
         ]:

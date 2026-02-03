@@ -29,10 +29,9 @@ from ..views.desktopView.customers.wastecollection_viewset import WasteCollectio
 from ..views.desktopView.customers.feedback_viewset import FeedBackViewSet
 
 # Users - Creation
-# Users - Creation
 from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
 from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
-from ..views.desktopView.users.user_viewset import UserViewSet
+from ..views.desktopView.users.user_viewset import StaffViewSet
 from ..views.desktopView.users.login_viewset import LoginViewSet as DesktopLoginViewSet
 from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
 from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
@@ -123,7 +122,7 @@ router.register_group("role-assign", "staffusertypes", StaffUserTypeViewSet)
 # ============================================================
 # GROUP: USER CREATION (customer + staff + login)
 # ============================================================
-router.register_group("user-creation", "users-creation",  UserViewSet)
+router.register_group("user-creation", "users-creation",  StaffViewSet)
 router.register_group("user-creation", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creation", "stafftemplate-creation",  StaffTemplateViewSet)
 router.register_group("user-creation", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)

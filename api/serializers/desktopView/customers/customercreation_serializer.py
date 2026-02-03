@@ -51,7 +51,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         queryset=Country.objects.all(),
     )
     property_id = serializers.PrimaryKeyRelatedField(
-        source="property",
+        source="property_ref",
         queryset=Property.objects.all(),
     )
     sub_property_id = serializers.PrimaryKeyRelatedField(
@@ -152,7 +152,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         return getattr(related_obj, "name", None) if related_obj else None
 
     def _resolve_property_name(self, obj) -> Optional[str]:
-        related_obj = getattr(obj, "property", None)
+        related_obj = getattr(obj, "property_ref", None)
         return getattr(related_obj, "property_name", None) if related_obj else None
 
     def _resolve_sub_property_name(self, obj) -> Optional[str]:

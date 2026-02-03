@@ -2,7 +2,7 @@ from django.db import models
 from .utils.tenancy import CompanyProjectMixin
 from django.db.models import Max
 from .utils.comfun import generate_unique_id
-from .userCreation import User
+from .staffcreation import StaffOfficeDetails
 
 
 # ------------------------------------------------------------------
@@ -32,20 +32,20 @@ class StaffTemplate(CompanyProjectMixin, models.Model):
 
     # ---------------- DRIVER ROLE ----------------
     driver_id = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="driver_templates",
         db_column="driver_id",
-        to_field="unique_id"
+        to_field="staff_unique_id"
     )
 
     # ---------------- OPERATOR ROLE ----------------
     operator_id = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="operator_templates",
         db_column="operator_id",
-        to_field="unique_id"
+        to_field="staff_unique_id"
     )
 
     extra_operator_id = models.JSONField(
@@ -65,25 +65,25 @@ class StaffTemplate(CompanyProjectMixin, models.Model):
 
     # ---------------- AUDIT FIELDS ----------------
     created_by = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="stafftemplate_created",
         db_column="created_by",
-        to_field="unique_id"
+        to_field="staff_unique_id"
     )
     updated_by = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="stafftemplate_updated",
         db_column="updated_by",
-        to_field="unique_id"
+        to_field="staff_unique_id"
     )
     approved_by = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="stafftemplate_approved",
         db_column="approved_by",
-        to_field="unique_id",
+        to_field="staff_unique_id",
         null=True,
         blank=True
     )
@@ -122,11 +122,10 @@ class StaffTemplate(CompanyProjectMixin, models.Model):
         Example: RAVI-KART-01
         """
 
-        def resolve_staff_name(user, fallback):
-            if not user:
+        def resolve_staff_name(staff, fallback):
+            if not staff:
                 return fallback
-            staff = getattr(user, "staff_id", None)
-            if staff and getattr(staff, "employee_name", None):
+            if hasattr(staff, 'employee_name') and staff.employee_name:
                 return staff.employee_name
             return fallback
 

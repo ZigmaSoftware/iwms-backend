@@ -1,19 +1,19 @@
 from rest_framework import serializers
 from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.supervisor_zone_access_audit import SupervisorZoneAccessAudit
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 
 
 class SupervisorZoneAccessAuditSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     unique_id = serializers.CharField(read_only=True)
     supervisor_id = serializers.SlugRelatedField(
         source="supervisor",
-        slug_field="unique_id",
+        slug_field="staff_unique_id",
         read_only=True
     )
 
     performed_by = serializers.SlugRelatedField(
-        slug_field="unique_id",
+        slug_field="staff_unique_id",
         read_only=True
     )
 

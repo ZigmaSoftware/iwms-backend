@@ -4,7 +4,7 @@ from api.apps.supervisor_zone_map import SupervisorZoneMap
 from api.apps.supervisor_zone_access_audit import SupervisorZoneAccessAudit
 from api.apps.staffUserType import StaffUserType
 from api.apps.userType import UserType
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.zone import Zone
 
 
@@ -24,19 +24,19 @@ class SupervisorZoneMapSeeder:
             usertype_id=staff_type,
         )
 
-        admin_user = User.objects.filter(
+        admin_user = StaffOfficeDetails.objects.filter(
             staffusertype_id=admin_role,
             is_deleted=False,
             is_active=True,
         ).first()
         if not admin_user:
-            raise Exception("Admin user missing. Run UserSeeder first.")
+            raise Exception("Admin staff missing. Run StaffSeeder first.")
 
-        supervisors = User.objects.filter(
+        supervisors = StaffOfficeDetails.objects.filter(
             staffusertype_id=supervisor_role,
             is_deleted=False,
             is_active=True,
-        ).select_related("staff_id")
+        )
         if not supervisors.exists():
             print("No supervisors found. Skipping supervisor zone map seeding.")
             return
@@ -72,7 +72,7 @@ class SupervisorZoneMapSeeder:
             city_obj = zone_list[0].city_id if zone_list else None
 
             if not new_zone_ids:
-                print(f"Skipping {supervisor.unique_id}: no valid zone IDs.")
+                print(f"Skipping {supervisor.staff_unique_id}: no valid zone IDs.")
                 continue
 
             existing = SupervisorZoneMap.objects.filter(

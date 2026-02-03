@@ -6,11 +6,11 @@ from api.apps.staff_template_audit_log import StaffTemplateAuditLog
 
 class StaffTemplateAuditLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     performed_by = serializers.SlugRelatedField(
-        slug_field="unique_id",
+        slug_field="staff_unique_id",
         read_only=True,
     )
     performed_by_name = serializers.CharField(
-        source="performed_by.staff_id.employee_name",
+        source="performed_by.employee_name",
         read_only=True,
     )
 

@@ -2,7 +2,6 @@ from rest_framework import serializers
 from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from django.db.models import Q
 
-from api.apps.userCreation import User
 from api.apps.customercreation import CustomerCreation
 from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.userType import UserType
@@ -27,7 +26,7 @@ class UniqueIdOrPkField(serializers.SlugRelatedField):
                 raise serializers.ValidationError("Invalid reference value")
 
 
-class UserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+class StaffSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     # ---------- USER TYPE ----------
     user_type_id = UniqueIdOrPkField(
@@ -41,62 +40,9 @@ class UserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         read_only=True
     )
 
-    # ---------- STAFF BASIC DETAILS ----------
+    # ---------- STAFF USER TYPE ----------
     staffusertype_name = serializers.CharField(
         source="staffusertype_id.name", read_only=True
-    )
-    staff_name = serializers.CharField(
-        source="staff_id.employee_name", read_only=True
-    )
-    staff_doj = serializers.DateField(
-        source="staff_id.doj", read_only=True
-    )
-    staff_designation = serializers.CharField(
-        source="staff_id.designation", read_only=True
-    )
-    staff_department = serializers.CharField(
-        source="staff_id.department", read_only=True
-    )
-    staff_grade = serializers.CharField(
-        source="staff_id.grade", read_only=True
-    )
-    staff_siteName = serializers.CharField(
-        source="staff_id.site_name", read_only=True
-    )
-    staff_biometricId = serializers.CharField(
-        source="staff_id.biometric_id", read_only=True
-    )
-    staff_staff_head = serializers.CharField(
-        source="staff_id.staff_head", read_only=True
-    )
-    staff_employee_known_as = serializers.CharField(
-        source="staff_id.employee_known", read_only=True
-    )
-    staff_photo = serializers.ImageField(
-        source="staff_id.photo", read_only=True
-    )
-    staff_salaryType = serializers.CharField(
-        source="staff_id.salary_type", read_only=True
-    )
-    staff_activeStatus = serializers.BooleanField(
-        source="staff_id.active_status", read_only=True
-    )
-
-    staff_id = UniqueIdOrPkField(
-        slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.all(),
-        required=False,
-        allow_null=True,
-    )
-
-    # ---------- STAFF PERSONAL ----------
-    staff_contact_mobile = serializers.CharField(
-        source="staff_id.personal_details.contact_mobile",
-        read_only=True
-    )
-    staff_contact_email = serializers.EmailField(
-        source="staff_id.personal_details.contact_email",
-        read_only=True
     )
 
     # ---------- CUSTOMER ----------
@@ -111,18 +57,6 @@ class UserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     )
     customer_contact = serializers.CharField(
         source="customer_id.customer_contact_no", read_only=True
-    )
-    customer_city = serializers.CharField(
-        source="customer_id.city.name", read_only=True
-    )
-    customer_district = serializers.CharField(
-        source="customer_id.district.name", read_only=True
-    )
-    customer_zone = serializers.CharField(
-        source="customer_id.zone.name", read_only=True
-    )
-    customer_ward = serializers.CharField(
-        source="customer_id.ward.name", read_only=True
     )
 
     # ---------- LOCATION ----------
@@ -140,7 +74,7 @@ class UserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     )
 
     class Meta:
-        model = User
+        model = StaffOfficeDetails
         fields = "__all__"
 
     # ==================================================
@@ -155,9 +89,6 @@ class UserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         if not user_type:
             return attrs
 
-        staff_id = attrs.get("staff_id") or (
-            instance.staff_id if instance else None
-        )
         staffusertype_id = attrs.get("staffusertype_id") or (
             instance.staffusertype_id if instance else None
         )
@@ -167,41 +98,30 @@ class UserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
         # ---------- PHONE RESOLUTION ----------
         phone = None
-        if staff_id and hasattr(staff_id, "personal_details"):
-            phone = staff_id.personal_details.contact_mobile
+        if hasattr(instance, "personal_details"):
+            phone = instance.personal_details.contact_mobile
         elif customer_id:
             phone = customer_id.contact_no
 
         # ---------- DUPLICATE PHONE ----------
         if phone:
-            qs = User.objects.filter(is_deleted=False).filter(
-                Q(staff_id__personal_details__contact_mobile=phone) |
-                Q(customer_id__contact_no=phone)
-            )
-            if instance:
-                qs = qs.exclude(pk=instance.pk)
+            # Check across StaffOfficeDetails and CustomerCreation
+            staff_qs = StaffOfficeDetails.objects.filter(is_deleted=False)
+            customer_qs = CustomerCreation.objects.filter(is_deleted=False)
 
-            if qs.exists():
+            staff_exists = staff_qs.filter(
+                Q(personal_details__contact_mobile=phone)
+            ).exists()
+            customer_exists = customer_qs.filter(
+                Q(contact_no=phone)
+            ).exists()
+
+            if staff_exists or customer_exists:
                 raise serializers.ValidationError({
                     "non_field_errors": (
                         "This contact number already exists. "
                         "A person cannot be duplicated as Staff or Customer."
                     )
-                })
-
-        # ---------- PASSWORD UNIQUENESS ----------
-        password = attrs.get("password")
-        if password:
-            pwd_qs = User.objects.filter(
-                is_deleted=False,
-                password=password
-            )
-            if instance:
-                pwd_qs = pwd_qs.exclude(pk=instance.pk)
-
-            if pwd_qs.exists():
-                raise serializers.ValidationError({
-                    "password": "Password already in use. Choose another."
                 })
 
         # ---------- STRUCTURAL RULES ----------
@@ -212,7 +132,7 @@ class UserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "customer_id": "Required for Customer user type."
                 })
-            if staff_id or staffusertype_id:
+            if staffusertype_id:
                 raise serializers.ValidationError(
                     "Staff fields are not allowed for Customer."
                 )
@@ -221,10 +141,6 @@ class UserSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             if not staffusertype_id:
                 raise serializers.ValidationError({
                     "staffusertype_id": "Required for Staff user type."
-                })
-            if not staff_id:
-                raise serializers.ValidationError({
-                    "staff_id": "Required for Staff user type."
                 })
             if customer_id:
                 raise serializers.ValidationError(

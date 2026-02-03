@@ -1,4 +1,3 @@
-from api.apps.userCreation import User
 from api.apps.userType import UserType
 from api.apps.staffUserType import StaffUserType
 from api.apps.staffcreation import StaffOfficeDetails
@@ -14,10 +13,14 @@ from api.apps.ward import Ward
 
 
 class UserSeeder:
+    """
+    Updated seeder that populates auth fields directly in StaffOfficeDetails and CustomerCreation.
+    The separate User model is no longer used.
+    """
     group = "user-creation"
 
     def run(self):
-        print("Seeding Users...")
+        print("Seeding Users (Staff & Customer auth fields)...")
 
         # --------------------------------------------------
         # COMMON LOCATION (fallback)
@@ -61,27 +64,18 @@ class UserSeeder:
         except StaffUserType.DoesNotExist:
             raise Exception("Staff admin role missing. Run StaffUserTypeSeeder first.")
 
-        admin_staff = StaffOfficeDetails.objects.get(employee_name="Sathya")
-        admin_company = getattr(admin_staff, "company_id", None) or company
-
-        User.objects.update_or_create(
-            staff_id=admin_staff,
-            defaults={
-                "company_id": admin_company,
-                "user_type_id": staff_type,
-                "staffusertype_id": admin_role,
-                "customer_id": None,
-                "password": "admin@123",
-                "district_id": district,
-                "city_id": city,
-                "zone_id": zone,
-                "ward_id": ward,
-                "is_active": True,
-                "is_deleted": False,
-            }
-        )
-
-        print("Admin staff user seeded successfully")
+        admin_staff = StaffOfficeDetails.objects.filter(employee_name="Sathya").first()
+        if not admin_staff:
+            print("Admin staff 'Sathya' not found. Skipping admin user seeding.")
+        else:
+            # Update admin staff with auth fields directly
+            admin_staff.user_type_id = staff_type
+            admin_staff.staffusertype_id = admin_role
+            admin_staff.password = "admin@123"
+            admin_staff.is_active = True
+            admin_staff.is_deleted = False
+            admin_staff.save()
+            print("Admin staff user seeded successfully")
 
         # ==================================================
         # STAFF USERS (DRIVER + OPERATOR)
@@ -111,6 +105,7 @@ class UserSeeder:
             raise Exception("Staff supervisor role missing. Run StaffUserTypeSeeder first.")
 
         def seed_staff_role(role_name, role_obj, default_password, special_names, special_password):
+            # Handle special named staff first
             name_filter = Q()
             for name in special_names:
                 name_filter |= Q(employee_name__iexact=name)
@@ -120,24 +115,15 @@ class UserSeeder:
             ).filter(name_filter)
 
             for staff_member in special_staff:
-                staff_company = getattr(staff_member, "company_id", None) or company
-                User.objects.update_or_create(
-                    staff_id=staff_member,
-                    defaults={
-                        "company_id": staff_company,
-                        "user_type_id": staff_type,
-                        "staffusertype_id": role_obj,
-                        "customer_id": None,
-                        "password": special_password,
-                        "district_id": district,
-                        "city_id": city,
-                        "zone_id": zone,
-                        "ward_id": ward,
-                        "is_active": True,
-                        "is_deleted": False,
-                    }
-                )
+                staff_member.user_type_id = staff_type
+                staff_member.staffusertype_id = role_obj
+                staff_member.password = special_password
+                staff_member.is_active = True
+                staff_member.is_deleted = False
+                staff_member.save()
+                print(f"Special {role_name} user seeded: {staff_member.employee_name}")
 
+            # Handle regular staff by designation
             staff_members = StaffOfficeDetails.objects.filter(
                 designation__iexact=role_name,
                 active_status=True
@@ -148,52 +134,14 @@ class UserSeeder:
                 return
 
             for staff_member in staff_members:
-                existing_user = User.objects.filter(staff_id=staff_member).first()
-                staff_company = getattr(staff_member, "company_id", None) or company
+                staff_member.user_type_id = staff_type
+                staff_member.staffusertype_id = role_obj
+                staff_member.password = default_password
+                staff_member.is_active = True
+                staff_member.is_deleted = False
+                staff_member.save()
 
-                if existing_user is None:
-                    User.objects.create(
-                        staff_id=staff_member,
-                        company_id=staff_company,
-                        user_type_id=staff_type,
-                        staffusertype_id=role_obj,
-                        customer_id=None,
-                        password=default_password,
-                        district_id=district,
-                        city_id=city,
-                        zone_id=zone,
-                        ward_id=ward,
-                        is_active=True,
-                        is_deleted=False,
-                    )
-                    continue
-
-                updates = {}
-                if existing_user.company_id_id is None:
-                    updates["company_id"] = staff_company
-                if existing_user.user_type_id != staff_type:
-                    updates["user_type_id"] = staff_type
-                if existing_user.staffusertype_id_id != role_obj.unique_id:
-                    updates["staffusertype_id"] = role_obj
-                if existing_user.customer_id_id is not None:
-                    updates["customer_id"] = None
-                if not existing_user.password:
-                    updates["password"] = default_password
-                if existing_user.district_id_id is None:
-                    updates["district_id"] = district
-                if existing_user.city_id_id is None:
-                    updates["city_id"] = city
-                if existing_user.zone_id_id is None:
-                    updates["zone_id"] = zone
-                if existing_user.ward_id_id is None:
-                    updates["ward_id"] = ward
-                if not existing_user.is_active:
-                    updates["is_active"] = True
-                if existing_user.is_deleted:
-                    updates["is_deleted"] = False
-
-                if updates:
-                    User.objects.filter(pk=existing_user.pk).update(**updates)
+            print(f"{role_name} users seeded successfully")
 
         driver_default_password = "driver@123"
         driver_special_names = ["Gokul"]
@@ -244,27 +192,12 @@ class UserSeeder:
             return
 
         for customer in customers:
-            customer_company = getattr(customer, "company_id", None) or company
-            User.objects.get_or_create(
-                customer_id=customer,
-                defaults={
-                    "company_id": customer_company,
-                    "user_type_id": customer_type,
-                    "staff_id": None,
-                    "staffusertype_id": None,
-
-                    "password": "customer@123",
-
-                    "district_id": customer.district or district,
-                    "city_id": customer.city or city,
-                    "zone_id": customer.zone or zone,
-                    "ward_id": customer.ward or ward,
-
-                    "is_active": True,
-                    "is_deleted": False,
-                }
-            )
-
+            customer.user_type_id = customer_type
+            customer.staffusertype_id = None
+            customer.password = "customer@123"
+            customer.is_active = True
+            customer.is_deleted = False
+            customer.save()
             print(f"Customer user seeded: {customer.customer_name}")
 
         print("Customer users seeded successfully")

@@ -185,6 +185,7 @@ class User(CompanyProjectMixin, AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     class Meta:
+        db_table = "api_authuser"
         ordering = ["-id"]
         verbose_name = "User"
         verbose_name_plural = "Users"

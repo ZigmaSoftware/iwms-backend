@@ -1,14 +1,14 @@
 from api.management.commands.seeders.base import BaseSeeder
 from api.apps.stafftemplate import StaffTemplate
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 
 
 class StaffTemplateSeeder(BaseSeeder):
     name = "staff_template"
 
-    def _pick_user(self, role_name):
+    def _pick_staff(self, role_name):
         return (
-            User.objects.filter(
+            StaffOfficeDetails.objects.filter(
                 staffusertype_id__name__iexact=role_name,
                 is_active=True,
                 is_deleted=False,
@@ -21,11 +21,11 @@ class StaffTemplateSeeder(BaseSeeder):
         """
         Seed a minimal staff template using first available driver/operator users.
         """
-        driver = self._pick_user("driver")
-        operator = self._pick_user("operator")
+        driver = self._pick_staff("driver")
+        operator = self._pick_staff("operator")
 
         if not driver or not operator:
-            self.log("Driver or Operator user not found. Seeder aborted.")
+            self.log("Driver or Operator staff not found. Seeder aborted.")
             return
 
         StaffTemplate.objects.get_or_create(

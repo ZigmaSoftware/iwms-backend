@@ -1,7 +1,7 @@
 from django.db import models
 from .utils.tenancy import CompanyProjectMixin
 from .utils.comfun import generate_unique_id
-from .userCreation import User
+from .staffcreation import StaffOfficeDetails
 
 
 def generate_supervisor_zone_map_id():
@@ -23,10 +23,10 @@ class SupervisorZoneMap(CompanyProjectMixin, models.Model):
     # SUPERVISOR & LOCATION
     # -----------------------------
     supervisor_id = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="zone_assignments",
-        to_field="unique_id",
+        to_field="staff_unique_id",
         db_column="supervisor_id"
     )
 

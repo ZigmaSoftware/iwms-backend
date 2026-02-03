@@ -5,7 +5,7 @@ from api.apps.city import City
 from api.apps.district import District
 from api.apps.zone import Zone
 from api.apps.vehicleCreation import VehicleCreation
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 
 
 def generate_routeplan_id():
@@ -56,9 +56,9 @@ class RoutePlan(CompanyProjectMixin, models.Model):
     )
 
     supervisor_id = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
-        to_field="unique_id",
+        to_field="staff_unique_id",
         related_name="route_plans"
     )
 
@@ -78,9 +78,9 @@ class RoutePlan(CompanyProjectMixin, models.Model):
     # --------------------------------------------------
     def _generate_display_code(self):
         supervisor_name = "SUP"
-        if self.supervisor_id and self.supervisor_id.staff_id:
+        if self.supervisor_id and self.supervisor_id.employee_name:
             supervisor_name = (
-                self.supervisor_id.staff_id.employee_name[:10]
+                self.supervisor_id.employee_name[:10]
                 .upper()
                 .replace(" ", "")
             )

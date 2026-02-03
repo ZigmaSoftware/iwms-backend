@@ -1,14 +1,9 @@
 from rest_framework import serializers
+from api.apps.ward import Ward
+from api.apps.zone import Zone
 from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 from api.apps.supervisor_zone_map import SupervisorZoneMap
-from api.apps.userCreation import User
-
-from rest_framework import serializers
-
-from api.apps.supervisor_zone_map import SupervisorZoneMap
-from api.apps.userCreation import User
-from api.apps.zone import Zone
-from api.apps.ward import Ward
+from api.apps.staffcreation import StaffOfficeDetails
 
 
 # ============================================================
@@ -68,8 +63,8 @@ class ZoneWithWardsSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 # ============================================================
 class SupervisorZoneMapSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     supervisor_id = serializers.SlugRelatedField(
-        slug_field="unique_id",
-        queryset=User.objects.all()
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.all()
     )
 
     zones = serializers.SerializerMethodField()

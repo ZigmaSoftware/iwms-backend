@@ -3,7 +3,7 @@ from api.serializers.utils.tenancy import TenancyReadSerializerMixin
 
 from api.apps.alternative_staff_template import AlternativeStaffTemplate
 from api.apps.stafftemplate import StaffTemplate
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.serializers.desktopView.users.user_serializer import UniqueIdOrPkField
 
 
@@ -42,22 +42,22 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
     )
     driver = UniqueIdOrPkField(
         source="driver_id",
-        slug_field="unique_id",
-        queryset=User.objects.filter(is_deleted=False),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
     )
     operator = UniqueIdOrPkField(
         source="operator_id",
-        slug_field="unique_id",
-        queryset=User.objects.filter(is_deleted=False),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
     )
     requested_by = UniqueIdOrPkField(
-        slug_field="unique_id",
-        queryset=User.objects.filter(is_deleted=False),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
         required=False,
     )
     approved_by = UniqueIdOrPkField(
-        slug_field="unique_id",
-        queryset=User.objects.filter(is_deleted=False),
+        slug_field="staff_unique_id",
+        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
@@ -76,20 +76,16 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
     display_code = serializers.CharField(read_only=True)
 
     def get_driver_name(self, obj):
-        staff = getattr(getattr(obj, "driver_id", None), "staff_id", None)
-        return getattr(staff, "employee_name", None) or getattr(
-            getattr(obj, "driver_id", None),
-            "unique_id",
-            None,
-        )
+        staff = getattr(obj, "driver_id", None)
+        if staff and hasattr(staff, 'employee_name') and staff.employee_name:
+            return staff.employee_name
+        return getattr(staff, "staff_unique_id", None)
 
     def get_operator_name(self, obj):
-        staff = getattr(getattr(obj, "operator_id", None), "staff_id", None)
-        return getattr(staff, "employee_name", None) or getattr(
-            getattr(obj, "operator_id", None),
-            "unique_id",
-            None,
-        )
+        staff = getattr(obj, "operator_id", None)
+        if staff and hasattr(staff, 'employee_name') and staff.employee_name:
+            return staff.employee_name
+        return getattr(staff, "staff_unique_id", None)
     
     class Meta:
         model = AlternativeStaffTemplate
@@ -160,8 +156,8 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
                     {"extra_operator": "Duplicate users are not allowed."}
                 )
 
-            driver_id = getattr(driver, "unique_id", None) if driver else None
-            operator_id = getattr(operator, "unique_id", None) if operator else None
+            driver_id = getattr(driver, "staff_unique_id", None) if driver else None
+            operator_id = getattr(operator, "staff_unique_id", None) if operator else None
 
             if driver_id and driver_id in extra_ids:
                 raise serializers.ValidationError(
@@ -174,11 +170,11 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
                 )
 
             if extra_ids:
-                operators = User.objects.filter(
-                    unique_id__in=extra_ids,
+                operators = StaffOfficeDetails.objects.filter(
+                    staff_unique_id__in=extra_ids,
                     is_deleted=False,
                 )
-                found_ids = {user.unique_id for user in operators}
+                found_ids = {staff.staff_unique_id for staff in operators}
                 missing_ids = sorted(set(extra_ids) - found_ids)
                 if missing_ids:
                     raise serializers.ValidationError({

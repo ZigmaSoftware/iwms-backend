@@ -1,34 +1,32 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
-from django.contrib.auth import get_user_model
 
 from api.apps.company import Company
 from api.apps.project import Project
+from api.apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
+from api.apps.customercreation import CustomerCreation
 
 
-User = get_user_model()
-
-
-@admin.register(User)
-class UserAdmin(DjangoUserAdmin):
-    # This keeps Django admin usable for platform super admins without exposing business shortcuts.
-    list_display = ("id", "username", "unique_id", "is_superuser", "company_id", "is_active")
-    list_filter = ("is_superuser", "is_active", "is_deleted", "is_staff")
-    search_fields = ("username", "unique_id")
+@admin.register(StaffOfficeDetails)
+class StaffOfficeDetailsAdmin(admin.ModelAdmin):
+    list_display = ("id", "employee_name", "username", "email", "is_active", "is_deleted")
+    list_filter = ("is_active", "is_deleted", "is_staff")
+    search_fields = ("employee_name", "username", "email", "staff_unique_id")
     ordering = ("-id",)
 
-    fieldsets = (
-        (None, {"fields": ("username", "password")}),
-        ("Platform", {"fields": ("is_superuser", "is_staff", "is_active")}),
-        ("Tenant Links", {"fields": ("company_id", "project_id", "user_type_id", "staffusertype_id", "staff_id", "customer_id")}),
-        ("Flags", {"fields": ("is_deleted",)}),
-        ("Dates", {"fields": ("last_login", "created_at", "updated_at")}),
-        ("Permissions", {"fields": ("groups", "user_permissions")}),
-    )
 
-    add_fieldsets = (
-        (None, {"classes": ("wide",), "fields": ("username", "password1", "password2", "is_superuser", "is_staff", "is_active")}),
-    )
+@admin.register(StaffPersonalDetails)
+class StaffPersonalDetailsAdmin(admin.ModelAdmin):
+    list_display = ("id", "staff", "contact_mobile", "contact_email")
+    search_fields = ("staff__employee_name", "contact_mobile")
+    ordering = ("-id",)
+
+
+@admin.register(CustomerCreation)
+class CustomerCreationAdmin(admin.ModelAdmin):
+    list_display = ("id", "customer_name", "contact_no", "username", "is_active", "is_deleted")
+    list_filter = ("is_active", "is_deleted")
+    search_fields = ("customer_name", "contact_no", "username")
+    ordering = ("-id",)
 
 
 @admin.register(Company)

@@ -19,7 +19,7 @@ from .customers.wastecollection_serializer import WasteCollectionSerializer
 from .customers.feedback_serializer import FeedBackSerializer
 # Users
 from .users.usertype_serializer import UserTypeSerializer
-from .users.user_serializer import UserSerializer
+from .users.user_serializer import StaffSerializer
 from .users.userscreen_serializer import UserScreenSerializer
 from .users.login_serializer import LoginSerializer
 from .users.userscreenaction_serializer import UserScreenActionSerializer

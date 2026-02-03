@@ -2,9 +2,10 @@
 
 import jwt
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
+from api.apps.staffcreation import StaffOfficeDetails
+from api.apps.customercreation import CustomerCreation
 
 
 HTTP_ACTION_MAP = {
@@ -140,18 +141,25 @@ def _authenticate_request(request):
     if not unique_id:
         return JsonResponse({"detail": "Invalid token payload"}, status=401)
 
-    User = get_user_model()
-    user = User.objects.filter(unique_id=unique_id).first()
-    if not user:
-        return JsonResponse({"detail": "User not found"}, status=401)
+    # Try to find user in StaffOfficeDetails first (uses staff_unique_id)
+    staff = StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
+    if staff:
+        request.user = staff
+        request.jwt_payload = payload
+        if hasattr(request, "_request"):
+            request._request.user = staff
+        return None
+    
+    # Try to find user in CustomerCreation (uses unique_id)
+    customer = CustomerCreation.objects.filter(unique_id=unique_id).first()
+    if customer:
+        request.user = customer
+        request.jwt_payload = payload
+        if hasattr(request, "_request"):
+            request._request.user = customer
+        return None
 
-    # IMPORTANT: attach to BOTH layers
-    request.user = user
-    request.jwt_payload = payload
-    if hasattr(request, "_request"):
-        request._request.user = user
-
-    return None
+    return JsonResponse({"detail": "User not found"}, status=401)
 
 class ModulePermissionMiddleware(MiddlewareMixin):
 

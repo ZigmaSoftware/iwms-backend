@@ -1,7 +1,7 @@
 from django.db import models
 from .utils.tenancy import CompanyProjectMixin
 from api.apps.trip_instance import TripInstance
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.apps.vehicleCreation import VehicleCreation
 from api.apps.utils.comfun import generate_unique_id
 def generate_trip_attendance_id():
@@ -41,11 +41,11 @@ class TripAttendance(CompanyProjectMixin, models.Model):
     )
 
     staff = models.ForeignKey(
-        User,
+        StaffOfficeDetails,
         on_delete=models.PROTECT,
         related_name="trip_attendance",
         db_column="staff_id",
-        to_field="unique_id"
+        to_field="staff_unique_id"
     )
 
     vehicle = models.ForeignKey(

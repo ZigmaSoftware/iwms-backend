@@ -5,7 +5,7 @@ from api.serializers.desktopView.customers.customercreation_serializer import Cu
 
 class CustomerCreationViewSet(TenantModelViewSet):
     queryset = CustomerCreation.objects.filter(is_deleted=False).select_related(
-        "ward","zone","city","district","state","country","property","sub_property"
+        "ward","zone","city","district","state","country","property_ref","sub_property"
     ).order_by("customer_name")
     serializer_class = CustomerCreationSerializer
     lookup_field = "unique_id"

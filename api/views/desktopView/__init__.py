@@ -30,7 +30,7 @@ from .customers.feedback_viewset import FeedBackViewSet
 # Users
 # ==============================
 from .users.usertype_viewset import UserTypeViewSet
-from .users.user_viewset import UserViewSet
+from .users.user_viewset import StaffViewSet
 from .users.staffusertype_viewset import StaffUserTypeViewSet
 from .users.login_viewset import LoginViewSet
 from .users.userscreen_viewset import UserScreenViewSet
@@ -85,7 +85,7 @@ __all__ = [
 
     # Users
     "UserTypeViewSet",
-    "UserViewSet",
+    "StaffViewSet",
     "StaffUserTypeViewSet",
     "LoginViewSet",
     "MainScreenTypeViewSet",

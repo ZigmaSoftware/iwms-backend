@@ -6,7 +6,7 @@ from django.db import transaction
 
 from api.apps.supervisor_zone_map import SupervisorZoneMap
 from api.apps.supervisor_zone_access_audit import SupervisorZoneAccessAudit
-from api.apps.userCreation import User
+from api.apps.staffcreation import StaffOfficeDetails
 from api.serializers.desktopView.users.supervisor_zone_map_serializer import (
     SupervisorZoneMapSerializer
 )
@@ -37,7 +37,7 @@ class SupervisorZoneMapViewSet(ModelViewSet):
         payload = getattr(self.request, "jwt_payload", None) or getattr(raw_request, "jwt_payload", None)
         unique_id = payload.get("unique_id") if isinstance(payload, dict) else None
         if unique_id:
-            return User.objects.filter(unique_id=unique_id).first()
+            return StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
 
         return None
 
