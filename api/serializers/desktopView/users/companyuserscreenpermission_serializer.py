@@ -1,24 +1,32 @@
 from rest_framework import serializers
-from django.db import models
-from api.apps.userscreenpermission import UserScreenPermission
+from api.apps.companyuserscreenpermission import CompanyUserScreenPermission
 from api.apps.userType import UserType
 from api.apps.userscreen import UserScreen
+from api.apps.company import Company
 
 
 # =============================================================
-# SINGLE PERMISSION SERIALIZER (Used for GET, LIST)
+# SINGLE PERMISSION SERIALIZER (GET / LIST)
 # =============================================================
-class UserScreenPermissionSerializer(serializers.ModelSerializer):
-    userscreen_name = serializers.CharField(source="userscreen_id.userscreen_name", read_only=True)
-    userscreenaction_name = serializers.CharField(source="userscreenaction_id.action_name", read_only=True)
-
-    usertype_name = serializers.CharField(source="usertype_id.name", read_only=True)
-    staffusertype_name = serializers.CharField(source="staffusertype_id.name", read_only=True)
-
-    mainscreen_name = serializers.CharField(source="mainscreen_id.mainscreen_name", read_only=True)
+class CompanyUserScreenPermissionSerializer(serializers.ModelSerializer):
+    userscreen_name = serializers.CharField(
+        source="userscreen_id.userscreen_name", read_only=True
+    )
+    userscreenaction_name = serializers.CharField(
+        source="userscreenaction_id.action_name", read_only=True
+    )
+    usertype_name = serializers.CharField(
+        source="usertype_id.name", read_only=True
+    )
+    staffusertype_name = serializers.CharField(
+        source="staffusertype_id.name", read_only=True
+    )
+    mainscreen_name = serializers.CharField(
+        source="mainscreen_id.mainscreen_name", read_only=True
+    )
 
     class Meta:
-        model = UserScreenPermission
+        model = CompanyUserScreenPermission
         fields = "__all__"
 
 
@@ -27,65 +35,75 @@ class UserScreenPermissionSerializer(serializers.ModelSerializer):
 # =============================================================
 class ScreenActionSerializer(serializers.Serializer):
     userscreen_id = serializers.CharField()
-    actions = serializers.ListField(child=serializers.CharField(), allow_empty=True)
+    actions = serializers.ListField(
+        child=serializers.CharField(), allow_empty=True
+    )
 
 
 # =============================================================
 # MULTI-SCREEN BULK CREATE / UPDATE / REVIVE / SOFT DELETE
 # =============================================================
-class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
+class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
+    company_id = serializers.CharField()
     usertype_id = serializers.CharField()
     staffusertype_id = serializers.CharField(required=False, allow_null=True)
     mainscreen_id = serializers.CharField()
-
     screens = ScreenActionSerializer(many=True)
     description = serializers.CharField(required=False, allow_blank=True)
 
-    # ----------------------------
+    # ---------------------------------------------------------
     # VALIDATION
-    # ----------------------------
+    # ---------------------------------------------------------
     def validate(self, data):
-        ut_id = data["usertype_id"]
-
-        # Validate usertype
+        # Company
         try:
-            ut = UserType.objects.get(unique_id=ut_id)
+            company = Company.objects.get(unique_id=data["company_id"])
+        except Company.DoesNotExist:
+            raise serializers.ValidationError({"company_id": "Invalid company"})
+
+        data["resolved_company_id"] = company.unique_id
+
+        # UserType
+        try:
+            ut = UserType.objects.get(unique_id=data["usertype_id"])
         except UserType.DoesNotExist:
             raise serializers.ValidationError({"usertype_id": "Invalid usertype"})
 
-        ut_name = getattr(ut, "name", "").lower()
+        ut_name = ut.name.lower()
 
-        # Customer type: staffusertype must be null
+        # Staff / Customer logic
         if ut_name in ["customer", "client", "cust"]:
             data["resolved_staffusertype_id"] = None
         else:
-            st = data.get("staffusertype_id")
-            if not st:
+            if not data.get("staffusertype_id"):
                 raise serializers.ValidationError({
-                    "staffusertype_id": "staffusertype_id is required for staff roles"
+                    "staffusertype_id": "Required for staff roles"
                 })
-            data["resolved_staffusertype_id"] = st
+            data["resolved_staffusertype_id"] = data["staffusertype_id"]
 
-        ms = data["mainscreen_id"]
-
-        # Validate screen belongs to mainscreen
+        # Screen → Mainscreen validation
         for scr in data["screens"]:
             try:
-                sc = UserScreen.objects.get(unique_id=scr["userscreen_id"], is_deleted=False)
+                screen = UserScreen.objects.get(
+                    unique_id=scr["userscreen_id"], is_deleted=False
+                )
             except UserScreen.DoesNotExist:
-                raise serializers.ValidationError({"screens": f"Invalid screen {scr['userscreen_id']}"})
-
-            if sc.mainscreen_id.unique_id != ms:
                 raise serializers.ValidationError({
-                    "screens": f"{sc.userscreen_name} does not belong to {sc.mainscreen_id.mainscreen_name}"
+                    "screens": f"Invalid screen {scr['userscreen_id']}"
+                })
+
+            if screen.mainscreen_id.unique_id != data["mainscreen_id"]:
+                raise serializers.ValidationError({
+                    "screens": f"{screen.userscreen_name} does not belong to this mainscreen"
                 })
 
         return data
 
-    # ----------------------------
-    # BULK SYNC (Create, Update, Revive, Delete)
-    # ----------------------------
+    # ---------------------------------------------------------
+    # BULK SYNC
+    # ---------------------------------------------------------
     def create(self, validated_data):
+        company_id = validated_data["resolved_company_id"]
         ut = validated_data["usertype_id"]
         st = validated_data["resolved_staffusertype_id"]
         ms = validated_data["mainscreen_id"]
@@ -98,49 +116,42 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
             scr_id = scr["userscreen_id"]
             incoming_actions = scr["actions"]
 
-            # Fetch ALL existing records (including soft deleted)
-            qs = UserScreenPermission.objects.filter(
+            qs = CompanyUserScreenPermission.objects.filter(
+                company_id_id=company_id,
                 usertype_id_id=ut,
                 staffusertype_id_id=st,
                 mainscreen_id_id=ms,
-                userscreen_id_id=scr_id
+                userscreen_id_id=scr_id,
             )
 
-            existing = {obj.userscreenaction_id_id: obj for obj in qs}
-
+            existing = {o.userscreenaction_id_id: o for o in qs}
             order_no = 1
 
-            # CREATE + REVIVE + UPDATE
+            # CREATE / UPDATE / REVIVE
             for act_id in incoming_actions:
-
                 if act_id in existing:
                     obj = existing[act_id]
-
-                    # revive soft-deleted
                     obj.is_deleted = False
                     obj.is_active = True
-
-                    obj.description = desc
                     obj.order_no = order_no
+                    obj.description = desc
                     obj.save()
-
                     updated.append(obj)
                 else:
-                    # create fresh
-                    obj = UserScreenPermission.objects.create(
+                    obj = CompanyUserScreenPermission.objects.create(
+                        company_id_id=company_id,
                         usertype_id_id=ut,
                         staffusertype_id_id=st,
                         mainscreen_id_id=ms,
                         userscreen_id_id=scr_id,
                         userscreenaction_id_id=act_id,
                         description=desc,
-                        order_no=order_no
+                        order_no=order_no,
                     )
                     created.append(obj)
-
                 order_no += 1
 
-            # DELETE actions missing from incoming
+            # SOFT DELETE missing actions
             for act_id, obj in existing.items():
                 if act_id not in incoming_actions:
                     obj.is_deleted = True
@@ -151,5 +162,5 @@ class UserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         return {
             "created": created,
             "updated": updated,
-            "deleted": deleted
+            "deleted": deleted,
         }
