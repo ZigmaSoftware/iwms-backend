@@ -1,18 +1,18 @@
 from api.management.commands.seeders.base import BaseSeeder
 
-from api.apps.country import Country
-from api.apps.state import State
-from api.apps.district import District
-from api.apps.city import City
-from api.apps.zone import Zone
-from api.apps.ward import Ward
+from api.models.commonmasters.country import Country
+from api.models.commonmasters.state import State
+from api.models.masters.district import District
+from api.models.masters.city import City
+from api.models.masters.zone import Zone
+from api.models.masters.ward import Ward
 
-from api.apps.customercreation import CustomerCreation
+from api.models.customers.customercreation import CustomerCreation
 
-from api.apps.property import Property
-from api.apps.subproperty import SubProperty
-from api.apps.company import Company
-from api.apps.project import Project
+from api.models.assets.property import Property
+from api.models.assets.subproperty import SubProperty
+from api.models.superadminmasters.company import Company
+from api.models.superadminmasters.project import Project
 
 
 class CustomerCreationSeeder(BaseSeeder):

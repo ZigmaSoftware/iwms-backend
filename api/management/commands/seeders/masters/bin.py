@@ -2,8 +2,8 @@
 from django.utils import timezone
 
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.ward import Ward
-from api.apps.bin import Bin, BinType, WasteType, BinStatus
+from api.models.masters.ward import Ward
+from api.models.masters.bin import Bin, BinType, WasteType, BinStatus
 
 
 class BinSeeder(BaseSeeder):

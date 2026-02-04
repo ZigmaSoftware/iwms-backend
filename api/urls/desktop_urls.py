@@ -6,73 +6,77 @@ from .custom_router import GroupedRouter
 # IMPORTS
 # ============================================================
 # Masters
-from ..views.desktopView.masters.continent_viewset import ContinentViewSet
-from ..views.desktopView.masters.country_viewset import CountryViewSet
-from ..views.desktopView.masters.bin_viewset import BinViewSet
-from ..views.desktopView.masters.state_viewset import StateViewSet
-from ..views.desktopView.masters.district_viewset import DistrictViewSet
-from ..views.desktopView.masters.city_viewset import CityViewSet
-from ..views.desktopView.masters.zone_viewset import ZoneViewSet
-from ..views.desktopView.masters.ward_viewset import WardViewSet
+from ..viewsets.desktop.commonmasters.continent_viewset import ContinentViewSet
+from ..viewsets.desktop.commonmasters.country_viewset import CountryViewSet
+from ..viewsets.desktop.commonmasters.state_viewset import StateViewSet
+
+from ..viewsets.desktop.masters.district_viewset import DistrictViewSet
+from ..viewsets.desktop.masters.city_viewset import CityViewSet
+from ..viewsets.desktop.masters.zone_viewset import ZoneViewSet
+from ..viewsets.desktop.masters.ward_viewset import WardViewSet
+from ..viewsets.desktop.masters.bin_viewset import BinViewSet
 
 
 
 # Assets
-from ..views.desktopView.assets.fuel_viewset import FuelViewSet
-from ..views.desktopView.assets.property_viewset import PropertyViewSet
-from ..views.desktopView.assets.subproperty_viewset import SubPropertyViewSet
-from ..views.desktopView.assets.zone_property_load_tracker_viewset import ZonePropertyLoadTrackerViewSet
+from ..viewsets.desktop.assets.fuel_viewset import FuelViewSet
+from ..viewsets.desktop.assets.property_viewset import PropertyViewSet
+from ..viewsets.desktop.assets.subproperty_viewset import SubPropertyViewSet
+from ..viewsets.desktop.assets.zone_property_load_tracker_viewset import ZonePropertyLoadTrackerViewSet
 
 # Customer Modules
-from ..views.desktopView.customers.customercreation_viewset import CustomerCreationViewSet
-from ..views.desktopView.customers.wastecollection_viewset import WasteCollectionViewSet
-from ..views.desktopView.customers.feedback_viewset import FeedBackViewSet
+from ..viewsets.desktop.customers.customercreation_viewset import CustomerCreationViewSet
+from ..viewsets.desktop.customers.wastecollection_viewset import WasteCollectionViewSet
+from ..viewsets.desktop.customers.feedback_viewset import FeedBackViewSet
 
+# Users - Role assignment
+from ..viewsets.desktop.role_assign.usertype_viewset import UserTypeViewSet
+from ..viewsets.desktop.role_assign.staffusertype_viewset import StaffUserTypeViewSet
 # Users - Creation
-from ..views.desktopView.users.usertype_viewset import UserTypeViewSet
-from ..views.desktopView.users.staffusertype_viewset import StaffUserTypeViewSet
-from ..views.desktopView.users.user_viewset import StaffViewSet
-from ..views.desktopView.users.login_viewset import LoginViewSet as DesktopLoginViewSet
-from ..views.desktopView.users.staffcreation_viewset import StaffcreationViewset
-from ..views.desktopView.users.stafftemplate_viewset import StaffTemplateViewSet
-from ..views.desktopView.users.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
-from ..views.desktopView.users.staff_template_audit_log_viewset import (
+from ..viewsets.desktop.user_creation.staff_viewset import StaffViewSet
+from ..viewsets.desktop.users.login_viewset import LoginViewSet as DesktopLoginViewSet
+from ..viewsets.desktop.user_creation.staffcreation_viewset import StaffcreationViewset
+from ..viewsets.desktop.user_creation.stafftemplate_viewset import StaffTemplateViewSet
+from ..viewsets.desktop.user_creation.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
+from ..viewsets.desktop.user_creation.staff_template_audit_log_viewset import (
     StaffTemplateAuditLogViewSet,
 )
-from ..views.desktopView.users.routeplan_viewset import RoutePlanViewSet
-from ..views.desktopView.users.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
-from ..views.desktopView.users.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
-from ..views.desktopView.users.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
-from ..views.desktopView.users.trip_attendance_viewset import TripAttendanceViewSet
+from ..viewsets.desktop.user_creation.routeplan_viewset import RoutePlanViewSet
+from ..viewsets.desktop.user_creation.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
+from ..viewsets.desktop.user_creation.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
+from ..viewsets.desktop.user_creation.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
+from ..viewsets.desktop.vehicles.trip_attendance_viewset import TripAttendanceViewSet
 
 # Screen Management
-from ..views.desktopView.users.mainscreentype_viewset import MainScreenTypeViewSet
-from ..views.desktopView.users.mainscreen_viewset import MainScreenViewSet
-from ..views.desktopView.users.userscreen_viewset import UserScreenViewSet
-from ..views.desktopView.users.userscreenaction_viewset import UserScreenActionViewSet
-from ..views.desktopView.users.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
+from ..viewsets.desktop.screenmanagement.mainscreentype_viewset import MainScreenTypeViewSet
+from ..viewsets.desktop.screenmanagement.mainscreen_viewset import MainScreenViewSet
+from ..viewsets.desktop.screenmanagement.userscreen_viewset import UserScreenViewSet
+from ..viewsets.desktop.screenmanagement.userscreenaction_viewset import UserScreenActionViewSet
+from ..viewsets.desktop.screenmanagement.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
 
 # Vehicles
-from ..views.desktopView.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
-from ..views.desktopView.vehicles.vehicleCreation_viewset import VehicleCreationViewSet
-from ..views.desktopView.vehicles.trip_definition_viewset import TripDefinitionViewSet
-from ..views.desktopView.vehicles.trip_instance_viewset import TripInstanceViewSet
-from ..views.desktopView.vehicles.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
-from ..views.desktopView.vehicles.trip_exception_log_viewset import TripExceptionLogViewSet
-from ..views.desktopView.vehicles.bin_load_log_viewset import BinLoadLogViewSet
+from ..viewsets.desktop.vehicles.vehicletypecreation_viewset import VehicleTypeCreationViewSet
+from ..viewsets.desktop.vehicles.vehicleCreation_viewset import VehicleCreationViewSet
+from ..viewsets.desktop.vehicles.trip_definition_viewset import TripDefinitionViewSet
+from ..viewsets.desktop.vehicles.trip_instance_viewset import TripInstanceViewSet
+from ..viewsets.desktop.vehicles.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
+from ..viewsets.desktop.vehicles.trip_exception_log_viewset import TripExceptionLogViewSet
+from ..viewsets.desktop.vehicles.bin_load_log_viewset import BinLoadLogViewSet
 
 # Complaints
-from ..views.desktopView.complaints.complaint_viewset import ComplaintViewSet
+from ..viewsets.desktop.complaints.complaint_viewset import ComplaintViewSet
 
 # Mobile
-from api.views.mobileView.grievance.main_category_viewset import MainCategoryViewSet
-from api.views.mobileView.grievance.sub_category_viewset import SubCategoryViewSet
-from api.views.mobileView.waste_collection_bluetooth.waste_bluetooth_viewset import (WasteCollectionBluetoothViewSet,)
-from api.views.mobileView.attendance_view.register import RegisterViewSet
-from api.views.mobileView.attendance_view.recognize import RecognizeViewSet
-from api.views.mobileView.attendance_view.employee_viewset import EmployeeViewSet
-from api.views.mobileView.attendance_view.staff_profile_viewset import StaffProfileViewSet
-from api.views.mobileView.attendance_view.attendance_list import AttendanceListViewSet
+from api.viewsets.mobile.grievance.main_category_viewset import MainCategoryViewSet
+from api.viewsets.mobile.grievance.sub_category_viewset import SubCategoryViewSet
+from api.viewsets.mobile.waste_collection_bluetooth.waste_bluetooth_viewset import (WasteCollectionBluetoothViewSet,)
+from api.viewsets.mobile.attendance_view.register import RegisterViewSet
+from api.viewsets.mobile.attendance_view.recognize import RecognizeViewSet
+from api.viewsets.mobile.attendance_view.employee_viewset import EmployeeViewSet
+from api.viewsets.mobile.attendance_view.staff_profile_viewset import StaffProfileViewSet
+from api.viewsets.mobile.attendance_view.attendance_list import AttendanceListViewSet
+
+#Superadmin Masters
 
 
 router = GroupedRouter()
@@ -80,9 +84,13 @@ router = GroupedRouter()
 # ============================================================
 # GROUP: MASTERS
 # ============================================================
-router.register_group("masters", "continents",    ContinentViewSet)
-router.register_group("masters", "countries",     CountryViewSet)
-router.register_group("masters", "states",        StateViewSet)
+router.register_group("common-masters", "continents",    ContinentViewSet)
+router.register_group("common-masters", "countries",     CountryViewSet)
+router.register_group("common-masters", "states",        StateViewSet)
+
+# ============================================================
+# GROUP: COMMON MASTERS
+# ============================================================
 router.register_group("masters", "districts",     DistrictViewSet)
 router.register_group("masters", "cities",        CityViewSet)
 router.register_group("masters", "zones",         ZoneViewSet)
@@ -114,8 +122,6 @@ router.register_group("screen-management", "userscreenpermissions", CompanyUserS
 router.register_group("role-assign", "user-type",      UserTypeViewSet)
 router.register_group("role-assign", "staffusertypes", StaffUserTypeViewSet)
 
-
-
 # ============================================================
 # GROUP: USER CREATION (customer + staff + login)
 # ============================================================
@@ -128,7 +134,7 @@ router.register_group("user-creation", "route-plans",    RoutePlanViewSet)
 router.register_group("user-creation", "supervisor-zone-map", SupervisorZoneMapViewSet)
 router.register_group("user-creation", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
 router.register_group("user-creation", "unassigned-staff-pool", UnassignedStaffPoolViewSet)
-router.register_group("vehicles", "trip-attendance", TripAttendanceViewSet)
+
 
 # ============================================================
 # GROUP: login
@@ -142,16 +148,13 @@ router.register_group("login", "login-user",      DesktopLoginViewSet)
 router.register_group("customers", "customercreations", CustomerCreationViewSet)
 router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customers", "feedbacks",         FeedBackViewSet)
-router.register_group("customers", "complaints", ComplaintViewSet)
 
 # ============================================================
-# GROUP: COMPLAINTS (mobile category endpoints)
+# GROUP: GRIVIENCE
 # ============================================================
-
-
-router.register_group("grievance","main-category", MainCategoryViewSet, basename="main-category")
-router.register_group("grievance","sub-category", SubCategoryViewSet, basename="sub-category")
-
+router.register_group("grivence", "complaints", ComplaintViewSet)
+router.register_group("grivence","main-category", MainCategoryViewSet, basename="main-category")
+router.register_group("grivence","sub-category", SubCategoryViewSet, basename="sub-category")
 
 # ============================================================
 # GROUP: VEHICLES
@@ -163,7 +166,7 @@ router.register_group("vehicles", "trip-instance",    TripInstanceViewSet)
 router.register_group("vehicles", "bin-load-log",    BinLoadLogViewSet)
 router.register_group("vehicles", "vehicle-trip-audit",    VehicleTripAuditViewSet)
 router.register_group("vehicles", "trip-exception-log",    TripExceptionLogViewSet)
-
+router.register_group("vehicles", "trip-attendance", TripAttendanceViewSet)
 
 
 # ============================================================

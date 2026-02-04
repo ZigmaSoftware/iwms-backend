@@ -1,14 +1,16 @@
 from django.db.models import F
 
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.mainscreentype import MainScreenType
-from api.apps.userscreenaction import UserScreenAction
-from api.apps.mainscreen import MainScreen
-from api.apps.userscreen import UserScreen
-from api.apps.companyuserscreenpermission import CompanyUserScreenPermission
-from api.apps.userType import UserType
-from api.apps.staffUserType import StaffUserType
-from api.apps.company import Company
+from api.models.screenmanagement.mainscreentype import MainScreenType
+from api.models.screenmanagement.userscreenaction import UserScreenAction
+from api.models.screenmanagement.mainscreen import MainScreen
+from api.models.screenmanagement.userscreen import UserScreen
+from api.models.screenmanagement.companyuserscreenpermission import CompanyUserScreenPermission
+from api.models.users.userType import UserType
+from api.models.users.staffUserType import StaffUserType
+from api.models.superadminmasters.company import Company
+
+MASTER_VIEW_ONLY_SCREENS = {"Continent", "Countries", "States"}
 
 
 class PermissionSeeder(BaseSeeder):
@@ -132,6 +134,13 @@ class PermissionSeeder(BaseSeeder):
         driver_role = StaffUserType.objects.get(name="driver", usertype_id=staff_type)
         operator_role = StaffUserType.objects.get(name="operator", usertype_id=staff_type)
         supervisor_role = StaffUserType.objects.get(name="supervisor", usertype_id=staff_type)
+        platform_type = UserType.objects.filter(name__iexact="platform").first()
+        superadmin_role = None
+        if platform_type:
+            superadmin_role = StaffUserType.objects.filter(
+                usertype_id=platform_type,
+                name__iexact="superadmin",
+            ).first()
 
         # --------------------------------------------------
         # 5. PERMISSIONS (COMPANY AWARE)
@@ -140,11 +149,16 @@ class PermissionSeeder(BaseSeeder):
             self.log(f"🔹 Seeding permissions for company: {company.name}")
 
             # ADMIN → FULL ACCESS
-            for main in mainscreens.values():
+            for main_name, main in mainscreens.items():
                 for screen in UserScreen.objects.filter(mainscreen_id=main):
-                    for order_no, action in enumerate(actions.values(), start=1):
+                    if main_name == "masters" and screen.userscreen_name in MASTER_VIEW_ONLY_SCREENS:
+                        action_list = [actions["view"]]
+                    else:
+                        action_list = list(actions.values())
+
+                    for order_no, action in enumerate(action_list, start=1):
                         CompanyUserScreenPermission.objects.get_or_create(
-                            company_id=company,          # ✅ KEY CHANGE
+                            company_id=company,   
                             usertype_id=staff_type,
                             staffusertype_id=admin_role,
                             mainscreen_id=main,
@@ -197,9 +211,28 @@ class PermissionSeeder(BaseSeeder):
                                 continue
 
                             CompanyUserScreenPermission.objects.get_or_create(
-                                company_id=company,      # ✅ KEY CHANGE
+                                company_id=company,      
                                 usertype_id=staff_type,
                                 staffusertype_id=role,
+                                mainscreen_id=main,
+                                userscreen_id=screen,
+                                userscreenaction_id=action,
+                                defaults={
+                                    "order_no": order_no,
+                                    "description": f"{action.variable_name} {screen.userscreen_name}",
+                                    "is_active": True,
+                                    "is_deleted": False,
+                                },
+                            )
+
+            if platform_type and superadmin_role:
+                for main in mainscreens.values():
+                    for screen in UserScreen.objects.filter(mainscreen_id=main):
+                        for order_no, action in enumerate(actions.values(), start=1):
+                            CompanyUserScreenPermission.objects.get_or_create(
+                                company_id=company,
+                                usertype_id=platform_type,
+                                staffusertype_id=superadmin_role,
                                 mainscreen_id=main,
                                 userscreen_id=screen,
                                 userscreenaction_id=action,

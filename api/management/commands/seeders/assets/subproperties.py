@@ -1,7 +1,7 @@
 # core/management/commands/seeders/assets/subproperty.py
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.property import Property
-from api.apps.subproperty import SubProperty
+from api.models.assets.property import Property
+from api.models.assets.subproperty import SubProperty
 
 class SubPropertySeeder(BaseSeeder):
     name = "sub_property"

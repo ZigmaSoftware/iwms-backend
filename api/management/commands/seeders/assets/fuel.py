@@ -1,6 +1,6 @@
 # core/management/commands/seeders/assets/fuel.py
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.fuel import Fuel
+from api.models.assets.fuel import Fuel
 
 
 class FuelSeeder(BaseSeeder):

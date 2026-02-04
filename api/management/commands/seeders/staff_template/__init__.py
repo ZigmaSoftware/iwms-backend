@@ -6,7 +6,7 @@ from ..vehicles.trip_instance import TripInstanceSeeder
 from ..vehicles.trip_attendance import TripAttendanceSeeder
 from ..vehicles.vehicle_trip_audit import VehicleTripAuditSeeder
 from ..vehicles.trip_exception_log import TripExceptionLogSeeder
-from ..userCreation.unassigned_staff_pool import UnassignedStaffPoolSeeder
+from ..user_creation.unassigned_staff_pool import UnassignedStaffPoolSeeder
 
 STAFF_SEEDERS = [
     AuthUserSeeder,

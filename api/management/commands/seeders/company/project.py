@@ -1,6 +1,6 @@
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.company import Company
-from api.apps.project import Project
+from api.models.superadminmasters.company import Company
+from api.models.superadminmasters.project import Project
 
 
 class ProjectSeeder(BaseSeeder):

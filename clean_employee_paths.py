@@ -5,7 +5,7 @@ Or: python manage.py shell
 Then: exec(open('clean_employee_paths.py').read())
 """
 
-from api.apps.attendance import Employee
+from api.models.users.attendance import Employee
 
 print("Starting cleanup of Employee image_path and qr_code_path fields...")
 

@@ -4,7 +4,7 @@ import os
 import requests
 from django.conf import settings
 
-from api.apps.route_stop import RouteStop
+from api.models.route_stop import RouteStop
 
 
 logger = logging.getLogger(__name__)

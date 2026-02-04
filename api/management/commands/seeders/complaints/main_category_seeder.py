@@ -1,5 +1,5 @@
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.main_category_citizenGrievance import MainCategory
+from api.models.complaints.main_category_citizenGrievance import MainCategory
 
 
 class MainCategorySeeder(BaseSeeder):
@@ -16,7 +16,7 @@ class MainCategorySeeder(BaseSeeder):
 
         for category in main_categories:
             MainCategory.objects.get_or_create(
-                main_categoryName=category,   # ✅ CORRECT FIELD
+                main_categoryName=category,  
                 defaults={
                     "is_active": True,
                     "is_deleted": False,

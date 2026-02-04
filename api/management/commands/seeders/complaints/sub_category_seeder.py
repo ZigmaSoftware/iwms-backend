@@ -1,6 +1,6 @@
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.main_category_citizenGrievance import MainCategory
-from api.apps.sub_category_citizenGrievance import SubCategory
+from api.models.complaints.main_category_citizenGrievance import MainCategory
+from api.models.complaints.sub_category_citizenGrievance import SubCategory
 
 
 class SubCategorySeeder(BaseSeeder):
@@ -37,13 +37,13 @@ class SubCategorySeeder(BaseSeeder):
 
         for main_name, sub_list in category_map.items():
             main_category = MainCategory.objects.get(
-                main_categoryName=main_name  # ✅ CORRECT
+                main_categoryName=main_name  # CORRECT
             )
 
             for sub_name in sub_list:
                 SubCategory.objects.get_or_create(
-                    name=sub_name,            # ✅ CORRECT
-                    mainCategory=main_category,  # ✅ CORRECT FK
+                    name=sub_name,            #  CORRECT
+                    mainCategory=main_category,  # CORRECT FK
                     defaults={
                         "is_active": True,
                         "is_deleted": False,

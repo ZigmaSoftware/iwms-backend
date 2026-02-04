@@ -1,9 +1,9 @@
 from datetime import date
 
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.alternative_staff_template import AlternativeStaffTemplate
-from api.apps.stafftemplate import StaffTemplate
-from api.apps.staffcreation import StaffOfficeDetails
+from api.models.users.alternative_staff_template import AlternativeStaffTemplate
+from api.models.users.stafftemplate import StaffTemplate
+from api.models.users.staffcreation import StaffOfficeDetails
 
 
 class AlternativeStaffTemplateSeeder(BaseSeeder):

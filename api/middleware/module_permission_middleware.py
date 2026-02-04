@@ -5,8 +5,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
-from api.apps.staffcreation import StaffOfficeDetails
-from api.apps.customercreation import CustomerCreation
+from api.models.users.staffcreation import StaffOfficeDetails
+from api.models.customers.customercreation import CustomerCreation
 
 
 HTTP_ACTION_MAP = {

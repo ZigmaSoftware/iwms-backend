@@ -7,7 +7,7 @@ from api.management.commands.seeders.assets import ASSET_SEEDERS
 from api.management.commands.seeders.role_assign import ROLE_ASSIGN_SEEDERS
 from api.management.commands.seeders.permissions import PERMISSION_SEEDERS
 from api.management.commands.seeders.customers import CUSTOMER_SEEDERS
-from api.management.commands.seeders.userCreation import USER_CREATION_SEEDERS
+from api.management.commands.seeders.user_creation import USER_CREATION_SEEDERS
 from api.management.commands.seeders.vehicles import VEHICLE_SEEDERS
 from api.management.commands.seeders.staff_template import STAFF_SEEDERS
 from api.management.commands.seeders.company import COMPANY_SEEDERS
