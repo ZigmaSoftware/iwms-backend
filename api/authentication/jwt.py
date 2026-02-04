@@ -3,8 +3,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from api.apps.staffcreation import StaffOfficeDetails
-from api.apps.customercreation import CustomerCreation
+from api.models.users.staffcreation import StaffOfficeDetails
+from api.models.customers.customercreation import CustomerCreation
 
 
 class JWTUserAuthentication(BaseAuthentication):

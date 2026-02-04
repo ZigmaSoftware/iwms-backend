@@ -1,9 +1,9 @@
 from django.contrib import admin
 
-from api.apps.company import Company
-from api.apps.project import Project
-from api.apps.staffcreation import StaffOfficeDetails, StaffPersonalDetails
-from api.apps.customercreation import CustomerCreation
+from api.models.superadminmasters.company import Company
+from api.models.superadminmasters.project import Project
+from api.models.users.staffcreation import StaffOfficeDetails, StaffPersonalDetails
+from api.models.customers.customercreation import CustomerCreation
 
 
 @admin.register(StaffOfficeDetails)

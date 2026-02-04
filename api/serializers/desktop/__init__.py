@@ -1,0 +1,66 @@
+
+# Masters
+from .commonmasters.continent_serializer import ContinentSerializer
+from .commonmasters.country_serializer import CountrySerializer
+from .commonmasters.state_serializer import StateSerializer
+from .masters.district_serializer import DistrictSerializer
+from .masters.city_serializer import CitySerializer
+from .masters.zone_serializer import ZoneSerializer
+from .masters.ward_serializer import WardSerializer
+
+# Assets
+from .assets.fuel_serializer import FuelSerializer
+from .assets.property_serializer import PropertySerializer
+from .assets.subproperty_serializer import SubPropertySerializer
+
+# Customers
+from .customers.customercreation_serializer import CustomerCreationSerializer
+from .customers.wastecollection_serializer import WasteCollectionSerializer
+from .customers.feedback_serializer import FeedBackSerializer
+# Role assignment
+from .role_assign.usertype_serializer import UserTypeSerializer
+from .role_assign.staffusertype_serializer import StaffUserTypeSerializer
+
+# User creation
+from .user_creation.user_serializer import StaffSerializer
+from .user_creation.staffcreation_serializer import StaffcreationSerializer
+from .user_creation.stafftemplate_serializer import StaffTemplateSerializer
+from .user_creation.staff_template_audit_log_serializer import StaffTemplateAuditLogSerializer
+from .user_creation.alternative_stafftemplate_serializer import AlternativeStaffTemplateSerializer
+from .user_creation.unassigned_staff_pool_serializer import UnassignedStaffPoolSerializer
+from .user_creation.routeplan_serializer import RoutePlanSerializer
+from .user_creation.supervisor_zone_map_serializer import SupervisorZoneMapSerializer
+from .user_creation.supervisor_zone_access_audit_serializer import SupervisorZoneAccessAuditSerializer
+# Authentication
+from .users.login_serializer import LoginSerializer
+
+# Screen management
+from .screenmanagement.userscreen_serializer import UserScreenSerializer
+from .screenmanagement.userscreenaction_serializer import UserScreenActionSerializer
+from .screenmanagement.mainscreentype_serializer import MainScreenTypeSerializer
+from .screenmanagement.mainscreen_serializer import MainScreenSerializer
+from .screenmanagement.companyuserscreenpermission_serializer import (
+    CompanyUserScreenPermissionMultiScreenSerializer,
+    CompanyUserScreenPermissionSerializer,
+    ScreenActionSerializer
+)
+
+# Vehicles
+from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
+from .vehicles.vehicleCreation_serializer import VehicleCreationSerializer
+from .vehicles.trip_instance_serializer import TripInstanceSerializer
+from .vehicles.vehicle_trip_audit_serializer import VehicleTripAuditSerializer
+from .vehicles.trip_exception_log_serializer import TripExceptionLogSerializer
+from .user_creation.trip_attendance_serializer import TripAttendanceSerializer
+
+# Complaints
+from .complaints.complaint_serializer import ComplaintSerializer
+# Vehicles
+from .vehicles.vehicletypecreation_serializer import VehicleTypeCreationSerializer
+from .vehicles.vehicleCreation_serializer import VehicleCreationSerializer
+from .vehicles.trip_instance_serializer import TripInstanceSerializer
+from .vehicles.vehicle_trip_audit_serializer import VehicleTripAuditSerializer
+from .vehicles.trip_exception_log_serializer import TripExceptionLogSerializer
+
+# Complaints
+from .complaints.complaint_serializer import ComplaintSerializer

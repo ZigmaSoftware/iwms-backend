@@ -1,6 +1,6 @@
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.trip_exception_log import TripExceptionLog
-from api.apps.trip_instance import TripInstance
+from api.models.vehicles.trip_exception_log import TripExceptionLog
+from api.models.vehicles.trip_instance import TripInstance
 
 
 class TripExceptionLogSeeder(BaseSeeder):

@@ -1,13 +1,13 @@
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.staffcreation import StaffOfficeDetails
-from api.apps.staffUserType import StaffUserType
-from api.apps.userType import UserType
-from api.apps.company import Company
-from api.apps.project import Project
-from api.apps.district import District
-from api.apps.city import City
-from api.apps.zone import Zone
-from api.apps.ward import Ward
+from api.models.users.staffcreation import StaffOfficeDetails
+from api.models.users.staffUserType import StaffUserType
+from api.models.users.userType import UserType
+from api.models.superadminmasters.company import Company
+from api.models.superadminmasters.project import Project
+from api.models.masters.district import District
+from api.models.masters.city import City
+from api.models.masters.zone import Zone
+from api.models.masters.ward import Ward
 
 
 class AuthUserSeeder(BaseSeeder):

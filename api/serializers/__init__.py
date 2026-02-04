@@ -1,2 +1,2 @@
-from .desktopView import * 
-from .mobileView import *
+from .desktop import * 
+from .mobile import *

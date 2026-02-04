@@ -1,8 +1,8 @@
 # seeders/masters/state.py
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.continent import Continent
-from api.apps.country import Country
-from api.apps.state import State
+from api.models.commonmasters.continent import Continent
+from api.models.commonmasters.country import Country
+from api.models.commonmasters.state import State
 class StateSeeder(BaseSeeder):
     name = "state"
 

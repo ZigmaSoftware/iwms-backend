@@ -1,11 +1,11 @@
 # seeders/masters/zone.py
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.continent import Continent
-from api.apps.country import Country
-from api.apps.state import State
-from api.apps.district import District
-from api.apps.city import City
-from api.apps.zone import Zone, GeoFencingType, AreaType
+from api.models.commonmasters.continent import Continent
+from api.models.commonmasters.country import Country
+from api.models.commonmasters.state import State
+from api.models.masters.district import District
+from api.models.masters.city import City
+from api.models.masters.zone import Zone, GeoFencingType, AreaType
 
 
 class ZoneSeeder(BaseSeeder):

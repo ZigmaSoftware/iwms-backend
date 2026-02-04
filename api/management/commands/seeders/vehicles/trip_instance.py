@@ -1,11 +1,11 @@
 from django.utils import timezone
 
 from api.management.commands.seeders.base import BaseSeeder
-from api.apps.trip_definition import TripDefinition
-from api.apps.trip_instance import TripInstance
-from api.apps.zone_property_load_tracker import ZonePropertyLoadTracker
-from api.apps.zone import Zone
-from api.apps.vehicleCreation import VehicleCreation
+from api.models.vehicles.trip_definition import TripDefinition
+from api.models.vehicles.trip_instance import TripInstance
+from api.models.assets.zone_property_load_tracker import ZonePropertyLoadTracker
+from api.models.masters.zone import Zone
+from api.models.vehicles.vehicleCreation import VehicleCreation
 
 
 class TripInstanceSeeder(BaseSeeder):
