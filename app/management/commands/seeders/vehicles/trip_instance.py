@@ -61,6 +61,6 @@ class TripInstanceSeeder(BaseSeeder):
         tracker.create_audit_log(event_time=timezone.now())
         instance = tracker.trigger_trip_instance()
         if instance:
-            self.log("TripInstance seeded")
+            self.log("---TripInstance seeded---")
         else:
-            self.log("TripInstanceSeeder skipped (trigger not met).")
+            self.log("---TripInstanceSeeder skipped (trigger not met).---")

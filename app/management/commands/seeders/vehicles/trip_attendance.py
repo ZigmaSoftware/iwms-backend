@@ -50,5 +50,5 @@ class TripAttendanceSeeder(BaseSeeder):
             if was_created:
                 created += 1
 
-        self.log(f"Trip attendance seeded | Created: {created}")
+        self.log(f"---Trip attendance seeded | Created: {created}---")
 

@@ -6,7 +6,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_state_id():
-    return f"STATE{generate_unique_id()}"
+    return f"STATE-{generate_unique_id()}"
 
 
 class State(CompanyProjectMixin, models.Model):

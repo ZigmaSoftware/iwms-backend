@@ -11,7 +11,7 @@ from app.models.masters.ward import Ward
 
 def generate_staff_unique_id():
     """Generate readable prefixed ID, e.g., ST-20251028001"""
-    return f"ST-{generate_unique_id()}"
+    return f"STC-{generate_unique_id()}"
 
 
 class StaffOfficeDetails(CompanyProjectMixin, models.Model):

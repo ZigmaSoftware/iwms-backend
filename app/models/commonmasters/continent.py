@@ -4,7 +4,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_continent_id():
-    return f"CONT{generate_unique_id()}"
+    return f"CONT-{generate_unique_id()}"
 
 
 class Continent(CompanyProjectMixin, models.Model):

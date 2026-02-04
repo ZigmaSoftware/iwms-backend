@@ -8,7 +8,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_city_id():
-    return f"CITY{generate_unique_id()}"
+    return f"CITY-{generate_unique_id()}"
 
 
 class City(CompanyProjectMixin, models.Model):

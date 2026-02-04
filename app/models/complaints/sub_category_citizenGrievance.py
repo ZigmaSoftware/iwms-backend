@@ -5,7 +5,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_subcategory_id():
-    return f"CMPSC{generate_unique_id()}"
+    return f"CMPSC-{generate_unique_id()}"
 
 
 class SubCategory(CompanyProjectMixin, models.Model):

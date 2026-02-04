@@ -17,4 +17,4 @@ class StateSeeder(BaseSeeder):
             defaults={"label": "TN"}
         )
 
-        self.log("States seeded")
+        self.log("---States seeded---")

@@ -54,4 +54,4 @@ class WardSeeder(BaseSeeder):
         )
 
         action = "Created" if created else "Updated"
-        self.log(f"Ward seeded: {ward.name} ({action})")
+        self.log(f"---Ward seeded: {ward.name} ({action})---")

@@ -23,4 +23,4 @@ class CompanySeeder(BaseSeeder):
                 }
             )
 
-        self.log("✅ Companies seeded")
+        self.log("---Companies seeded---")

@@ -22,4 +22,4 @@ class UserTypeSeeder(BaseSeeder):
                 }
             )
 
-        self.log("User types seeded (Staff, Customer, Platform)")
+        self.log("---User types seeded (Staff, Customer, Platform)---")

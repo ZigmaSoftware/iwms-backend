@@ -42,4 +42,4 @@ class FuelSeeder(BaseSeeder):
                 obj.is_active = True
                 obj.save(update_fields=["is_deleted", "is_active"])
 
-        self.log("Fuel types seeded")
+        self.log("---Fuel types seeded---")

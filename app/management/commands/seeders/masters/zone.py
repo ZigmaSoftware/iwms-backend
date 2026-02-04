@@ -59,4 +59,4 @@ class ZoneSeeder(BaseSeeder):
         )
 
         action = "Created" if created else "Updated"
-        self.log(f"Zone seeded: {zone.name} ({action})")
+        self.log(f"---Zone seeded: {zone.name} ({action})---")

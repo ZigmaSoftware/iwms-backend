@@ -43,4 +43,4 @@ class SubPropertySeeder(BaseSeeder):
                     obj.is_active = True
                     obj.save(update_fields=["is_deleted", "is_active"])
 
-        self.log("Sub-properties seeded")
+        self.log("---Sub-properties seeded---")

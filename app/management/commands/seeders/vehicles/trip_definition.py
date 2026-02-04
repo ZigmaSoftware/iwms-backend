@@ -46,4 +46,4 @@ class TripDefinitionSeeder(BaseSeeder):
             trip_def.status = TripDefinition.Status.ACTIVE
             trip_def.save(update_fields=["approval_status", "status"])
 
-        self.log("✅ TripDefinition seeded")
+        self.log("---TripDefinition seeded---")

@@ -5,7 +5,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_ward_id():
-    return f"WARD{generate_unique_id()}"
+    return f"WARD-{generate_unique_id()}"
 
 
 class GeoFencingType(models.TextChoices):

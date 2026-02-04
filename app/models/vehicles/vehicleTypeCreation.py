@@ -4,7 +4,7 @@ from app.utils.comfun import generate_unique_id
 
 def generate_vehicle_type_id():
     """Generate a unique ID prefixed with VHTYPE."""
-    return f"VHTYPE{generate_unique_id()}"
+    return f"VHTYPE-{generate_unique_id()}"
 class VehicleTypeCreation(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(
         max_length=30,

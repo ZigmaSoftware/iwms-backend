@@ -32,4 +32,4 @@ class StaffUserTypeSeeder(BaseSeeder):
                     }
                 )
 
-        self.log("Staff user types seeded for staff and platform roles")
+        self.log("---Staff user types seeded for staff and platform roles---")

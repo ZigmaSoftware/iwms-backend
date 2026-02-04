@@ -50,4 +50,4 @@ class SubCategorySeeder(BaseSeeder):
                     }
                 )
 
-        self.log("Sub categories seeded")
+        self.log("---Sub categories seeded---")

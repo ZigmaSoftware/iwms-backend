@@ -4,7 +4,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_company_id():
-    return f"COMP{generate_unique_id()}"
+    return f"CMP-{generate_unique_id()}"
 
 
 class Company(models.Model):

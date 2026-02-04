@@ -57,4 +57,4 @@ class PlatformSuperUserSeeder(BaseSeeder):
             password=password,
         )
         user.save()
-        self.log(f"Created platform superuser: {username}")
+        self.log(f"---Created platform superuser: {username}---")

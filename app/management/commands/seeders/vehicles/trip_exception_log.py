@@ -31,4 +31,4 @@ class TripExceptionLogSeeder(BaseSeeder):
             detected_by=TripExceptionLog.DetectedBy.SYSTEM,
         )
 
-        self.log("Trip exception log seeded")
+        self.log("---Trip exception log seeded---")

@@ -9,7 +9,7 @@ from .staffcreation import StaffOfficeDetails
 # SYSTEM UNIQUE ID (Machine-readable)
 # ------------------------------------------------------------------
 def generate_stafftemplate_id():
-    return f"STF-{generate_unique_id(length=6)}"
+    return f"STFTEMP-{generate_unique_id(length=6)}"
 
 class StaffTemplate(CompanyProjectMixin, models.Model):
     

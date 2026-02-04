@@ -52,4 +52,4 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
             }
         )
 
-        self.log("Alternative staff templates seeded successfully")
+        self.log("---Alternative staff templates seeded successfully---")

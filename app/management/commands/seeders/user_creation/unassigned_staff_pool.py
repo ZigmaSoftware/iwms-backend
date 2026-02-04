@@ -100,4 +100,4 @@ class UnassignedStaffPoolSeeder(BaseSeeder):
             else:
                 updated += 1
 
-        self.log(f"Unassigned staff pool seeded | Created: {created}, Updated: {updated}")
+        self.log(f"---Unassigned staff pool seeded | Created: {created}, Updated: {updated}---")

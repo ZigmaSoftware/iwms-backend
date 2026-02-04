@@ -29,4 +29,4 @@ class PropertySeeder(BaseSeeder):
                 obj.is_active = True
                 obj.save(update_fields=["is_deleted", "is_active"])
 
-        self.log("Properties seeded")
+        self.log("---Properties seeded---")
