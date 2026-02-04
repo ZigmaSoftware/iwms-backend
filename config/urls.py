@@ -36,7 +36,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 
     # APIs
-    path("api/desktop/", include("api.urls.desktop_urls")),
+    path("api/desktop/", include("app.urls.desktop_urls")),
 
     # Swagger UI
     path(
