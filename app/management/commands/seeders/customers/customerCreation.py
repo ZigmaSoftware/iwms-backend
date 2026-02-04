@@ -97,4 +97,4 @@ class CustomerCreationSeeder(BaseSeeder):
             if created:
                 self.log(f"Customer created: {customer.customer_name}")
 
-        self.log("✅ Customers seeded successfully")
+        self.log("---Customers seeded successfully---")

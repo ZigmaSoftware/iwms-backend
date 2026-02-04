@@ -6,7 +6,7 @@ from ..commonmasters.continent import Continent
 from app.utils.comfun import generate_unique_id
 
 def generate_district_id():
-    return f"DIST{generate_unique_id()}"
+    return f"DIST-{generate_unique_id()}"
 
 class District(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(

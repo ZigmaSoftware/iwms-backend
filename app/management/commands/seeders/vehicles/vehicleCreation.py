@@ -105,4 +105,4 @@ class VehicleCreationSeeder(BaseSeeder):
                 obj.is_active = True
                 obj.save(update_fields=["is_deleted", "is_active"])
 
-        self.log("Vehicle creation seeded")
+        self.log("---Vehicle creation seeded---")

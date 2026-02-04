@@ -14,7 +14,7 @@ from app.utils.comfun import generate_unique_id
 # ID GENERATOR
 # ----------------------------------
 def generate_zone_id():
-    return f"ZONE{generate_unique_id()}"
+    return f"ZONE-{generate_unique_id()}"
 
 
 # ----------------------------------

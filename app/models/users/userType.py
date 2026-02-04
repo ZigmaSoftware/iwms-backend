@@ -4,7 +4,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_usertype_id():
-    return f"UTYPE{generate_unique_id()}"
+    return f"UTYPE-{generate_unique_id()}"
 
 
 class UserType(CompanyProjectMixin, models.Model):

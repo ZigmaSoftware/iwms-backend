@@ -23,7 +23,7 @@ class PermissionSeeder(BaseSeeder):
         companies = Company.objects.filter(is_deleted=False)
 
         if not companies.exists():
-            self.log("❌ No companies found. Seed companies first.")
+            self.log("No companies found. Seed companies first.")
             return
 
         # --------------------------------------------------
@@ -244,4 +244,4 @@ class PermissionSeeder(BaseSeeder):
                                 },
                             )
 
-        self.log("✅ Permission seeding completed successfully (company-wise)")
+        self.log("---Permission seeding completed successfully (company-wise)---")

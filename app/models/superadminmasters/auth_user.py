@@ -20,7 +20,7 @@ from app.models.users.staffcreation import StaffOfficeDetails
 
 
 def generate_user_id():
-    return f"USER-{generate_unique_id()}"
+    return f"SUPUSER-{generate_unique_id()}"
 
 class UserManager(BaseUserManager):
     """

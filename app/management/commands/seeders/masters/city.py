@@ -22,4 +22,4 @@ class CitySeeder(BaseSeeder):
             district_id=chennai_dist,
         )
 
-        self.log("Cities seeded")
+        self.log("---Cities seeded---")

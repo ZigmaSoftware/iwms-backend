@@ -114,4 +114,4 @@ class Command(BaseCommand):
             self.stdout.write(self.style.NOTICE(f"➡ Running {seeder_cls.__name__}"))
             seeder.run()
 
-        self.stdout.write(self.style.SUCCESS("\n Seeding completed successfully"))
+        self.stdout.write(self.style.SUCCESS("\n ---Seeding completed successfully---"))

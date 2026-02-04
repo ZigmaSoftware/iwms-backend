@@ -160,4 +160,4 @@ class StaffOfficeSeeder:
                 defaults=staff_data
             )
 
-        print("StaffOfficeDetails seeded")
+        print("---StaffOfficeDetails seeded---")

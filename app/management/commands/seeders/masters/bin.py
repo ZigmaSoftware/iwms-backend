@@ -30,4 +30,4 @@ class BinSeeder(BaseSeeder):
             },
         )
 
-        self.log("Bins seeded")
+        self.log("---Bins seeded---")

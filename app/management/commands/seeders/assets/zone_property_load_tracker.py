@@ -36,4 +36,4 @@ class ZonePropertyLoadTrackerSeeder(BaseSeeder):
             if was_created:
                 created += 1
 
-        self.log(f"Zone property load trackers seeded | Created: {created}")
+        self.log(f"---Zone property load trackers seeded | Created: {created}---")

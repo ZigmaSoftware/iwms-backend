@@ -106,4 +106,4 @@ class SupervisorZoneMapSeeder:
                     remarks="Seeded supervisor zone access",
                 )
 
-        print("Supervisor Zone Map seeding completed.")
+        print("---Supervisor Zone Map seeding completed.---")

@@ -5,7 +5,7 @@ from app.utils.comfun import generate_unique_id
 
 def generate_mainuserscreen_id():
     """Generate a unique ID prefixed with MNSCRN."""
-    return f"MNSCRN{generate_unique_id()}"
+    return f"MNSCRN-{generate_unique_id()}"
 
 class MainUserScreen(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(

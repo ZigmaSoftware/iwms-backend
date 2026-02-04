@@ -62,6 +62,6 @@ class VehicleTripAuditSeeder(BaseSeeder):
         )
 
         if created:
-            self.log("Vehicle trip audit seeded")
+            self.log("---Vehicle trip audit seeded---")
         else:
-            self.log("VehicleTripAuditSeeder skipped (already seeded)")
+            self.log("---VehicleTripAuditSeeder skipped (already seeded)---")

@@ -5,7 +5,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_country_id():
-    return f"COUNTRY{generate_unique_id()}"
+    return f"COUNTRY-{generate_unique_id()}"
 
 
 class Country(CompanyProjectMixin, models.Model):

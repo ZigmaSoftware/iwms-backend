@@ -35,4 +35,4 @@ class ProjectSeeder(BaseSeeder):
                 project.save(update_fields=["description", "is_active", "is_deleted"])
                 updated += 1
 
-        self.log(f"Projects seeded | Created: {created}, Updated: {updated}")
+        self.log(f"---Projects seeded | Created: {created}, Updated: {updated}---")

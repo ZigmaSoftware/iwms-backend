@@ -5,7 +5,7 @@ from .userType import UserType
 
 
 def generate_staff_usertype_id():
-    return f"STUSRTYPE{generate_unique_id()}"
+    return f"STUSRTYPE-{generate_unique_id()}"
 
 
 class StaffUserType(CompanyProjectMixin, models.Model):

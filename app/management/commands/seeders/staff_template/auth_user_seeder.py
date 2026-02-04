@@ -90,4 +90,4 @@ class AuthUserSeeder(BaseSeeder):
                 staff.is_deleted = False
                 staff.save()
 
-        self.log("Auth staff users seeded (driver/operator/approver).")
+        self.log("---Auth staff users seeded (driver/operator/approver).---")

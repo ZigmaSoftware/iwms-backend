@@ -5,7 +5,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_project_id():
-    return f"PROJ{generate_unique_id()}"
+    return f"PROJ-{generate_unique_id()}"
 
 
 class Project(models.Model):

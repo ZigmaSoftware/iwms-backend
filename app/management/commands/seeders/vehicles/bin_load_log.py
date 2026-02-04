@@ -52,4 +52,4 @@ class BinLoadLogSeeder(BaseSeeder):
             if was_created:
                 created += 1
 
-        self.log(f"Bin load logs seeded | Created: {created}")
+        self.log(f"---Bin load logs seeded | Created: {created}---")

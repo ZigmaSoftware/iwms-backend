@@ -4,7 +4,7 @@ from app.utils.comfun import generate_unique_id
 
 
 def generate_propertyName_id():
-    return f"PROPERTY{generate_unique_id()}"
+    return f"PROPERTY-{generate_unique_id()}"
 
 
 class Property(CompanyProjectMixin, models.Model):

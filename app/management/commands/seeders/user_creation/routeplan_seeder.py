@@ -71,5 +71,5 @@ class RoutePlanSeeder:
                         created += 1
 
         print(
-            f"RoutePlan seeding completed | Created: {created}, Updated: {updated}"
+            f"---RoutePlan seeding completed | Created: {created}, Updated: {updated}---"
         )

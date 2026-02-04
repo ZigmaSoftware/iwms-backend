@@ -41,4 +41,4 @@ class StaffTemplateSeeder(BaseSeeder):
             },
         )
 
-        self.log("StaffTemplate seeded successfully")
+        self.log("---StaffTemplate seeded successfully---")

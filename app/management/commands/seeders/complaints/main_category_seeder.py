@@ -23,4 +23,4 @@ class MainCategorySeeder(BaseSeeder):
                 }
             )
 
-        self.log("Main categories seeded")
+        self.log("---Main categories seeded---")

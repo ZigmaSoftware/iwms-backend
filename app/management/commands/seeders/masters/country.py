@@ -8,4 +8,4 @@ class CountrySeeder(BaseSeeder):
     def run(self):
         asia = Continent.objects.get(name="Asia")
         Country.objects.get_or_create(name="India", continent_id=asia)
-        self.log("Countries seeded")
+        self.log("---Countries seeded---")

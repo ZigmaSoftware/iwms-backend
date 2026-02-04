@@ -3,7 +3,7 @@ from app.utils.tenancy import CompanyProjectMixin
 from app.utils.comfun import generate_unique_id
 
 def generate_maincategory_id():
-    return f"CMPMC{generate_unique_id()}"
+    return f"CMPMC-{generate_unique_id()}"
 
 class MainCategory(CompanyProjectMixin, models.Model):
     unique_id = models.CharField(

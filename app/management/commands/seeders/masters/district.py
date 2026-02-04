@@ -21,4 +21,4 @@ class DistrictSeeder(BaseSeeder):
             continent_id=asia,
         )
 
-        self.log("Districts seeded")
+        self.log("---Districts seeded---")
