@@ -70,7 +70,7 @@ INSTALLED_APPS = [
     'drf_yasg',
 
     # Your apps
-    'api',
+    'app.apps.ApiConfig',
 ]
 
 # -------------------------------------------------------
@@ -86,8 +86,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
-    'api.middleware.module_permission_middleware.ModulePermissionMiddleware',
-    'api.middleware.request_meta_middleware.RequestMetaMiddleware',
+    'app.middleware.module_permission_middleware.ModulePermissionMiddleware',
+    'app.middleware.request_meta_middleware.RequestMetaMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -136,7 +136,7 @@ SWAGGER_SETTINGS = {
             "description": "Enter token as: Bearer <access_token>",
         }
     },
-    "DEFAULT_AUTO_SCHEMA_CLASS": "api.utils.swagger.GroupedSwaggerAutoSchema",
+    "DEFAULT_AUTO_SCHEMA_CLASS": "app.utils.swagger.GroupedSwaggerAutoSchema",
     "TAGS_SORTER": "alpha",
 }
 
@@ -174,7 +174,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'api.authentication.jwt.JWTUserAuthentication',
+        'app.authentication.jwt.JWTUserAuthentication',
     ],
 }
 
@@ -201,10 +201,6 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.7\.176(:\d+)?$",
     r"^http://192\.168\.5\.\.77(:d+)?$",
     r"^http://192\.168\.5\.20(:d+)?$",
-
-    
-   
-
 ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
