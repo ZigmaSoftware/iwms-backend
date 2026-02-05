@@ -36,8 +36,6 @@ from .screenmanagement.mainscreen import MainScreen
 from .screenmanagement.userscreen import UserScreen
 from .screenmanagement.userscreenaction import UserScreenAction
 from .screenmanagement.companyuserscreenpermission import CompanyUserScreenPermission
-from .screenmanagement.userpermission import UserPermission
-from .users.mainuserscreen import MainUserScreen
 from .users.loginAudit import LoginAudit
 from .users.auditlog import AuditLog
 
@@ -111,8 +109,6 @@ __all__ = [
     "UserScreen",
     "UserScreenAction",
     "CompanyUserScreenPermission",
-    "UserPermission",
-    "MainUserScreen",
     "LoginAudit",
     "AuditLog",
     # Customer / Waste / Feedback

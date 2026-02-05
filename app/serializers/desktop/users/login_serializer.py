@@ -219,10 +219,17 @@ class LoginSerializer(serializers.Serializer):
         return None
 
     def _authenticate_staff(self, username, password):
+        lookup_filters = (
+            Q(employee_name__iexact=username) |
+            Q(username__iexact=username) |
+            Q(emp_id__iexact=username)
+        )
+
         queryset = (
             StaffOfficeDetails.objects
             .select_related("user_type_id", "staffusertype_id", "personal_details", "company_id")
             .filter(is_active=True, is_deleted=False)
+            .filter(lookup_filters)
         )
 
         for candidate in queryset:

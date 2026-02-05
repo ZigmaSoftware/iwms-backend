@@ -58,7 +58,6 @@ from .screenmanagement.userscreenaction_viewset import UserScreenActionViewSet
 from .screenmanagement.mainscreentype_viewset import MainScreenTypeViewSet
 from .screenmanagement.mainscreen_viewset import MainScreenViewSet
 from .screenmanagement.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
-from .screenmanagement.userpermission_viewset import UserPermissionViewSet
 
 # ==============================
 # Vehicles
@@ -109,7 +108,6 @@ __all__ = [
     "UserScreenViewSet",
     "UserScreenActionViewSet",
     "CompanyUserScreenPermissionViewSet",
-    "UserPermissionViewSet",
     "StaffcreationViewset",
     "StaffTemplateViewSet",
     "StaffTemplateAuditLogViewSet",
