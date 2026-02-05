@@ -8,7 +8,7 @@ class UserTypeSeeder(BaseSeeder):
     name = "user_type"
 
     def run(self):
-        allowed_types = ["Staff", "Customer", "Platform"]
+        allowed_types = ["Staff", "Customer", "Platform", "Developer"]
 
         # -------------------------------------------------
         # Create / ensure only required user types exist

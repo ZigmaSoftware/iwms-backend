@@ -1,3 +1,6 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
+
 from app.management.commands.seeders.base import BaseSeeder
 
 from app.models.commonmasters.country import Country
@@ -8,11 +11,15 @@ from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 
 from app.models.customers.customercreation import CustomerCreation
+from app.models.users.userType import UserType
 
 from app.models.assets.property import Property
 from app.models.assets.subproperty import SubProperty
 from app.models.superadminmasters.company import Company
 from app.models.superadminmasters.project import Project
+
+
+DEFAULT_CUSTOMER_PASSWORD = "Customer@123"
 
 
 class CustomerCreationSeeder(BaseSeeder):
@@ -60,8 +67,22 @@ class CustomerCreationSeeder(BaseSeeder):
                 "latitude": "28.4869",
                 "longitude": "77.5015",
                 "id_no": "AADHAAR-7890-1",
+                "password": DEFAULT_CUSTOMER_PASSWORD,
             },
         ]
+
+        for entry in customers:
+            # ensure username defaults to contact number when not provided
+            entry.setdefault("username", entry["contact_no"])
+            raw_password = entry.get("password") or DEFAULT_CUSTOMER_PASSWORD
+            entry["password"] = make_password(raw_password)
+
+        customer_type = UserType.objects.filter(name__iexact="customer").first()
+        if not customer_type:
+            self.log("UserType 'customer' missing. Seed role-assign before customers.")
+            return
+
+        UserModel = get_user_model()
 
         # --------------------------------------------------
         # CREATE CUSTOMERS
@@ -71,6 +92,8 @@ class CustomerCreationSeeder(BaseSeeder):
                 customer_name=entry["customer_name"],
                 contact_no=entry["contact_no"],
                 defaults={
+                    "username": entry["username"],
+                    "password": entry["password"],
                     "building_no": entry["building_no"],
                     "street": entry["street"],
                     "area": entry["area"],
@@ -89,6 +112,7 @@ class CustomerCreationSeeder(BaseSeeder):
                     "sub_property": sub_property_obj,
                     "company_id": company,
                     "project_id": project,
+                    "user_type_id": customer_type,
                     "is_active": True,
                     "is_deleted": False,
                 }
@@ -96,5 +120,31 @@ class CustomerCreationSeeder(BaseSeeder):
 
             if created:
                 self.log(f"Customer created: {customer.customer_name}")
+            else:
+                update_fields = []
+                if not customer.username and entry.get("username"):
+                    customer.username = entry["username"]
+                    update_fields.append("username")
+                if not customer.password and entry.get("password"):
+                    customer.password = entry["password"]
+                    update_fields.append("password")
+                if update_fields:
+                    customer.save(update_fields=update_fields)
+
+            user_defaults = {
+                "username": customer.username or customer.contact_no,
+                "password": customer.password,
+                "email": customer.email,
+                "company_id": customer.company_id,
+                "project_id": customer.project_id,
+                "user_type_id": customer_type,
+                "customer_id": customer,
+                "is_active": customer.is_active,
+                "is_deleted": customer.is_deleted,
+            }
+            user, _ = UserModel.objects.update_or_create(
+                customer_id=customer,
+                defaults=user_defaults,
+            )
 
         self.log("---Customers seeded successfully---")

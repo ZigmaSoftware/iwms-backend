@@ -1,3 +1,5 @@
+from django.contrib.auth.hashers import make_password
+
 from app.models.users.staffcreation import StaffOfficeDetails
 from app.models.superadminmasters.company import Company
 from app.models.superadminmasters.project import Project
@@ -7,6 +9,9 @@ from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 from app.models.users.userType import UserType
 from app.models.users.staffUserType import StaffUserType
+
+
+DEFAULT_STAFF_PASSWORD = "Staff@123"
 
 
 class StaffOfficeSeeder:
@@ -49,6 +54,25 @@ class StaffOfficeSeeder:
             print("Required staff roles missing. Run StaffUserTypeSeeder first.")
             return
 
+        staff_passwords = {
+            "Sathya": "Sathya@123",
+            "Gokul": "Gokul@123",
+            "Arjun": "Arjun@123",
+            "Vikram": "Vikram@123",
+            "Karan": "Karan@123",
+            "Suresh": "Suresh@123",
+            "Mani": "Mani@123",
+            "Rahul": "Rahul@123",
+            "Prakash": "Prakash@123",
+            "Deepak": "Deepak@123",
+            "Naveen": "Naveen@123",
+            "Santhosh": "Santhosh@123",
+            "Ajay": "Ajay@123",
+            "Anita": "Anita@123",
+            "Kumar": "Kumar@123",
+            "Priya": "Priya@123",
+        }
+
         staff_list = [
             {
                 "employee_name": "Sathya",
@@ -66,6 +90,7 @@ class StaffOfficeSeeder:
                 "ward_id": ward,
                 "user_type_id": staff_type,
                 "staffusertype_id": role_admin,
+                "password": staff_passwords["Sathya"],
             },
         ]
 
@@ -109,6 +134,7 @@ class StaffOfficeSeeder:
                     "ward_id": ward,
                     "user_type_id": staff_type,
                     "staffusertype_id": role_driver,
+                    "password": staff_passwords.get(name, DEFAULT_STAFF_PASSWORD),
                 }
             )
 
@@ -130,6 +156,7 @@ class StaffOfficeSeeder:
                     "ward_id": ward,
                     "user_type_id": staff_type,
                     "staffusertype_id": role_operator,
+                    "password": staff_passwords.get(name, DEFAULT_STAFF_PASSWORD),
                 }
             )
 
@@ -151,13 +178,23 @@ class StaffOfficeSeeder:
                     "ward_id": ward,
                     "user_type_id": staff_type,
                     "staffusertype_id": role_supervisor,
+                    "password": staff_passwords.get(name, DEFAULT_STAFF_PASSWORD),
                 }
             )
 
         for staff_data in staff_list:
-            StaffOfficeDetails.objects.update_or_create(
+            raw_password = staff_data.pop("password", None) or DEFAULT_STAFF_PASSWORD
+            staff_data["_hashed_password"] = make_password(raw_password)
+
+        for staff_data in staff_list:
+            hashed_password = staff_data.pop("_hashed_password", None)
+            staff, created = StaffOfficeDetails.objects.update_or_create(
                 employee_name=staff_data["employee_name"],
                 defaults=staff_data
             )
+
+            if hashed_password and (created or not staff.password):
+                staff.password = hashed_password
+                staff.save(update_fields=["password"])
 
         print("---StaffOfficeDetails seeded---")

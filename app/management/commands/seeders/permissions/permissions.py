@@ -5,12 +5,23 @@ from app.models.screenmanagement.mainscreentype import MainScreenType
 from app.models.screenmanagement.userscreenaction import UserScreenAction
 from app.models.screenmanagement.mainscreen import MainScreen
 from app.models.screenmanagement.userscreen import UserScreen
-from app.models.screenmanagement.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.screenmanagement.companyuserscreenpermission import (
+    CompanyUserScreenPermission,
+)
 from app.models.users.userType import UserType
 from app.models.users.staffUserType import StaffUserType
 from app.models.superadminmasters.company import Company
 
-MASTER_VIEW_ONLY_SCREENS = {"Continent", "Countries", "States"}
+
+# --------------------------------------------------
+# CONSTANTS
+# --------------------------------------------------
+
+MASTER_VIEW_ONLY_SCREENS = {
+    "continents",
+    "countries",
+    "states",
+}
 
 
 class PermissionSeeder(BaseSeeder):
@@ -21,7 +32,6 @@ class PermissionSeeder(BaseSeeder):
         # 0. COMPANIES
         # --------------------------------------------------
         companies = Company.objects.filter(is_deleted=False)
-
         if not companies.exists():
             self.log("No companies found. Seed companies first.")
             return
@@ -31,7 +41,10 @@ class PermissionSeeder(BaseSeeder):
         # --------------------------------------------------
         megamenu, _ = MainScreenType.objects.get_or_create(
             type_name="megamenu",
-            defaults={"is_active": True, "is_deleted": False},
+            defaults={
+                "is_active": True,
+                "is_deleted": False,
+            },
         )
 
         # --------------------------------------------------
@@ -50,45 +63,79 @@ class PermissionSeeder(BaseSeeder):
             actions[name] = action
 
         # --------------------------------------------------
-        # 3. SCREENS
+        # 3. SCREEN STRUCTURE (SOURCE OF TRUTH)
         # --------------------------------------------------
         screen_structure = {
+            "common-masters": [
+                "continents",
+                "countries",
+                "states",
+            ],
             "masters": [
-                "Continent", "Countries", "States", "Districts",
-                "Cities", "Zones", "Wards", "Bins",
+                "districts",
+                "cities",
+                "zones",
+                "wards",
+                "bins",
             ],
             "assets": [
-                "Fuels", "Properties", "Subproperties",
-                "ZonePropertyLoadTracker",
+                "fuels",
+                "properties",
+                "subproperties",
+                "zone-property-load-tracker",
             ],
             "role-assign": [
-                "UserType", "StaffUserTypes",
+                "user-type",
+                "staffusertypes",
             ],
             "user-creation": [
-                "UsersCreation", "StaffCreation",
-                "StaffTemplateCreation", "AlternativeStaffTemplate",
-                "StaffTemplateAuditLog", "RoutePlan",
-                "SupervisorZoneMap", "SupervisorZoneAccessAudit",
-                "UnassignedStaffPool",
+                "users-creation",
+                "staffcreation",
+                "stafftemplate-creation",
+                "alternative-stafftemplate",
+                "stafftemplate-audit-log",
+                "route-plans",
+                "supervisor-zone-map",
+                "supervisor-zone-access-audit",
+                "unassigned-staff-pool",
             ],
             "customers": [
-                "Customercreations", "Wastecollections",
-                "Feedbacks", "Complaints",
-            ],
-            "vehicles": [
-                "VehicleType", "VehicleCreation", "TripDefinition",
-                "BinLoadLog", "TripInstance", "TripAttendance",
-                "VehicleTripAudit", "TripExceptionLog",
+                "customercreations",
+                "wastecollections",
+                "feedbacks",
             ],
             "grievance": [
-                "MainCategory", "SubCategory",
+                "complaints",
+                "main-category",
+                "sub-category",
+            ],
+            "vehicles": [
+                "vehicle-type",
+                "vehicle-creation",
+                "trip-definition",
+                "trip-instance",
+                "bin-load-log",
+                "vehicle-trip-audit",
+                "trip-exception-log",
+                "trip-attendance",
             ],
         }
 
+        total_mains = len(screen_structure)
+        if total_mains:
+            MainScreen.objects.filter(order_no__lte=total_mains).update(
+                order_no=F("order_no") + total_mains
+            )
+
+        # --------------------------------------------------
+        # 4. CREATE MAIN SCREENS + USER SCREENS
+        # --------------------------------------------------
         mainscreens = {}
 
-        for order, (main_name, screens) in enumerate(screen_structure.items(), start=1):
-            main, _ = MainScreen.objects.get_or_create(
+        for order, (main_name, screens) in enumerate(
+            screen_structure.items(), start=1
+        ):
+            main, _ = MainScreen.objects.update_or_create(
                 mainscreen_name=main_name,
                 defaults={
                     "mainscreentype_id": megamenu,
@@ -100,41 +147,53 @@ class PermissionSeeder(BaseSeeder):
             )
             mainscreens[main_name] = main
 
+            # Push old order numbers down
             UserScreen.objects.filter(mainscreen_id=main).update(
                 order_no=F("order_no") + 1000
             )
 
-            ordered = []
+            ordered_screens = []
             for idx, screen_name in enumerate(screens, start=1):
                 screen, _ = UserScreen.objects.get_or_create(
                     userscreen_name=screen_name,
                     defaults={
                         "mainscreen_id": main,
-                        "folder_name": screen_name.lower(),
-                        "icon_name": screen_name.lower(),
+                        "folder_name": screen_name,
+                        "icon_name": screen_name,
                         "order_no": idx,
                         "is_active": True,
                         "is_deleted": False,
                     },
                 )
-                ordered.append(screen)
+                ordered_screens.append(screen)
 
-            for idx, screen in enumerate(ordered, start=1):
+            for idx, screen in enumerate(ordered_screens, start=1):
                 screen.order_no = idx
                 screen.is_active = True
                 screen.is_deleted = False
                 screen.save(update_fields=["order_no", "is_active", "is_deleted"])
 
         # --------------------------------------------------
-        # 4. ROLES
+        # 5. ROLES
         # --------------------------------------------------
         staff_type = UserType.objects.get(name__iexact="staff")
 
-        admin_role = StaffUserType.objects.get(name="admin", usertype_id=staff_type)
-        driver_role = StaffUserType.objects.get(name="driver", usertype_id=staff_type)
-        operator_role = StaffUserType.objects.get(name="operator", usertype_id=staff_type)
-        supervisor_role = StaffUserType.objects.get(name="supervisor", usertype_id=staff_type)
-        platform_type = UserType.objects.filter(name__iexact="platform").first()
+        admin_role = StaffUserType.objects.get(
+            name="admin", usertype_id=staff_type
+        )
+        driver_role = StaffUserType.objects.get(
+            name="driver", usertype_id=staff_type
+        )
+        operator_role = StaffUserType.objects.get(
+            name="operator", usertype_id=staff_type
+        )
+        supervisor_role = StaffUserType.objects.get(
+            name="supervisor", usertype_id=staff_type
+        )
+
+        platform_type = UserType.objects.filter(
+            name__iexact="platform"
+        ).first()
         superadmin_role = None
         if platform_type:
             superadmin_role = StaffUserType.objects.filter(
@@ -143,22 +202,27 @@ class PermissionSeeder(BaseSeeder):
             ).first()
 
         # --------------------------------------------------
-        # 5. PERMISSIONS (COMPANY AWARE)
+        # 6. PERMISSIONS (COMPANY AWARE)
         # --------------------------------------------------
         for company in companies:
-            self.log(f"🔹 Seeding permissions for company: {company.name}")
+            self.log(f"---Seeding permissions for company: {company.name}---")
 
+            # ----------------------------------------------
             # ADMIN → FULL ACCESS
+            # ----------------------------------------------
             for main_name, main in mainscreens.items():
                 for screen in UserScreen.objects.filter(mainscreen_id=main):
-                    if main_name == "masters" and screen.userscreen_name in MASTER_VIEW_ONLY_SCREENS:
+                    if (
+                        main_name in ["common-masters", "masters"]
+                        and screen.userscreen_name in MASTER_VIEW_ONLY_SCREENS
+                    ):
                         action_list = [actions["view"]]
                     else:
                         action_list = list(actions.values())
 
                     for order_no, action in enumerate(action_list, start=1):
                         CompanyUserScreenPermission.objects.get_or_create(
-                            company_id=company,   
+                            company_id=company,
                             usertype_id=staff_type,
                             staffusertype_id=admin_role,
                             mainscreen_id=main,
@@ -168,25 +232,27 @@ class PermissionSeeder(BaseSeeder):
                                 "order_no": order_no,
                                 "description": f"{action.variable_name} {screen.userscreen_name}",
                                 "is_active": True,
-                                "is_deleted": False,
+                                "is_deleted": False
                             },
                         )
 
+            # ----------------------------------------------
             # LIMITED ROLES
+            # ----------------------------------------------
             limited_permissions = {
                 driver_role: {
                     "customers": {
-                        "Customercreations": ["view"],
+                        "customercreations": ["view"],
                     }
                 },
                 operator_role: {
                     "customers": {
-                        "Customercreations": ["view"],
+                        "customercreations": ["view"],
                     }
                 },
                 supervisor_role: {
                     "vehicles": {
-                        "TripDefinition": ["add", "view", "edit"],
+                        "trip-definition": ["add", "view", "edit"],
                     }
                 },
             }
@@ -195,6 +261,10 @@ class PermissionSeeder(BaseSeeder):
                 for module_name, screens in modules.items():
                     main = mainscreens.get(module_name)
                     if not main:
+                        self.log(
+                            f"Main screen not found: {module_name}",
+                            level="warning",
+                        )
                         continue
 
                     for screen_name, action_names in screens.items():
@@ -202,16 +272,23 @@ class PermissionSeeder(BaseSeeder):
                             mainscreen_id=main,
                             userscreen_name=screen_name,
                         ).first()
+
                         if not screen:
+                            self.log(
+                                f"User screen not found: {module_name}.{screen_name}",
+                                level="warning",
+                            )
                             continue
 
-                        for order_no, action_name in enumerate(action_names, start=1):
+                        for order_no, action_name in enumerate(
+                            action_names, start=1
+                        ):
                             action = actions.get(action_name)
                             if not action:
                                 continue
 
                             CompanyUserScreenPermission.objects.get_or_create(
-                                company_id=company,      
+                                company_id=company,
                                 usertype_id=staff_type,
                                 staffusertype_id=role,
                                 mainscreen_id=main,
@@ -225,10 +302,17 @@ class PermissionSeeder(BaseSeeder):
                                 },
                             )
 
+            # ----------------------------------------------
+            # SUPERADMIN → FULL PLATFORM ACCESS
+            # ----------------------------------------------
             if platform_type and superadmin_role:
                 for main in mainscreens.values():
-                    for screen in UserScreen.objects.filter(mainscreen_id=main):
-                        for order_no, action in enumerate(actions.values(), start=1):
+                    for screen in UserScreen.objects.filter(
+                        mainscreen_id=main
+                    ):
+                        for order_no, action in enumerate(
+                            actions.values(), start=1
+                        ):
                             CompanyUserScreenPermission.objects.get_or_create(
                                 company_id=company,
                                 usertype_id=platform_type,
@@ -244,4 +328,6 @@ class PermissionSeeder(BaseSeeder):
                                 },
                             )
 
-        self.log("---Permission seeding completed successfully (company-wise)---")
+        self.log(
+            "--- Permission seeding completed successfully (company-wise) ---"
+        )
