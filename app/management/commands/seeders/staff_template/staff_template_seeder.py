@@ -1,6 +1,6 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.users.stafftemplate import StaffTemplate
-from app.models.users.staffcreation import StaffOfficeDetails
+from app.models.user_creations.stafftemplate import StaffTemplate
+from app.models.user_creations.staffcreation import StaffOfficeDetails
 
 
 class StaffTemplateSeeder(BaseSeeder):

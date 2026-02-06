@@ -1,13 +1,17 @@
-# api/middleware/module_permission.py
-
 import jwt
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
-from app.models.users.staffcreation import StaffOfficeDetails
+
+from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.models.customers.customercreation import CustomerCreation
 
+
+# ============================================================
+# HTTP → ACTION MAP
+# ============================================================
 
 HTTP_ACTION_MAP = {
     "POST": "add",
@@ -18,30 +22,34 @@ HTTP_ACTION_MAP = {
     "DELETE": "delete",
 }
 
-PROTECTED_MODULES = [
-    "masters",
-    "assets",
-    "role-assign",
-    "user-creation",
-    "customers",
-    "vehicles",
-    "grievance",
-]
 
-AUTH_ONLY_PREFIXES = (
-    "/api/mobile/main-category/",
-    "/api/mobile/sub-category/",
-    "/api/desktop/main-category/",
-    "/api/desktop/sub-category/",
-    "/api/desktop/register/",
-    "/api/desktop/recognize/",
-    "/api/desktop/employee/",
-    "/api/desktop/staff-profile/",
-    "/api/desktop/waste/",
-    "/api/desktop/attendance-list/",
+# ============================================================
+# API PATH CONFIG
+# ============================================================
+
+API_AUTH_PREFIXES = (
+    "/api/mobile/",
+    "/api/desktop/",
+    "/api/v1/",
 )
 
-# Platform routes that should bypass all middleware permission checks
+AUTH_ONLY_SUFFIXES = (
+    "main-category/",
+    "sub-category/",
+    "register/",
+    "recognize/",
+    "employee/",
+    "staff-profile/",
+    "waste/",
+    "attendance-list/",
+)
+
+AUTH_ONLY_PREFIXES = tuple(
+    prefix + suffix
+    for prefix in API_AUTH_PREFIXES
+    for suffix in AUTH_ONLY_SUFFIXES
+)
+
 PLATFORM_PREFIXES = (
     "/api/platform/",
 )
@@ -50,80 +58,105 @@ PUBLIC_PREFIXES = (
     "/media/",
 )
 
-# Explicitly declare which resources are valid under each protected module.
-# This keeps permission checks predictable and lets us whitelist new endpoints centrally.
+
+# ============================================================
+# MODULE → RESOURCE ALLOWLIST
+# (THIS MUST MATCH ViewSet.permission_resource)
+# ============================================================
+
 MODULE_RESOURCE_ALLOWLIST = {
-    "masters": {
+    "common-masters": {
         "Continent",
         "Country",
         "State",
+    },
+    "masters": {
         "District",
         "City",
         "Zone",
         "Ward",
-        "Bin",
     },
-    "assets": {
-        "Fuel",
+    "waste-types": {
         "Property",
         "SubProperty",
-        "ZonePropertyLoadTracker",
     },
-    "role-assign": {
+    "assets": {
+        "Bin",
+    },
+    "screen-managements": {
+        "MainScreenType",
+        "MainScreen",
+        "UserScreen",
+        "UserScreenAction",
+        "CompanyUserScreenPermission",
+    },
+    "role-assigns": {
         "UserType",
-        "Staffusertypes",
+        "StaffUserType",
     },
-    "user-creation": {
+    "user-creations": {
         "UsersCreation",
         "StaffCreation",
         "StaffTemplateCreation",
         "AlternativeStaffTemplate",
-        "RoutePlan",
         "SupervisorZoneMap",
-        "SupervisorZoneAccessAudit",
-        "StaffTemplateAuditLog",
         "UnassignedStaffPool",
     },
+    "process": {
+        "RoutePlan",
+        "ZonePropertyLoadTracker",
+    },
     "customers": {
-        "Customercreations",
-        "Wastecollections",
-        "Feedbacks",
-        "Complaints",
+        "CustomerCreation",
+        "WasteCollection",
+        "FeedBack",
     },
-    "vehicles": {
-        "VehicleTypeCreation",
-        "VehicleCreation",
-        "TripDefinition",
-        "BinLoadLog",
-        "TripInstance",
-        "TripAttendance",
-        "VehicleTripAudit",
-        "TripExceptionLog",
-    },
-    "grievance": {
+    "grivences": {
+        "Complaint",
         "MainCategory",
         "SubCategory",
     },
+    "transport-masters": {
+        "VehicleTypeCreation",
+        "VehicleCreation",
+        "TripDefinition",
+        "TripInstance",
+        "TripAttendance",
+        "Fuel",
+    },
+    "audits": {
+        "VehicleTripAudit",
+        "TripExceptionLog",
+        "BinLoadLog",
+        "SupervisorZoneAccessAudit",
+        "StaffTemplateAuditLog",
+    },
 }
 
+# alias safety
+MODULE_RESOURCE_ALLOWLIST["grievance"] = MODULE_RESOURCE_ALLOWLIST["grivences"]
+
+PROTECTED_MODULES = tuple(MODULE_RESOURCE_ALLOWLIST.keys())
+
+
+# ============================================================
+# HELPERS
+# ============================================================
 
 def _split_path(path):
     return [p for p in path.split("?")[0].split("/") if p]
 
 
-def _module_and_resource_from_path(path):
+def _module_from_path(path):
     parts = _split_path(path)
-    for i, part in enumerate(parts):
+    for part in parts:
+        if part == "api":
+            continue
+        if part.startswith("v") and part[1:].isdigit():
+            continue
         if part in PROTECTED_MODULES:
-            return part, None
-    return None, None
-
-
-def _extract_token(request):
-    auth = request.headers.get("Authorization")
-    if not auth:
-        return None
-    return auth.replace("Bearer ", "").strip()
+            return part
+    return None
 
 
 def _authenticate_request(request):
@@ -132,9 +165,8 @@ def _authenticate_request(request):
     if not auth or not auth.startswith("Bearer "):
         return JsonResponse({"detail": "Authorization token missing"}, status=401)
 
-    token = auth.split(" ", 1)[1].strip()
-    # Remove all whitespace characters including newlines from the token
-    token = ''.join(token.split())
+    token = auth.split(" ", 1)[1]
+    token = "".join(token.split())
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
@@ -147,39 +179,39 @@ def _authenticate_request(request):
     if not unique_id:
         return JsonResponse({"detail": "Invalid token payload"}, status=401)
 
-    # Try to find user in StaffOfficeDetails first (uses staff_unique_id)
+    # Staff
     staff = StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
     if staff:
         request.user = staff
         request.jwt_payload = payload
-        if hasattr(request, "_request"):
-            request._request.user = staff
         return None
-    
-    # Try to find user in CustomerCreation (uses unique_id)
+
+    # Customer
     customer = CustomerCreation.objects.filter(unique_id=unique_id).first()
     if customer:
         request.user = customer
         request.jwt_payload = payload
-        if hasattr(request, "_request"):
-            request._request.user = customer
         return None
 
-    # Fall back to Django User (platform super admins)
+    # Platform user
     UserModel = get_user_model()
     user = UserModel.objects.filter(unique_id=unique_id).first()
     if not user:
         user_id = payload.get("user_id")
         if user_id:
             user = UserModel.objects.filter(pk=user_id).first()
+
     if user:
         request.user = user
         request.jwt_payload = payload
-        if hasattr(request, "_request"):
-            request._request.user = user
         return None
 
     return JsonResponse({"detail": "User not found"}, status=401)
+
+
+# ============================================================
+# MIDDLEWARE
+# ============================================================
 
 class ModulePermissionMiddleware(MiddlewareMixin):
 
@@ -191,22 +223,14 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         if any(request.path.startswith(p) for p in PUBLIC_PREFIXES):
             return None
 
-        # Bypass all middleware checks for platform routes
         if any(request.path.startswith(p) for p in PLATFORM_PREFIXES):
             return None
 
         if any(request.path.startswith(p) for p in AUTH_ONLY_PREFIXES):
             auth_error = _authenticate_request(request)
-            if auth_error:
-                return auth_error
-            if getattr(request.user, "is_superuser", False):
-                return JsonResponse(
-                    {"detail": "Platform super admin cannot use business endpoints"},
-                    status=403,
-                )
-            return None
+            return auth_error
 
-        module, _ = _module_and_resource_from_path(request.path)
+        module = _module_from_path(request.path)
         if not module:
             return None
 
@@ -215,14 +239,12 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return auth_error
 
         if getattr(request.user, "is_superuser", False):
-            return JsonResponse(
-                {"detail": "Platform super admin cannot use business endpoints"},
-                status=403,
-            )
+            return None
 
         payload = request.jwt_payload
         role = (payload.get("role") or "").lower()
 
+        # Admin has full access
         if role == "admin":
             return None
 
@@ -245,12 +267,12 @@ class ModulePermissionMiddleware(MiddlewareMixin):
                     "resource": permission_resource,
                     "reason": "Resource not allowed",
                 },
-                status=403
+                status=403,
             )
 
         action = HTTP_ACTION_MAP.get(request.method)
         if not action:
-            return JsonResponse({"detail": "Invalid method"}, status=405)
+            return JsonResponse({"detail": "Invalid HTTP method"}, status=405)
 
         permissions = payload.get("permissions", {})
         allowed_actions = permissions.get(module, {}).get(permission_resource, [])
@@ -263,7 +285,7 @@ class ModulePermissionMiddleware(MiddlewareMixin):
                     "resource": permission_resource,
                     "action": action,
                 },
-                status=403
+                status=403,
             )
 
         return None

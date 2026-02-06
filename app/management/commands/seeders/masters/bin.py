@@ -3,7 +3,7 @@ from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.masters.ward import Ward
-from app.models.masters.bin import Bin, BinType, WasteType, BinStatus
+from app.models.assets.bin import Bin, BinType, WasteType, BinStatus
 
 
 class BinSeeder(BaseSeeder):

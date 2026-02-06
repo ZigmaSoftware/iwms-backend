@@ -1,7 +1,7 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.users.unassigned_staff_pool import UnassignedStaffPool
-from app.models.users.staffcreation import StaffOfficeDetails
-from app.models.vehicles.trip_instance import TripInstance
+from app.models.user_creations.unassigned_staff_pool import UnassignedStaffPool
+from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.transport_masters.trip_instance import TripInstance
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
 

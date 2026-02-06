@@ -5,12 +5,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.models.superadminmasters.company import Company
-from app.models.users.staffcreation import StaffOfficeDetails, StaffPersonalDetails
-from app.models.users.userType import UserType
-from app.models.users.staffUserType import StaffUserType
+from app.models.superadmin_masters.company import Company
+from app.models.user_creations.staffcreation import StaffOfficeDetails, StaffPersonalDetails
+from app.models.role_assigns.userType import UserType
+from app.models.role_assigns.staffUserType import StaffUserType
 from app.permissions.platform import PlatformSuperAdminOnly
-from app.serializers.desktop.superadminmasters.company_create_serializer import PlatformCompanyCreateSerializer
+from app.serializers.superadmin_masters.company_create_serializer import PlatformCompanyCreateSerializer
 
 
 @method_decorator(csrf_exempt, name='dispatch')

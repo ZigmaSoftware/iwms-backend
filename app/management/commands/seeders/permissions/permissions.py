@@ -1,16 +1,16 @@
 from django.db.models import F
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.screenmanagement.mainscreentype import MainScreenType
-from app.models.screenmanagement.userscreenaction import UserScreenAction
-from app.models.screenmanagement.mainscreen import MainScreen
-from app.models.screenmanagement.userscreen import UserScreen
-from app.models.screenmanagement.companyuserscreenpermission import (
+from app.models.screen_managements.mainscreentype import MainScreenType
+from app.models.screen_managements.userscreenaction import UserScreenAction
+from app.models.screen_managements.mainscreen import MainScreen
+from app.models.screen_managements.userscreen import UserScreen
+from app.models.screen_managements.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
-from app.models.users.userType import UserType
-from app.models.users.staffUserType import StaffUserType
-from app.models.superadminmasters.company import Company
+from app.models.role_assigns.userType import UserType
+from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin_masters.company import Company
 
 
 # --------------------------------------------------
@@ -63,7 +63,7 @@ class PermissionSeeder(BaseSeeder):
             actions[name] = action
 
         # --------------------------------------------------
-        # 3. SCREEN STRUCTURE (SOURCE OF TRUTH)
+        # 3. SCREEN STRUCTURE (MATCHES ROUTER GROUPS)
         # --------------------------------------------------
         screen_structure = {
             "common-masters": [
@@ -76,61 +76,74 @@ class PermissionSeeder(BaseSeeder):
                 "cities",
                 "zones",
                 "wards",
-                "bins",
             ],
-            "assets": [
-                "fuels",
+            "waste-types": [
                 "properties",
                 "subproperties",
-                "zone-property-load-tracker",
             ],
-            "role-assign": [
+            "assets": [
+                "bins",
+            ],
+            "screen-managements": [
+                "mainscreentype",
+                "mainscreens",
+                "userscreens",
+                "userscreen-action",
+                "companywisescreenpermissions",
+            ],
+            "role-assigns": [
                 "user-type",
                 "staffusertypes",
             ],
-            "user-creation": [
+            "user-creations": [
                 "users-creation",
                 "staffcreation",
                 "stafftemplate-creation",
                 "alternative-stafftemplate",
-                "stafftemplate-audit-log",
-                "route-plans",
                 "supervisor-zone-map",
-                "supervisor-zone-access-audit",
                 "unassigned-staff-pool",
+            ],
+            "process": [
+                "route-plans",
+                "zone-property-load-tracker",
             ],
             "customers": [
                 "customercreations",
                 "wastecollections",
                 "feedbacks",
             ],
-            "grievance": [
+            "grivences": [
                 "complaints",
                 "main-category",
                 "sub-category",
             ],
-            "vehicles": [
+            "transport-masters": [
                 "vehicle-type",
                 "vehicle-creation",
                 "trip-definition",
                 "trip-instance",
-                "bin-load-log",
+                "trip-attendance",
+                "fuels",
+            ],
+            "audits": [
+                "stafftemplate-audit-log",
+                "supervisor-zone-access-audit",
                 "vehicle-trip-audit",
                 "trip-exception-log",
-                "trip-attendance",
+                "bin-load-log",
             ],
         }
+
+        # --------------------------------------------------
+        # 4. CREATE MAIN SCREENS + USER SCREENS
+        # --------------------------------------------------
+        mainscreens = {}
 
         total_mains = len(screen_structure)
         if total_mains:
             MainScreen.objects.filter(order_no__lte=total_mains).update(
                 order_no=F("order_no") + total_mains
             )
-
-        # --------------------------------------------------
-        # 4. CREATE MAIN SCREENS + USER SCREENS
-        # --------------------------------------------------
-        mainscreens = {}
 
         for order, (main_name, screens) in enumerate(
             screen_structure.items(), start=1
@@ -147,7 +160,6 @@ class PermissionSeeder(BaseSeeder):
             )
             mainscreens[main_name] = main
 
-            # Push old order numbers down
             UserScreen.objects.filter(mainscreen_id=main).update(
                 order_no=F("order_no") + 1000
             )
@@ -178,22 +190,12 @@ class PermissionSeeder(BaseSeeder):
         # --------------------------------------------------
         staff_type = UserType.objects.get(name__iexact="staff")
 
-        admin_role = StaffUserType.objects.get(
-            name="admin", usertype_id=staff_type
-        )
-        driver_role = StaffUserType.objects.get(
-            name="driver", usertype_id=staff_type
-        )
-        operator_role = StaffUserType.objects.get(
-            name="operator", usertype_id=staff_type
-        )
-        supervisor_role = StaffUserType.objects.get(
-            name="supervisor", usertype_id=staff_type
-        )
+        admin_role = StaffUserType.objects.get(name="admin", usertype_id=staff_type)
+        driver_role = StaffUserType.objects.get(name="driver", usertype_id=staff_type)
+        operator_role = StaffUserType.objects.get(name="operator", usertype_id=staff_type)
+        supervisor_role = StaffUserType.objects.get(name="supervisor", usertype_id=staff_type)
 
-        platform_type = UserType.objects.filter(
-            name__iexact="platform"
-        ).first()
+        platform_type = UserType.objects.filter(name__iexact="platform").first()
         superadmin_role = None
         if platform_type:
             superadmin_role = StaffUserType.objects.filter(
@@ -205,7 +207,7 @@ class PermissionSeeder(BaseSeeder):
         # 6. PERMISSIONS (COMPANY AWARE)
         # --------------------------------------------------
         for company in companies:
-            self.log(f"---Seeding permissions for company: {company.name}---")
+            self.log(f"--- Seeding permissions for company: {company.name} ---")
 
             # ----------------------------------------------
             # ADMIN → FULL ACCESS
@@ -232,7 +234,7 @@ class PermissionSeeder(BaseSeeder):
                                 "order_no": order_no,
                                 "description": f"{action.variable_name} {screen.userscreen_name}",
                                 "is_active": True,
-                                "is_deleted": False
+                                "is_deleted": False,
                             },
                         )
 
@@ -251,7 +253,7 @@ class PermissionSeeder(BaseSeeder):
                     }
                 },
                 supervisor_role: {
-                    "vehicles": {
+                    "transport-masters": {
                         "trip-definition": ["add", "view", "edit"],
                     }
                 },
@@ -261,10 +263,6 @@ class PermissionSeeder(BaseSeeder):
                 for module_name, screens in modules.items():
                     main = mainscreens.get(module_name)
                     if not main:
-                        self.log(
-                            f"Main screen not found: {module_name}",
-                            level="warning",
-                        )
                         continue
 
                     for screen_name, action_names in screens.items():
@@ -274,15 +272,9 @@ class PermissionSeeder(BaseSeeder):
                         ).first()
 
                         if not screen:
-                            self.log(
-                                f"User screen not found: {module_name}.{screen_name}",
-                                level="warning",
-                            )
                             continue
 
-                        for order_no, action_name in enumerate(
-                            action_names, start=1
-                        ):
+                        for order_no, action_name in enumerate(action_names, start=1):
                             action = actions.get(action_name)
                             if not action:
                                 continue
@@ -307,12 +299,8 @@ class PermissionSeeder(BaseSeeder):
             # ----------------------------------------------
             if platform_type and superadmin_role:
                 for main in mainscreens.values():
-                    for screen in UserScreen.objects.filter(
-                        mainscreen_id=main
-                    ):
-                        for order_no, action in enumerate(
-                            actions.values(), start=1
-                        ):
+                    for screen in UserScreen.objects.filter(mainscreen_id=main):
+                        for order_no, action in enumerate(actions.values(), start=1):
                             CompanyUserScreenPermission.objects.get_or_create(
                                 company_id=company,
                                 usertype_id=platform_type,
@@ -328,6 +316,4 @@ class PermissionSeeder(BaseSeeder):
                                 },
                             )
 
-        self.log(
-            "--- Permission seeding completed successfully (company-wise) ---"
-        )
+        self.log("--- Permission seeding completed successfully (company-wise) ---")

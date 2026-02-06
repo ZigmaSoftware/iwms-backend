@@ -1,14 +1,14 @@
 from django.contrib.auth.hashers import make_password
 
-from app.models.users.staffcreation import StaffOfficeDetails
-from app.models.superadminmasters.company import Company
-from app.models.superadminmasters.project import Project
+from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
-from app.models.users.userType import UserType
-from app.models.users.staffUserType import StaffUserType
+from app.models.role_assigns.userType import UserType
+from app.models.role_assigns.staffUserType import StaffUserType
 
 
 DEFAULT_STAFF_PASSWORD = "Staff@123"

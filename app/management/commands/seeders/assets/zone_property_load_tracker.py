@@ -1,9 +1,9 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.assets.zone_property_load_tracker import ZonePropertyLoadTracker
+from app.models.process.zone_property_load_tracker import ZonePropertyLoadTracker
 from app.models.masters.zone import Zone
-from app.models.vehicles.vehicleCreation import VehicleCreation
-from app.models.assets.property import Property
-from app.models.assets.subproperty import SubProperty
+from app.models.transport_masters.vehicleCreation import VehicleCreation
+from app.models.waste_types.property import Property
+from app.models.waste_types.subproperty import SubProperty
 
 
 class ZonePropertyLoadTrackerSeeder(BaseSeeder):

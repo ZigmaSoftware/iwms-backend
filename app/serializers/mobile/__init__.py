@@ -1,1 +1,0 @@
-from .citizenLogin.login_serializer import LoginSerializer

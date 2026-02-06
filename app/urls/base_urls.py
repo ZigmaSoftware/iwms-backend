@@ -1,0 +1,263 @@
+from django.urls import include, path
+
+from .custom_router import GroupedRouter
+
+# ============================================================
+# IMPORTS
+# ============================================================
+
+# Common masters
+from ..viewsets.common_masters.continent_viewset import ContinentViewSet
+from ..viewsets.common_masters.country_viewset import CountryViewSet
+from ..viewsets.common_masters.state_viewset import StateViewSet
+
+# Masters
+from ..viewsets.masters.city_viewset import CityViewSet
+from ..viewsets.masters.district_viewset import DistrictViewSet
+from ..viewsets.masters.zone_viewset import ZoneViewSet
+from ..viewsets.masters.ward_viewset import WardViewSet
+
+# Assets
+from ..viewsets.assets.bin_viewset import BinViewSet
+
+# Waste types
+from ..viewsets.waste_types.property_viewset import PropertyViewSet
+from ..viewsets.waste_types.subproperty_viewset import SubPropertyViewSet
+
+# Processes
+from ..viewsets.process.routeplan_viewset import RoutePlanViewSet
+from ..viewsets.process.zone_property_load_tracker_viewset import ZonePropertyLoadTrackerViewSet
+
+# Customer modules
+from ..viewsets.customers.customercreation_viewset import CustomerCreationViewSet
+from ..viewsets.customers.wastecollection_viewset import WasteCollectionViewSet
+from ..viewsets.customers.feedback_viewset import FeedBackViewSet
+
+# Role assignments
+from ..viewsets.role_assigns.usertype_viewset import UserTypeViewSet
+from ..viewsets.role_assigns.staffusertype_viewset import StaffUserTypeViewSet
+
+# User creations
+from ..viewsets.user_creations.staff_viewset import StaffViewSet
+from ..viewsets.user_creations.staffcreation_viewset import StaffcreationViewset
+from ..viewsets.user_creations.stafftemplate_viewset import StaffTemplateViewSet
+from ..viewsets.user_creations.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
+from ..viewsets.user_creations.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
+from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
+
+# Authentication
+from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
+
+# Screen management
+from ..viewsets.screen_managements.mainscreentype_viewset import MainScreenTypeViewSet
+from ..viewsets.screen_managements.mainscreen_viewset import MainScreenViewSet
+from ..viewsets.screen_managements.userscreen_viewset import UserScreenViewSet
+from ..viewsets.screen_managements.userscreenaction_viewset import UserScreenActionViewSet
+from ..viewsets.screen_managements.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
+
+# Transport masters
+from ..viewsets.transport_masters.vehicletypecreation_viewset import VehicleTypeCreationViewSet
+from ..viewsets.transport_masters.vehicleCreation_viewset import VehicleCreationViewSet
+from ..viewsets.transport_masters.trip_definition_viewset import TripDefinitionViewSet
+from ..viewsets.transport_masters.trip_instance_viewset import TripInstanceViewSet
+from ..viewsets.transport_masters.fuel_viewset import FuelViewSet
+from ..viewsets.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
+
+# Audits
+from ..viewsets.audits.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
+from ..viewsets.audits.trip_exception_log_viewset import TripExceptionLogViewSet
+from ..viewsets.audits.bin_load_log_viewset import BinLoadLogViewSet
+from ..viewsets.audits.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
+from ..viewsets.audits.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
+
+# Grivences
+from ..viewsets.grivences.complaint_viewset import ComplaintViewSet
+from ..viewsets.grivences.main_category_viewset import MainCategoryViewSet
+from ..viewsets.grivences.sub_category_viewset import SubCategoryViewSet
+
+# Mobile
+from ..viewsets.waste_collection_bluetooth.waste_bluetooth_viewset import WasteCollectionBluetoothViewSet
+from ..viewsets.attendance_view.register import RegisterViewSet
+from ..viewsets.attendance_view.recognize import RecognizeViewSet
+from ..viewsets.attendance_view.employee_viewset import EmployeeViewSet
+from ..viewsets.attendance_view.staff_profile_viewset import StaffProfileViewSet
+from ..viewsets.attendance_view.attendance_list import AttendanceListViewSet
+
+
+router = GroupedRouter()
+
+# ============================================================
+# GROUP: COMMON MASTERS
+# ============================================================
+router.register_group("common-masters", "continents",    ContinentViewSet)
+router.register_group("common-masters", "countries",     CountryViewSet)
+router.register_group("common-masters", "states",        StateViewSet)
+
+# ============================================================
+# GROUP: MASTERS
+# ============================================================
+router.register_group("masters", "districts",     DistrictViewSet)
+router.register_group("masters", "cities",        CityViewSet)
+router.register_group("masters", "zones",         ZoneViewSet)
+router.register_group("masters", "wards",         WardViewSet)
+
+
+# ============================================================
+# GROUP: Waste-Type
+# ============================================================
+router.register_group("waste-types", "properties",    PropertyViewSet)
+router.register_group("waste-types", "subproperties", SubPropertyViewSet)
+
+
+# ============================================================
+# GROUP: Assets
+# ============================================================
+router.register_group("assets", "bins",          BinViewSet)
+
+# ============================================================
+# GROUP: SCREEN MANAGEMENT (separate group)
+# ============================================================
+router.register_group("screen-managements", "mainscreentype",        MainScreenTypeViewSet)
+router.register_group("screen-managements", "mainscreens",           MainScreenViewSet)
+router.register_group("screen-managements", "userscreens",           UserScreenViewSet)
+router.register_group("screen-managements", "userscreen-action",     UserScreenActionViewSet)
+router.register_group("screen-managements", "companywisescreenpermissions", CompanyUserScreenPermissionViewSet)
+
+
+# ============================================================
+# GROUP: USER & ROLE ASSIGNMENT
+# ============================================================
+router.register_group("role-assigns", "user-type",      UserTypeViewSet)
+router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet)
+
+# ============================================================
+# GROUP: USER CREATION
+# ============================================================
+router.register_group("user-creations", "users-creation",  StaffViewSet)
+router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
+router.register_group("user-creations", "stafftemplate-creation",  StaffTemplateViewSet)
+router.register_group("user-creations", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)
+router.register_group("user-creations", "supervisor-zone-map", SupervisorZoneMapViewSet)
+router.register_group("user-creations", "unassigned-staff-pool", UnassignedStaffPoolViewSet)
+
+
+# ============================================================
+# GROUP: PROCESS
+# ============================================================
+router.register_group("process", "route-plans",    RoutePlanViewSet)
+router.register_group("process", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
+
+
+# ============================================================
+# GROUP: AUTHENTICATION
+# ============================================================
+router.register_group("login", "login-user",      DesktopLoginViewSet)
+
+
+# ============================================================
+# GROUP: CUSTOMER MODULES
+# ============================================================
+router.register_group("customers", "customercreations", CustomerCreationViewSet)
+router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
+router.register_group("customers", "feedbacks",         FeedBackViewSet)
+
+# ============================================================
+# GROUP: GRIEVANCES
+# ============================================================
+router.register_group("grivences", "complaints", ComplaintViewSet)
+router.register_group("grivences","main-category", MainCategoryViewSet, basename="main-category")
+router.register_group("grivences","sub-category", SubCategoryViewSet, basename="sub-category")
+
+# ============================================================
+# GROUP: TRANSPORT MASTERS
+# ============================================================
+router.register_group("transport-masters", "vehicle-type",     VehicleTypeCreationViewSet)
+router.register_group("transport-masters", "vehicle-creation", VehicleCreationViewSet)
+router.register_group("transport-masters", "trip-definition",  TripDefinitionViewSet)
+router.register_group("transport-masters", "trip-instance",    TripInstanceViewSet)
+router.register_group("transport-masters", "trip-attendance", TripAttendanceViewSet)
+router.register_group("transport-masters", "fuels",         FuelViewSet)
+
+# ============================================================
+# GROUP: AUDIT
+# ============================================================
+router.register_group("audits", "vehicle-trip-audit",    VehicleTripAuditViewSet)
+router.register_group("audits", "trip-exception-log",    TripExceptionLogViewSet)
+router.register_group("audits", "bin-load-log",    BinLoadLogViewSet)
+router.register_group("audits", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
+router.register_group("audits", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
+
+
+# ============================================================
+# GROUP: MOBILE URLS
+# ============================================================
+router.register_group(
+    "mobile",
+    "login",
+    DesktopLoginViewSet,
+    basename="mobile-login",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "main-category",
+    MainCategoryViewSet,
+    basename="mobile-main-category",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "sub-category",
+    SubCategoryViewSet,
+    basename="mobile-sub-category",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "register",
+    RegisterViewSet,
+    basename="mobile-register",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "recognize",
+    RecognizeViewSet,
+    basename="mobile-recognize",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "employee",
+    EmployeeViewSet,
+    basename="mobile-employee",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "staff-profile",
+    StaffProfileViewSet,
+    basename="mobile-staff-profile",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "waste",
+    WasteCollectionBluetoothViewSet,
+    basename="mobile-waste-collection",
+    include_group_in_prefix=False,
+)
+router.register_group(
+    "mobile",
+    "attendance-list",
+    AttendanceListViewSet,
+    basename="mobile-attendance-list",
+    include_group_in_prefix=False,
+)
+
+# ============================================================
+# URLS
+# ============================================================
+urlpatterns = [
+    path("", include(router.urls)),
+]

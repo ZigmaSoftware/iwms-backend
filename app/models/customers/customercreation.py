@@ -1,15 +1,15 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
-from app.models.commonmasters.country import Country
-from app.models.commonmasters.state import State
+from app.models.common_masters.country import Country
+from app.models.common_masters.state import State
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone
-from app.models.users.userType import UserType
-from app.models.users.staffUserType import StaffUserType
+from app.models.role_assigns.userType import UserType
+from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.masters.ward import Ward
-from app.models.assets.property import Property
-from app.models.assets.subproperty import SubProperty
+from app.models.waste_types.property import Property
+from app.models.waste_types.subproperty import SubProperty
 from app.utils.comfun import generate_unique_id
 
 

@@ -1,7 +1,7 @@
 # api/management/commands/seeders/company_seeder.py
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.superadminmasters.company import Company
+from app.models.superadmin_masters.company import Company
 
 
 class CompanySeeder(BaseSeeder):

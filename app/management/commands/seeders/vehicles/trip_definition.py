@@ -1,9 +1,9 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.vehicles.trip_definition import TripDefinition
-from app.models.users.routeplan import RoutePlan
-from app.models.users.stafftemplate import StaffTemplate
-from app.models.assets.property import Property
-from app.models.assets.subproperty import SubProperty
+from app.models.transport_masters.trip_definition import TripDefinition
+from app.models.process.routeplan import RoutePlan
+from app.models.user_creations.stafftemplate import StaffTemplate
+from app.models.waste_types.property import Property
+from app.models.waste_types.subproperty import SubProperty
 
 
 class TripDefinitionSeeder(BaseSeeder):

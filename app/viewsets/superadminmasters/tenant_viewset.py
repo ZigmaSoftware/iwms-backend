@@ -2,24 +2,23 @@ from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from app.models.superadminmasters.project import Project
+from app.models.superadmin_masters.project import Project
 
 
 class TenantModelViewSet(viewsets.ModelViewSet):
     """Enterprise-safe default tenant scoping.
 
-    - Platform super admins are blocked from business CRUD endpoints.
     - Staff users are automatically scoped to their company.
     - If X-Project-Id is provided, we include project-specific rows plus company-level rows.
+    - Platform super admins may bypass tenant scoping and manage everything.
 
     This keeps behavior predictable and makes tenant isolation hard to bypass.
     """
 
     project_header = "X-Project-Id"
 
-    def _deny_platform_super_admin(self):
-        if getattr(getattr(self, "request", None), "user", None) and getattr(self.request.user, "is_superuser", False):
-            raise PermissionDenied("Platform super admin cannot use business endpoints")
+    def _is_platform_super_admin(self):
+        return getattr(getattr(self, "request", None), "user", None) and getattr(self.request.user, "is_superuser", False)
 
     def _company(self):
         return getattr(getattr(self, "request", None), "user", None) and getattr(self.request.user, "company_id", None)
@@ -43,11 +42,12 @@ class TenantModelViewSet(viewsets.ModelViewSet):
 
     def filter_queryset(self, queryset):
         queryset = super().filter_queryset(queryset)
-        self._deny_platform_super_admin()
+
+        if self._is_platform_super_admin():
+            return queryset
 
         company = self._company()
         if not company:
-            # For business endpoints, non-superusers must be tenant users.
             raise PermissionDenied("Tenant user required")
 
         # Company scoping (include global rows when present).
@@ -61,7 +61,9 @@ class TenantModelViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        self._deny_platform_super_admin()
+        if self._is_platform_super_admin():
+            return serializer.save()
+
         company = self._company()
         if not company:
             raise PermissionDenied("Tenant user required")
@@ -79,7 +81,9 @@ class TenantModelViewSet(viewsets.ModelViewSet):
         serializer.save(**save_kwargs)
 
     def perform_update(self, serializer):
-        self._deny_platform_super_admin()
+        if self._is_platform_super_admin():
+            return serializer.save()
+
         company = self._company()
         if not company:
             raise PermissionDenied("Tenant user required")

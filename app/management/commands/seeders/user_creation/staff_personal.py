@@ -1,4 +1,4 @@
-from app.models.users.staffcreation import StaffOfficeDetails, StaffPersonalDetails
+from app.models.user_creations.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 
 
 class StaffPersonalSeeder:
