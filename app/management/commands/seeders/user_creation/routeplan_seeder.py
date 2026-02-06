@@ -1,9 +1,9 @@
-from app.models.users.routeplan import RoutePlan
+from app.models.process.routeplan import RoutePlan
 from app.models.masters.district import District
 from app.models.masters.zone import Zone
-from app.models.vehicles.vehicleCreation import VehicleCreation
-from app.models.users.staffUserType import StaffUserType
-from app.models.users.staffcreation import StaffOfficeDetails
+from app.models.transport_masters.vehicleCreation import VehicleCreation
+from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.user_creations.staffcreation import StaffOfficeDetails
 
 
 class RoutePlanSeeder:

@@ -3,7 +3,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from app.models.users.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.models.customers.customercreation import CustomerCreation
 
 

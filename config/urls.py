@@ -36,11 +36,11 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 
     # APIs
-    path("api/desktop/", include("app.urls.desktop_urls")),
+    path("api/v1/", include("app.urls.base_urls")),
 
     # Swagger UI
     path(
-        "swagger/",
+        "api/v1/swagger/",
         schema_view.with_ui("swagger", cache_timeout=0),
         name="swagger-ui",
     ),

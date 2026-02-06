@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.users.userType import UserType
+from app.models.role_assigns.userType import UserType
 
 
 class PlatformDeveloperSeeder(BaseSeeder):

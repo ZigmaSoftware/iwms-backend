@@ -3,8 +3,8 @@ from datetime import timedelta
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.vehicles.trip_instance import TripInstance
-from app.models.vehicles.vehicle_trip_audit import VehicleTripAudit
+from app.models.transport_masters.trip_instance import TripInstance
+from app.models.audits.vehicle_trip_audit import VehicleTripAudit
 
 
 class VehicleTripAuditSeeder(BaseSeeder):

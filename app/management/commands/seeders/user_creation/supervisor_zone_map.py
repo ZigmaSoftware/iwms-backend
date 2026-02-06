@@ -1,10 +1,10 @@
 from django.db import transaction
 
-from app.models.users.supervisor_zone_map import SupervisorZoneMap
-from app.models.users.supervisor_zone_access_audit import SupervisorZoneAccessAudit
-from app.models.users.staffUserType import StaffUserType
-from app.models.users.userType import UserType
-from app.models.users.staffcreation import StaffOfficeDetails
+from app.models.user_creations.supervisor_zone_map import SupervisorZoneMap
+from app.models.audits.supervisor_zone_access_audit import SupervisorZoneAccessAudit
+from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.role_assigns.userType import UserType
+from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.models.masters.zone import Zone
 
 

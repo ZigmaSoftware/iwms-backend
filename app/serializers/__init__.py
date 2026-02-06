@@ -1,2 +1,1 @@
-from .desktop import * 
-from .mobile import *
+"""Top-level serializers package."""

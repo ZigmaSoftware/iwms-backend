@@ -3,12 +3,12 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.vehicles.bin_load_log import BinLoadLog
+from app.models.audits.bin_load_log import BinLoadLog
 from app.models.masters.zone import Zone
-from app.models.vehicles.vehicleCreation import VehicleCreation
-from app.models.assets.property import Property
-from app.models.assets.subproperty import SubProperty
-from app.models.masters.bin import Bin
+from app.models.transport_masters.vehicleCreation import VehicleCreation
+from app.models.waste_types.property import Property
+from app.models.waste_types.subproperty import SubProperty
+from app.models.assets.bin import Bin
 
 
 class BinLoadLogSeeder(BaseSeeder):

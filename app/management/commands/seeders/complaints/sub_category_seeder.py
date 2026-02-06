@@ -1,6 +1,6 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.complaints.main_category_citizenGrievance import MainCategory
-from app.models.complaints.sub_category_citizenGrievance import SubCategory
+from app.models.grivences.main_category_citizenGrievance import MainCategory
+from app.models.grivences.sub_category_citizenGrievance import SubCategory
 
 
 class SubCategorySeeder(BaseSeeder):

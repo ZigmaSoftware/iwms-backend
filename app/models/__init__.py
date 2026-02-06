@@ -1,145 +1,227 @@
 """
 Aggregate exports for the models package.
+Structured to mirror API router groupings.
 """
 
-# Common Masters
-from .commonmasters.continent import Continent
-from .commonmasters.country import Country
-from .commonmasters.state import State
+# ============================================================
+# GROUP: COMMON MASTERS
+# ============================================================
+from .common_masters.continent import Continent
+from .common_masters.country import Country
+from .common_masters.state import State
 
-#Masters
+
+# ============================================================
+# GROUP: MASTERS
+# ============================================================
 from .masters.district import District
 from .masters.city import City
 from .masters.zone import Zone
 from .masters.ward import Ward
-from .masters.bin import Bin
 
-# Tenancy
-from .superadminmasters.company import Company
-from .superadminmasters.project import Project
 
-# Assets
-from .assets.fuel import Fuel
-from .assets.property import Property
-from .assets.subproperty import SubProperty
-from .assets.zone_property_load_tracker import ZonePropertyLoadTracker
+# ============================================================
+# GROUP: ASSETS
+# ============================================================
+from .assets.bin import Bin
+from .transport_masters.fuel import Fuel
 
-# Staff
-from .users.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 
-# Users & Access
-from .users.userType import UserType
-from .users.staffUserType import StaffUserType
-from .superadminmasters.auth_user import User
-from .screenmanagement.mainscreentype import MainScreenType
-from .screenmanagement.mainscreen import MainScreen
-from .screenmanagement.userscreen import UserScreen
-from .screenmanagement.userscreenaction import UserScreenAction
-from .screenmanagement.companyuserscreenpermission import CompanyUserScreenPermission
-from .users.loginAudit import LoginAudit
-from .users.auditlog import AuditLog
+# ============================================================
+# GROUP: TENANCY / SUPERADMIN
+# ============================================================
+from .superadmin_masters.company import Company
+from .superadmin_masters.project import Project
+from .superadmin_masters.auth_user import User
 
-# Customer / Waste / Feedback
+
+# ============================================================
+# GROUP: WASTE TYPES
+# ============================================================
+from .waste_types.property import Property
+from .waste_types.subproperty import SubProperty
+
+
+# ============================================================
+# GROUP: PROCESS
+# ============================================================
+from .process.zone_property_load_tracker import ZonePropertyLoadTracker
+from .process.routeplan import RoutePlan
+
+
+# ============================================================
+# GROUP: USERS & ROLE ASSIGNMENT
+# ============================================================
+from .role_assigns.userType import UserType
+from .role_assigns.staffUserType import StaffUserType
+
+
+# ============================================================
+# GROUP: SCREEN MANAGEMENT / PERMISSIONS
+# ============================================================
+from .screen_managements.mainscreentype import MainScreenType
+from .screen_managements.mainscreen import MainScreen
+from .screen_managements.userscreen import UserScreen
+from .screen_managements.userscreenaction import UserScreenAction
+from .screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
+
+
+# ============================================================
+# GROUP: USER CREATION & STAFF
+# ============================================================
+from .user_creations.staffcreation import (
+    StaffOfficeDetails,
+    StaffPersonalDetails,
+)
+from .user_creations.stafftemplate import StaffTemplate
+from .user_creations.alternative_staff_template import AlternativeStaffTemplate
+from .user_creations.supervisor_zone_map import SupervisorZoneMap
+from .user_creations.unassigned_staff_pool import UnassignedStaffPool
+
+
+# ============================================================
+# GROUP: AUTH / LOGIN / AUDIT (USER)
+# ============================================================
+from .user_creations.loginAudit import LoginAudit
+from .user_creations.auditlog import AuditLog
+
+
+# ============================================================
+# GROUP: CUSTOMER MODULES
+# ============================================================
 from .customers.customercreation import CustomerCreation
 from .customers.wastecollection import WasteCollection
 from .customers.feedback import FeedBack
-from .complaints.complaints import Complaint
 
-# Citizen Grievance
-from .complaints.main_category_citizenGrievance import MainCategory
-from .complaints.sub_category_citizenGrievance import SubCategory
 
-# Bluetooth Waste Collection
-from .users.waste_collection_bluetooth import (
+# ============================================================
+# GROUP: GRIEVANCES
+# ============================================================
+from .grivences.complaints import Complaint
+from .grivences.main_category_citizenGrievance import MainCategory
+from .grivences.sub_category_citizenGrievance import SubCategory
+
+
+# ============================================================
+# GROUP: BLUETOOTH / MOBILE WASTE COLLECTION
+# ============================================================
+from .user_creations.waste_collection_bluetooth import (
     WasteCollectionSub,
     WasteType,
     WasteCollectionMain,
 )
 
-# Staff Templates / Routes
-from .users.stafftemplate import StaffTemplate
-from .users.alternative_staff_template import AlternativeStaffTemplate
-from .users.staff_template_audit_log import StaffTemplateAuditLog
-from .users.routeplan import RoutePlan
-from .users.supervisor_zone_map import SupervisorZoneMap
-from .users.supervisor_zone_access_audit import SupervisorZoneAccessAudit
-from .users.unassigned_staff_pool import UnassignedStaffPool
 
-# Attendance
-from .users.attendance import Employee, Recognized
+# ============================================================
+# GROUP: ATTENDANCE (MOBILE)
+# ============================================================
+from .user_creations.attendance import Employee, Recognized
 
-# Vehicles / Trips
-from .vehicles.vehicleTypeCreation import VehicleTypeCreation
-from .vehicles.vehicleCreation import VehicleCreation
-from .vehicles.trip_definition import TripDefinition
-from .vehicles.trip_instance import TripInstance
-from .vehicles.trip_attendance import TripAttendance
-from .vehicles.trip_exception_log import TripExceptionLog
-from .vehicles.vehicle_trip_audit import VehicleTripAudit
-from .vehicles.bin_load_log import BinLoadLog
 
+# ============================================================
+# GROUP: TRANSPORT MASTERS & TRIPS
+# ============================================================
+from .transport_masters.vehicleTypeCreation import VehicleTypeCreation
+from .transport_masters.vehicleCreation import VehicleCreation
+from .transport_masters.trip_definition import TripDefinition
+from .transport_masters.trip_instance import TripInstance
+from .transport_masters.trip_attendance import TripAttendance
+
+
+# ============================================================
+# GROUP: AUDITS
+# ============================================================
+from .audits.staff_template_audit_log import StaffTemplateAuditLog
+from .audits.supervisor_zone_access_audit import SupervisorZoneAccessAudit
+from .audits.trip_exception_log import TripExceptionLog
+from .audits.vehicle_trip_audit import VehicleTripAudit
+from .audits.bin_load_log import BinLoadLog
+
+
+# ============================================================
+# EXPORTS
+# ============================================================
 __all__ = [
-    # Common Master
+    # Common Masters
     "Continent",
     "Country",
     "State",
-    #Master
+
+    # Masters
     "District",
     "City",
     "Zone",
     "Ward",
+
+    # Assets
     "Bin",
+    "Fuel",
+
     # Tenancy
     "Company",
     "Project",
-    # Assets
-    "Fuel",
+    "User",
+
+    # Waste Types
     "Property",
     "SubProperty",
+
+    # Process
     "ZonePropertyLoadTracker",
-    # Staff
-    "StaffOfficeDetails",
-    "StaffPersonalDetails",
-    # Users & Access
+    "RoutePlan",
+
+    # Users & Roles
     "UserType",
     "StaffUserType",
-    "User",
+
+    # Screen Management
     "MainScreenType",
     "MainScreen",
     "UserScreen",
     "UserScreenAction",
     "CompanyUserScreenPermission",
+
+    # User Creation & Staff
+    "StaffOfficeDetails",
+    "StaffPersonalDetails",
+    "StaffTemplate",
+    "AlternativeStaffTemplate",
+    "SupervisorZoneMap",
+    "UnassignedStaffPool",
+
+    # Auth / Audit
     "LoginAudit",
     "AuditLog",
-    # Customer / Waste / Feedback
+
+    # Customers
     "CustomerCreation",
     "WasteCollection",
     "FeedBack",
+
+    # Grievances
     "Complaint",
-    # Citizen Grievance
     "MainCategory",
     "SubCategory",
-    # Bluetooth Waste Collection
+
+    # Bluetooth Waste
     "WasteCollectionSub",
     "WasteType",
     "WasteCollectionMain",
-    # Staff Templates / Routes
-    "StaffTemplate",
-    "AlternativeStaffTemplate",
-    "StaffTemplateAuditLog",
-    "RoutePlan",
-    "SupervisorZoneMap",
-    "SupervisorZoneAccessAudit",
-    "UnassignedStaffPool",
+
     # Attendance
     "Employee",
     "Recognized",
-    # Vehicles / Trips
+
+    # Transport
     "VehicleTypeCreation",
     "VehicleCreation",
     "TripDefinition",
     "TripInstance",
     "TripAttendance",
+
+    # Audits
+    "StaffTemplateAuditLog",
+    "SupervisorZoneAccessAudit",
     "TripExceptionLog",
     "VehicleTripAudit",
     "BinLoadLog",

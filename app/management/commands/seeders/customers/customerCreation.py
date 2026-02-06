@@ -3,20 +3,20 @@ from django.contrib.auth.hashers import make_password
 
 from app.management.commands.seeders.base import BaseSeeder
 
-from app.models.commonmasters.country import Country
-from app.models.commonmasters.state import State
+from app.models.common_masters.country import Country
+from app.models.common_masters.state import State
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 
 from app.models.customers.customercreation import CustomerCreation
-from app.models.users.userType import UserType
+from app.models.role_assigns.userType import UserType
 
-from app.models.assets.property import Property
-from app.models.assets.subproperty import SubProperty
-from app.models.superadminmasters.company import Company
-from app.models.superadminmasters.project import Project
+from app.models.waste_types.property import Property
+from app.models.waste_types.subproperty import SubProperty
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 DEFAULT_CUSTOMER_PASSWORD = "Customer@123"

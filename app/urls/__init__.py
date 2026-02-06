@@ -1,1 +1,1 @@
-from .desktop_urls import *
+from .base_urls import *

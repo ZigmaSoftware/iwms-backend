@@ -1,6 +1,6 @@
 # seeders/masters/continent.py
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.commonmasters.continent import Continent
+from app.models.common_masters.continent import Continent
 
 class ContinentSeeder(BaseSeeder):
     name = "continent"

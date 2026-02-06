@@ -3,10 +3,10 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.models.superadminmasters.company import Company
-from app.models.superadminmasters.project import Project
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.permissions.platform import PlatformSuperAdminOnly, CompanyAdminOnly
-from app.serializers.desktop.superadminmasters.project_create_serializer import ProjectCreateSerializer
+from app.serializers.superadmin_masters.project_create_serializer import ProjectCreateSerializer
 
 
 class PlatformFirstProjectCreateView(APIView):

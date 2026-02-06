@@ -126,20 +126,23 @@ DATABASES = {
     }
 }
 
-
 SWAGGER_SETTINGS = {
+    "USE_SESSION_AUTH": False,
+
     "SECURITY_DEFINITIONS": {
         "Bearer": {
             "type": "apiKey",
             "name": "Authorization",
             "in": "header",
-            "description": "Enter token as: Bearer <access_token>",
+            "description": "Use: Bearer <JWT access token>",
         }
     },
+
+    # This is IMPORTANT for your grouped router
     "DEFAULT_AUTO_SCHEMA_CLASS": "app.utils.swagger.GroupedSwaggerAutoSchema",
+
     "TAGS_SORTER": "alpha",
 }
-
 
 # -------------------------------------------------------
 # Password Validators

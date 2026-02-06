@@ -2,9 +2,9 @@ from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
 from django.core.validators import RegexValidator
 
-from ..commonmasters.continent import Continent
-from ..commonmasters.country import Country
-from ..commonmasters.state import State
+from ..common_masters.continent import Continent
+from ..common_masters.country import Country
+from ..common_masters.state import State
 from .district import District
 from .city import City
 from app.utils.comfun import generate_unique_id
