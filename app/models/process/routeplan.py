@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.models.masters.city import City
 from app.models.masters.district import District
@@ -14,7 +15,7 @@ def generate_routeplan_id():
     return f"RTP-{generate_unique_id()}"
 
 
-class RoutePlan(CompanyProjectMixin, models.Model):
+class RoutePlan(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         unique=True,
@@ -76,9 +77,8 @@ class RoutePlan(CompanyProjectMixin, models.Model):
         db_column="project_id",
     )
 
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "api_route_plan"

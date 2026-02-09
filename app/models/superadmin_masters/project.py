@@ -1,6 +1,7 @@
 from django.db import models
 
 from .company import Company
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
 
@@ -8,7 +9,7 @@ def generate_project_id():
     return f"PROJ-{generate_unique_id()}"
 
 
-class Project(models.Model):
+class Project(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -26,9 +27,6 @@ class Project(models.Model):
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name"]

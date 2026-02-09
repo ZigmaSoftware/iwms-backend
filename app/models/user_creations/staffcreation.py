@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from ..role_assigns.userType import UserType
 from ..role_assigns.staffUserType import StaffUserType
@@ -16,7 +17,7 @@ def generate_staff_unique_id():
     return f"STC-{generate_unique_id()}"
 
 
-class StaffOfficeDetails(CompanyProjectMixin, models.Model):
+class StaffOfficeDetails(CompanyProjectMixin, BaseMaster):
     staff_unique_id = models.CharField(
         max_length=30,
         unique=True,
@@ -85,10 +86,6 @@ class StaffOfficeDetails(CompanyProjectMixin, models.Model):
         default=False,
         help_text="Django admin-site access flag (not a business role).",
     )
-
-    is_active = models.BooleanField(default=True)
-
-    is_deleted = models.BooleanField(default=False)
 
     is_superuser = models.BooleanField(default=False)
 

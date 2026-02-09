@@ -1,6 +1,7 @@
 from django.db import models
 from app.models.superadmin_masters.company import Company
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from ..common_masters.country import Country
 from ..common_masters.state import State
 from .district import District
@@ -13,7 +14,7 @@ def generate_city_id():
     return f"CITY-{generate_unique_id()}"
 
 
-class City(CompanyProjectMixin, models.Model):
+class City(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -25,28 +26,24 @@ class City(CompanyProjectMixin, models.Model):
         Continent,
         on_delete=models.PROTECT,
         related_name="cities",
-       db_column="continent_id",
     )
 
     country_id = models.ForeignKey(
         Country,
         on_delete=models.PROTECT,
         related_name="cities",
-       db_column="country_id",
     )
 
     state_id = models.ForeignKey(
         State,
         on_delete=models.PROTECT,
         related_name="cities",
-         db_column="state_id",
     )
 
     district_id = models.ForeignKey(
         District,
         on_delete=models.PROTECT,
         related_name="cities",
-        db_column="district_id",
     )
 
     name = models.CharField(max_length=100)
@@ -63,9 +60,6 @@ class City(CompanyProjectMixin, models.Model):
         related_name="cities",
       db_column="project_id",
     )
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name"]

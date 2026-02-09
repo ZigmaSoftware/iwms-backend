@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from django.core.validators import RegexValidator
 from app.utils.comfun import generate_unique_id
 
@@ -29,7 +30,7 @@ hex_color_validator = RegexValidator(
 )
 
 
-class Ward(CompanyProjectMixin, models.Model):
+class Ward(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -37,12 +38,12 @@ class Ward(CompanyProjectMixin, models.Model):
         editable=False
     )
 
-    continent_id = models.ForeignKey("Continent", on_delete=models.PROTECT, db_column="continent_id")
-    country_id = models.ForeignKey("Country", on_delete=models.PROTECT, db_column="country_id")
-    state_id = models.ForeignKey("State", on_delete=models.PROTECT, db_column="state_id")
-    district_id = models.ForeignKey("District", on_delete=models.PROTECT, db_column="district_id")
-    city_id = models.ForeignKey("City", on_delete=models.PROTECT, db_column="city_id")
-    zone_id = models.ForeignKey("Zone", on_delete=models.PROTECT, db_column="zone_id")
+    continent_id = models.ForeignKey("Continent", on_delete=models.PROTECT)
+    country_id = models.ForeignKey("Country", on_delete=models.PROTECT)
+    state_id = models.ForeignKey("State", on_delete=models.PROTECT)
+    district_id = models.ForeignKey("District", on_delete=models.PROTECT)
+    city_id = models.ForeignKey("City", on_delete=models.PROTECT)
+    zone_id = models.ForeignKey("Zone", on_delete=models.PROTECT)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
 
@@ -64,9 +65,6 @@ class Ward(CompanyProjectMixin, models.Model):
         max_length=20,
         choices=AreaType.choices
     )
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name"]

@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from .mainscreentype import MainScreenType
 
@@ -8,7 +9,7 @@ def generate_mainscreen_id():
     return f"MAINSCREEN-{generate_unique_id()}"
 
 
-class MainScreen(CompanyProjectMixin, models.Model):
+class MainScreen(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -30,9 +31,6 @@ class MainScreen(CompanyProjectMixin, models.Model):
     order_no = models.IntegerField(unique=True)
 
     description = models.CharField(max_length=255, blank=True, null=True)
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

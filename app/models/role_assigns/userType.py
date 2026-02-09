@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
 
@@ -7,7 +8,7 @@ def generate_usertype_id():
     return f"UTYPE-{generate_unique_id()}"
 
 
-class UserType(CompanyProjectMixin, models.Model):
+class UserType(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,            # FIXED
@@ -20,9 +21,6 @@ class UserType(CompanyProjectMixin, models.Model):
         max_length=50,
         unique=True
     )
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)   # FIXED
 
     class Meta:
         ordering = ["name"]   # better than id, and alphabetic

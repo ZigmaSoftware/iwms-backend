@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from ..common_masters.country import Country
 from ..common_masters.state import State
 from ..common_masters.continent import Continent
@@ -8,7 +9,7 @@ from app.utils.comfun import generate_unique_id
 def generate_district_id():
     return f"DIST-{generate_unique_id()}"
 
-class District(CompanyProjectMixin, models.Model):
+class District(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -38,9 +39,6 @@ class District(CompanyProjectMixin, models.Model):
     )
 
     name = models.CharField(max_length=100)
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name"]

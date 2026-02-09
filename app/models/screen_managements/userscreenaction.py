@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
 
@@ -7,7 +8,7 @@ def generate_userscreenaction_id():
     return f"USERSCRNACT-{generate_unique_id()}"
 
 
-class UserScreenAction(CompanyProjectMixin, models.Model):
+class UserScreenAction(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -18,9 +19,6 @@ class UserScreenAction(CompanyProjectMixin, models.Model):
 
     action_name = models.CharField(max_length=50, unique=True)
     variable_name = models.CharField(max_length=50, unique=True)
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from .continent import Continent
 from app.utils.comfun import generate_unique_id
 
@@ -8,7 +9,7 @@ def generate_country_id():
     return f"COUNTRY-{generate_unique_id()}"
 
 
-class Country(CompanyProjectMixin, models.Model):
+class Country(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -26,9 +27,6 @@ class Country(CompanyProjectMixin, models.Model):
     name = models.CharField(max_length=100)
     currency = models.CharField(max_length=20, blank=True, null=True)
     mob_code = models.CharField(max_length=5, blank=True, null=True)
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name"]
