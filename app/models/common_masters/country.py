@@ -9,20 +9,6 @@ def generate_country_id():
 
 
 class Country(BaseMaster):
-    company_id = models.ForeignKey(
-        "api.Company",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        "api.Project",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
 
     unique_id = models.CharField(
         max_length=30,
@@ -35,7 +21,8 @@ class Country(BaseMaster):
         Continent,
         on_delete=models.PROTECT,
         related_name="countries",
-        to_field="unique_id"
+        to_field="unique_id",
+        db_column="continent_id",
     )
 
     name = models.CharField(max_length=100)

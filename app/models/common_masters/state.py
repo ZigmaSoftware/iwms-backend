@@ -10,20 +10,6 @@ def generate_state_id():
 
 
 class State(BaseMaster):
-    company_id = models.ForeignKey(
-        "api.Company",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        "api.Project",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
 
     unique_id = models.CharField(
         max_length=30,
@@ -36,14 +22,16 @@ class State(BaseMaster):
         Country,
         on_delete=models.PROTECT,
         related_name="states",
-        to_field="unique_id"
+        to_field="unique_id",
+        db_column="country_id",
     )
 
     continent_id = models.ForeignKey(
         Continent,
         on_delete=models.PROTECT,
         related_name="states",
-        to_field="unique_id"
+        to_field="unique_id",
+        db_column="continent_id",
     )
 
     name = models.CharField(max_length=100)

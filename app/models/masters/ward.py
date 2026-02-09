@@ -35,6 +35,7 @@ class Ward(BaseMaster):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
+        related_name="wards",
         db_column="company_id",
     )
     project_id = models.ForeignKey(
@@ -42,6 +43,7 @@ class Ward(BaseMaster):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
+        related_name="wards",
         db_column="project_id",
     )
 
@@ -52,12 +54,12 @@ class Ward(BaseMaster):
         editable=False
     )
 
-    continent_id = models.ForeignKey("Continent", on_delete=models.PROTECT)
-    country_id = models.ForeignKey("Country", on_delete=models.PROTECT)
-    state_id = models.ForeignKey("State", on_delete=models.PROTECT)
-    district_id = models.ForeignKey("District", on_delete=models.PROTECT)
-    city_id = models.ForeignKey("City", on_delete=models.PROTECT)
-    zone_id = models.ForeignKey("Zone", on_delete=models.PROTECT)
+    continent_id = models.ForeignKey("Continent", on_delete=models.PROTECT,  related_name="wards",  db_column="continent_id",)
+    country_id = models.ForeignKey("Country", on_delete=models.PROTECT,related_name="wards", db_column="country_id",)
+    state_id = models.ForeignKey("State", on_delete=models.PROTECT,related_name="wards",  db_column="state_id",)
+    district_id = models.ForeignKey("District", on_delete=models.PROTECT, related_name="wards", db_column="district_id",)
+    city_id = models.ForeignKey("City", on_delete=models.PROTECT, related_name="wards", db_column="city_id",)
+    zone_id = models.ForeignKey("Zone", on_delete=models.PROTECT, related_name="wards", db_column="zone_id",)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
 
