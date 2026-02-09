@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from django.db.models import Max
 from app.utils.comfun import generate_unique_id
 from .staffcreation import StaffOfficeDetails
@@ -13,7 +12,7 @@ from app.models.superadmin_masters.project import Project
 def generate_stafftemplate_id():
     return f"STFTEMP-{generate_unique_id(length=6)}"
 
-class StaffTemplate(CompanyProjectMixin, models.Model):
+class StaffTemplate(models.Model):
     
     class ApprovalStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"

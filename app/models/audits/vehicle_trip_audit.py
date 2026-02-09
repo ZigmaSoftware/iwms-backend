@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.models.transport_masters.trip_instance import TripInstance
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.utils.comfun import generate_unique_id
@@ -9,11 +8,25 @@ def generate_vehicle_trip_audit_id():
     return f"VTA-{generate_unique_id()}"    
 
 
-class VehicleTripAudit(CompanyProjectMixin, models.Model):
+class VehicleTripAudit(models.Model):
     """
     GPS & motion audit for trip replay, idle detection,
     and compliance analysis.
     """
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
 
     unique_id = models.CharField(
         max_length=40,

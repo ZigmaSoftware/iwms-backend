@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from .userType import UserType
@@ -9,7 +8,22 @@ def generate_staff_usertype_id():
     return f"STUSRTYPE-{generate_unique_id()}"
 
 
-class StaffUserType(CompanyProjectMixin, BaseMaster):
+class StaffUserType(BaseMaster):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     STAFF_ROLE_CHOICES = [
         ("admin", "Admin"),
         ("operator", "Operator"),

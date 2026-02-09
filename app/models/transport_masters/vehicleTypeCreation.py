@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
@@ -8,7 +7,7 @@ from app.models.superadmin_masters.project import Project
 def generate_vehicle_type_id():
     """Generate a unique ID prefixed with VHTYPE."""
     return f"VHTYPE-{generate_unique_id()}"
-class VehicleTypeCreation(CompanyProjectMixin, BaseMaster):
+class VehicleTypeCreation(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         unique=True,

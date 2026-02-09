@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
@@ -8,7 +7,7 @@ from app.models.superadmin_masters.project import Project
 def generate_supervisor_zone_access_audit_id():
     return f"SZAA-{generate_unique_id()}"
 
-class SupervisorZoneAccessAudit(CompanyProjectMixin, models.Model):
+class SupervisorZoneAccessAudit(models.Model):
     # -----------------------------
     # SYSTEM IDENTITY
     # -----------------------------

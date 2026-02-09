@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from ..masters.ward import Ward
@@ -33,7 +32,7 @@ class WasteType(models.TextChoices):
     MIXED = "mixed", "Mixed"
 
 
-class Bin(CompanyProjectMixin, BaseMaster):
+class Bin(BaseMaster):
     # ---------- Identity ----------
     unique_id = models.CharField(
         max_length=40,

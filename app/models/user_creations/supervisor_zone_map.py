@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.utils.comfun import generate_unique_id
 from .staffcreation import StaffOfficeDetails
 from app.models.superadmin_masters.company import Company
@@ -10,7 +9,7 @@ def generate_supervisor_zone_map_id():
     return f"SUPZONE-{generate_unique_id()}"
 
 
-class SupervisorZoneMap(CompanyProjectMixin, models.Model):
+class SupervisorZoneMap(models.Model):
     # -----------------------------
     # SYSTEM IDENTITY
     # -----------------------------

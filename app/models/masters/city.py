@@ -1,6 +1,5 @@
 from django.db import models
 from app.models.superadmin_masters.company import Company
-from app.utils.tenancy import CompanyProjectMixin
 from app.utils.base_models import BaseMaster
 from ..common_masters.country import Country
 from ..common_masters.state import State
@@ -14,7 +13,7 @@ def generate_city_id():
     return f"CITY-{generate_unique_id()}"
 
 
-class City(CompanyProjectMixin, BaseMaster):
+class City(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,

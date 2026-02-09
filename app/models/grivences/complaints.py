@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.utils.base_models import BaseMaster
 from app.models.customers.customercreation import CustomerCreation
 from app.models.masters.zone import Zone
@@ -34,7 +33,22 @@ def complaint_upload_path(instance, filename):
     return f"uploads/complaints/{instance.unique_id}_{filename}"
 
 
-class Complaint(CompanyProjectMixin, BaseMaster):
+class Complaint(BaseMaster):
+
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
 
     class StatusChoices(models.TextChoices):
         PROGRESSING = "PROGRESSING", "Progressing"

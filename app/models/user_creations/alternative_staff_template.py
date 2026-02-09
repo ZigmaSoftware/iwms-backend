@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from django.db.models import Max
 from app.utils.comfun import generate_unique_id
 from .staffcreation import StaffOfficeDetails
@@ -11,7 +10,7 @@ def generate_alternative_staff_template_id():
     return f"ALTSTAFFTEMPLATE-{generate_unique_id()}"
 
 
-class AlternativeStaffTemplate(CompanyProjectMixin, models.Model):
+class AlternativeStaffTemplate(models.Model):
     """
     Purpose:
     Tracks temporary or permanent staff substitutions against a staff template

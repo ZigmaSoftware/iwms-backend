@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.utils.base_models import BaseMaster
 from app.models.common_masters.country import Country
 from app.models.common_masters.state import State
@@ -18,7 +17,22 @@ def generate_customer_id():
     """Generate readable prefixed ID, e.g., CUS-20251028001"""
     return f"CUS-{generate_unique_id()}"
 
-class CustomerCreation(CompanyProjectMixin, BaseMaster):
+class CustomerCreation(BaseMaster):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     class IDProofType(models.TextChoices):
         AADHAAR = "AADHAAR", "Aadhaar"
         VOTER_ID = "VOTER_ID", "Voter ID"

@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.models.masters.city import City
@@ -15,7 +14,7 @@ def generate_routeplan_id():
     return f"RTP-{generate_unique_id()}"
 
 
-class RoutePlan(CompanyProjectMixin, BaseMaster):
+class RoutePlan(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         unique=True,
