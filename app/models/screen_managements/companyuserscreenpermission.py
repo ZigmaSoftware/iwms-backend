@@ -1,5 +1,5 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.models.screen_managements.mainscreen import MainScreen
 from app.models.screen_managements.userscreen import UserScreen
@@ -13,7 +13,15 @@ def generate_companyuserscreenpermission_id():
     return f"CMPUSERSCRNPERM-{generate_unique_id()}"
 
 
-class CompanyUserScreenPermission(CompanyProjectMixin, models.Model):
+class CompanyUserScreenPermission(BaseMaster):
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     unique_id = models.CharField(
         max_length=60,
         primary_key=True,
@@ -65,8 +73,6 @@ class CompanyUserScreenPermission(CompanyProjectMixin, models.Model):
     order_no = models.IntegerField()
     description = models.CharField(max_length=255, blank=True, null=True)
 
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

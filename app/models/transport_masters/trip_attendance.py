@@ -1,9 +1,10 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.models.transport_masters.trip_instance import TripInstance
 from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 def generate_trip_attendance_id():
     return f"TRIPATT-{generate_unique_id()}"    
 
@@ -15,7 +16,7 @@ def trip_attendance_upload_path(instance, filename):
     return f"uploads/trip_attendance/{role}/{filename}"
 
 
-class TripAttendance(CompanyProjectMixin, models.Model):
+class TripAttendance(models.Model):
     """
     Periodic attendance capture during a running trip.
     Enforces staff presence, prevents swapping & malpractice.
@@ -54,6 +55,18 @@ class TripAttendance(CompanyProjectMixin, models.Model):
         related_name="trip_attendance",
         db_column="vehicle_id",
         to_field="unique_id"
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="trip_attendances",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="trip_attendances",
+        db_column="project_id",
     )
 
     attendance_time = models.DateTimeField()

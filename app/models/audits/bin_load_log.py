@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.models.masters.zone import Zone
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.waste_types.property import Property
@@ -12,7 +11,22 @@ def generate_bin_load_log_id():
     return f"BLL-{generate_unique_id()}"
 
 
-class BinLoadLog(CompanyProjectMixin, models.Model):
+class BinLoadLog(models.Model):
+
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
 
     class SourceType(models.TextChoices):
         WEIGHBRIDGE = "WEIGHBRIDGE", "Weighbridge"

@@ -69,6 +69,8 @@ from ..viewsets.audits.trip_exception_log_viewset import TripExceptionLogViewSet
 from ..viewsets.audits.bin_load_log_viewset import BinLoadLogViewSet
 from ..viewsets.audits.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
 from ..viewsets.audits.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
+from ..viewsets.audits.audit_log_viewset import AuditLogViewSet
+from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
 
 # Grivences
 from ..viewsets.grivences.complaint_viewset import ComplaintViewSet
@@ -77,6 +79,9 @@ from ..viewsets.grivences.sub_category_viewset import SubCategoryViewSet
 
 # Mobile
 from ..viewsets.waste_collection_bluetooth.waste_bluetooth_viewset import WasteCollectionBluetoothViewSet
+from ..viewsets.waste_collection_bluetooth.waste_type_viewset import WasteTypeViewSet
+from ..viewsets.waste_collection_bluetooth.waste_collection_sub_viewset import WasteCollectionSubViewSet
+from ..viewsets.waste_collection_bluetooth.waste_collection_main_viewset import WasteCollectionMainViewSet
 from ..viewsets.attendance_view.register import RegisterViewSet
 from ..viewsets.attendance_view.recognize import RecognizeViewSet
 from ..viewsets.attendance_view.employee_viewset import EmployeeViewSet
@@ -92,6 +97,7 @@ router = GroupedRouter()
 router.register_group("common-masters", "continents",    ContinentViewSet)
 router.register_group("common-masters", "countries",     CountryViewSet)
 router.register_group("common-masters", "states",        StateViewSet)
+
 
 # ============================================================
 # GROUP: MASTERS
@@ -133,7 +139,7 @@ router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet)
 # ============================================================
 # GROUP: USER CREATION
 # ============================================================
-router.register_group("user-creations", "users-creation",  StaffViewSet)
+# router.register_group("user-creations", "users-creation",  StaffViewSet)
 router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creations", "stafftemplate-creation",  StaffTemplateViewSet)
 router.register_group("user-creations", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)
@@ -186,6 +192,15 @@ router.register_group("audits", "trip-exception-log",    TripExceptionLogViewSet
 router.register_group("audits", "bin-load-log",    BinLoadLogViewSet)
 router.register_group("audits", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
 router.register_group("audits", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
+router.register_group("audits", "audit-log", AuditLogViewSet)
+router.register_group("audits", "login-audit", LoginAuditViewSet)
+
+# ============================================================
+# GROUP: WASTE BLUETOOTH
+# ============================================================
+router.register_group("waste-bluetooth", "types", WasteTypeViewSet)
+router.register_group("waste-bluetooth", "collection-sub", WasteCollectionSubViewSet)
+router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainViewSet)
 
 
 # ============================================================

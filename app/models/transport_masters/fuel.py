@@ -1,14 +1,15 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
-import uuid
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id  # optional if you want prefixed IDs
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 def generate_fueltype_id():
     # Prefix for traceability inside the ERP ecosystem
     return f"FUEL-{generate_unique_id()}"
 
 
-class Fuel(CompanyProjectMixin, models.Model):
+class Fuel(BaseMaster):
     """
     Transport Master: Fuel Type
     -----------------------------------
@@ -27,11 +28,20 @@ class Fuel(CompanyProjectMixin, models.Model):
     # Business fields
     fuel_type = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="fuels",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="fuels",
+        db_column="project_id",
+    )
 
     # Status flags
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
-
     class Meta:
         verbose_name = "Fuel Type"
         verbose_name_plural = "Fuel Types"

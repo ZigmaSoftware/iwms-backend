@@ -82,12 +82,16 @@ class StaffTemplateViewSet(TenantModelViewSet):
             created_by=user,
             updated_by=user,
             approved_by=serializer.validated_data.get("approved_by"),
+            company_id=getattr(user, "company_id", None),
+            project_id=getattr(user, "project_id", None),
         )
         self._log_audit(
             user=user,
             action=StaffTemplateAuditLog.Action.CREATE,
             entity_id=instance.unique_id,
             remarks=None,
+            company_id=instance.company_id,
+            project_id=instance.project_id,
         )
 
     def perform_update(self, serializer):
@@ -97,12 +101,16 @@ class StaffTemplateViewSet(TenantModelViewSet):
         instance = serializer.save(
             updated_by=user or serializer.instance.updated_by,
             approved_by=serializer.validated_data.get("approved_by", serializer.instance.approved_by),
+            company_id=getattr(serializer.instance, "company_id", None) or getattr(user, "company_id", None),
+            project_id=getattr(serializer.instance, "project_id", None) or getattr(user, "project_id", None),
         )
         self._log_audit(
             user=user,
             action=StaffTemplateAuditLog.Action.MODIFY,
             entity_id=instance.unique_id,
             remarks=None,
+            company_id=instance.company_id,
+            project_id=instance.project_id,
         )
 
     def _resolve_performed_role(self, user):
@@ -114,7 +122,7 @@ class StaffTemplateViewSet(TenantModelViewSet):
             return StaffTemplateAuditLog.PerformedRole.SUPERVISOR
         return StaffTemplateAuditLog.PerformedRole.SUPERVISOR
 
-    def _log_audit(self, user, action, entity_id, remarks=None):
+    def _log_audit(self, user, action, entity_id, remarks=None, company_id=None, project_id=None):
         if not user:
             return
         StaffTemplateAuditLog.objects.create(
@@ -124,4 +132,6 @@ class StaffTemplateViewSet(TenantModelViewSet):
             performed_by=user,
             performed_role=self._resolve_performed_role(user),
             change_remarks=remarks if isinstance(remarks, str) else None,
+            company_id=company_id or getattr(user, "company_id", None),
+            project_id=project_id or getattr(user, "project_id", None),
         )

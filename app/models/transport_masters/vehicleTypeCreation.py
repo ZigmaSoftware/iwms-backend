@@ -1,11 +1,13 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 def generate_vehicle_type_id():
     """Generate a unique ID prefixed with VHTYPE."""
     return f"VHTYPE-{generate_unique_id()}"
-class VehicleTypeCreation(CompanyProjectMixin, models.Model):
+class VehicleTypeCreation(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         unique=True,
@@ -14,9 +16,18 @@ class VehicleTypeCreation(CompanyProjectMixin, models.Model):
     )
     vehicleType = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
-
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="vehicle_types",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="vehicle_types",
+        db_column="project_id",
+    )
     class Meta:
         ordering = ["id"]
         verbose_name = "Vehicle Type"

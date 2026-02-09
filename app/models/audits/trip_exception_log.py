@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.models.transport_masters.trip_instance import TripInstance
 from app.utils.comfun import generate_unique_id
 
@@ -8,10 +7,24 @@ def generate_trip_exception_id():
     return generate_unique_id()
 
 
-class TripExceptionLog(CompanyProjectMixin, models.Model):
+class TripExceptionLog(models.Model):
     """
     Immutable audit log for trip-level exceptions.
     """
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
 
     class ExceptionType(models.TextChoices):
         GPS_MISMATCH = "GPS_MISMATCH", "GPS Mismatch"

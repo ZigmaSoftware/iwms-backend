@@ -1,5 +1,5 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.models.customers.customercreation import CustomerCreation
 from app.utils.comfun import generate_unique_id
 
@@ -8,7 +8,22 @@ def generate_wastecollection_id():
     """Generate readable prefixed ID, e.g., WASTE-20251028001"""
     return f"WASTE-{generate_unique_id()}"
 
-class WasteCollection(CompanyProjectMixin, models.Model):
+class WasteCollection(BaseMaster):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     unique_id = models.CharField(
         max_length=30,
         unique=True,
@@ -31,10 +46,6 @@ class WasteCollection(CompanyProjectMixin, models.Model):
     # Optional: collection timestamp
     collection_date = models.DateField(auto_now_add=True)
     collection_time = models.TimeField(auto_now_add=True)
-
-    #  Record status
-    is_deleted = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Waste Collection"

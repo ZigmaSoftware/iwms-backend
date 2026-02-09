@@ -1,5 +1,5 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from django.core.validators import RegexValidator
 
 from ..common_masters.continent import Continent
@@ -47,7 +47,22 @@ hex_color_validator = RegexValidator(
 # ----------------------------------
 # MODEL
 # ----------------------------------
-class Zone(CompanyProjectMixin, models.Model):
+class Zone(BaseMaster):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     # -----------------------------
     # SYSTEM IDENTIFIER
     # -----------------------------
@@ -66,35 +81,31 @@ class Zone(CompanyProjectMixin, models.Model):
         Continent,
         on_delete=models.PROTECT,
         related_name="zones",
-        to_field="unique_id"
     )
 
     country_id = models.ForeignKey(
         Country,
         on_delete=models.PROTECT,
         related_name="zones",
-        to_field="unique_id"
     )
 
     state_id = models.ForeignKey(
         State,
         on_delete=models.PROTECT,
         related_name="zones",
-        to_field="unique_id"
     )
 
     district_id = models.ForeignKey(
         District,
         on_delete=models.PROTECT,
         related_name="zones",
-        to_field="unique_id"
     )
 
     city_id = models.ForeignKey(
         City,
         on_delete=models.PROTECT,
         related_name="zones",
-        to_field="unique_id"
+       db_column="city_id",
     )
 
     # -----------------------------
@@ -135,9 +146,6 @@ class Zone(CompanyProjectMixin, models.Model):
     # -----------------------------
     # STATE FLAGS
     # -----------------------------
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
-
     # -----------------------------
     # META
     # -----------------------------

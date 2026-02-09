@@ -5,14 +5,18 @@ from app.management.commands.seeders.base import BaseSeeder
 from app.models.transport_masters.fuel import Fuel
 from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.models.transport_masters.vehicleCreation import VehicleCreation
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 class VehicleCreationSeeder(BaseSeeder):
     name = "vehicle_creation"
 
-    def _get_or_create_vehicle_type(self, vehicle_type):
+    def _get_or_create_vehicle_type(self, vehicle_type, company, project):
         obj, created = VehicleTypeCreation.objects.get_or_create(
             vehicleType=vehicle_type,
+            company_id=company,
+            project_id=project,
             defaults={
                 "description": f"{vehicle_type} vehicle type",
                 "is_active": True,
@@ -27,9 +31,11 @@ class VehicleCreationSeeder(BaseSeeder):
 
         return obj
 
-    def _get_or_create_fuel(self, fuel_type):
+    def _get_or_create_fuel(self, fuel_type, company, project):
         obj, created = Fuel.objects.get_or_create(
             fuel_type=fuel_type,
+            company_id=company,
+            project_id=project,
             defaults={
                 "description": f"{fuel_type} fuel type",
                 "is_active": True,
@@ -45,14 +51,33 @@ class VehicleCreationSeeder(BaseSeeder):
         return obj
 
     def run(self):
+        company, _ = Company.objects.get_or_create(
+            name="IWMS",
+            defaults={
+                "description": "Integrated Waste Management System",
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
+        project_name = f"{company.name} Main Project"
+        project, _ = Project.objects.get_or_create(
+            name=project_name,
+            company_id=company,
+            defaults={
+                "description": f"Default project for {company.name}",
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
+
         vehicle_types = {
-            "Compactor": self._get_or_create_vehicle_type("Compactor"),
-            "Tipping Truck": self._get_or_create_vehicle_type("Tipping Truck"),
+            "Compactor": self._get_or_create_vehicle_type("Compactor", company, project),
+            "Tipping Truck": self._get_or_create_vehicle_type("Tipping Truck", company, project),
         }
 
         fuels = {
-            "Diesel": self._get_or_create_fuel("Diesel"),
-            "CNG": self._get_or_create_fuel("CNG"),
+            "Diesel": self._get_or_create_fuel("Diesel", company, project),
+            "CNG": self._get_or_create_fuel("CNG", company, project),
         }
 
         vehicles = [
@@ -88,6 +113,8 @@ class VehicleCreationSeeder(BaseSeeder):
                 defaults={
                     "vehicle_type": entry["vehicle_type"],
                     "fuel_type": entry["fuel_type"],
+                    "company_id": company,
+                    "project_id": project,
                     "capacity": entry["capacity"],
                     "mileage_per_liter": entry["mileage_per_liter"],
                     "service_record": entry["service_record"],

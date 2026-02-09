@@ -1,5 +1,5 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
 
@@ -7,7 +7,22 @@ def generate_continent_id():
     return f"CONT-{generate_unique_id()}"
 
 
-class Continent(CompanyProjectMixin, models.Model):
+class Continent(BaseMaster):
+
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
 
     unique_id = models.CharField(
         max_length=30,
@@ -17,9 +32,6 @@ class Continent(CompanyProjectMixin, models.Model):
     )
 
     name = models.CharField(max_length=100)
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name"]

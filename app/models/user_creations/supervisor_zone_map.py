@@ -1,14 +1,15 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from app.utils.comfun import generate_unique_id
 from .staffcreation import StaffOfficeDetails
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 def generate_supervisor_zone_map_id():
     return f"SUPZONE-{generate_unique_id()}"
 
 
-class SupervisorZoneMap(CompanyProjectMixin, models.Model):
+class SupervisorZoneMap(models.Model):
     # -----------------------------
     # SYSTEM IDENTITY
     # -----------------------------
@@ -42,6 +43,18 @@ class SupervisorZoneMap(CompanyProjectMixin, models.Model):
         on_delete=models.PROTECT,
         to_field="unique_id",
         db_column="city_id"
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="supervisor_zone_maps",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="supervisor_zone_maps",
+        db_column="project_id",
     )
 
     # Example: ["ZONExxxx", "ZONEyyyy"]

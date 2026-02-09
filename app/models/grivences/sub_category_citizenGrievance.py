@@ -1,5 +1,5 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.models.grivences.main_category_citizenGrievance import MainCategory
 from app.utils.comfun import generate_unique_id
 
@@ -8,7 +8,22 @@ def generate_subcategory_id():
     return f"CMPSC-{generate_unique_id()}"
 
 
-class SubCategory(CompanyProjectMixin, models.Model):
+class SubCategory(BaseMaster):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     unique_id = models.CharField(
         max_length=30,
         unique=True,
@@ -22,9 +37,6 @@ class SubCategory(CompanyProjectMixin, models.Model):
     )
 
     name = models.CharField(max_length=120)
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
-
     class Meta:
         ordering = ["id"]
 

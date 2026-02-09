@@ -1,7 +1,9 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from ..masters.ward import Ward
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 def generate_bin_id():
@@ -30,7 +32,7 @@ class WasteType(models.TextChoices):
     MIXED = "mixed", "Mixed"
 
 
-class Bin(CompanyProjectMixin, models.Model):
+class Bin(BaseMaster):
     # ---------- Identity ----------
     unique_id = models.CharField(
         max_length=40,
@@ -46,6 +48,18 @@ class Bin(CompanyProjectMixin, models.Model):
         related_name="bins",
         to_field="unique_id",
         db_column="ward_id",
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="bins",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="bins",
+        db_column="project_id",
     )
 
     # ---------- Classification ----------
@@ -69,10 +83,6 @@ class Bin(CompanyProjectMixin, models.Model):
         choices=BinStatus.choices,
         default=BinStatus.ACTIVE,
     )
-
-    # ---------- State ----------
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     # ---------- Audit ----------
     created_at = models.DateTimeField(auto_now_add=True)

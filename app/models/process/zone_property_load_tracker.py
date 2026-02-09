@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from django.utils import timezone
 from app.models.masters.zone import Zone
 from app.models.transport_masters.vehicleCreation import VehicleCreation
@@ -12,7 +11,7 @@ def generate_zone_property_load_tracker_id():
     return f"ZPLT-{generate_unique_id()}"   
 
 
-class ZonePropertyLoadTracker(CompanyProjectMixin, models.Model):
+class ZonePropertyLoadTracker(models.Model):
     """
     Live state table.
     Tracks pending, undispatched load per zone + property (+ vehicle).
@@ -141,6 +140,8 @@ class ZonePropertyLoadTracker(CompanyProjectMixin, models.Model):
                 vehicle=self.vehicle,
                 property=self.property,
                 sub_property=self.sub_property,
+                company_id=trip_def.company_id,
+                project_id=trip_def.project_id,
                 trigger_weight_kg=trip_def.trip_trigger_weight_kg,
                 max_capacity_kg=trip_def.max_vehicle_capacity_kg,
                 current_load_kg=self.current_weight_kg,

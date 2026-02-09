@@ -1,10 +1,24 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 
 from app.models.user_creations.staffcreation import StaffOfficeDetails
 
 
-class Employee(CompanyProjectMixin, models.Model):
+class Employee(models.Model):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     emp_id = models.CharField(max_length=8, unique=True)
     staff = models.OneToOneField(
         StaffOfficeDetails,
@@ -26,7 +40,22 @@ class Employee(CompanyProjectMixin, models.Model):
             models.Index(fields=["staff"]),
         ]
 
-class Recognized(CompanyProjectMixin, models.Model):
+class Recognized(models.Model):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     staff = models.ForeignKey(
         StaffOfficeDetails,
         on_delete=models.PROTECT,

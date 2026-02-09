@@ -1,5 +1,5 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from .property import Property
 
@@ -8,7 +8,22 @@ def generate_subproperty_id():
     return f"SUBPROPERTY-{generate_unique_id()}"
 
 
-class SubProperty(CompanyProjectMixin, models.Model):
+class SubProperty(BaseMaster):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     unique_id = models.CharField(
         max_length=40,
         primary_key=True,
@@ -25,9 +40,6 @@ class SubProperty(CompanyProjectMixin, models.Model):
     )
 
     sub_property_name = models.CharField(max_length=100)
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Sub Property"

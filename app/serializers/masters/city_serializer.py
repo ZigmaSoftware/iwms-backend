@@ -8,6 +8,8 @@ class CitySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     country_name   = serializers.CharField(source="country_id.name", read_only=True)
     state_name     = serializers.CharField(source="state_id.name", read_only=True)
     district_name  = serializers.CharField(source="district_id.name", read_only=True)
+    company_name   = serializers.CharField(source="company_id.name", read_only=True)
+    project_name   = serializers.CharField(source="project_id.name", read_only=True)
 
     class Meta:
         model = City

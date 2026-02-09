@@ -1,15 +1,16 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 from django.db.models import Max
 from app.utils.comfun import generate_unique_id
 from .staffcreation import StaffOfficeDetails
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 def generate_alternative_staff_template_id():
     return f"ALTSTAFFTEMPLATE-{generate_unique_id()}"
 
 
-class AlternativeStaffTemplate(CompanyProjectMixin, models.Model):
+class AlternativeStaffTemplate(models.Model):
     """
     Purpose:
     Tracks temporary or permanent staff substitutions against a staff template
@@ -36,6 +37,18 @@ class AlternativeStaffTemplate(CompanyProjectMixin, models.Model):
         on_delete=models.PROTECT,
         db_column='staff_template_id',
         related_name='alternative_templates'
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="alternative_staff_templates",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="alternative_staff_templates",
+        db_column="project_id",
     )
 
     effective_date = models.DateField()

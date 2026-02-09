@@ -1,5 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
 import os, datetime, random, string
 from django.conf import settings
 from django.utils import timezone
@@ -26,14 +25,44 @@ def upload_image(image):
 
     return f"uploads/waste_collection_images/{filename}"
 
-class WasteType(CompanyProjectMixin, models.Model):
+class WasteType(models.Model):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     waste_type_name = models.CharField(max_length=255)
     is_deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = "waste_type_creation_master"
 
-class WasteCollectionSub(CompanyProjectMixin, models.Model):
+class WasteCollectionSub(models.Model):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     unique_id = models.CharField(max_length=100, unique=True)
     screen_unique_id = models.CharField(max_length=100)
     customer_id = models.CharField(max_length=100)
@@ -50,7 +79,22 @@ class WasteCollectionSub(CompanyProjectMixin, models.Model):
         db_table = "waste_collection_sub"
 
 
-class WasteCollectionMain(CompanyProjectMixin, models.Model):
+class WasteCollectionMain(models.Model):
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
+
     unique_id = models.CharField(max_length=100, unique=True)
     screen_unique_id = models.CharField(max_length=100)
     collected_time = models.DateTimeField()

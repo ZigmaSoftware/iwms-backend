@@ -6,7 +6,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 
-from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 
 from app.utils.comfun import generate_unique_id
 from app.models.role_assigns.userType import UserType
@@ -67,7 +67,22 @@ class UserManager(BaseUserManager):
         return user
 
 
-class User(CompanyProjectMixin, AbstractBaseUser, PermissionsMixin):
+class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
+
+    company_id = models.ForeignKey(
+        "api.Company",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        "api.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="project_id",
+    )
 
     # -----------------------------
     # Core User Identity
@@ -177,7 +192,6 @@ class User(CompanyProjectMixin, AbstractBaseUser, PermissionsMixin):
         help_text="Django admin-site access flag (not a business role).",
     )
     is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     objects = UserManager()
 
