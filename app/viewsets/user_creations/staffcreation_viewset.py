@@ -53,7 +53,12 @@ class StaffcreationViewset(TenantModelViewSet):
 
         if serializer.is_valid():
             with transaction.atomic():
-                serializer.save()
+                company = self._company()
+                project = self._project()
+                serializer.save(
+                    company_id=company,
+                    project_id=project,
+                )
             return Response(
                 {"status": True, "message": "Staff Created Successfully"},
                 status=status.HTTP_201_CREATED
@@ -74,7 +79,12 @@ class StaffcreationViewset(TenantModelViewSet):
 
         if serializer.is_valid():
             with transaction.atomic():
-                serializer.save()
+                company = getattr(instance, "company_id", None) or self._company()
+                project = getattr(instance, "project_id", None) or self._project()
+                serializer.save(
+                    company_id=company,
+                    project_id=project,
+                )
             return Response(
                 {"status": True, "message": "Staff Updated Successfully"},
                 status=status.HTTP_200_OK

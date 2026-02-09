@@ -141,6 +141,8 @@ class ZonePropertyLoadTracker(CompanyProjectMixin, models.Model):
                 vehicle=self.vehicle,
                 property=self.property,
                 sub_property=self.sub_property,
+                company_id=trip_def.company_id,
+                project_id=trip_def.project_id,
                 trigger_weight_kg=trip_def.trip_trigger_weight_kg,
                 max_capacity_kg=trip_def.max_vehicle_capacity_kg,
                 current_load_kg=self.current_weight_kg,

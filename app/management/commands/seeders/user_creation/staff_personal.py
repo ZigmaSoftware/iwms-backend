@@ -15,6 +15,8 @@ class StaffPersonalSeeder:
                 staff=staff,
                 defaults={
                     "staff_unique_id": staff.staff_unique_id,
+                    "company_id": staff.company_id,
+                    "project_id": staff.project_id,
                     "gender": "Male",
                     "blood_group": "O+",
                     "contact_mobile": f"900{staff.id:07d}",

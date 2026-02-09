@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.models.user_creations.staffcreation import StaffOfficeDetails, StaffPersonalDetails
 from app.models.role_assigns.userType import UserType
 from app.models.role_assigns.staffUserType import StaffUserType
@@ -27,6 +28,13 @@ class PlatformCompanyCreateView(APIView):
             name=data["name"],
             description=data.get("description"),
         )
+        project = Project.objects.create(
+            name=f"{company.name} Main Project",
+            company_id=company,
+            description=f"Default project for {company.name}",
+            is_active=True,
+            is_deleted=False,
+        )
 
         # Global user type rows (kept global even though tenancy columns exist).
         staff_type, _ = UserType.objects.get_or_create(name="staff", defaults={"is_active": True, "is_deleted": False})
@@ -41,6 +49,7 @@ class PlatformCompanyCreateView(APIView):
         # Create staff with auth fields directly (no separate User model)
         staff = StaffOfficeDetails.objects.create(
             company_id=company,
+            project_id=project,
             employee_name=data["admin_employee_name"],
             username=data["admin_username"],
             password=data["admin_password"],
@@ -55,6 +64,7 @@ class PlatformCompanyCreateView(APIView):
         if email:
             StaffPersonalDetails.objects.create(
                 company_id=company,
+                project_id=project,
                 staff=staff,
                 staff_unique_id=staff.staff_unique_id,
                 contact_email=email,

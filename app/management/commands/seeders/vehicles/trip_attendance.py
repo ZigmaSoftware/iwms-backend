@@ -40,6 +40,8 @@ class TripAttendanceSeeder(BaseSeeder):
                 trip_instance=trip,
                 staff=staff,
                 vehicle=trip.vehicle,
+                company_id=trip.company_id,
+                project_id=trip.project_id,
                 attendance_time=attendance_time,
                 defaults={
                     "latitude": "13.0826800",
@@ -51,4 +53,3 @@ class TripAttendanceSeeder(BaseSeeder):
                 created += 1
 
         self.log(f"---Trip attendance seeded | Created: {created}---")
-

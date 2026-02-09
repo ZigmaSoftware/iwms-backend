@@ -19,9 +19,27 @@ class StaffOfficeSeeder:
 
     def run(self):
         company = Company.objects.filter(is_deleted=False).first()
-        project = None
-        if company:
-            project = Project.objects.filter(company_id=company, is_deleted=False).first()
+        if not company:
+            company, _ = Company.objects.get_or_create(
+                name="IWMS",
+                defaults={
+                    "description": "Integrated Waste Management System",
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+        project = Project.objects.filter(company_id=company, is_deleted=False).first()
+        if not project:
+            project_name = f"{company.name} Main Project"
+            project, _ = Project.objects.get_or_create(
+                name=project_name,
+                company_id=company,
+                defaults={
+                    "description": f"Default project for {company.name}",
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
 
         district = District.objects.filter(is_deleted=False).first()
         city = City.objects.filter(is_deleted=False).first()

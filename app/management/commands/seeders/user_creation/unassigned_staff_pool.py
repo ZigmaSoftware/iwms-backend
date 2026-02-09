@@ -78,6 +78,8 @@ class UnassignedStaffPoolSeeder(BaseSeeder):
                 "ward": ward,
                 "status": UnassignedStaffPool.Status.AVAILABLE,
                 "trip_instance": trip_instance,
+                "company_id": getattr(staff, "company_id", None) or getattr(trip_instance, "company_id", None),
+                "project_id": getattr(staff, "project_id", None) or getattr(trip_instance, "project_id", None),
             }
 
             if staff.staffusertype_id and staff.staffusertype_id.name.lower() == "operator":

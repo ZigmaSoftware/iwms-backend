@@ -2,6 +2,8 @@ from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
 from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 def generate_supervisor_zone_access_audit_id():
     return f"SZAA-{generate_unique_id()}"
@@ -34,6 +36,18 @@ class SupervisorZoneAccessAudit(CompanyProjectMixin, models.Model):
         related_name="performed_zone_access_audits",
         to_field="staff_unique_id",
         db_column="performed_by"
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="supervisor_zone_access_audits",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="supervisor_zone_access_audits",
+        db_column="project_id",
     )
 
     # -----------------------------

@@ -77,24 +77,33 @@ class AlternativeStaffTemplateViewSet(TenantModelViewSet):
         instance = serializer.save(
             approval_status="PENDING",
             requested_by=user,
+            company_id=getattr(user, "company_id", None) or getattr(serializer.validated_data.get("staff_template", None), "company_id", None),
+            project_id=getattr(user, "project_id", None) or getattr(serializer.validated_data.get("staff_template", None), "project_id", None),
         )
         self._log_audit(
             user=user,
             action=StaffTemplateAuditLog.Action.CREATE,
             entity_id=instance.unique_id,
             remarks=instance.change_remarks,
+            company_id=instance.company_id,
+            project_id=instance.project_id,
         )
 
     def perform_update(self, serializer):
         user = self._resolve_request_user()
         if not user:
             raise NotAuthenticated("Authentication required")
-        instance = serializer.save()
+        instance = serializer.save(
+            company_id=getattr(serializer.instance, "company_id", None) or getattr(user, "company_id", None),
+            project_id=getattr(serializer.instance, "project_id", None) or getattr(user, "project_id", None),
+        )
         self._log_audit(
             user=user,
             action=StaffTemplateAuditLog.Action.MODIFY,
             entity_id=instance.unique_id,
             remarks=instance.change_remarks,
+            company_id=instance.company_id,
+            project_id=instance.project_id,
         )
 
     def update(self, request, *args, **kwargs):
@@ -117,7 +126,7 @@ class AlternativeStaffTemplateViewSet(TenantModelViewSet):
             return StaffTemplateAuditLog.PerformedRole.SUPERVISOR
         return StaffTemplateAuditLog.PerformedRole.SUPERVISOR
 
-    def _log_audit(self, user, action, entity_id, remarks=None):
+    def _log_audit(self, user, action, entity_id, remarks=None, company_id=None, project_id=None):
         if not user:
             return
         StaffTemplateAuditLog.objects.create(
@@ -127,4 +136,6 @@ class AlternativeStaffTemplateViewSet(TenantModelViewSet):
             performed_by=user,
             performed_role=self._resolve_performed_role(user),
             change_remarks=remarks if isinstance(remarks, str) else None,
+            company_id=company_id or getattr(user, "company_id", None),
+            project_id=project_id or getattr(user, "project_id", None),
         )

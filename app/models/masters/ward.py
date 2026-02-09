@@ -37,13 +37,12 @@ class Ward(CompanyProjectMixin, models.Model):
         editable=False
     )
 
-    continent_id = models.ForeignKey("Continent", on_delete=models.PROTECT, to_field="unique_id")
-    country_id = models.ForeignKey("Country", on_delete=models.PROTECT, to_field="unique_id")
-    state_id = models.ForeignKey("State", on_delete=models.PROTECT, to_field="unique_id")
-    district_id = models.ForeignKey("District", on_delete=models.PROTECT, to_field="unique_id")
-    city_id = models.ForeignKey("City", on_delete=models.PROTECT, to_field="unique_id")
-    zone_id = models.ForeignKey("Zone", on_delete=models.PROTECT, to_field="unique_id")
-
+    continent_id = models.ForeignKey("Continent", on_delete=models.PROTECT, db_column="continent_id")
+    country_id = models.ForeignKey("Country", on_delete=models.PROTECT, db_column="country_id")
+    state_id = models.ForeignKey("State", on_delete=models.PROTECT, db_column="state_id")
+    district_id = models.ForeignKey("District", on_delete=models.PROTECT, db_column="district_id")
+    city_id = models.ForeignKey("City", on_delete=models.PROTECT, db_column="city_id")
+    zone_id = models.ForeignKey("Zone", on_delete=models.PROTECT, db_column="zone_id")
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
 

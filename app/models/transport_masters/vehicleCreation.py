@@ -4,6 +4,8 @@ from app.utils.tenancy import CompanyProjectMixin
 from app.models.transport_masters.fuel import Fuel
 from .vehicleTypeCreation import VehicleTypeCreation
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 def generate_vehicle_creation_id():
@@ -35,6 +37,18 @@ class VehicleCreation(CompanyProjectMixin, models.Model):
     )
     vehicle_type = models.ForeignKey(
         VehicleTypeCreation, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="vehicle_creations",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="vehicle_creations",
+        db_column="project_id",
     )
 
     vehicle_no = models.CharField(max_length=50, unique=True)

@@ -8,6 +8,8 @@ from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 def generate_trip_instance_id():
@@ -87,6 +89,18 @@ class TripInstance(CompanyProjectMixin, models.Model):
         SubProperty,
         on_delete=models.PROTECT,
         related_name="trip_instances"
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="trip_instances",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="trip_instances",
+        db_column="project_id",
     )
 
     trigger_weight_kg = models.PositiveIntegerField()

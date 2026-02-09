@@ -6,6 +6,8 @@ from app.utils.comfun import generate_unique_id
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 from app.models.transport_masters.trip_instance import TripInstance
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 def generate_unassigned_staff_pool_id():
@@ -85,6 +87,18 @@ class UnassignedStaffPool(CompanyProjectMixin, models.Model):
         related_name="unassigned_staff_pool",
         db_column="ward_id",
         to_field="unique_id"
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="unassigned_staff_pool",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="unassigned_staff_pool",
+        db_column="project_id",
     )
 
     # -----------------------------
@@ -196,6 +210,8 @@ class UnassignedStaffPool(CompanyProjectMixin, models.Model):
             defaults = {
                 "status": cls.Status.AVAILABLE,
                 "trip_instance": trip_instance,
+                "company_id": getattr(staff, "company_id", None) or getattr(trip_instance, "company_id", None),
+                "project_id": getattr(staff, "project_id", None) or getattr(trip_instance, "project_id", None),
             }
 
             zone = getattr(staff, "zone_id", None) or getattr(trip_instance, "zone", None)

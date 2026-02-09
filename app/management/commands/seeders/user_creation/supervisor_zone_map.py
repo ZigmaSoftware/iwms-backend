@@ -6,6 +6,8 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
 from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.models.masters.zone import Zone
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 class SupervisorZoneMapSeeder:
@@ -74,6 +76,28 @@ class SupervisorZoneMapSeeder:
             if not new_zone_ids:
                 print(f"Skipping {supervisor.staff_unique_id}: no valid zone IDs.")
                 continue
+            company = getattr(supervisor, "company_id", None) or getattr(admin_user, "company_id", None)
+            project = getattr(supervisor, "project_id", None) or getattr(admin_user, "project_id", None)
+            if not company:
+                company, _ = Company.objects.get_or_create(
+                    name="IWMS",
+                    defaults={
+                        "description": "Integrated Waste Management System",
+                        "is_active": True,
+                        "is_deleted": False,
+                    },
+                )
+            if not project:
+                project_name = f"{company.name} Main Project"
+                project, _ = Project.objects.get_or_create(
+                    name=project_name,
+                    company_id=company,
+                    defaults={
+                        "description": f"Default project for {company.name}",
+                        "is_active": True,
+                        "is_deleted": False,
+                    },
+                )
 
             existing = SupervisorZoneMap.objects.filter(
                 supervisor_id=supervisor,
@@ -93,6 +117,8 @@ class SupervisorZoneMapSeeder:
                     supervisor_id=supervisor,
                     district_id=district_obj,
                     city_id=city_obj,
+                    company_id=company,
+                    project_id=project,
                     zone_ids=new_zone_ids,
                     status="ACTIVE",
                 )
@@ -104,6 +130,8 @@ class SupervisorZoneMapSeeder:
                     performed_by=admin_user,
                     performed_role="ADMIN",
                     remarks="Seeded supervisor zone access",
+                    company_id=company,
+                    project_id=project,
                 )
 
         print("---Supervisor Zone Map seeding completed.---")
