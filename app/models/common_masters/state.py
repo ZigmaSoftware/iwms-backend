@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from .country import Country
 from .continent import Continent
 from app.utils.comfun import generate_unique_id
@@ -9,7 +10,7 @@ def generate_state_id():
     return f"STATE-{generate_unique_id()}"
 
 
-class State(CompanyProjectMixin, models.Model):
+class State(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -33,9 +34,6 @@ class State(CompanyProjectMixin, models.Model):
 
     name = models.CharField(max_length=100)
     label = models.CharField(max_length=20, blank=True, null=True)
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name"]

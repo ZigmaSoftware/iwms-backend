@@ -1,5 +1,6 @@
 from django.db import models
 
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
 
@@ -7,7 +8,7 @@ def generate_company_id():
     return f"CMP-{generate_unique_id()}"
 
 
-class Company(models.Model):
+class Company(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -17,9 +18,6 @@ class Company(models.Model):
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
-
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name"]

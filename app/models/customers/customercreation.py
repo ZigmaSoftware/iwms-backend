@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from app.models.common_masters.country import Country
 from app.models.common_masters.state import State
 from app.models.masters.district import District
@@ -17,7 +18,7 @@ def generate_customer_id():
     """Generate readable prefixed ID, e.g., CUS-20251028001"""
     return f"CUS-{generate_unique_id()}"
 
-class CustomerCreation(CompanyProjectMixin, models.Model):
+class CustomerCreation(CompanyProjectMixin, BaseMaster):
     class IDProofType(models.TextChoices):
         AADHAAR = "AADHAAR", "Aadhaar"
         VOTER_ID = "VOTER_ID", "Voter ID"
@@ -87,10 +88,6 @@ class CustomerCreation(CompanyProjectMixin, models.Model):
         default=False,
         help_text="Django admin-site access flag.",
     )
-
-    is_active = models.BooleanField(default=True)
-
-    is_deleted = models.BooleanField(default=False)
 
     is_superuser = models.BooleanField(default=False)
 

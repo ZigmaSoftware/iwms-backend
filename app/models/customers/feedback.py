@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from enum import Enum
 from .customercreation import CustomerCreation
 from app.utils.comfun import generate_unique_id
@@ -17,7 +18,7 @@ class FeedbackCategory(Enum):
     POOR = "Poor"
 
 
-class FeedBack(CompanyProjectMixin, models.Model):
+class FeedBack(CompanyProjectMixin, BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         unique=True,
@@ -40,9 +41,6 @@ class FeedBack(CompanyProjectMixin, models.Model):
 
     feedback_details = models.CharField(max_length=300, blank=True, null=True)
 
-    # Record status
-    is_deleted = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
     created_on = models.DateTimeField(auto_now_add=True)
 
     class Meta:

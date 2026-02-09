@@ -7,6 +7,7 @@ from django.contrib.auth.models import (
 )
 
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 
 from app.utils.comfun import generate_unique_id
 from app.models.role_assigns.userType import UserType
@@ -67,7 +68,7 @@ class UserManager(BaseUserManager):
         return user
 
 
-class User(CompanyProjectMixin, AbstractBaseUser, PermissionsMixin):
+class User(CompanyProjectMixin, BaseMaster, AbstractBaseUser, PermissionsMixin):
 
     # -----------------------------
     # Core User Identity
@@ -177,7 +178,6 @@ class User(CompanyProjectMixin, AbstractBaseUser, PermissionsMixin):
         help_text="Django admin-site access flag (not a business role).",
     )
     is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
 
     objects = UserManager()
 

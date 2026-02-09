@@ -1,5 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
+from app.utils.base_models import BaseMaster
 from django.core.validators import RegexValidator
 
 from ..common_masters.continent import Continent
@@ -47,7 +48,7 @@ hex_color_validator = RegexValidator(
 # ----------------------------------
 # MODEL
 # ----------------------------------
-class Zone(CompanyProjectMixin, models.Model):
+class Zone(CompanyProjectMixin, BaseMaster):
     # -----------------------------
     # SYSTEM IDENTIFIER
     # -----------------------------
@@ -66,28 +67,24 @@ class Zone(CompanyProjectMixin, models.Model):
         Continent,
         on_delete=models.PROTECT,
         related_name="zones",
-       db_column="continent_id",
     )
 
     country_id = models.ForeignKey(
         Country,
         on_delete=models.PROTECT,
         related_name="zones",
-         db_column="country_id",
     )
 
     state_id = models.ForeignKey(
         State,
         on_delete=models.PROTECT,
         related_name="zones",
-        db_column="state_id",
     )
 
     district_id = models.ForeignKey(
         District,
         on_delete=models.PROTECT,
         related_name="zones",
-        db_column="district_id",
     )
 
     city_id = models.ForeignKey(
@@ -135,9 +132,6 @@ class Zone(CompanyProjectMixin, models.Model):
     # -----------------------------
     # STATE FLAGS
     # -----------------------------
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
-
     # -----------------------------
     # META
     # -----------------------------

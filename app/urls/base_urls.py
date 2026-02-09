@@ -93,6 +93,7 @@ router.register_group("common-masters", "continents",    ContinentViewSet)
 router.register_group("common-masters", "countries",     CountryViewSet)
 router.register_group("common-masters", "states",        StateViewSet)
 
+
 # ============================================================
 # GROUP: MASTERS
 # ============================================================
@@ -133,7 +134,7 @@ router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet)
 # ============================================================
 # GROUP: USER CREATION
 # ============================================================
-router.register_group("user-creations", "users-creation",  StaffViewSet)
+# router.register_group("user-creations", "users-creation",  StaffViewSet)
 router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creations", "stafftemplate-creation",  StaffTemplateViewSet)
 router.register_group("user-creations", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)

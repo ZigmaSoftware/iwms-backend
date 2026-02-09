@@ -1,6 +1,6 @@
 from django.db import models
 from app.utils.tenancy import CompanyProjectMixin
-import uuid
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id  # optional if you want prefixed IDs
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -10,7 +10,7 @@ def generate_fueltype_id():
     return f"FUEL-{generate_unique_id()}"
 
 
-class Fuel(CompanyProjectMixin, models.Model):
+class Fuel(CompanyProjectMixin, BaseMaster):
     """
     Transport Master: Fuel Type
     -----------------------------------
@@ -43,9 +43,6 @@ class Fuel(CompanyProjectMixin, models.Model):
     )
 
     # Status flags
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
-
     class Meta:
         verbose_name = "Fuel Type"
         verbose_name_plural = "Fuel Types"
