@@ -1,6 +1,4 @@
 from django.db import models
-from app.utils.tenancy import CompanyProjectMixin
-from app.utils.base_models import BaseMaster
 
 from app.models.transport_masters.fuel import Fuel
 from .vehicleTypeCreation import VehicleTypeCreation
@@ -21,7 +19,7 @@ def vehicle_insurance_upload_path(instance, filename):
     return f"uploads/vehicles/insurance/{instance.unique_id}_{filename}"
 
 
-class VehicleCreation(CompanyProjectMixin, BaseMaster):
+class VehicleCreation(models.Model):
     class ConditionChoices(models.TextChoices):
         NEW = "NEW", "New"
         SECOND_HAND = "SECOND_HAND", "Second Hand"
@@ -75,6 +73,8 @@ class VehicleCreation(CompanyProjectMixin, BaseMaster):
         upload_to=vehicle_insurance_upload_path, null=True, blank=True
     )
 
+    is_active = models.BooleanField(default=True)
+    is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
