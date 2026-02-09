@@ -1,4 +1,5 @@
 import jwt
+import re
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -244,10 +245,6 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         payload = request.jwt_payload
         role = (payload.get("role") or "").lower()
 
-        # Admin has full access
-        if role == "admin":
-            return None
-
         view_class = getattr(view_func, "cls", None)
         if not view_class:
             return None
@@ -275,7 +272,10 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return JsonResponse({"detail": "Invalid HTTP method"}, status=405)
 
         permissions = payload.get("permissions", {})
-        allowed_actions = permissions.get(module, {}).get(permission_resource, [])
+        allowed_actions = self._resolve_allowed_actions(
+            permissions.get(module, {}),
+            permission_resource,
+        )
 
         if action not in allowed_actions:
             return JsonResponse(
@@ -289,3 +289,32 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             )
 
         return None
+
+    @staticmethod
+    def _normalize_permission_key(name):
+        if not name:
+            return ""
+        return re.sub(r"[\W_]+", "", name).lower()
+
+    def _resolve_allowed_actions(self, permissions_map, resource_name):
+        if not permissions_map:
+            return []
+
+        if resource_name in permissions_map:
+            return permissions_map[resource_name]
+
+        target = self._normalize_permission_key(resource_name)
+        for key, actions in permissions_map.items():
+            normalized = self._normalize_permission_key(key)
+            if normalized == target:
+                return actions
+            if normalized.endswith("s") and normalized[:-1] == target:
+                return actions
+            if target.endswith("s") and normalized == target[:-1]:
+                return actions
+            if target.endswith("y") and normalized == target[:-1] + "ies":
+                return actions
+            if normalized.endswith("y") and normalized[:-1] + "ies" == target:
+                return actions
+
+        return []
