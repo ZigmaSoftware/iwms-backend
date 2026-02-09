@@ -4,6 +4,8 @@ from app.management.commands.seeders.base import BaseSeeder
 from app.models.user_creations.alternative_staff_template import AlternativeStaffTemplate
 from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 class AlternativeStaffTemplateSeeder(BaseSeeder):
@@ -35,10 +37,34 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
         operator = staff_list[1]
         approver = staff_list[2]
         extra_operator = staff_list[3] if len(staff_list) > 3 else None
+        company = getattr(staff_template, "company_id", None) or getattr(driver, "company_id", None)
+        project = getattr(staff_template, "project_id", None) or getattr(driver, "project_id", None)
+        if not company:
+            company, _ = Company.objects.get_or_create(
+                name="IWMS",
+                defaults={
+                    "description": "Integrated Waste Management System",
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+        if not project:
+            project_name = f"{company.name} Main Project"
+            project, _ = Project.objects.get_or_create(
+                name=project_name,
+                company_id=company,
+                defaults={
+                    "description": f"Default project for {company.name}",
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
 
         # ---- SEED DATA ----
         AlternativeStaffTemplate.objects.get_or_create(
             staff_template=staff_template,
+            company_id=company,
+            project_id=project,
             effective_date=date.today(),
             driver_id=driver,
             operator_id=operator,

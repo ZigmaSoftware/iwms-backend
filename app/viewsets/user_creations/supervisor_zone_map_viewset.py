@@ -58,6 +58,8 @@ class SupervisorZoneMapViewSet(ModelViewSet):
         supervisor = serializer.validated_data["supervisor_id"]
         new_zone_ids = serializer.validated_data["zone_ids"]
         remarks = request.data.get("remarks")
+        company = getattr(supervisor, "company_id", None) or getattr(user, "company_id", None)
+        project = getattr(supervisor, "project_id", None) or getattr(user, "project_id", None)
 
         with transaction.atomic():
             # Deactivate existing ACTIVE mapping
@@ -72,7 +74,10 @@ class SupervisorZoneMapViewSet(ModelViewSet):
                 existing.status = "INACTIVE"
                 existing.save(update_fields=["status"])
 
-            instance = serializer.save()
+            instance = serializer.save(
+                company_id=company,
+                project_id=project,
+            )
 
             SupervisorZoneAccessAudit.objects.create(
                 supervisor=supervisor,
@@ -81,6 +86,8 @@ class SupervisorZoneMapViewSet(ModelViewSet):
                 performed_by=user,
                 performed_role="ADMIN",
                 remarks=remarks if isinstance(remarks, str) else None,
+                company_id=company,
+                project_id=project,
             )
 
         return Response(
@@ -105,7 +112,10 @@ class SupervisorZoneMapViewSet(ModelViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        updated_instance = serializer.save()
+        updated_instance = serializer.save(
+            company_id=getattr(instance, "company_id", None) or getattr(user, "company_id", None),
+            project_id=getattr(instance, "project_id", None) or getattr(user, "project_id", None),
+        )
         new_zone_ids = updated_instance.zone_ids
         remarks = request.data.get("remarks")
 
@@ -116,6 +126,8 @@ class SupervisorZoneMapViewSet(ModelViewSet):
             performed_by=user,
             performed_role="ADMIN",
             remarks=remarks if isinstance(remarks, str) else None,
+            company_id=getattr(updated_instance, "company_id", None) or getattr(user, "company_id", None),
+            project_id=getattr(updated_instance, "project_id", None) or getattr(user, "project_id", None),
         )
 
         return Response(

@@ -6,6 +6,8 @@ from app.models.masters.district import District
 from app.models.masters.zone import Zone
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 def generate_routeplan_id():
@@ -60,6 +62,18 @@ class RoutePlan(CompanyProjectMixin, models.Model):
         on_delete=models.PROTECT,
         to_field="staff_unique_id",
         related_name="route_plans"
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="route_plans",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="route_plans",
+        db_column="project_id",
     )
 
     is_active = models.BooleanField(default=True)
