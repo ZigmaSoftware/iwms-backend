@@ -1,7 +1,8 @@
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.viewsets import ViewSet
 
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -9,10 +10,14 @@ from app.permissions.platform import PlatformSuperAdminOnly, CompanyAdminOnly
 from app.serializers.superadmin_masters.project_create_serializer import ProjectCreateSerializer
 
 
-class PlatformFirstProjectCreateView(APIView):
+class PlatformFirstProjectCreateViewSet(ViewSet):
     permission_classes = [PlatformSuperAdminOnly]
 
-    def post(self, request, company_unique_id):
+    @swagger_auto_schema(request_body=ProjectCreateSerializer)
+    def create(self, request, company_unique_id=None):
+        if not company_unique_id:
+            raise NotFound("Company not found")
+
         serializer = ProjectCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -35,10 +40,11 @@ class PlatformFirstProjectCreateView(APIView):
         )
 
 
-class CompanyAdditionalProjectCreateView(APIView):
+class CompanyAdditionalProjectCreateViewSet(ViewSet):
     permission_classes = [CompanyAdminOnly]
 
-    def post(self, request):
+    @swagger_auto_schema(request_body=ProjectCreateSerializer)
+    def create(self, request):
         serializer = ProjectCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

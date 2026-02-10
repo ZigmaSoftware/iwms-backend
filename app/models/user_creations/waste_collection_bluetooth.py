@@ -1,13 +1,16 @@
-from django.db import models
-import os, datetime, random, string
+import datetime
+import os
+import random
+import string
+
 from django.conf import settings
-from django.utils import timezone
-from django.db import connection
+from django.db import models
+
 
 def generate_unique_id(prefix):
     year = datetime.datetime.now().strftime("%Y")
     chars = string.ascii_lowercase + string.digits
-    rand = ''.join(random.choice(chars) for _ in range(10))
+    rand = "".join(random.choice(chars) for _ in range(10))
     sec = datetime.datetime.now().strftime("%S")
     return f"{prefix}{year}{rand}{sec}".lower()
 
@@ -20,10 +23,11 @@ def upload_image(image):
     fullpath = os.path.join(upload_path, filename)
 
     with open(fullpath, "wb") as f:
-        for chunk in image.chunks(): 
+        for chunk in image.chunks():
             f.write(chunk)
 
     return f"uploads/waste_collection_images/{filename}"
+
 
 class WasteType(models.Model):
     company_id = models.ForeignKey(
@@ -40,11 +44,15 @@ class WasteType(models.Model):
         blank=True,
         db_column="project_id",
     )
-
     waste_type_name = models.CharField(max_length=255)
     is_deleted = models.BooleanField(default=False)
 
     class Meta:
+        db_table = "waste_type_creation_master"
+
+    def __str__(self):
+        return self.waste_type_name
+
 
 class WasteCollectionSub(models.Model):
     company_id = models.ForeignKey(
@@ -61,7 +69,6 @@ class WasteCollectionSub(models.Model):
         blank=True,
         db_column="project_id",
     )
-
     unique_id = models.CharField(max_length=100, unique=True)
     screen_unique_id = models.CharField(max_length=100)
     customer_id = models.CharField(max_length=100)
@@ -75,6 +82,10 @@ class WasteCollectionSub(models.Model):
     date_time = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = "waste_collection_sub"
+
+    def __str__(self):
+        return self.unique_id
 
 
 class WasteCollectionMain(models.Model):
@@ -92,14 +103,17 @@ class WasteCollectionMain(models.Model):
         blank=True,
         db_column="project_id",
     )
-
     unique_id = models.CharField(max_length=100, unique=True)
     screen_unique_id = models.CharField(max_length=100)
     collected_time = models.DateTimeField()
     created = models.DateTimeField()
     total_waste_collected = models.FloatField(default=0)
-    entry_type = models.CharField(max_length=20, default='app')
+    entry_type = models.CharField(max_length=20, default="app")
     customer_id = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
 
     class Meta:
+        db_table = "waste_collection_main"
+
+    def __str__(self):
+        return self.unique_id
