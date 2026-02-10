@@ -3,13 +3,13 @@ from django.db import transaction
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.serializers.user_creations.staffcreation_serializer import StaffcreationSerializer
 
 
-class StaffcreationViewset(TenantModelViewSet):
+class StaffcreationViewset(CompanyScopedViewSet):
     queryset = StaffOfficeDetails.objects.select_related("personal_details").all()
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser)

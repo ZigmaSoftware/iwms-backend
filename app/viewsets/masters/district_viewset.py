@@ -1,9 +1,9 @@
 from rest_framework import viewsets
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.masters.district import District
 from app.serializers.masters.district_serializer import DistrictSerializer
 
-class DistrictViewSet(TenantModelViewSet):
+class DistrictViewSet(CompanyScopedViewSet):
     queryset = District.objects.filter(is_deleted=False)
     serializer_class = DistrictSerializer
     lookup_field = "unique_id"

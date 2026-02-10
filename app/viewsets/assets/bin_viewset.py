@@ -1,11 +1,11 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.assets.bin import Bin
 from app.serializers.assets.bin_serializer import BinSerializer
 
 
-class BinViewSet(TenantModelViewSet):
+class BinViewSet(CompanyScopedViewSet):
     serializer_class = BinSerializer
     lookup_field = "unique_id"
 

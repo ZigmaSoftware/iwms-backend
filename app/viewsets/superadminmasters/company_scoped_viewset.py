@@ -5,14 +5,14 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from app.models.superadmin_masters.project import Project
 
 
-class TenantModelViewSet(viewsets.ModelViewSet):
-    """Enterprise-safe default tenant scoping.
+class CompanyScopedViewSet(viewsets.ModelViewSet):
+    """Enterprise-safe default company scoping.
 
     - Staff users are automatically scoped to their company.
     - If X-Project-Id is provided, we include project-specific rows plus company-level rows.
-    - Platform super admins may bypass tenant scoping and manage everything.
+    - Platform super admins may bypass company scoping and manage everything.
 
-    This keeps behavior predictable and makes tenant isolation hard to bypass.
+    This keeps behavior predictable and makes company isolation hard to bypass.
     """
 
     project_header = "X-Project-Id"
@@ -77,7 +77,7 @@ class TenantModelViewSet(viewsets.ModelViewSet):
 
         company = self._company()
         if not company:
-            raise PermissionDenied("Tenant user required")
+            raise PermissionDenied("Company user required")
 
         # Company scoping (include global rows when present).
         if hasattr(queryset.model, "company_id"):
@@ -95,7 +95,7 @@ class TenantModelViewSet(viewsets.ModelViewSet):
 
         company = self._company()
         if not company:
-            raise PermissionDenied("Tenant user required")
+            raise PermissionDenied("Company user required")
 
         model = getattr(getattr(serializer, "Meta", None), "model", None)
 
@@ -115,7 +115,7 @@ class TenantModelViewSet(viewsets.ModelViewSet):
 
         company = self._company()
         if not company:
-            raise PermissionDenied("Tenant user required")
+            raise PermissionDenied("Company user required")
 
         instance = serializer.instance
         model = getattr(getattr(serializer, "Meta", None), "model", None)

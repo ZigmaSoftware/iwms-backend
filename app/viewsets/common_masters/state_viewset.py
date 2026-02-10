@@ -1,10 +1,9 @@
 from rest_framework import viewsets
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
 from app.models.common_masters.state import State
 from app.serializers.common_masters.state_serializer import StateSerializer
 
 
-class StateViewSet(TenantModelViewSet):
+class StateViewSet(viewsets.ModelViewSet):
     queryset = State.objects.all()   # REQUIRED for DRF basename detection
     serializer_class = StateSerializer
     lookup_field = "unique_id"

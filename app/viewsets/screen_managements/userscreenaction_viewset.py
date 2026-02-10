@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 from app.models.screen_managements.userscreenaction import UserScreenAction
 from app.serializers.screen_managements.userscreenaction_serializer import (
@@ -9,7 +9,7 @@ from app.serializers.screen_managements.userscreenaction_serializer import (
 )
 
 
-class UserScreenActionViewSet(TenantModelViewSet):
+class UserScreenActionViewSet(CompanyScopedViewSet):
     serializer_class = UserScreenActionSerializer
     queryset = UserScreenAction.objects.filter(is_deleted=False)
     lookup_field = "unique_id"

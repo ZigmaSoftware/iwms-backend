@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 from app.models.user_creations.alternative_staff_template import AlternativeStaffTemplate
 from app.models.audits.staff_template_audit_log import StaffTemplateAuditLog
@@ -11,7 +11,7 @@ from app.serializers.user_creations.alternative_stafftemplate_serializer import 
 )
 
 
-class AlternativeStaffTemplateViewSet(TenantModelViewSet):
+class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
     """
     API Contract:
     - Create alternative staff mapping
