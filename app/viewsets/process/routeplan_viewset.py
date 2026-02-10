@@ -1,12 +1,12 @@
 from rest_framework import viewsets
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.process.routeplan import RoutePlan
 from app.serializers.process.routeplan_serializer import (
     RoutePlanSerializer
 )
 
 
-class RoutePlanViewSet(TenantModelViewSet):
+class RoutePlanViewSet(CompanyScopedViewSet):
     """
     Route Plan CRUD
     """

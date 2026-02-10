@@ -1,12 +1,12 @@
 from django.shortcuts import get_object_or_404
 
 from rest_framework import viewsets
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.serializers.transport_masters.vehicletypecreation_serializer import VehicleTypeCreationSerializer
 
 
-class VehicleTypeCreationViewSet(TenantModelViewSet):
+class VehicleTypeCreationViewSet(CompanyScopedViewSet):
     queryset = VehicleTypeCreation.objects.filter(is_deleted=False)
     serializer_class = VehicleTypeCreationSerializer
     lookup_field = "unique_id"

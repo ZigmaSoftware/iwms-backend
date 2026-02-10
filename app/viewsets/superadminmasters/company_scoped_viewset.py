@@ -5,23 +5,52 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from app.models.superadmin_masters.project import Project
 
 
-class TenantModelViewSet(viewsets.ModelViewSet):
-    """Enterprise-safe default tenant scoping.
+class CompanyScopedViewSet(viewsets.ModelViewSet):
+    """Enterprise-safe default company scoping.
 
     - Staff users are automatically scoped to their company.
     - If X-Project-Id is provided, we include project-specific rows plus company-level rows.
-    - Platform super admins may bypass tenant scoping and manage everything.
+    - Platform super admins may bypass company scoping and manage everything.
 
-    This keeps behavior predictable and makes tenant isolation hard to bypass.
+    This keeps behavior predictable and makes company isolation hard to bypass.
     """
 
     project_header = "X-Project-Id"
 
     def _is_platform_super_admin(self):
-        return getattr(getattr(self, "request", None), "user", None) and getattr(self.request.user, "is_superuser", False)
+        user = getattr(getattr(self, "request", None), "user", None)
+        if not user:
+            return False
+
+        # Treat as platform super admin only when no company is attached.
+        if getattr(user, "is_superuser", False) and not getattr(user, "company_id", None):
+            return True
+
+        payload = getattr(self.request, "jwt_payload", {}) or {}
+        role = (payload.get("role") or "").lower()
+        user_type = (payload.get("user_type") or "").lower()
+        has_company = payload.get("company_unique_id") or getattr(user, "company_id", None)
+
+        return user_type == "platform" and role == "superadmin" and not has_company
 
     def _company(self):
-        return getattr(getattr(self, "request", None), "user", None) and getattr(self.request.user, "company_id", None)
+        user = getattr(getattr(self, "request", None), "user", None)
+        if not user:
+            return None
+
+        company = getattr(user, "company_id", None)
+        if company:
+            return company
+
+        staff = getattr(user, "staff_id", None)
+        if staff and getattr(staff, "company_id", None):
+            return staff.company_id
+
+        customer = getattr(user, "customer_id", None)
+        if customer and getattr(customer, "company_id", None):
+            return customer.company_id
+
+        return None
 
     def _project(self):
         company = self._company()
@@ -48,7 +77,7 @@ class TenantModelViewSet(viewsets.ModelViewSet):
 
         company = self._company()
         if not company:
-            raise PermissionDenied("Tenant user required")
+            raise PermissionDenied("Company user required")
 
         # Company scoping (include global rows when present).
         if hasattr(queryset.model, "company_id"):
@@ -66,7 +95,7 @@ class TenantModelViewSet(viewsets.ModelViewSet):
 
         company = self._company()
         if not company:
-            raise PermissionDenied("Tenant user required")
+            raise PermissionDenied("Company user required")
 
         model = getattr(getattr(serializer, "Meta", None), "model", None)
 
@@ -86,7 +115,7 @@ class TenantModelViewSet(viewsets.ModelViewSet):
 
         company = self._company()
         if not company:
-            raise PermissionDenied("Tenant user required")
+            raise PermissionDenied("Company user required")
 
         instance = serializer.instance
         model = getattr(getattr(serializer, "Meta", None), "model", None)

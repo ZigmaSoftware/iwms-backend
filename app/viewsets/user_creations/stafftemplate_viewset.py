@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.models.user_creations.stafftemplate import StaffTemplate
@@ -11,7 +11,7 @@ from app.serializers.user_creations.stafftemplate_serializer import (
 )
 
 
-class StaffTemplateViewSet(TenantModelViewSet):
+class StaffTemplateViewSet(CompanyScopedViewSet):
     """
     Staff Template API
     - Status and approval filters

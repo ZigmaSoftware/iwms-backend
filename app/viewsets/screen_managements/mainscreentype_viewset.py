@@ -1,14 +1,14 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 from app.models.screen_managements.mainscreentype import MainScreenType
 from app.serializers.screen_managements.mainscreentype_serializer import (
     MainScreenTypeSerializer
 )
 
-class MainScreenTypeViewSet(TenantModelViewSet):
+class MainScreenTypeViewSet(CompanyScopedViewSet):
     serializer_class = MainScreenTypeSerializer
     queryset = MainScreenType.objects.filter(is_deleted=False)
     lookup_field = "unique_id"

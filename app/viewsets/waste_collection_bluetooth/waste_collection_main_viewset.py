@@ -1,11 +1,11 @@
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.user_creations.waste_collection_bluetooth import WasteCollectionMain
 from app.serializers.waste_collection_bluetooth.waste_collection_main_serializer import (
     WasteCollectionMainSerializer,
 )
 
 
-class WasteCollectionMainViewSet(TenantModelViewSet):
+class WasteCollectionMainViewSet(CompanyScopedViewSet):
     queryset = WasteCollectionMain.objects.filter(is_deleted=False)
     serializer_class = WasteCollectionMainSerializer
     lookup_field = "unique_id"

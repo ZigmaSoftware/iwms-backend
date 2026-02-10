@@ -1,10 +1,10 @@
 from rest_framework import viewsets
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.masters.ward import Ward
 from app.serializers.masters.ward_serializer import WardSerializer
 
 
-class WardViewSet(TenantModelViewSet):
+class WardViewSet(CompanyScopedViewSet):
     serializer_class = WardSerializer
     lookup_field = "unique_id"
 

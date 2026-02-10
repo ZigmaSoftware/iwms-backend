@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.db import transaction
 
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
 from app.serializers.screen_managements.companyuserscreenpermission_serializer import (
     CompanyUserScreenPermissionSerializer,
@@ -11,7 +11,7 @@ from app.serializers.screen_managements.companyuserscreenpermission_serializer i
 )
 
 
-class CompanyUserScreenPermissionViewSet(TenantModelViewSet):
+class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
     serializer_class = CompanyUserScreenPermissionSerializer
     lookup_field = "unique_id"
 

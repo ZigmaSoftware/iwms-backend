@@ -1,12 +1,12 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 from app.models.grivences.sub_category_citizenGrievance import SubCategory
 from app.serializers.grivences.subcategory_serializer import SubCategorySerializer
 
 
-class SubCategoryViewSet(TenantModelViewSet):
+class SubCategoryViewSet(CompanyScopedViewSet):
     queryset = SubCategory.objects.filter(is_deleted=False)
     serializer_class = SubCategorySerializer
     lookup_field = "unique_id"

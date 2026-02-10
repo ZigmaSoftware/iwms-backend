@@ -1,12 +1,12 @@
 from django.shortcuts import get_object_or_404
 
 from rest_framework import viewsets
-from app.viewsets.superadminmasters.tenant_viewset import TenantModelViewSet
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.transport_masters.fuel import Fuel
 from app.serializers.transport_masters.fuel_serializer import FuelSerializer
 
 
-class FuelViewSet(TenantModelViewSet):
+class FuelViewSet(CompanyScopedViewSet):
     queryset = Fuel.objects.filter(is_deleted=False)
     serializer_class = FuelSerializer
     lookup_field = "unique_id"
