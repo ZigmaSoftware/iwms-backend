@@ -89,7 +89,6 @@ class BinLoadLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "api_bin_load_log"
         ordering = ["-event_time"]
 
     def __str__(self):

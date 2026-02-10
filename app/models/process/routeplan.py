@@ -80,7 +80,6 @@ class RoutePlan(BaseMaster):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "api_route_plan"
         ordering = ["-created_at"]
 
     def __str__(self):

@@ -82,7 +82,6 @@ class SupervisorZoneMap(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "api_supervisor_zone_map"
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["supervisor_id", "status"]),  

@@ -84,7 +84,6 @@ class SupervisorZoneAccessAudit(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "api_supervisor_zone_access_audit"
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["supervisor"]),

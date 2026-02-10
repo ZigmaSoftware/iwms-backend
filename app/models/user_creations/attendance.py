@@ -76,7 +76,6 @@ class Recognized(models.Model):
     punch_type = models.CharField(max_length=3, default="IN")
 
     class Meta:
-        db_table = "api_attendance_recognized"
         indexes = [
             models.Index(fields=["emp_id"]),
             models.Index(fields=["staff"]),
