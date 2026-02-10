@@ -44,7 +44,7 @@ class WasteType(models.Model):
     waste_type_name = models.CharField(max_length=255)
     is_deleted = models.BooleanField(default=False)
 
-    class Meta:
+  
 
 class WasteCollectionSub(models.Model):
     company_id = models.ForeignKey(
@@ -74,7 +74,6 @@ class WasteCollectionSub(models.Model):
     is_deleted = models.BooleanField(default=False)
     date_time = models.DateTimeField(auto_now=True)
 
-    class Meta:
 
 
 class WasteCollectionMain(models.Model):
@@ -102,4 +101,4 @@ class WasteCollectionMain(models.Model):
     customer_id = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
 
-    class Meta:
+  
