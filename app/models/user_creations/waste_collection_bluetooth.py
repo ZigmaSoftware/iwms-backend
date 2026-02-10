@@ -47,12 +47,6 @@ class WasteType(models.Model):
     waste_type_name = models.CharField(max_length=255)
     is_deleted = models.BooleanField(default=False)
 
-    class Meta:
-        db_table = "waste_type_creation_master"
-
-    def __str__(self):
-        return self.waste_type_name
-
 
 class WasteCollectionSub(models.Model):
     company_id = models.ForeignKey(
@@ -81,11 +75,6 @@ class WasteCollectionSub(models.Model):
     is_deleted = models.BooleanField(default=False)
     date_time = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        db_table = "waste_collection_sub"
-
-    def __str__(self):
-        return self.unique_id
 
 
 class WasteCollectionMain(models.Model):
@@ -112,8 +101,3 @@ class WasteCollectionMain(models.Model):
     customer_id = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
 
-    class Meta:
-        db_table = "waste_collection_main"
-
-    def __str__(self):
-        return self.unique_id
