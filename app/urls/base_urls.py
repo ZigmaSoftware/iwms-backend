@@ -99,9 +99,8 @@ router = GroupedRouter()
 # ============================================================
 # GROUP: SUPERADMIN MASTERS
 # ============================================================
-router.register_group("superadmin","company/create",PlatformCompanyCreateViewSet,basename="platform-company-create",)
-router.register_group("superadmin",r"company/(?P<company_unique_id>[^/.]+)/project/create",PlatformFirstProjectCreateViewSet,basename="platform-first-project-create")
-router.register_group("superadmin","project/create",CompanyAdditionalProjectCreateViewSet,basename="company-additional-project-create",)
+router.register_group("superadmin", "company",  PlatformCompanyCreateViewSet)
+router.register_group("superadmin", "project",  CompanyAdditionalProjectCreateViewSet)
 
 # ============================================================
 # GROUP: COMMON MASTERS
