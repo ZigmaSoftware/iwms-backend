@@ -119,7 +119,6 @@ class StaffTemplate(models.Model):
 
     # ---------------- META ----------------
     class Meta:
-        db_table = "api_staff_template"
         indexes = [
             models.Index(fields=["status", "approval_status"]),
             models.Index(fields=["display_code"]),

@@ -88,7 +88,6 @@ class TripAttendance(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "api_trip_attendance"
         ordering = ["-attendance_time"]
         verbose_name = "Trip Attendance"
         verbose_name_plural = "Trip Attendances"

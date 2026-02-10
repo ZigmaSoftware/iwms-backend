@@ -154,7 +154,6 @@ class Zone(BaseMaster):
     # META
     # -----------------------------
     class Meta:
-        db_table = "api_zone"
         ordering = ["name"]
         indexes = [
             models.Index(fields=["city_id", "area_type"]),

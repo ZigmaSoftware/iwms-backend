@@ -121,7 +121,6 @@ class TripInstance(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "api_trip_instance"
         verbose_name = "Trip Instance"
         verbose_name_plural = "Trip Instances"
         ordering = ["-created_at"]

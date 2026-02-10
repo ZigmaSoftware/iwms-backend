@@ -68,7 +68,6 @@ class StaffTemplateAuditLog(models.Model):
     performed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "api_staff_template_audit_log"
         ordering = ["-performed_at"]
         indexes = [
             models.Index(fields=["entity_type", "entity_id"]),

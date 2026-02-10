@@ -77,7 +77,6 @@ class VehicleTripAudit(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "api_vehicle_trip_audit"
         ordering = ["-captured_at"]
         indexes = [
             models.Index(fields=["trip_instance", "vehicle"]),

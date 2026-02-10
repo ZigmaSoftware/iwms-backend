@@ -98,7 +98,6 @@ class TripDefinition(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        db_table = "api_trip_definition"
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["approval_status"]),

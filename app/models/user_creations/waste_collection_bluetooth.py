@@ -45,7 +45,6 @@ class WasteType(models.Model):
     is_deleted = models.BooleanField(default=False)
 
     class Meta:
-        db_table = "waste_type_creation_master"
 
 class WasteCollectionSub(models.Model):
     company_id = models.ForeignKey(
@@ -76,7 +75,6 @@ class WasteCollectionSub(models.Model):
     date_time = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "waste_collection_sub"
 
 
 class WasteCollectionMain(models.Model):
@@ -105,4 +103,3 @@ class WasteCollectionMain(models.Model):
     is_deleted = models.BooleanField(default=False)
 
     class Meta:
-        db_table = "waste_collection_main"

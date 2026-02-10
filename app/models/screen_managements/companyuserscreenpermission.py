@@ -77,7 +77,6 @@ class CompanyUserScreenPermission(BaseMaster):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "api_companywiseuserscreenpermission"
         ordering = ["order_no"]
         constraints = [
         models.UniqueConstraint(
