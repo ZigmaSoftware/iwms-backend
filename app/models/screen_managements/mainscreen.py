@@ -37,7 +37,7 @@ class MainScreen(BaseMaster):
         on_delete=models.PROTECT,
         related_name="mainscreens",
         to_field="unique_id",
-        db_column="mainscreentype_id"   # IMPORTANT
+        db_column="mainscreentype_id"   
     )
 
     mainscreen_name = models.CharField(max_length=50, unique=True)
