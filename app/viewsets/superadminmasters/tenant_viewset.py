@@ -18,10 +18,39 @@ class TenantModelViewSet(viewsets.ModelViewSet):
     project_header = "X-Project-Id"
 
     def _is_platform_super_admin(self):
-        return getattr(getattr(self, "request", None), "user", None) and getattr(self.request.user, "is_superuser", False)
+        user = getattr(getattr(self, "request", None), "user", None)
+        if not user:
+            return False
+
+        # Treat as platform super admin only when no company is attached.
+        if getattr(user, "is_superuser", False) and not getattr(user, "company_id", None):
+            return True
+
+        payload = getattr(self.request, "jwt_payload", {}) or {}
+        role = (payload.get("role") or "").lower()
+        user_type = (payload.get("user_type") or "").lower()
+        has_company = payload.get("company_unique_id") or getattr(user, "company_id", None)
+
+        return user_type == "platform" and role == "superadmin" and not has_company
 
     def _company(self):
-        return getattr(getattr(self, "request", None), "user", None) and getattr(self.request.user, "company_id", None)
+        user = getattr(getattr(self, "request", None), "user", None)
+        if not user:
+            return None
+
+        company = getattr(user, "company_id", None)
+        if company:
+            return company
+
+        staff = getattr(user, "staff_id", None)
+        if staff and getattr(staff, "company_id", None):
+            return staff.company_id
+
+        customer = getattr(user, "customer_id", None)
+        if customer and getattr(customer, "company_id", None):
+            return customer.company_id
+
+        return None
 
     def _project(self):
         company = self._company()
