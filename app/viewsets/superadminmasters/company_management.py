@@ -1,26 +1,72 @@
-from django.db import transaction
+from drf_yasg import openapi
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.user_creations.staffcreation import StaffOfficeDetails, StaffPersonalDetails
-from app.models.role_assigns.userType import UserType
-from app.models.role_assigns.staffUserType import StaffUserType
 from app.permissions.platform import PlatformSuperAdminOnly
-from app.serializers.superadmin_masters.company_create_serializer import PlatformCompanyCreateSerializer
+from app.serializers.superadmin_masters.company_create_serializer import (
+    CompanySerializer,
+    PlatformCompanyCreateSerializer,
+)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PlatformCompanyCreateViewSet(ViewSet):
     permission_classes = [PlatformSuperAdminOnly]
+    lookup_field = "unique_id"
 
-    @transaction.atomic
-    @swagger_auto_schema(request_body=PlatformCompanyCreateSerializer)
+    def get_queryset(self):
+        return Company.objects.filter(is_deleted=False).order_by("name")
+
+    def _get_company(self, unique_id):
+        company = self.get_queryset().filter(unique_id=unique_id).first()
+        if not company:
+            raise NotFound("Company not found")
+        return company
+
+    def _lookup_value(self, pk=None):
+        return pk or self.kwargs.get(self.lookup_field)
+
+    @swagger_auto_schema(
+        operation_summary="List companies",
+        responses={200: CompanySerializer(many=True)},
+    )
+    def list(self, request):
+        serializer = CompanySerializer(self.get_queryset(), many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary="Get company",
+        responses={200: CompanySerializer},
+    )
+    def retrieve(self, request, pk=None):
+        company = self._get_company(self._lookup_value(pk))
+        serializer = CompanySerializer(company)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        request_body=PlatformCompanyCreateSerializer,
+        operation_summary="Create company (metadata only)",
+        operation_description=(
+            "Creates only the company record. "
+            "Admin credentials are not accepted here and must be sent to /superadmin/project/create/ during first project setup."
+        ),
+        responses={
+            201: openapi.Response(
+                description="Company created",
+                examples={
+                    "application/json": {
+                        "company": {"unique_id": "CMP-xxxxxxxxxx", "name": "Acme Corp"}
+                    }
+                },
+            )
+        },
+    )
     def create(self, request):
         serializer = PlatformCompanyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -30,52 +76,60 @@ class PlatformCompanyCreateViewSet(ViewSet):
             name=data["name"],
             description=data.get("description"),
         )
-        project = Project.objects.create(
-            name=f"{company.name} Main Project",
-            company_id=company,
-            description=f"Default project for {company.name}",
-            is_active=True,
-            is_deleted=False,
-        )
-
-        # Global user type rows (kept global even though tenancy columns exist).
-        staff_type, _ = UserType.objects.get_or_create(name="staff", defaults={"is_active": True, "is_deleted": False})
-
-        # Global staff role rows.
-        admin_role, _ = StaffUserType.objects.get_or_create(
-            usertype_id=staff_type,
-            name="admin",
-            defaults={"is_active": True, "is_deleted": False},
-        )
-
-        # Create staff with auth fields directly (no separate User model)
-        staff = StaffOfficeDetails.objects.create(
-            company_id=company,
-            project_id=project,
-            employee_name=data["admin_employee_name"],
-            username=data["admin_username"],
-            password=data["admin_password"],
-            user_type_id=staff_type,
-            staffusertype_id=admin_role,
-            is_staff=False,
-            is_active=True,
-            is_deleted=False,
-        )
-
-        email = data.get("admin_email")
-        if email:
-            StaffPersonalDetails.objects.create(
-                company_id=company,
-                project_id=project,
-                staff=staff,
-                staff_unique_id=staff.staff_unique_id,
-                contact_email=email,
-            )
-
+        company_data = CompanySerializer(company).data
         return Response(
             {
-                "company": {"unique_id": company.unique_id, "name": company.name},
-                "company_admin": {"unique_id": staff.staff_unique_id, "username": staff.username},
+                "company": company_data,
             },
             status=status.HTTP_201_CREATED,
         )
+
+    @swagger_auto_schema(
+        request_body=PlatformCompanyCreateSerializer,
+        operation_summary="Update company",
+        responses={200: CompanySerializer},
+    )
+    def update(self, request, pk=None):
+        company = self._get_company(self._lookup_value(pk))
+        serializer = PlatformCompanyCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        company.name = serializer.validated_data["name"]
+        company.description = serializer.validated_data.get("description")
+        company.save(update_fields=["name", "description"])
+
+        response_serializer = CompanySerializer(company)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        request_body=PlatformCompanyCreateSerializer,
+        operation_summary="Patch company",
+        responses={200: CompanySerializer},
+    )
+    def partial_update(self, request, pk=None):
+        company = self._get_company(self._lookup_value(pk))
+        serializer = PlatformCompanyCreateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        update_fields = []
+        if "name" in serializer.validated_data:
+            company.name = serializer.validated_data["name"]
+            update_fields.append("name")
+        if "description" in serializer.validated_data:
+            company.description = serializer.validated_data["description"]
+            update_fields.append("description")
+
+        if update_fields:
+            company.save(update_fields=update_fields)
+
+        response_serializer = CompanySerializer(company)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary="Delete company",
+        responses={204: "No content"},
+    )
+    def destroy(self, request, pk=None):
+        company = self._get_company(self._lookup_value(pk))
+        company.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
