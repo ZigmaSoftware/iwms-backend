@@ -181,12 +181,12 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
                     {"extra_operator_id": "Duplicate users are not allowed."}
                 )
 
-            if operator and operator.unique_id in extra_ids:
+            if operator and str(operator.staff_unique_id) in extra_ids:
                 raise serializers.ValidationError(
                     {"extra_operator_id": "Extra operators cannot include the primary operator."}
                 )
 
-            if driver and driver.unique_id in extra_ids:
+            if driver and str(driver.staff_unique_id) in extra_ids:
                 raise serializers.ValidationError(
                     {"extra_operator_id": "Extra operators cannot include the driver."}
                 )

@@ -1,9 +1,10 @@
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.viewsets import ViewSet
 
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -15,11 +16,12 @@ from app.serializers.superadmin_masters.company_create_serializer import Platfor
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class PlatformCompanyCreateView(APIView):
+class PlatformCompanyCreateViewSet(ViewSet):
     permission_classes = [PlatformSuperAdminOnly]
 
     @transaction.atomic
-    def post(self, request):
+    @swagger_auto_schema(request_body=PlatformCompanyCreateSerializer)
+    def create(self, request):
         serializer = PlatformCompanyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

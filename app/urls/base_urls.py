@@ -6,6 +6,11 @@ from .custom_router import GroupedRouter
 # IMPORTS
 # ============================================================
 
+# Super admin masters
+from ..viewsets.superadminmasters.company_management import PlatformCompanyCreateViewSet
+from ..viewsets.superadminmasters.project_management import (CompanyAdditionalProjectCreateViewSet,PlatformFirstProjectCreateViewSet,)
+
+
 # Common masters
 from ..viewsets.common_masters.continent_viewset import ContinentViewSet
 from ..viewsets.common_masters.country_viewset import CountryViewSet
@@ -90,6 +95,12 @@ from ..viewsets.attendance_view.attendance_list import AttendanceListViewSet
 
 
 router = GroupedRouter()
+
+# ============================================================
+# GROUP: SUPERADMIN MASTERS
+# ============================================================
+router.register_group("superadmin", "company",  PlatformCompanyCreateViewSet)
+router.register_group("superadmin", "project",  CompanyAdditionalProjectCreateViewSet)
 
 # ============================================================
 # GROUP: COMMON MASTERS

@@ -26,8 +26,9 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
     )
     serializer_class = AlternativeStaffTemplateSerializer
 
-    # 🔒 CRITICAL: single source of truth for middleware
+    #  CRITICAL: single source of truth for middleware
     permission_resource = "AlternativeStaffTemplate"
+    lookup_field = "unique_id"
 
     def get_queryset(self):
         qs = super().get_queryset()
