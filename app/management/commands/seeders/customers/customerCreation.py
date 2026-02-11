@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 
 from app.management.commands.seeders.base import BaseSeeder
@@ -82,8 +81,6 @@ class CustomerCreationSeeder(BaseSeeder):
             self.log("UserType 'customer' missing. Seed role-assign before customers.")
             return
 
-        UserModel = get_user_model()
-
         # --------------------------------------------------
         # CREATE CUSTOMERS
         # --------------------------------------------------
@@ -131,20 +128,8 @@ class CustomerCreationSeeder(BaseSeeder):
                 if update_fields:
                     customer.save(update_fields=update_fields)
 
-            user_defaults = {
-                "username": customer.username or customer.contact_no,
-                "password": customer.password,
-                "email": customer.email,
-                "company_id": customer.company_id,
-                "project_id": customer.project_id,
-                "user_type_id": customer_type,
-                "customer_id": customer,
-                "is_active": customer.is_active,
-                "is_deleted": customer.is_deleted,
-            }
-            user, _ = UserModel.objects.update_or_create(
-                customer_id=customer,
-                defaults=user_defaults,
-            )
+            # Customer auth uses CustomerCreation directly.
+            # Remove legacy mirrored api_user rows for this customer.
+            customer.users_customer.all().delete()
 
         self.log("---Customers seeded successfully---")
