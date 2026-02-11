@@ -19,7 +19,6 @@ from app.management.commands.seeders.platform import PLATFORM_SEEDERS
 # ORDER MATTERS – DEFINE IT ONCE
 # --------------------------------------------------
 ORDERED_GROUPS = [
-    "platform",
     "masters",
     "assets",
     "role-assign",
@@ -29,7 +28,8 @@ ORDERED_GROUPS = [
     "user-creation",
     "vehicles",
     "grievance",
-    "staff"
+    "staff",
+    "platform"
 ]
 
 SEED_GROUPS = {
