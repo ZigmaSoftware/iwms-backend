@@ -6,6 +6,9 @@ from app.models.masters.ward import Ward
 from app.utils.comfun import generate_unique_id
 from django.utils import timezone
 from django.db.models import Max
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 def generate_complaint_id():
     """Generate sequential CG-00001 style complaint ID."""
@@ -36,14 +39,14 @@ def complaint_upload_path(instance, filename):
 class Complaint(BaseMaster):
 
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

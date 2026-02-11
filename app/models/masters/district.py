@@ -3,6 +3,8 @@ from app.utils.base_models import BaseMaster
 from ..common_masters.country import Country
 from ..common_masters.state import State
 from ..common_masters.continent import Continent
+from ..superadmin_masters.company import Company
+from ..superadmin_masters.project import Project
 from app.utils.comfun import generate_unique_id
 
 def generate_district_id():
@@ -10,14 +12,14 @@ def generate_district_id():
 
 class District(BaseMaster):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

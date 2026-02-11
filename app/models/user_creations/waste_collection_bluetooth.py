@@ -5,6 +5,9 @@ import string
 
 from django.conf import settings
 from django.db import models
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 def generate_unique_id(prefix):
@@ -31,14 +34,14 @@ def upload_image(image):
 
 class WasteType(models.Model):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -50,14 +53,14 @@ class WasteType(models.Model):
 
 class WasteCollectionSub(models.Model):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -79,14 +82,14 @@ class WasteCollectionSub(models.Model):
 
 class WasteCollectionMain(models.Model):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -100,4 +103,3 @@ class WasteCollectionMain(models.Model):
     entry_type = models.CharField(max_length=20, default="app")
     customer_id = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
-

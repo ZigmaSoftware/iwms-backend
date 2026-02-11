@@ -1,3 +1,5 @@
+from django.conf import settings
+
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.models.role_assigns.staffUserType import StaffUserType
@@ -14,6 +16,9 @@ class AuthUserSeeder(BaseSeeder):
     name = "auth_user"
 
     def run(self):
+        if not getattr(settings, "ENABLE_AUTH_USER_SEEDING", True):
+            self.log("Auth user seeding skipped (ENABLE_AUTH_USER_SEEDING=False).")
+            return
         """
         Ensure at least three staff users exist with auth fields for alternative staff template links.
         """

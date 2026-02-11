@@ -2,6 +2,9 @@ from django.db import models
 from app.utils.base_models import BaseMaster
 from django.core.validators import RegexValidator
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 def generate_ward_id():
@@ -31,7 +34,7 @@ hex_color_validator = RegexValidator(
 
 class Ward(BaseMaster):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -39,7 +42,7 @@ class Ward(BaseMaster):
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

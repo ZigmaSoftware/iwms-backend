@@ -33,7 +33,7 @@ class AlternativeStaffTemplate(models.Model):
 
     # ---- Business Mapping ----
     staff_template = models.ForeignKey(
-        'api.StaffTemplate',
+        'app.StaffTemplate',
         on_delete=models.PROTECT,
         db_column='staff_template_id',
         related_name='alternative_templates'

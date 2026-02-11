@@ -7,6 +7,8 @@ from app.models.role_assigns.userType import UserType
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.screen_managements.userscreenaction import UserScreenAction
 from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 def generate_companyuserscreenpermission_id():
@@ -15,7 +17,7 @@ def generate_companyuserscreenpermission_id():
 
 class CompanyUserScreenPermission(BaseMaster):
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

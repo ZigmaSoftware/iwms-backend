@@ -17,6 +17,9 @@ from app.models.masters.city import City
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 def generate_user_id():
@@ -70,14 +73,14 @@ class UserManager(BaseUserManager):
 class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
 
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -199,6 +202,7 @@ class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     class Meta:
+        db_table = "auth_user"
         ordering = ["-id"]
         verbose_name = "User"
         verbose_name_plural = "Users"
