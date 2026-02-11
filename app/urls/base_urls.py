@@ -8,7 +8,7 @@ from .custom_router import GroupedRouter
 
 # Super admin masters
 from ..viewsets.superadminmasters.company_management import PlatformCompanyCreateViewSet
-from ..viewsets.superadminmasters.project_management import (CompanyAdditionalProjectCreateViewSet,PlatformFirstProjectCreateViewSet,)
+from ..viewsets.superadminmasters.project_management import CompanyProjectCreateViewSet
 
 
 # Common masters
@@ -99,8 +99,8 @@ router = GroupedRouter()
 # ============================================================
 # GROUP: SUPERADMIN MASTERS
 # ============================================================
-router.register_group("superadmin", "company",  PlatformCompanyCreateViewSet)
-router.register_group("superadmin", "project",  CompanyAdditionalProjectCreateViewSet)
+router.register_group("superadmin","company",PlatformCompanyCreateViewSet)
+router.register_group("superadmin","project",CompanyProjectCreateViewSet)
 
 # ============================================================
 # GROUP: COMMON MASTERS
