@@ -5,6 +5,9 @@ from app.models.screen_managements.userscreen import UserScreen
 from app.models.screen_managements.userscreenaction import UserScreenAction
 from app.models.user_creations.staffcreation import StaffOfficeDetails
 from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 def generate_login_id():
@@ -13,14 +16,14 @@ def generate_login_id():
 
 class AuditLog(models.Model):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

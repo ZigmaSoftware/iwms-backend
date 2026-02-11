@@ -5,6 +5,9 @@ from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 from app.models.assets.bin import Bin
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 def generate_bin_load_log_id():
@@ -14,14 +17,14 @@ def generate_bin_load_log_id():
 class BinLoadLog(models.Model):
 
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
