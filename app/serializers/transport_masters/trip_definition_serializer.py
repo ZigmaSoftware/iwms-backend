@@ -14,6 +14,10 @@ from app.serializers.user_creations.user_serializer import UniqueIdOrPkField
 # MINI STAFF SERIALIZER (Driver / Operator)
 # ==========================================================
 class MiniStaffSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+    unique_id = serializers.CharField(
+        source="staff_unique_id",
+        read_only=True
+    )
     name = serializers.CharField(
         source="employee_name",
         read_only=True
@@ -22,10 +26,7 @@ class MiniStaffSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
         source="personal_details.contact_mobile",
         read_only=True
     )
-    designation = serializers.CharField(
-        source="designation",
-        read_only=True
-    )
+    designation = serializers.CharField(read_only=True)
 
     class Meta:
         model = StaffOfficeDetails
@@ -129,11 +130,7 @@ class TripDefinitionSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
             "city": getattr(rp.city_id, "name", None),
             "zone": getattr(rp.zone_id, "name", None),
             "vehicle_no": getattr(rp.vehicle_id, "vehicle_no", None),
-            "supervisor": getattr(
-                getattr(rp.supervisor_id, "staff_id", None),
-                "employee_name",
-                None
-            ),
+            "supervisor": getattr(rp.supervisor_id, "employee_name", None),
            "display_code": rp.display_code,
         }
 

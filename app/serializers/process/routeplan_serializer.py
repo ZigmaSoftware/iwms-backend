@@ -19,7 +19,7 @@ class RoutePlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
         source="vehicle_id.vehicle_no", read_only=True
     )
     supervisor_name = serializers.CharField(
-        source="supervisor_id.staff_id.employee_name",
+        source="supervisor_id.employee_name",
         read_only=True
     )
 

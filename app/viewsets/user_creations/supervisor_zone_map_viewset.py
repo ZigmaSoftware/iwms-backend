@@ -20,9 +20,10 @@ class SupervisorZoneMapViewSet(ModelViewSet):
 
     queryset = SupervisorZoneMap.objects.all()
     serializer_class = SupervisorZoneMapSerializer
-
+    lookup_field = "unique_id"
     # IMPORTANT for middleware permission resolution
     permission_resource = "SupervisorZoneMap"
+   
 
     def _resolve_request_user(self):
         user = getattr(self.request, "user", None)
