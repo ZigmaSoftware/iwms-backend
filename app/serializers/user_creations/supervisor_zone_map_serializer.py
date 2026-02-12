@@ -51,7 +51,7 @@ class ZoneWithWardsSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         ]
 
     def get_wards(self, obj):
-        wards = obj.ward_set.filter(
+        wards = obj.wards.filter(
             is_active=True,
             is_deleted=False
         )
@@ -97,7 +97,7 @@ class SupervisorZoneMapSerializer(TenancyReadSerializerMixin, serializers.ModelS
             is_active=True,
             is_deleted=False
         ).prefetch_related(
-            "ward_set"
+            "wards"
         )
 
         return ZoneWithWardsSerializer(zones, many=True).data

@@ -22,7 +22,7 @@ class RoutePlanViewSet(CompanyScopedViewSet):
             "zone_id",
             "vehicle_id",
             "supervisor_id",
-            "supervisor_id__staff_id",
+            "supervisor_id__user_type_id",
             "supervisor_id__staffusertype_id",
         ).filter(is_deleted=False)
 
