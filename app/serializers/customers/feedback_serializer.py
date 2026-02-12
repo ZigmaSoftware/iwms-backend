@@ -39,7 +39,7 @@ class FeedBackSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
 
     class Meta:
         model = FeedBack
-        exclude = ["id"]
+        fields = "__all__"
         extra_kwargs = {
             "customer": {"write_only": True},
         }
