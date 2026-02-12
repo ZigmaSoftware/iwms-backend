@@ -11,6 +11,9 @@ from app.models.masters.ward import Ward
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 def generate_customer_id():
@@ -19,14 +22,14 @@ def generate_customer_id():
 
 class CustomerCreation(BaseMaster):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

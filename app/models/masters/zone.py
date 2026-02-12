@@ -8,6 +8,9 @@ from ..common_masters.state import State
 from .district import District
 from .city import City
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 # ----------------------------------
@@ -49,14 +52,14 @@ hex_color_validator = RegexValidator(
 # ----------------------------------
 class Zone(BaseMaster):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

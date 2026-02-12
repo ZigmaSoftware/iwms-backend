@@ -12,6 +12,66 @@ from app.serializers.superadmin_masters.company_create_serializer import (
     PlatformCompanyCreateSerializer,
 )
 
+
+@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(
+    name="list",
+    decorator=swagger_auto_schema(
+        operation_summary="List companies",
+        responses={200: CompanySerializer(many=True)},
+    ),
+)
+@method_decorator(
+    name="retrieve",
+    decorator=swagger_auto_schema(
+        operation_summary="Get company",
+        responses={200: CompanySerializer},
+    ),
+)
+@method_decorator(
+    name="create",
+    decorator=swagger_auto_schema(
+        request_body=PlatformCompanyCreateSerializer,
+        operation_summary="Create company (metadata only)",
+        operation_description=(
+            "Creates only the company record. "
+            "Admin credentials are not accepted here and must be sent to /superadmin/project/create/ during first project setup."
+        ),
+        responses={
+            201: openapi.Response(
+                description="Company created",
+                examples={
+                    "application/json": {
+                        "company": {"unique_id": "CMP-xxxxxxxxxx", "name": "Acme Corp"}
+                    }
+                },
+            )
+        },
+    ),
+)
+@method_decorator(
+    name="update",
+    decorator=swagger_auto_schema(
+        request_body=PlatformCompanyCreateSerializer,
+        operation_summary="Update company",
+        responses={200: CompanySerializer},
+    ),
+)
+@method_decorator(
+    name="partial_update",
+    decorator=swagger_auto_schema(
+        request_body=PlatformCompanyCreateSerializer,
+        operation_summary="Patch company",
+        responses={200: CompanySerializer},
+    ),
+)
+@method_decorator(
+    name="destroy",
+    decorator=swagger_auto_schema(
+        operation_summary="Delete company",
+        responses={204: "No content"},
+    ),
+)
 class PlatformCompanyCreateViewSet(viewsets.ModelViewSet):
     permission_classes = [PlatformSuperAdminOnly]
     queryset = Company.objects.filter(is_deleted=False).order_by("name")

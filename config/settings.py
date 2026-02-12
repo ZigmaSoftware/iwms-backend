@@ -170,6 +170,8 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+ENABLE_AUTH_USER_SEEDING = os.getenv("ENABLE_AUTH_USER_SEEDING", "true").lower() == "true"
+
 # -------------------------------------------------------
 # REST Framework
 # -------------------------------------------------------
@@ -216,7 +218,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # -------------------------------------------------------
 # Custom User Model
 # -------------------------------------------------------
-AUTH_USER_MODEL = "api.User"
+AUTH_USER_MODEL = "app.User"
 
 # -------------------------------------------------------
 # JWT CONFIG (import at the end)

@@ -1,6 +1,9 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 def generate_usertype_id():
@@ -9,14 +12,14 @@ def generate_usertype_id():
 
 class UserType(BaseMaster):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

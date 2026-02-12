@@ -1,18 +1,21 @@
 from django.db import models
 
 from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 class Employee(models.Model):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -42,14 +45,14 @@ class Employee(models.Model):
 
 class Recognized(models.Model):
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

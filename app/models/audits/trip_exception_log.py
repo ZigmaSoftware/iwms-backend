@@ -1,6 +1,9 @@
 from django.db import models
 from app.models.transport_masters.trip_instance import TripInstance
 from app.utils.comfun import generate_unique_id
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
 
 
 def generate_trip_exception_id():
@@ -12,14 +15,14 @@ class TripExceptionLog(models.Model):
     Immutable audit log for trip-level exceptions.
     """
     company_id = models.ForeignKey(
-        "api.Company",
+        Company,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
-        "api.Project",
+        Project,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
