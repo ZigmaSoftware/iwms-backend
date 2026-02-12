@@ -56,12 +56,20 @@ class StaffTemplateViewSet(CompanyScopedViewSet):
     def _resolve_request_user(self):
         user = getattr(self.request, "user", None)
         if user and not getattr(user, "is_anonymous", False):
-            return user
+            if isinstance(user, Staffcreation) or hasattr(user, "staff_unique_id"):
+                return user
+            staff = getattr(user, "staff_id", None)
+            if staff:
+                return staff
 
         raw_request = getattr(self.request, "_request", None)
         raw_user = getattr(raw_request, "user", None) if raw_request else None
         if raw_user and not getattr(raw_user, "is_anonymous", False):
-            return raw_user
+            if isinstance(raw_user, Staffcreation) or hasattr(raw_user, "staff_unique_id"):
+                return raw_user
+            staff = getattr(raw_user, "staff_id", None)
+            if staff:
+                return staff
 
         payload = getattr(self.request, "jwt_payload", None) or getattr(raw_request, "jwt_payload", None)
         unique_id = payload.get("unique_id") if isinstance(payload, dict) else None
@@ -75,43 +83,51 @@ class StaffTemplateViewSet(CompanyScopedViewSet):
         Tie audit fields to the authenticated user so the client
         does not have to post created_by / updated_by.
         """
-        user = self._resolve_request_user()
-        if not user:
+        staff_user = self._resolve_request_user()
+        request_user = getattr(self.request, "user", None)
+        if not staff_user and (not request_user or getattr(request_user, "is_anonymous", False)):
             raise NotAuthenticated("Authentication required")
         instance = serializer.save(
-            created_by=user,
-            updated_by=user,
+            created_by=staff_user or serializer.validated_data.get("created_by"),
+            updated_by=staff_user or serializer.validated_data.get("updated_by"),
             approved_by=serializer.validated_data.get("approved_by"),
-            company_id=getattr(user, "company_id", None),
-            project_id=getattr(user, "project_id", None),
+            company_id=getattr(staff_user or request_user, "company_id", None),
+            project_id=getattr(staff_user or request_user, "project_id", None),
         )
-        self._log_audit(
-            user=user,
-            action=StaffTemplateAuditLog.Action.CREATE,
-            entity_id=instance.unique_id,
-            remarks=None,
-            company_id=instance.company_id,
-            project_id=instance.project_id,
-        )
+        if staff_user:
+            self._log_audit(
+                user=staff_user,
+                action=StaffTemplateAuditLog.Action.CREATE,
+                entity_id=instance.unique_id,
+                remarks=None,
+                company_id=instance.company_id,
+                project_id=instance.project_id,
+            )
 
     def perform_update(self, serializer):
-        user = self._resolve_request_user()
-        if not user:
+        staff_user = self._resolve_request_user()
+        request_user = getattr(self.request, "user", None)
+        if not staff_user and (not request_user or getattr(request_user, "is_anonymous", False)):
             raise NotAuthenticated("Authentication required")
         instance = serializer.save(
-            updated_by=user or serializer.instance.updated_by,
+            updated_by=(
+                staff_user
+                or serializer.validated_data.get("updated_by")
+                or serializer.instance.updated_by
+            ),
             approved_by=serializer.validated_data.get("approved_by", serializer.instance.approved_by),
-            company_id=getattr(serializer.instance, "company_id", None) or getattr(user, "company_id", None),
-            project_id=getattr(serializer.instance, "project_id", None) or getattr(user, "project_id", None),
+            company_id=getattr(serializer.instance, "company_id", None) or getattr(staff_user or request_user, "company_id", None),
+            project_id=getattr(serializer.instance, "project_id", None) or getattr(staff_user or request_user, "project_id", None),
         )
-        self._log_audit(
-            user=user,
-            action=StaffTemplateAuditLog.Action.MODIFY,
-            entity_id=instance.unique_id,
-            remarks=None,
-            company_id=instance.company_id,
-            project_id=instance.project_id,
-        )
+        if staff_user:
+            self._log_audit(
+                user=staff_user,
+                action=StaffTemplateAuditLog.Action.MODIFY,
+                entity_id=instance.unique_id,
+                remarks=None,
+                company_id=instance.company_id,
+                project_id=instance.project_id,
+            )
 
     def _resolve_performed_role(self, user):
         role = getattr(getattr(user, "staffusertype_id", None), "name", "") or ""

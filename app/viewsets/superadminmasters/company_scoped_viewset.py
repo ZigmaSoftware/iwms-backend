@@ -62,6 +62,14 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
             # Swagger/tests often send project_id in JSON body; accept it, but validate it is in the same company.
             unique_id = self.request.data.get("project_id") or self.request.data.get("project_unique_id")
         if not unique_id:
+            payload = getattr(self.request, "jwt_payload", {}) or {}
+            unique_id = payload.get("project_unique_id")
+        if not unique_id:
+            user = getattr(self.request, "user", None)
+            user_project = getattr(user, "project_id", None)
+            if user_project and getattr(user_project, "company_id", None) == company:
+                return user_project
+        if not unique_id:
             return None
 
         project = Project.objects.filter(unique_id=unique_id, company_id=company).first()
@@ -106,6 +114,8 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         project = self._project()
         if project is not None and model is not None and hasattr(model, "project_id"):
             save_kwargs["project_id"] = project
+        if model is not None and hasattr(model, "project_id") and "project_id" not in save_kwargs:
+            raise ValidationError({"project_id": "project_id is required"})
 
         serializer.save(**save_kwargs)
 

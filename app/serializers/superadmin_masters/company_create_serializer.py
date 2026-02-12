@@ -7,7 +7,7 @@ class PlatformCompanyCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = ["unique_id", "name", "description", "is_active"]
-        read_only_fields = ["unique_id", "is_active"]
+        read_only_fields = ["unique_id"]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -27,4 +27,4 @@ class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = ["unique_id", "name", "description", "is_active"]
-        read_only_fields = ["unique_id", "is_active"]
+        read_only_fields = ["unique_id"]
