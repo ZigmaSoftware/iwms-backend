@@ -1,6 +1,6 @@
 from django.db import models
 from django.db.models import Q
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.utils.comfun import generate_unique_id
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
@@ -40,7 +40,7 @@ class UnassignedStaffPool(models.Model):
     # STAFF (EXACTLY ONE REQUIRED)
     # -----------------------------
     operator = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -55,7 +55,7 @@ class UnassignedStaffPool(models.Model):
     )
 
     driver = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -187,12 +187,12 @@ class UnassignedStaffPool(models.Model):
             if staff_template.operator_id_id:
                 assigned_ids.add(staff_template.operator_id_id)
 
-        # Note: StaffOfficeDetails doesn't have direct zone_id/ward_id
+        # Note: Staffcreation doesn't have direct zone_id/ward_id
         # StaffPersonalDetails has contact_mobile and contact_email
-        # Location data is expected to come from StaffOfficeDetails.company_id/project_id
+        # Location data is expected to come from Staffcreation.company_id/project_id
         # or from related tables. This method may need adjustment based on actual requirements.
         
-        staff_qs = StaffOfficeDetails.objects.filter(
+        staff_qs = Staffcreation.objects.filter(
             staffusertype_id__name__in=["driver", "operator"],
             is_active=True,
             is_deleted=False,

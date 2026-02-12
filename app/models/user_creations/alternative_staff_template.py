@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import Max
 from app.utils.comfun import generate_unique_id
-from .staffcreation import StaffOfficeDetails
+from .staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -26,7 +26,7 @@ class AlternativeStaffTemplate(models.Model):
     # ---- Core Identifiers ----
     unique_id = models.CharField(
         max_length=50,
-        unique=True,
+        primary_key=True,
         default=generate_alternative_staff_template_id,
         editable=False
     )
@@ -55,7 +55,7 @@ class AlternativeStaffTemplate(models.Model):
 
     # ---- Staff Assignment ----
     driver_id = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         db_column="driver_id",
         to_field="staff_unique_id",
@@ -63,7 +63,7 @@ class AlternativeStaffTemplate(models.Model):
     )
 
     operator_id = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         db_column="operator_id",
         to_field="staff_unique_id",
@@ -84,14 +84,14 @@ class AlternativeStaffTemplate(models.Model):
 
     # ---- Approval Workflow ----
     requested_by = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         db_column='requested_by',
         related_name='alt_staff_requested'
     )
 
     approved_by = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         db_column='approved_by',
         related_name='alt_staff_approved',

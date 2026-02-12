@@ -3,7 +3,7 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.user_creations.alternative_staff_template import AlternativeStaffTemplate
 from app.models.user_creations.stafftemplate import StaffTemplate
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.user_serializer import UniqueIdOrPkField
 
 
@@ -43,21 +43,21 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
     driver = UniqueIdOrPkField(
         source="driver_id",
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
+        queryset=Staffcreation.objects.filter(is_deleted=False),
     )
     operator = UniqueIdOrPkField(
         source="operator_id",
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
+        queryset=Staffcreation.objects.filter(is_deleted=False),
     )
     requested_by = UniqueIdOrPkField(
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
+        queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
     )
     approved_by = UniqueIdOrPkField(
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
+        queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
@@ -90,7 +90,6 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
     class Meta:
         model = AlternativeStaffTemplate
         fields = [
-            'id',
             'unique_id',
             "company_id",
             "company_name",
@@ -113,7 +112,6 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
             'created_at',
         ]
         read_only_fields = [
-            'id',
             'unique_id',
             'display_code',
             'staff_template_display_code',
@@ -170,7 +168,7 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
                 )
 
             if extra_ids:
-                operators = StaffOfficeDetails.objects.filter(
+                operators = Staffcreation.objects.filter(
                     staff_unique_id__in=extra_ids,
                     is_deleted=False,
                 )

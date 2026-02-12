@@ -10,7 +10,7 @@ from datetime import datetime
 from dateutil import parser
 
 from app.models.user_creations.attendance import Employee
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.utils.qr import generate_qr
 
 
@@ -63,7 +63,7 @@ class RegisterViewSet(ViewSet):
                 status=400
             )
 
-        staff = StaffOfficeDetails.objects.filter(
+        staff = Staffcreation.objects.filter(
             staff_unique_id=emp_id
         ).first()
 
@@ -100,7 +100,7 @@ class RegisterViewSet(ViewSet):
         blood_group = request.data.get("blood_group")
         # Ensure display ID exists
         if not staff.emp_id:
-            staff.emp_id = f"{staff.id:08d}"
+            staff._ensure_emp_id()
             staff.save(update_fields=["emp_id"])
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -5,7 +5,7 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 
 from app.models.user_creations.alternative_staff_template import AlternativeStaffTemplate
 from app.models.audits.staff_template_audit_log import StaffTemplateAuditLog
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.alternative_stafftemplate_serializer import (
     AlternativeStaffTemplateSerializer
 )
@@ -67,7 +67,7 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
         payload = getattr(self.request, "jwt_payload", None) or getattr(raw_request, "jwt_payload", None)
         unique_id = payload.get("unique_id") if isinstance(payload, dict) else None
         if unique_id:
-            return StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
+            return Staffcreation.objects.filter(staff_unique_id=unique_id).first()
 
         return None
 

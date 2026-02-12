@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
 
 
@@ -181,7 +181,7 @@ def _authenticate_request(request):
         return JsonResponse({"detail": "Invalid token payload"}, status=401)
 
     # Staff
-    staff = StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
+    staff = Staffcreation.objects.filter(staff_unique_id=unique_id).first()
     if staff:
         request.user = staff
         request.jwt_payload = payload

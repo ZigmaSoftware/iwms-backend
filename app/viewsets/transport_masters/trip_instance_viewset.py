@@ -18,6 +18,7 @@ class TripInstanceViewSet(ModelViewSet):
     serializer_class = TripInstanceSerializer
     permission_resource = "TripInstance"
     swagger_tags = ["Desktop / Vehicles"]
+    lookup_field = "unique_id"
 
     def create(self, request, *args, **kwargs):
         return Response(

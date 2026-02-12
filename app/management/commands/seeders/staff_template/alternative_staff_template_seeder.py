@@ -3,7 +3,7 @@ from datetime import date
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.user_creations.alternative_staff_template import AlternativeStaffTemplate
 from app.models.user_creations.stafftemplate import StaffTemplate
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -23,11 +23,11 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
             self.log("No StaffTemplate found. Seeder aborted.")
             return
 
-        # Pull staff from StaffOfficeDetails
-        staff_list = list(StaffOfficeDetails.objects.filter(
+        # Pull staff from Staffcreation
+        staff_list = list(Staffcreation.objects.filter(
             is_active=True,
             is_deleted=False
-        ).order_by("id")[:4])
+        ).order_by("staff_unique_id")[:4])
         
         if len(staff_list) < 3:
             self.log("Insufficient staff found (need at least 3). Seeder aborted.")
@@ -69,7 +69,7 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
             driver_id=driver,
             operator_id=operator,
             defaults={
-                "extra_operator_id": [str(extra_operator.pk)] if extra_operator else [],
+                "extra_operator_id": [str(extra_operator.staff_unique_id)] if extra_operator else [],
                 "change_reason": "Temporary staff substitution",
                 "change_remarks": "Seeder-generated record for baseline validation",
                 "requested_by": driver,

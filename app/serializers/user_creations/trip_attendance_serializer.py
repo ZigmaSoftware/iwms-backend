@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.conf import settings
 from app.models.transport_masters.trip_attendance import TripAttendance
 from app.models.transport_masters.trip_instance import TripInstance
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 
 
@@ -19,7 +19,7 @@ class TripAttendanceSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
     staff_id = serializers.SlugRelatedField(
         source="staff",
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.all()
+        queryset=Staffcreation.objects.all()
     )
 
     vehicle_id = serializers.SlugRelatedField(

@@ -3,14 +3,14 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
 
 
 class JWTUserAuthentication(BaseAuthentication):
     """
     Resolve a user from the Bearer token.
-    Supports both Staff (StaffOfficeDetails) and Customer (CustomerCreation) authentication.
+    Supports both Staff (Staffcreation) and Customer (CustomerCreation) authentication.
     """
 
     def authenticate(self, request):
@@ -44,8 +44,8 @@ class JWTUserAuthentication(BaseAuthentication):
         if not unique_id:
             raise AuthenticationFailed("Invalid token")
 
-        # Try to find user in StaffOfficeDetails first (uses staff_unique_id)
-        staff = StaffOfficeDetails.objects.filter(staff_unique_id=unique_id).first()
+        # Try to find user in Staffcreation first (uses staff_unique_id)
+        staff = Staffcreation.objects.filter(staff_unique_id=unique_id).first()
         if staff:
             request.jwt_payload = payload
             return (staff, None)

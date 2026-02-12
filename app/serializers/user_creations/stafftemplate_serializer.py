@@ -2,7 +2,7 @@ from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.user_creations.stafftemplate import StaffTemplate
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.user_serializer import UniqueIdOrPkField
 
 
@@ -49,25 +49,25 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
     driver_id = UniqueIdOrPkField(
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
+        queryset=Staffcreation.objects.filter(is_deleted=False),
     )
     operator_id = UniqueIdOrPkField(
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
+        queryset=Staffcreation.objects.filter(is_deleted=False),
     )
     created_by = BlankableUniqueIdField(
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
+        queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
     )
     updated_by = BlankableUniqueIdField(
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
+        queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
     )
     approved_by = BlankableUniqueIdField(
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.filter(is_deleted=False),
+        queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
@@ -192,7 +192,7 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
                 )
 
             if extra_ids:
-                operators = StaffOfficeDetails.objects.filter(
+                operators = Staffcreation.objects.filter(
                     staff_unique_id__in=extra_ids,
                     is_deleted=False,
                 )
@@ -223,7 +223,7 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     def _resolve_staff_name(self, staff):
         if not staff:
             return None
-        # StaffOfficeDetails has employee_name directly
+        # Staffcreation has employee_name directly
         if hasattr(staff, 'employee_name') and staff.employee_name:
             return staff.employee_name
         return getattr(staff, "username", None) or getattr(staff, "staff_unique_id", None)

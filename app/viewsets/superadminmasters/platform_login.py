@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import AccessToken
 
 from app.serializers.superadmin_masters.platform_login_serializer import PlatformLoginSerializer
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -35,8 +35,8 @@ class PlatformLoginView(APIView):
         username = serializer.validated_data["username"].strip()
         password = serializer.validated_data["password"].strip()
 
-        # Try StaffOfficeDetails first
-        staff = StaffOfficeDetails.objects.filter(
+        # Try Staffcreation first
+        staff = Staffcreation.objects.filter(
             username__iexact=username,
             is_active=True,
             is_deleted=False,
