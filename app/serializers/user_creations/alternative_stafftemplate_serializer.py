@@ -90,7 +90,6 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
     class Meta:
         model = AlternativeStaffTemplate
         fields = [
-            'id',
             'unique_id',
             "company_id",
             "company_name",
@@ -113,7 +112,6 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
             'created_at',
         ]
         read_only_fields = [
-            'id',
             'unique_id',
             'display_code',
             'staff_template_display_code',
