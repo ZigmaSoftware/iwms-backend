@@ -11,56 +11,6 @@ from app.serializers.superadmin_masters.project_create_serializer import (
     ProjectUpdateSerializer,
 )
 
-
-@method_decorator(
-    name="list",
-    decorator=swagger_auto_schema(
-        operation_summary="List projects",
-        responses={200: ProjectSerializer(many=True)},
-    ),
-)
-@method_decorator(
-    name="retrieve",
-    decorator=swagger_auto_schema(
-        operation_summary="Get project",
-        responses={200: ProjectSerializer},
-    ),
-)
-@method_decorator(
-    name="create",
-    decorator=swagger_auto_schema(
-        request_body=ProjectCreateSerializer,
-        operation_summary="Create project",
-        operation_description=(
-            "Creates first/additional project. "
-            "Platform super admin must pass company_unique_id. "
-            "Admin credential fields are accepted only for first-project setup."
-        ),
-    ),
-)
-@method_decorator(
-    name="update",
-    decorator=swagger_auto_schema(
-        request_body=ProjectUpdateSerializer,
-        operation_summary="Update project",
-        responses={200: ProjectSerializer},
-    ),
-)
-@method_decorator(
-    name="partial_update",
-    decorator=swagger_auto_schema(
-        request_body=ProjectUpdateSerializer,
-        operation_summary="Patch project",
-        responses={200: ProjectSerializer},
-    ),
-)
-@method_decorator(
-    name="destroy",
-    decorator=swagger_auto_schema(
-        operation_summary="Delete project",
-        responses={204: "No content"},
-    ),
-)
 class CompanyProjectCreateViewSet(viewsets.ModelViewSet):
     permission_classes = [PlatformOrCompanyAdminOnly]
     queryset = Project.objects.select_related("company_id").filter(is_deleted=False).order_by("name")

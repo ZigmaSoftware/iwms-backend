@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 
-from app.models.user_creations.staffcreation import StaffOfficeDetails, StaffPersonalDetails
+from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
 from app.serializers.employee import (
     StaffOfficeSerializer,
     StaffUpdateSerializer,
@@ -15,7 +15,7 @@ class StaffProfileViewSet(viewsets.ViewSet):
     # -----------------------------------
     # GET Profile
     # staff_id_id = User.staff_id_id (STRING)
-    # maps to StaffOfficeDetails.staff_unique_id
+    # maps to Staffcreation.staff_unique_id
     # -----------------------------------
     def list(self, request):
         staff_unique_id = request.query_params.get("staff_id_id")
@@ -27,10 +27,10 @@ class StaffProfileViewSet(viewsets.ViewSet):
             )
 
         try:
-            staff = StaffOfficeDetails.objects.select_related(
+            staff = Staffcreation.objects.select_related(
                 "personal_details"
             ).get(staff_unique_id=staff_unique_id)
-        except StaffOfficeDetails.DoesNotExist:
+        except Staffcreation.DoesNotExist:
             return Response(
                 {"status": "error", "message": "Staff profile not found"},
                 status=status.HTTP_404_NOT_FOUND,
@@ -43,12 +43,12 @@ class StaffProfileViewSet(viewsets.ViewSet):
         )
 
     # -----------------------------------
-    # UPDATE Profile (pk = numeric StaffOfficeDetails.id)
+    # UPDATE Profile (pk = Staffcreation.staff_unique_id)
     # -----------------------------------
     def update(self, request, pk=None):
         try:
-            staff = StaffOfficeDetails.objects.get(id=pk)
-        except StaffOfficeDetails.DoesNotExist:
+            staff = Staffcreation.objects.get(staff_unique_id=pk)
+        except Staffcreation.DoesNotExist:
             return Response(
                 {"status": "error", "message": "Staff not found"},
                 status=status.HTTP_404_NOT_FOUND,

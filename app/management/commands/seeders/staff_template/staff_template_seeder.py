@@ -1,6 +1,6 @@
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.user_creations.stafftemplate import StaffTemplate
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -10,12 +10,12 @@ class StaffTemplateSeeder(BaseSeeder):
 
     def _pick_staff(self, role_name):
         return (
-            StaffOfficeDetails.objects.filter(
+            Staffcreation.objects.filter(
                 staffusertype_id__name__iexact=role_name,
                 is_active=True,
                 is_deleted=False,
             )
-            .order_by("id")
+            .order_by("staff_unique_id")
             .first()
         )
 

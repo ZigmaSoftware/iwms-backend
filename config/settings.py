@@ -48,7 +48,8 @@ ALLOWED_HOSTS = [
     '192.168.7.176',
     '192.168.5.77',
     '192.168.5.20',
-    '192.168.6.198'
+    '192.168.6.198',
+    '192.168.1.156',
     
     
 ]
@@ -131,12 +132,17 @@ SWAGGER_SETTINGS = {
     "USE_SESSION_AUTH": False,
 
     "SECURITY_DEFINITIONS": {
-        "Bearer": {
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header",
-            "description": "Use: Bearer <JWT access token>",
-        }
+        "Password": {
+            "type": "oauth2",
+            "flow": "password",
+            "tokenUrl": "/api/v1/login/",
+            "scopes": {},
+            "description": "Login with username/password to auto-fill the Bearer token.",
+        },
+    },
+
+    "OAUTH2_CONFIG": {
+        "appName": "IWMS API",
     },
 
     # This is IMPORTANT for your grouped router
@@ -211,6 +217,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.5\.\.77(:d+)?$",
     r"^http://192\.168\.5\.20(:d+)?$",
     r"^http://192\.168\.6\.198(:d+)?$",
+    r"^http://192\.168\.1\.156(:d+)?$",
 ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

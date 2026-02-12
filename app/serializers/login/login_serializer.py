@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import check_password, identify_hasher
 from django.db.models import Q
 
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
 from app.models.role_assigns.userType import UserType
@@ -226,7 +226,7 @@ class LoginSerializer(serializers.Serializer):
         )
 
         queryset = (
-            StaffOfficeDetails.objects
+            Staffcreation.objects
             .select_related("user_type_id", "staffusertype_id", "personal_details", "company_id")
             .filter(is_active=True, is_deleted=False)
             .filter(lookup_filters)

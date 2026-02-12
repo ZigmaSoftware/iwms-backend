@@ -80,7 +80,7 @@ class RecognizeViewSet(ViewSet):
                 status=400
             )
 
-        # Find registered employee (Employee.staff stores the StaffOfficeDetails relation)
+        # Find registered employee (Employee.staff stores the Staffcreation relation)
         employee = Employee.objects.filter(staff__staff_unique_id=staff_unique_id).first()
         if not employee:
             return Response({"error": "Employee not registered"}, status=404)

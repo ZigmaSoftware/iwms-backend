@@ -1,6 +1,6 @@
 from django.contrib.auth.hashers import make_password
 
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.masters.district import District
@@ -48,7 +48,7 @@ class StaffOfficeSeeder:
 
         staff_type = UserType.objects.filter(name__iexact="staff").first()
         if not staff_type:
-            print("UserType 'staff' missing. Skipping StaffOfficeDetails seeding.")
+            print("UserType 'staff' missing. Skipping Staffcreation seeding.")
             return
 
         role_admin = StaffUserType.objects.filter(
@@ -206,7 +206,7 @@ class StaffOfficeSeeder:
 
         for staff_data in staff_list:
             hashed_password = staff_data.pop("_hashed_password", None)
-            staff, created = StaffOfficeDetails.objects.update_or_create(
+            staff, created = Staffcreation.objects.update_or_create(
                 employee_name=staff_data["employee_name"],
                 defaults=staff_data
             )
@@ -215,4 +215,4 @@ class StaffOfficeSeeder:
                 staff.password = hashed_password
                 staff.save(update_fields=["password"])
 
-        print("---StaffOfficeDetails seeded---")
+        print("---Staffcreation seeded---")

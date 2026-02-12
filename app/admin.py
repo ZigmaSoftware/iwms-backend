@@ -2,16 +2,16 @@ from django.contrib import admin
 
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.user_creations.staffcreation import StaffOfficeDetails, StaffPersonalDetails
+from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
 from app.models.customers.customercreation import CustomerCreation
 
 
-@admin.register(StaffOfficeDetails)
-class StaffOfficeDetailsAdmin(admin.ModelAdmin):
-    list_display = ("id", "employee_name", "username", "email", "is_active", "is_deleted")
+@admin.register(Staffcreation)
+class StaffcreationAdmin(admin.ModelAdmin):
+    list_display = ("staff_unique_id", "emp_id", "employee_name", "username", "email", "is_active", "is_deleted")
     list_filter = ("is_active", "is_deleted", "is_staff")
     search_fields = ("employee_name", "username", "email", "staff_unique_id")
-    ordering = ("-id",)
+    ordering = ("-created_at",)
 
 
 @admin.register(StaffPersonalDetails)

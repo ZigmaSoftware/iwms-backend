@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import Max
 from app.utils.comfun import generate_unique_id
-from .staffcreation import StaffOfficeDetails
+from .staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -33,7 +33,7 @@ class StaffTemplate(models.Model):
 
     # ---------------- DRIVER ROLE ----------------
     driver_id = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="driver_templates",
         db_column="driver_id",
@@ -42,7 +42,7 @@ class StaffTemplate(models.Model):
 
     # ---------------- OPERATOR ROLE ----------------
     operator_id = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="operator_templates",
         db_column="operator_id",
@@ -78,21 +78,21 @@ class StaffTemplate(models.Model):
 
     # ---------------- AUDIT FIELDS ----------------
     created_by = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="stafftemplate_created",
         db_column="created_by",
         to_field="staff_unique_id"
     )
     updated_by = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="stafftemplate_updated",
         db_column="updated_by",
         to_field="staff_unique_id"
     )
     approved_by = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="stafftemplate_approved",
         db_column="approved_by",

@@ -6,7 +6,7 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.user_creations.staffcreation import StaffOfficeDetails, StaffPersonalDetails
+from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
 
 
 def _is_platform_super_admin(user):
@@ -103,7 +103,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
             defaults={"is_active": True, "is_deleted": False},
         )
 
-        staff = StaffOfficeDetails.objects.create(
+        staff = Staffcreation.objects.create(
             company_id=company,
             project_id=project,
             employee_name=admin_employee_name,

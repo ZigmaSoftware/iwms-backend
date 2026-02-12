@@ -6,7 +6,7 @@ from app.models.process.routeplan import RoutePlan
 from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.user_serializer import UniqueIdOrPkField
 
 
@@ -29,7 +29,7 @@ class MiniStaffSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
     designation = serializers.CharField(read_only=True)
 
     class Meta:
-        model = StaffOfficeDetails
+        model = Staffcreation
         fields = (
             "unique_id",
             "company_id",
