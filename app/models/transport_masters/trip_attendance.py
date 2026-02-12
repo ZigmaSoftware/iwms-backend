@@ -1,6 +1,6 @@
 from django.db import models
 from app.models.transport_masters.trip_instance import TripInstance
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
@@ -42,7 +42,7 @@ class TripAttendance(models.Model):
     )
 
     staff = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="trip_attendance",
         db_column="staff_id",

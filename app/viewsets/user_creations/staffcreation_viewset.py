@@ -5,12 +5,12 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.staffcreation_serializer import StaffcreationSerializer
 
 
 class StaffcreationViewset(CompanyScopedViewSet):
-    queryset = StaffOfficeDetails.objects.select_related("personal_details").all()
+    queryset = Staffcreation.objects.select_related("personal_details").all()
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser)
     permission_resource = "StaffCreation"
@@ -24,10 +24,10 @@ class StaffcreationViewset(CompanyScopedViewSet):
         "department",
         "designation",
     ]
-    ordering_fields = ["id", "staff_unique_id", "employee_name", "created_at"]
+    ordering_fields = ["staff_unique_id", "employee_name", "created_at"]
 
     def get_queryset(self):
-        queryset = StaffOfficeDetails.objects.select_related("personal_details")
+        queryset = Staffcreation.objects.select_related("personal_details")
 
         site_name = self.request.query_params.get("site_name", None)
         employee_name = self.request.query_params.get("employee_name", None)
@@ -46,7 +46,7 @@ class StaffcreationViewset(CompanyScopedViewSet):
         if salary_type:
             queryset = queryset.filter(salary_type__icontains=salary_type)
 
-        return queryset.order_by("-id")
+        return queryset.order_by("-created_at")
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

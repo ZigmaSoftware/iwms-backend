@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from ..user_creations.staffcreation import StaffOfficeDetails
+from ..user_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -38,7 +38,7 @@ class StaffTemplateAuditLog(models.Model):
         choices=Action.choices,
     )
     performed_by = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="staff_template_audit_logs",
         db_column="performed_by",

@@ -1,5 +1,5 @@
 from django.db import models
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -22,7 +22,7 @@ class SupervisorZoneAccessAudit(models.Model):
     # ACTOR & SUBJECT
     # -----------------------------
     supervisor = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="zone_access_audits",
         to_field="staff_unique_id",
@@ -30,7 +30,7 @@ class SupervisorZoneAccessAudit(models.Model):
     )
 
     performed_by = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="performed_zone_access_audits",
         to_field="staff_unique_id",

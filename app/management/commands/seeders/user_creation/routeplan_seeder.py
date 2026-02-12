@@ -3,7 +3,7 @@ from app.models.masters.district import District
 from app.models.masters.zone import Zone
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -22,7 +22,7 @@ class RoutePlanSeeder:
         )
 
         supervisor_role = StaffUserType.objects.get(name__iexact="supervisor")
-        supervisors = StaffOfficeDetails.objects.filter(
+        supervisors = Staffcreation.objects.filter(
             staffusertype_id=supervisor_role,
             is_active=True,
             is_deleted=False,

@@ -186,6 +186,8 @@ class LoginViewSet(ViewSet):
                 "role": role,
                 "permissions": permissions,
                 "access_token": token,
+                "token_type": "Bearer",
+                "expires_in": exp - iat,
                 "email": email,
                 "emp_id": emp_id,
                 "employee_id": employee_id,

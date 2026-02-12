@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.user_creations.unassigned_staff_pool import UnassignedStaffPool
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 from app.models.transport_masters.trip_instance import TripInstance
@@ -12,7 +12,7 @@ class UnassignedStaffPoolSerializer(TenancyReadSerializerMixin, serializers.Mode
     operator_id = serializers.SlugRelatedField(
         source="operator",
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.all(),
+        queryset=Staffcreation.objects.all(),
         required=False,
         allow_null=True
     )
@@ -20,7 +20,7 @@ class UnassignedStaffPoolSerializer(TenancyReadSerializerMixin, serializers.Mode
     driver_id = serializers.SlugRelatedField(
         source="driver",
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.all(),
+        queryset=Staffcreation.objects.all(),
         required=False,
         allow_null=True
     )

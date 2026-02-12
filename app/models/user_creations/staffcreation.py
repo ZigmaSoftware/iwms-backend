@@ -1,3 +1,4 @@
+import hashlib
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
@@ -16,11 +17,13 @@ def generate_staff_unique_id():
     return f"STC-{generate_unique_id()}"
 
 
-class StaffOfficeDetails(BaseMaster):
+class Staffcreation(BaseMaster):
     staff_unique_id = models.CharField(
         max_length=30,
+        primary_key=True,
         unique=True,
-        default=generate_staff_unique_id
+        editable=False,
+        default=generate_staff_unique_id,
     )
     emp_id = models.CharField(
         max_length=8,
@@ -162,21 +165,44 @@ class StaffOfficeDetails(BaseMaster):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-id"]
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.employee_name} ({self.staff_unique_id})"
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+    @staticmethod
+    def _derive_emp_id(staff_unique_id, salt=0):
+        digest = hashlib.sha1(f"{staff_unique_id}:{salt}".encode("utf-8")).hexdigest()
+        numeric = int(digest[:12], 16) % 10**8
+        return f"{numeric:08d}"
 
+    def _ensure_emp_id(self):
+        if self.emp_id or not self.staff_unique_id:
+            return
+
+        for salt in range(100):
+            candidate = self._derive_emp_id(self.staff_unique_id, salt)
+            exists = (
+                Staffcreation.objects.filter(emp_id=candidate)
+                .exclude(pk=self.pk)
+                .exists()
+            )
+            if not exists:
+                self.emp_id = candidate
+                return
+
+        self.emp_id = self._derive_emp_id(self.staff_unique_id, 999999)
+
+    def save(self, *args, **kwargs):
         if not self.emp_id:
-            display_id = f"{self.id:08d}"
-            StaffOfficeDetails.objects.filter(
-                pk=self.pk,
-                emp_id__isnull=True,
-            ).update(emp_id=display_id)
-            self.emp_id = display_id
+            self._ensure_emp_id()
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                update_fields = set(update_fields)
+                update_fields.add("emp_id")
+                kwargs["update_fields"] = list(update_fields)
+
+        super().save(*args, **kwargs)
 
     @property
     def is_authenticated(self):
@@ -189,7 +215,7 @@ class StaffOfficeDetails(BaseMaster):
 
 class StaffPersonalDetails(models.Model):
     staff = models.OneToOneField(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.CASCADE,
         related_name="personal_details"
     )

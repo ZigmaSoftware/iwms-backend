@@ -4,7 +4,7 @@ from app.models.user_creations.supervisor_zone_map import SupervisorZoneMap
 from app.models.audits.supervisor_zone_access_audit import SupervisorZoneAccessAudit
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.masters.zone import Zone
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -26,7 +26,7 @@ class SupervisorZoneMapSeeder:
             usertype_id=staff_type,
         )
 
-        admin_user = StaffOfficeDetails.objects.filter(
+        admin_user = Staffcreation.objects.filter(
             staffusertype_id=admin_role,
             is_deleted=False,
             is_active=True,
@@ -34,7 +34,7 @@ class SupervisorZoneMapSeeder:
         if not admin_user:
             raise Exception("Admin staff missing. Run StaffSeeder first.")
 
-        supervisors = StaffOfficeDetails.objects.filter(
+        supervisors = Staffcreation.objects.filter(
             staffusertype_id=supervisor_role,
             is_deleted=False,
             is_active=True,

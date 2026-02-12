@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.user_creations.staffcreation import StaffOfficeDetails, StaffPersonalDetails
+from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
 from app.models.user_creations.attendance import Employee
 from django.conf import settings
 
@@ -30,13 +30,12 @@ class StaffOfficeSerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
     photo = serializers.SerializerMethodField()
 
     class Meta:
-        model = StaffOfficeDetails
+        model = Staffcreation
         fields = [
             "company_id",
             "company_name",
             "project_id",
             "project_name",
-            "id",
             "staff_unique_id",
             "emp_id",
             "employee_name",
@@ -76,7 +75,7 @@ class StaffUpdateSerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
     photo = serializers.ImageField(required=False)
 
     class Meta:
-        model = StaffOfficeDetails
+        model = Staffcreation
         fields = [
             "company_id",
             "company_name",

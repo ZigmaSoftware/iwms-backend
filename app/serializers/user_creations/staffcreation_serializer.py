@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
-from app.models.user_creations.staffcreation import StaffOfficeDetails, StaffPersonalDetails
+from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
 
 
 class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -102,9 +102,8 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     ]
 
     class Meta:
-        model = StaffOfficeDetails
+        model = Staffcreation
         fields = [
-            "id",
             "unique_id",
             "company_id",
             "company_name",
@@ -150,7 +149,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "updated_at",
         ]
 
-        read_only_fields = ["id", "unique_id", "created_at", "updated_at"]
+        read_only_fields = ["unique_id", "created_at", "updated_at"]
 
     # --------------------------------------------------
     # Helpers
@@ -172,7 +171,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     def create(self, validated_data):
         personal_data = self._pop_personal_data(validated_data)
 
-        staff = StaffOfficeDetails.objects.create(**validated_data)
+        staff = Staffcreation.objects.create(**validated_data)
 
         StaffPersonalDetails.objects.create(
             staff=staff,
