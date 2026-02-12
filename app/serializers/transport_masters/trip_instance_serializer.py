@@ -58,30 +58,8 @@ class TripInstanceSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
 
     class Meta:
         model = TripInstance
-        fields = [
-            "unique_id",
-            "trip_no",
-            "trip_definition_id",
-            "staff_template_id",
-            "alternative_staff_template_id",
-            "zone_id",
-            "vehicle_id",
-            "property_id",
-            "sub_property_id",
-            "company_id",
-            "company_name",
-            "project_id",
-            "project_name",
-            "trigger_weight_kg",
-            "max_capacity_kg",
-            "current_load_kg",
-            "start_load_kg",
-            "end_load_kg",
-            "trip_start_time",
-            "trip_end_time",
-            "status",
-            "created_at",
-        ]
+        fields = "__all__"
+        exclude = ["id"]
         read_only_fields = [
             "unique_id",
             "trip_no",

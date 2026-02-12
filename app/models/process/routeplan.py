@@ -17,7 +17,7 @@ def generate_routeplan_id():
 class RoutePlan(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
-        unique=True,
+        primary_key=True,
         default=generate_routeplan_id,
         editable=False
     )

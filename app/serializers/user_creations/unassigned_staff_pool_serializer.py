@@ -52,7 +52,7 @@ class UnassignedStaffPoolSerializer(TenancyReadSerializerMixin, serializers.Mode
             "company_name",
             "project_id",
             "project_name",
-            "id",
+            "unique_id",
             "operator_id",
             "driver_id",
             "zone_id",
@@ -61,7 +61,7 @@ class UnassignedStaffPoolSerializer(TenancyReadSerializerMixin, serializers.Mode
             "trip_instance_id",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["unique_id", "created_at"]
 
     def validate(self, attrs):
         instance = getattr(self, "instance", None)

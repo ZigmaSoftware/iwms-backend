@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import AccessToken
 
 from app.models.user_creations.loginAudit import LoginAudit
+from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.login.login_serializer import LoginSerializer
 
 
@@ -81,16 +82,21 @@ class LoginViewSet(ViewSet):
                 email = target.personal_details.contact_email
             emp_id = getattr(target, "staff_unique_id", None)
             employee_id = getattr(target, "emp_id", None) or getattr(user, "emp_id", None)
-            if not employee_id and getattr(user, "id", None) is not None:
-                employee_id = f"{user.id:08d}"
+            if not employee_id:
+                staff_unique = (
+                    getattr(target, "staff_unique_id", None)
+                    or getattr(user, "staff_unique_id", None)
+                )
+                if staff_unique:
+                    employee_id = Staffcreation._derive_emp_id(staff_unique)
 
         # -------------------------
         # JWT CREATION
         # -------------------------
         # Get the correct unique identifier based on user type
         user_unique_id = getattr(user, "unique_id", None) or getattr(user, "staff_unique_id", None)
-        if not user_unique_id and getattr(user, "id", None) is not None:
-            user_unique_id = str(user.id)
+        if not user_unique_id and getattr(user, "pk", None) is not None:
+            user_unique_id = str(user.pk)
 
         company = None
         if profile_object:

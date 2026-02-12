@@ -6,5 +6,5 @@ from app.models.user_creations.waste_collection_bluetooth import WasteCollection
 class WasteCollectionSubSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = WasteCollectionSub
-        fields = "__all__"
+        exclude = ["id"]
         read_only_fields = ["date_time"]

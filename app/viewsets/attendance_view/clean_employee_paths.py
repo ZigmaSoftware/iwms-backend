@@ -18,12 +18,12 @@ for e in Employee.objects.all():
     if isinstance(e.image_path, (bytes, bytearray, memoryview)):
         e.image_path = ""  # or None if field allows
         updated = True
-        print(f"Cleaning image_path for Employee ID: {e.id}")
+        print(f"Cleaning image_path for Employee ID: {e.unique_id}")
     
     if isinstance(e.qr_code_path, (bytes, bytearray, memoryview)):
         e.qr_code_path = ""
         updated = True
-        print(f"Cleaning qr_code_path for Employee ID: {e.id}")
+        print(f"Cleaning qr_code_path for Employee ID: {e.unique_id}")
     
     if updated:
         e.save(update_fields=["image_path", "qr_code_path"])

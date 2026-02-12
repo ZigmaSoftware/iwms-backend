@@ -7,7 +7,7 @@ from app.serializers.grivences.maincategory_serializer import MainCategorySerial
 
 
 class MainCategoryViewSet(CompanyScopedViewSet):
-    queryset = MainCategory.objects.filter(is_deleted=False).order_by("id")
+    queryset = MainCategory.objects.filter(is_deleted=False).order_by("unique_id")
     serializer_class = MainCategorySerializer
     lookup_field = "unique_id"
 

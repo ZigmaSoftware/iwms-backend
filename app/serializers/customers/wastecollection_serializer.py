@@ -44,7 +44,7 @@ class WasteCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
 
     class Meta:
         model = WasteCollection
-        fields = "__all__"
+        exclude = ["id"]
         extra_kwargs = {
             "customer": {"write_only": True},
         }

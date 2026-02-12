@@ -71,14 +71,14 @@ class PlatformLoginView(APIView):
                 raise PermissionDenied("Not a platform super admin")
 
             access = AccessToken.for_user(user)
-            access["unique_id"] = getattr(user, "unique_id", str(user.id))
+            access["unique_id"] = getattr(user, "unique_id", None) or str(user.pk)
             access["username"] = user.username
             access["platform"] = True
 
             return Response(
                 {
                     "access_token": str(access),
-                    "unique_id": str(user.id),
+                    "unique_id": getattr(user, "unique_id", None) or str(user.pk),
                     "username": user.username,
                 },
                 status=status.HTTP_200_OK,

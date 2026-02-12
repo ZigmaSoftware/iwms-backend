@@ -13,14 +13,10 @@ class FlexibleMainCategoryField(serializers.PrimaryKeyRelatedField):
 
     def to_internal_value(self, data):
         queryset = self.get_queryset()
-
-        if isinstance(data, str) and not data.isdigit():
-            try:
-                return queryset.get(unique_id=data)
-            except queryset.model.DoesNotExist:
-                self.fail("does_not_exist", pk_value=data)
-
-        return super().to_internal_value(data)
+        try:
+            return queryset.get(unique_id=str(data))
+        except queryset.model.DoesNotExist:
+            self.fail("does_not_exist", pk_value=data)
 
 
 class SubCategorySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -34,7 +30,6 @@ class SubCategorySerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
     class Meta:
         model = SubCategory
         fields = [
-            "id",
             "unique_id",
             "company_id",
             "company_name",
@@ -46,7 +41,7 @@ class SubCategorySerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
             "is_active",
             "is_deleted",
         ]
-        read_only_fields = ["id", "unique_id", "is_deleted"]
+        read_only_fields = ["unique_id", "is_deleted"]
         validators = []  # disable DRF unique constraint
         extra_kwargs = {
             "mainCategory": {"required": False},

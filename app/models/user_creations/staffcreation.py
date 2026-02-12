@@ -219,7 +219,11 @@ class StaffPersonalDetails(models.Model):
         on_delete=models.CASCADE,
         related_name="personal_details"
     )
-    staff_unique_id = models.CharField(max_length=30, blank=True, null=True)
+    staff_unique_id = models.CharField(
+        max_length=30,
+        primary_key=True,
+        editable=False
+    )
     company_id = models.ForeignKey(
         Company,
         on_delete=models.PROTECT,
@@ -246,7 +250,12 @@ class StaffPersonalDetails(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-id"]
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"Personal details for {self.staff.employee_name}"
+
+    def save(self, *args, **kwargs):
+        if self.staff and not self.staff_unique_id:
+            self.staff_unique_id = self.staff.staff_unique_id
+        super().save(*args, **kwargs)

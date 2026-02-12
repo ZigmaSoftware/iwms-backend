@@ -71,7 +71,10 @@ class Complaint(BaseMaster):
         OTHER = "OTHER", "Other"
 
     unique_id = models.CharField(
-        max_length=30, unique=True, default=generate_complaint_id
+        max_length=30,
+        primary_key=True,
+        default=generate_complaint_id,
+        editable=False,
     )
     
 

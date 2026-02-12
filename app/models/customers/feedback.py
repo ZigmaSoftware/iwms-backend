@@ -38,8 +38,9 @@ class FeedBack(BaseMaster):
 
     unique_id = models.CharField(
         max_length=30,
-        unique=True,
-        default=generate_feedback_id
+        primary_key=True,
+        default=generate_feedback_id,
+        editable=False,
     )
 
     # Link to customer

@@ -7,7 +7,6 @@ class MainCategorySerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     class Meta:
         model = MainCategory
         fields = [
-            "id",
             "unique_id",
             "company_id",
             "company_name",

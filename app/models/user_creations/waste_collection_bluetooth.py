@@ -18,6 +18,18 @@ def generate_unique_id(prefix):
     return f"{prefix}{year}{rand}{sec}".lower()
 
 
+def generate_waste_type_id():
+    return generate_unique_id("wst-")
+
+
+def generate_waste_collection_sub_id():
+    return generate_unique_id("wcs-")
+
+
+def generate_waste_collection_main_id():
+    return generate_unique_id("wcm-")
+
+
 def upload_image(image):
     upload_path = os.path.join(settings.MEDIA_ROOT, "waste_collection_images")
     os.makedirs(upload_path, exist_ok=True)
@@ -47,6 +59,12 @@ class WasteType(models.Model):
         blank=True,
         db_column="project_id",
     )
+    unique_id = models.CharField(
+        max_length=100,
+        primary_key=True,
+        default=generate_waste_type_id,
+        editable=False,
+    )
     waste_type_name = models.CharField(max_length=255)
     is_deleted = models.BooleanField(default=False)
 
@@ -66,7 +84,12 @@ class WasteCollectionSub(models.Model):
         blank=True,
         db_column="project_id",
     )
-    unique_id = models.CharField(max_length=100, unique=True)
+    unique_id = models.CharField(
+        max_length=100,
+        primary_key=True,
+        default=generate_waste_collection_sub_id,
+        editable=False,
+    )
     screen_unique_id = models.CharField(max_length=100)
     customer_id = models.CharField(max_length=100)
     waste_type_id = models.CharField(max_length=100)
@@ -95,7 +118,12 @@ class WasteCollectionMain(models.Model):
         blank=True,
         db_column="project_id",
     )
-    unique_id = models.CharField(max_length=100, unique=True)
+    unique_id = models.CharField(
+        max_length=100,
+        primary_key=True,
+        default=generate_waste_collection_main_id,
+        editable=False,
+    )
     screen_unique_id = models.CharField(max_length=100)
     collected_time = models.DateTimeField()
     created = models.DateTimeField()
