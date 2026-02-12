@@ -81,7 +81,6 @@ class CustomerCreationSeeder(BaseSeeder):
         if not customer_type:
             self.log("UserType 'customer' missing. Seed role-assign before customers.")
             return
-
         UserModel = get_user_model()
 
         # --------------------------------------------------
@@ -131,20 +130,8 @@ class CustomerCreationSeeder(BaseSeeder):
                 if update_fields:
                     customer.save(update_fields=update_fields)
 
-            user_defaults = {
-                "username": customer.username or customer.contact_no,
-                "password": customer.password,
-                "email": customer.email,
-                "company_id": customer.company_id,
-                "project_id": customer.project_id,
-                "user_type_id": customer_type,
-                "customer_id": customer,
-                "is_active": customer.is_active,
-                "is_deleted": customer.is_deleted,
-            }
-            user, _ = UserModel.objects.update_or_create(
-                customer_id=customer,
-                defaults=user_defaults,
-            )
+            # Customer auth uses CustomerCreation directly.
+            # Remove legacy mirrored auth user rows for this customer.
+            UserModel.objects.filter(customer_id_id=customer.unique_id).delete()
 
         self.log("---Customers seeded successfully---")
