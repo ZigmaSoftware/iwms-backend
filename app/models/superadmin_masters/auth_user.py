@@ -105,8 +105,9 @@ class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
 
     unique_id = models.CharField(
         max_length=100,
-        unique=True,
-        default=generate_user_id
+        primary_key=True,
+        default=generate_user_id,
+        editable=False,
     )
 
     user_type_id = models.ForeignKey(
@@ -203,7 +204,7 @@ class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = "auth_user"
-        ordering = ["-id"]
+        ordering = ["-created_at"]
         verbose_name = "User"
         verbose_name_plural = "Users"
         constraints = [

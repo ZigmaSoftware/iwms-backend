@@ -7,7 +7,7 @@ from app.validators.unique_name_validator import unique_name_validator
 class VehicleTypeCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = VehicleTypeCreation
-        fields = "__all__"
+        exclude = ["id"]
 
         read_only_fields = ["unique_id"]
         validators = []  # disable DRF unique constraint

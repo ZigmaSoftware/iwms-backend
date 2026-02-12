@@ -20,7 +20,7 @@ class Fuel(BaseMaster):
     # Unique identifier for internal and API-level use
     unique_id = models.CharField(
         max_length=40,
-        unique=True,
+        primary_key=True,
         default=generate_fueltype_id,
         editable=False
     )

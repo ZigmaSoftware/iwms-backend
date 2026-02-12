@@ -2,8 +2,13 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from ..user_creations.staffcreation import Staffcreation
+from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+
+
+def generate_staff_template_audit_id():
+    return f"STFAUD-{generate_unique_id()}"
 
 
 class StaffTemplateAuditLog(models.Model):
@@ -21,6 +26,13 @@ class StaffTemplateAuditLog(models.Model):
         SUPERVISOR = "SUPERVISOR", "Supervisor"
         ADMIN = "ADMIN", "Admin"
         SYSTEM = "SYSTEM", "System"
+
+    unique_id = models.CharField(
+        max_length=40,
+        primary_key=True,
+        default=generate_staff_template_audit_id,
+        editable=False,
+    )
 
     entity_type = models.CharField(
         max_length=30,

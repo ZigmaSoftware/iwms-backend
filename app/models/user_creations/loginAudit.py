@@ -28,8 +28,9 @@ class LoginAudit(models.Model):
 
     unique_id = models.CharField(
         max_length=100,
-        unique=True,
-        default=generate_login_id
+        primary_key=True,
+        default=generate_login_id,
+        editable=False,
     )
 
     user_unique_id = models.CharField(

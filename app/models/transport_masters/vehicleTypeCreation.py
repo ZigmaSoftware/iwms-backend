@@ -10,7 +10,7 @@ def generate_vehicle_type_id():
 class VehicleTypeCreation(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
-        unique=True,
+        primary_key=True,
         default=generate_vehicle_type_id,
         editable=False
     )
@@ -29,7 +29,7 @@ class VehicleTypeCreation(BaseMaster):
         db_column="project_id",
     )
     class Meta:
-        ordering = ["id"]
+        ordering = ["unique_id"]
         verbose_name = "Vehicle Type"
         verbose_name_plural = "Vehicle Types"
 

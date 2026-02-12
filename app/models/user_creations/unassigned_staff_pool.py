@@ -31,7 +31,7 @@ class UnassignedStaffPool(models.Model):
     # -----------------------------
     unique_id = models.CharField(
         max_length=36,
-        unique=True,
+        primary_key=True,
         default=generate_unassigned_staff_pool_id,
         editable=False
     )

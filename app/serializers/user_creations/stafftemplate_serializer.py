@@ -83,7 +83,6 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     class Meta:
         model = StaffTemplate
         fields = [
-            "id",
             "unique_id",
             "company_id",
             "company_name",
@@ -110,7 +109,6 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "updated_at",
         ]
         read_only_fields = [
-            "id",
             "unique_id",
             "display_code",
             "created_at",

@@ -35,7 +35,7 @@ class AuditLog(models.Model):
     # -------------------------------------------------
     unique_id = models.CharField(
         max_length=100,
-        unique=True,
+        primary_key=True,
         default=generate_login_id,
         editable=False
     )

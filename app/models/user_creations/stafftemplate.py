@@ -26,7 +26,7 @@ class StaffTemplate(models.Model):
 
     unique_id = models.CharField(
         max_length=20,
-        unique=True,
+        primary_key=True,
         default=generate_stafftemplate_id,
         editable=False
     )
