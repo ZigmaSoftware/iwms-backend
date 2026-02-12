@@ -6,4 +6,4 @@ from app.models.user_creations.waste_collection_bluetooth import WasteType
 class WasteTypeSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = WasteType
-        exclude = ["id"]
+        fields = "__all__"
