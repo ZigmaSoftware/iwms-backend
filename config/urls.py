@@ -12,7 +12,7 @@ from rest_framework.permissions import AllowAny
 
 
 def home(request):
-    return HttpResponse("Django backend is running! Try /api/desktop/")
+    return HttpResponse("Django backend is running! Try /api/v1/")
 
 def platform_console(request):
     return render(request, "platform_console.html")
