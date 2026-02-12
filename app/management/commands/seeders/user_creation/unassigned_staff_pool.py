@@ -1,6 +1,6 @@
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.user_creations.unassigned_staff_pool import UnassignedStaffPool
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.transport_masters.trip_instance import TripInstance
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
@@ -10,7 +10,7 @@ class UnassignedStaffPoolSeeder(BaseSeeder):
     name = "unassigned_staff_pool"
 
     def run(self):
-        staff_qs = StaffOfficeDetails.objects.filter(
+        staff_qs = Staffcreation.objects.filter(
             staffusertype_id__name__in=["driver", "operator"],
             is_active=True,
             is_deleted=False,

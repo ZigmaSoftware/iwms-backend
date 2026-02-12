@@ -3,7 +3,7 @@ from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.user_creations.supervisor_zone_map import SupervisorZoneMap
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 
 
 # ============================================================
@@ -64,7 +64,7 @@ class ZoneWithWardsSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 class SupervisorZoneMapSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     supervisor_id = serializers.SlugRelatedField(
         slug_field="staff_unique_id",
-        queryset=StaffOfficeDetails.objects.all()
+        queryset=Staffcreation.objects.all()
     )
 
     zones = serializers.SerializerMethodField()

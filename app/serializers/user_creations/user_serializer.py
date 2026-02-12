@@ -3,7 +3,7 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from django.db.models import Q
 
 from app.models.customers.customercreation import CustomerCreation
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.role_assigns.userType import UserType
 
 
@@ -74,7 +74,7 @@ class StaffSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     )
 
     class Meta:
-        model = StaffOfficeDetails
+        model = Staffcreation
         fields = "__all__"
 
     # ==================================================
@@ -105,8 +105,8 @@ class StaffSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
         # ---------- DUPLICATE PHONE ----------
         if phone:
-            # Check across StaffOfficeDetails and CustomerCreation
-            staff_qs = StaffOfficeDetails.objects.filter(is_deleted=False)
+            # Check across Staffcreation and CustomerCreation
+            staff_qs = Staffcreation.objects.filter(is_deleted=False)
             customer_qs = CustomerCreation.objects.filter(is_deleted=False)
 
             staff_exists = staff_qs.filter(

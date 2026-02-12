@@ -3,7 +3,7 @@ from app.utils.comfun import generate_unique_id
 from app.models.screen_managements.mainscreen import MainScreen
 from app.models.screen_managements.userscreen import UserScreen
 from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -44,7 +44,7 @@ class AuditLog(models.Model):
     # WHO performed the action
     # -------------------------------------------------
     user_id = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         to_field="staff_unique_id",
         db_column="user_id",

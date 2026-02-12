@@ -5,7 +5,7 @@ from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.zone import Zone
 from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -58,7 +58,7 @@ class RoutePlan(BaseMaster):
     )
 
     supervisor_id = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         to_field="staff_unique_id",
         related_name="route_plans"

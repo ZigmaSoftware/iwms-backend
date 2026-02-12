@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.audits.supervisor_zone_access_audit import SupervisorZoneAccessAudit
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 
 
 class SupervisorZoneAccessAuditSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):

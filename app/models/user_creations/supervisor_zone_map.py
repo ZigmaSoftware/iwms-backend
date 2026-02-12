@@ -1,6 +1,6 @@
 from django.db import models
 from app.utils.comfun import generate_unique_id
-from .staffcreation import StaffOfficeDetails
+from .staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -24,7 +24,7 @@ class SupervisorZoneMap(models.Model):
     # SUPERVISOR & LOCATION
     # -----------------------------
     supervisor_id = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         related_name="zone_assignments",
         to_field="staff_unique_id",

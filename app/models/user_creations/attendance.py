@@ -1,6 +1,6 @@
 from django.db import models
 
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -24,7 +24,7 @@ class Employee(models.Model):
 
     emp_id = models.CharField(max_length=8, unique=True)
     staff = models.OneToOneField(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         to_field="staff_unique_id",
         db_column="staff_id",
@@ -60,7 +60,7 @@ class Recognized(models.Model):
     )
 
     staff = models.ForeignKey(
-        StaffOfficeDetails,
+        Staffcreation,
         on_delete=models.PROTECT,
         to_field="staff_unique_id",
         db_column="staff_id",

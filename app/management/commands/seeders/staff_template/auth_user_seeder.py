@@ -1,7 +1,7 @@
 from django.conf import settings
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.user_creations.staffcreation import StaffOfficeDetails
+from app.models.user_creations.staffcreation import Staffcreation
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.company import Company
@@ -63,7 +63,7 @@ class AuthUserSeeder(BaseSeeder):
         ]
 
         for employee_name, email, password, role in seed_staff:
-            staff, created = StaffOfficeDetails.objects.get_or_create(
+            staff, created = Staffcreation.objects.get_or_create(
                 employee_name=employee_name,
                 defaults={
                     "email": email,
