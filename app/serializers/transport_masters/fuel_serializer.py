@@ -6,7 +6,7 @@ from app.validators.unique_name_validator import unique_name_validator
 class FuelSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Fuel
-        exclude = ["id"]
+        fields = "__all__"
         read_only_fields = ["unique_id"]
         validators = []  # disable DRF unique constraint
 
