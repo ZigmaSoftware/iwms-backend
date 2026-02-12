@@ -2,9 +2,25 @@ from rest_framework import serializers
 
 from app.models.superadmin_masters.company import Company
 
-class PlatformCompanyCreateSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=150)
-    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+class PlatformCompanyCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = ["unique_id", "name", "description", "is_active"]
+        read_only_fields = ["unique_id", "is_active"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        view = self.context.get("view")
+        if view and getattr(view, "action", None) == "create":
+            return {"company": data}
+        return data
+
+    def update(self, instance, validated_data):
+        # Keep legacy behavior: PUT without description clears description.
+        if not self.partial and "description" not in validated_data:
+            validated_data["description"] = None
+        return super().update(instance, validated_data)
 
 
 class CompanySerializer(serializers.ModelSerializer):
