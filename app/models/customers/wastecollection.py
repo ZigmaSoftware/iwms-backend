@@ -29,8 +29,9 @@ class WasteCollection(BaseMaster):
 
     unique_id = models.CharField(
         max_length=30,
-        unique=True,
-        default=generate_wastecollection_id
+        primary_key=True,
+        default=generate_wastecollection_id,
+        editable=False,
     )
 
     #  Link one customer – all details fetched via relation

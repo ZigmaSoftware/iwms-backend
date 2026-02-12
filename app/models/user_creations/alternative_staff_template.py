@@ -26,7 +26,7 @@ class AlternativeStaffTemplate(models.Model):
     # ---- Core Identifiers ----
     unique_id = models.CharField(
         max_length=50,
-        unique=True,
+        primary_key=True,
         default=generate_alternative_staff_template_id,
         editable=False
     )

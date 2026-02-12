@@ -26,7 +26,7 @@ class VehicleCreation(models.Model):
 
     unique_id = models.CharField(
         max_length=40,
-        unique=True,
+        primary_key=True,
         default=generate_vehicle_creation_id,
         editable=False,
     )
@@ -79,7 +79,7 @@ class VehicleCreation(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-id"]
+        ordering = ["-created_at"]
         verbose_name = "Vehicle Creation"
         verbose_name_plural = "Vehicle Creations"
 

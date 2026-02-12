@@ -18,7 +18,7 @@ class ComplaintSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
 
     class Meta:
         model = Complaint
-        fields = "__all__"
+        exclude = ["id"]
         extra_kwargs = {
             "customer": {"write_only": True},
             "zone": {"write_only": True, "required": False, "allow_null": True},

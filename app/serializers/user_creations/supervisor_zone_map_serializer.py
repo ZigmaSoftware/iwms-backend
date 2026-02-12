@@ -72,7 +72,6 @@ class SupervisorZoneMapSerializer(TenancyReadSerializerMixin, serializers.ModelS
     class Meta:
         model = SupervisorZoneMap
         fields = [
-            "id",
             "unique_id",
             "company_id",
             "company_name",
@@ -86,7 +85,7 @@ class SupervisorZoneMapSerializer(TenancyReadSerializerMixin, serializers.ModelS
             "status",
             "created_at",
         ]
-        read_only_fields = ["id", "unique_id", "created_at"]
+        read_only_fields = ["unique_id", "created_at"]
 
     # ------------------------------------------------------------
     # ZONE + WARD MAPPING
@@ -150,7 +149,7 @@ class SupervisorZoneMapSerializer(TenancyReadSerializerMixin, serializers.ModelS
                 status="ACTIVE"
             )
             if self.instance:
-                qs = qs.exclude(id=self.instance.id)
+                qs = qs.exclude(pk=self.instance.pk)
 
             if qs.exists():
                 raise serializers.ValidationError(

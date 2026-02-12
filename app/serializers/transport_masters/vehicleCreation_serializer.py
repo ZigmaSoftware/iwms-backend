@@ -47,7 +47,6 @@ class VehicleCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     class Meta:
         model = VehicleCreation
         fields = [
-            "id",
             "unique_id",
             "company_id",
             "company_name",

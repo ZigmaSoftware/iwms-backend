@@ -26,7 +26,7 @@ class MainCategory(BaseMaster):
 
     unique_id = models.CharField(
         max_length=30,
-        unique=True,
+        primary_key=True,
         default=generate_maincategory_id,
         editable=False
     )
@@ -37,7 +37,7 @@ class MainCategory(BaseMaster):
     )
 
     class Meta:
-        ordering = ["id"]
+        ordering = ["unique_id"]
         verbose_name = "Main Category"
         verbose_name_plural = "Main Categories"
 

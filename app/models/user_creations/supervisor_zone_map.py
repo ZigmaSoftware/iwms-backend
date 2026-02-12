@@ -15,7 +15,7 @@ class SupervisorZoneMap(models.Model):
     # -----------------------------
     unique_id = models.CharField(
         max_length=36,
-        unique=True,
+        primary_key=True,
         default=generate_supervisor_zone_map_id,
         editable=False
     )

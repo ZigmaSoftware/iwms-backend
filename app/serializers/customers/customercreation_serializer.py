@@ -72,7 +72,6 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
     class Meta:
         model = CustomerCreation
         fields = [
-            "id",
             "unique_id",
             "company_id",
             "company_name",
@@ -135,7 +134,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
 
         # Exclude self on update
         if instance:
-            qs = qs.exclude(id=instance.id)
+            qs = qs.exclude(pk=instance.pk)
 
         if qs.exists():
             raise serializers.ValidationError({

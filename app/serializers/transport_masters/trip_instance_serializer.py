@@ -58,9 +58,8 @@ class TripInstanceSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
 
     class Meta:
         model = TripInstance
-        fields = "__all__"
+        exclude = ["id"]
         read_only_fields = [
-            "id",
             "unique_id",
             "trip_no",
             "created_at",

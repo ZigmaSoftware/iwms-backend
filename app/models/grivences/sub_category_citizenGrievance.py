@@ -29,8 +29,9 @@ class SubCategory(BaseMaster):
 
     unique_id = models.CharField(
         max_length=30,
-        unique=True,
-        default=generate_subcategory_id
+        primary_key=True,
+        default=generate_subcategory_id,
+        editable=False,
     )
 
     mainCategory = models.ForeignKey(
@@ -41,7 +42,7 @@ class SubCategory(BaseMaster):
 
     name = models.CharField(max_length=120)
     class Meta:
-        ordering = ["id"]
+        ordering = ["unique_id"]
 
     def __str__(self):
         return self.name

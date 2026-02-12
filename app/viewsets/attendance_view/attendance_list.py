@@ -68,7 +68,7 @@ class AttendanceListViewSet(ViewSet):
                 "in_time": check_in.recognition_time.strftime("%H:%M") if check_in else None,
                 "out_time": (
                     check_out.recognition_time.strftime("%H:%M")
-                    if check_out and (not check_in or check_out.id != check_in.id)
+                    if check_out and (not check_in or check_out.pk != check_in.pk)
                     else None
                 ),
 
@@ -82,7 +82,7 @@ class AttendanceListViewSet(ViewSet):
                 ),
                 "out_image_path": self._to_media_url(
                     check_out.captured_image_path
-                    if check_out and (not check_in or check_out.id != check_in.id)
+                    if check_out and (not check_in or check_out.pk != check_in.pk)
                     else None
                 ),
                 "last_punch_type": day_records.last().punch_type if day_records.exists() else None,

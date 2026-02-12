@@ -21,7 +21,7 @@ class StaffTemplateAuditLogSerializer(TenancyReadSerializerMixin, serializers.Mo
             "company_name",
             "project_id",
             "project_name",
-            "id",
+            "unique_id",
             "entity_type",
             "entity_id",
             "action",

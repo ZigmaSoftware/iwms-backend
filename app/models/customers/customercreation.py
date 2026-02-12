@@ -45,8 +45,9 @@ class CustomerCreation(BaseMaster):
 
     unique_id = models.CharField(
         max_length=30,
-        unique=True,
-        default=generate_customer_id
+        primary_key=True,
+        default=generate_customer_id,
+        editable=False,
     )
     customer_name = models.CharField(max_length=100)
     contact_no = models.CharField(max_length=10)

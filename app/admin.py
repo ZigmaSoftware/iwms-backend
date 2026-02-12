@@ -16,17 +16,17 @@ class StaffcreationAdmin(admin.ModelAdmin):
 
 @admin.register(StaffPersonalDetails)
 class StaffPersonalDetailsAdmin(admin.ModelAdmin):
-    list_display = ("id", "staff", "contact_mobile", "contact_email")
+    list_display = ("staff_unique_id", "staff", "contact_mobile", "contact_email")
     search_fields = ("staff__employee_name", "contact_mobile")
-    ordering = ("-id",)
+    ordering = ("-created_at",)
 
 
 @admin.register(CustomerCreation)
 class CustomerCreationAdmin(admin.ModelAdmin):
-    list_display = ("id", "customer_name", "contact_no", "username", "is_active", "is_deleted")
+    list_display = ("unique_id", "customer_name", "contact_no", "username", "is_active", "is_deleted")
     list_filter = ("is_active", "is_deleted")
     search_fields = ("customer_name", "contact_no", "username")
-    ordering = ("-id",)
+    ordering = ("customer_name",)
 
 
 @admin.register(Company)
