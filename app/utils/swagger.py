@@ -17,8 +17,37 @@ GROUP_DISPLAY_NAMES = {
     "grivences": "Grievances",
     "transport-masters": "Transport Masters",
     "audits": "Audits",
+    "superadmin": "Superadmin",
+    "waste-bluetooth": "Waste Bluetooth",
     "mobile": "Mobile",
 }
+
+OPERATION_ACTION_NAMES = {
+    "list",
+    "create",
+    "retrieve",
+    "update",
+    "partial_update",
+    "destroy",
+    "metadata",
+    "options",
+}
+
+BASENAME_INFO: dict[str, dict[str, object]] = {}
+
+
+def register_group_basename(
+    basename: str,
+    group: str,
+    prefix: str,
+    include_group_in_prefix: bool,
+) -> None:
+    BASENAME_INFO[basename] = {
+        "group": group,
+        "prefix": prefix,
+        "label": prefix.replace("-", " ").title(),
+        "include_group_in_prefix": include_group_in_prefix,
+    }
 
 
 def _normalize_segment(segment: str) -> str:
@@ -39,13 +68,50 @@ def _extract_group_from_path(path: str) -> Optional[str]:
 
 
 class GroupedSwaggerAutoSchema(SwaggerAutoSchema):
-    """Base swagger auto schema that tags endpoints by the router group."""
+    """Swagger auto schema that tags endpoints by group and endpoint name."""
 
     def get_tags(self, operation_keys=None):
-        tags = super().get_tags(operation_keys)
-        if tags:
-            return tags
-        group = _extract_group_from_path(self.path)
+        # 1️⃣ If explicitly overridden
+        override_tags = self.overrides.get("tags")
+        if override_tags:
+            return override_tags
+
+        operation_keys = operation_keys or self.operation_keys or []
+        basename = getattr(self.view, "basename", None)
+        info = BASENAME_INFO.get(basename) if basename else None
+
+        group = None
+        prefix_label = None
+
+        if info:
+            group = info.get("group")
+            prefix_label = info.get("label")
+
+        # 2️⃣ If group not found from basename, extract from path
         if not group:
+            group = _extract_group_from_path(self.path)
+
+        # 3️⃣ Format display names
+        def format_display(name: str | None) -> str | None:
+            if not name:
+                return None
+            return GROUP_DISPLAY_NAMES.get(name, name.replace("-", " ").title())
+
+        tags = []
+
+        # Add GROUP tag
+        group_label = format_display(group)
+        if group_label:
+            tags.append(group_label)
+
+        # Add ENDPOINT tag
+        if prefix_label:
+            endpoint_label = format_display(prefix_label)
+            if endpoint_label and endpoint_label not in tags:
+                tags.append(endpoint_label)
+
+        # Fallback (very rare)
+        if not tags:
             return ["IWMS API"]
-        return [GROUP_DISPLAY_NAMES.get(group, group.replace("-", " ").title())]
+
+        return tags

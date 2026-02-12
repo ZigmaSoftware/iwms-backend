@@ -5,6 +5,8 @@ from rest_framework.reverse import reverse
 from django.urls import path
 from collections import OrderedDict
 
+from ..utils.swagger import register_group_basename
+
 
 class GroupedRouter(DefaultRouter):
 
@@ -34,6 +36,8 @@ class GroupedRouter(DefaultRouter):
             full_prefix = f"{group}/{prefix}"
         else:
             full_prefix = prefix
+
+        register_group_basename(base, group, prefix, include_group_in_prefix)
 
         self.group_map[group].append({
             "prefix": prefix,
