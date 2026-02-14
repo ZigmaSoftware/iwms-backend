@@ -72,11 +72,21 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         if not unique_id and self.request.method in ("POST", "PUT", "PATCH"):
             # Swagger/tests often send project_id in JSON body; accept it, but validate it is in the same company.
             unique_id = self.request.data.get("project_id") or self.request.data.get("project_unique_id")
-        if unique_id:
-            project = Project.objects.filter(unique_id=unique_id, company_id=company).first()
-            if not project:
-                raise ValidationError({"project_id": "Invalid project_id for this company"})
-            return project
+        if not unique_id:
+            payload = getattr(self.request, "jwt_payload", {}) or {}
+            unique_id = payload.get("project_unique_id")
+        if not unique_id:
+            user = getattr(self.request, "user", None)
+            user_project = getattr(user, "project_id", None)
+            if user_project and getattr(user_project, "company_id", None) == company:
+                return user_project
+        if not unique_id:
+            return None
+
+        project = Project.objects.filter(unique_id=unique_id, company_id=company).first()
+        if not project:
+            raise ValidationError({"project_id": "Invalid project_id for this company"})
+        return project
 
         # Default to authenticated user's project on write operations.
         if self.request.method in ("POST", "PUT", "PATCH"):
@@ -129,14 +139,10 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
             save_kwargs["company_id"] = company
 
         project = self._project()
-        if self._model_has_field(model, "project_id"):
-            field = model._meta.get_field("project_id")
-            if project is None and not getattr(field, "null", True):
-                raise ValidationError(
-                    {"project_id": "This field is required. Provide X-Project-Id or a valid project in your user context."}
-                )
-            if project is not None:
-                save_kwargs["project_id"] = project
+        if project is not None and model is not None and hasattr(model, "project_id"):
+            save_kwargs["project_id"] = project
+        if model is not None and hasattr(model, "project_id") and "project_id" not in save_kwargs:
+            raise ValidationError({"project_id": "project_id is required"})
 
         serializer.save(**save_kwargs)
 

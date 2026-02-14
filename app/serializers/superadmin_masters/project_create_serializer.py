@@ -194,11 +194,19 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
 
 class ProjectUpdateSerializer(serializers.ModelSerializer):
     company_unique_id = serializers.CharField(source="company_id.unique_id", read_only=True)
+    company_name = serializers.CharField(source="company_id.name", read_only=True)
 
     class Meta:
         model = Project
-        fields = ["unique_id", "company_unique_id", "name", "description", "is_active"]
-        read_only_fields = ["unique_id", "company_unique_id", "is_active"]
+        fields = [
+            "unique_id",
+            "company_unique_id",
+            "company_name",
+            "name",
+            "description",
+            "is_active",
+        ]
+        read_only_fields = ["unique_id", "company_unique_id", "company_name", "is_active"]
 
     def update(self, instance, validated_data):
         # Keep legacy behavior: PUT without description clears description.
@@ -209,8 +217,16 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
 
 class ProjectSerializer(serializers.ModelSerializer):
     company_unique_id = serializers.CharField(source="company_id.unique_id", read_only=True)
+    company_name = serializers.CharField(source="company_id.name", read_only=True)
 
     class Meta:
         model = Project
-        fields = ["unique_id", "company_unique_id", "name", "description", "is_active"]
-        read_only_fields = ["unique_id", "company_unique_id", "is_active"]
+        fields = [
+            "unique_id",
+            "company_unique_id",
+            "company_name",
+            "name",
+            "description",
+            "is_active",
+        ]
+        read_only_fields = ["unique_id", "company_unique_id", "company_name", "is_active"]
