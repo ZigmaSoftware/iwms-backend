@@ -18,10 +18,11 @@ class ZonePropertyLoadTrackerSerializer(TenancyReadSerializerMixin, serializers.
         write_only=True
     )
 
-    vehicle = serializers.PrimaryKeyRelatedField(
-        queryset=VehicleCreation.objects.all(),
-        write_only=True
-    )
+    vehicle = serializers.SlugRelatedField(
+    slug_field="unique_id",
+    queryset=VehicleCreation.objects.all(),
+    write_only=True
+)
 
     property = serializers.PrimaryKeyRelatedField(
         queryset=Property.objects.all(),
