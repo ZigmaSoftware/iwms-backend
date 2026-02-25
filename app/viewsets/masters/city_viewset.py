@@ -2,12 +2,18 @@ from rest_framework import viewsets
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.masters.city import City
 from app.serializers.masters.city_serializer import CitySerializer
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class CityViewSet(CompanyScopedViewSet):
+class CityViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+
+
     queryset = City.objects.filter(is_deleted=False)
     serializer_class = CitySerializer
     lookup_field = "unique_id"
+
+    AUDIT_MODULE = "masters"
+    AUDIT_ENDPOINT ="cities"
 
     def get_queryset(self):
         queryset = City.objects.filter(is_deleted=False)

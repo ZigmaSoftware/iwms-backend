@@ -32,6 +32,8 @@ class BinSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "is_active",
             "created_at",
             "updated_at",
+            "created_by",
+            "updated_by",
             "ward_name"
         ]
         read_only_fields = [

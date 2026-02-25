@@ -22,8 +22,19 @@ from ..viewsets.masters.district_viewset import DistrictViewSet
 from ..viewsets.masters.zone_viewset import ZoneViewSet
 from ..viewsets.masters.ward_viewset import WardViewSet
 
+from ..viewsets.masters.panchayat_viweset import PanhayatViewSet
+from ..viewsets.masters.areatype_viewset import AreaTypeViewSet
+from ..viewsets.masters.hierarchy_viewset import AdministrativeHierarchyViewSet
+
 # Assets
 from ..viewsets.assets.bin_viewset import BinViewSet
+
+from ..viewsets.assets.collection_point_viewset import CollectionPointViewSet
+from ..viewsets.assets.bins_viewset import BinsViewSet
+from ..viewsets.assets.point_collection_viewset import PointCollectionViewSet
+from ..viewsets.assets.panchayat_wise_collection_viewset import PanchayatWiseCollectionViewSet
+from ..viewsets.assets.weighbridge_viewset import WeighbridgeCheckViewSet
+from ..viewsets.assets.ward_wise_collection_viewset import WardWiseCollectionViewSet
 
 # Waste types
 from ..viewsets.waste_types.property_viewset import PropertyViewSet
@@ -67,6 +78,7 @@ from ..viewsets.transport_masters.trip_definition_viewset import TripDefinitionV
 from ..viewsets.transport_masters.trip_instance_viewset import TripInstanceViewSet
 from ..viewsets.transport_masters.fuel_viewset import FuelViewSet
 from ..viewsets.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
+from ..viewsets.transport_masters.trip_viewset import TripViewSet
 
 # Audits
 from ..viewsets.audits.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
@@ -215,6 +227,22 @@ router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainV
 
 
 # ============================================================
+# GROUP: BP Palakkad
+# ============================================================
+
+router.register_group("bp-palakkad", "panchayat",         PanhayatViewSet)
+router.register_group("bp-palakkad", "collection-point",         CollectionPointViewSet)
+router.register_group("bp-palakkad", "bins",         BinsViewSet)
+router.register_group("bp-palakkad", "trip",         TripViewSet)
+router.register_group("bp-palakkad", "point-collection",         PointCollectionViewSet)
+router.register_group("bp-palakkad", "panchayat-collection",         PanchayatWiseCollectionViewSet)
+router.register_group("bp-palakkad", "ward-collection",         WardWiseCollectionViewSet)
+router.register_group("bp-palakkad", "weighbridge",         WeighbridgeCheckViewSet)
+router.register_group("bp-palakkad", "areatype",         AreaTypeViewSet)
+router.register_group("bp-palakkad", "hierarchy",         AdministrativeHierarchyViewSet)
+
+
+# ============================================================
 # GROUP: MOBILE URLS
 # ============================================================
 router.register_group(
@@ -280,6 +308,8 @@ router.register_group(
     basename="mobile-attendance-list",
     include_group_in_prefix=False,
 )
+
+
 
 # ============================================================
 # URLS

@@ -7,10 +7,13 @@ from ..superadmin_masters.company import Company
 from ..superadmin_masters.project import Project
 from app.utils.comfun import generate_unique_id
 
+
+
 def generate_district_id():
     return f"DIST-{generate_unique_id()}"
 
 class District(BaseMaster):
+
     company_id = models.ForeignKey(
         Company,
         on_delete=models.PROTECT,

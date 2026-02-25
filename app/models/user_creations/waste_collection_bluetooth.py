@@ -2,7 +2,7 @@ import datetime
 import os
 import random
 import string
-
+from app.utils.base_models import BaseMaster
 from django.conf import settings
 from django.db import models
 from app.models.superadmin_masters.company import Company
@@ -44,7 +44,7 @@ def upload_image(image):
     return f"uploads/waste_collection_images/{filename}"
 
 
-class WasteType(models.Model):
+class WasteType(BaseMaster,models.Model):
     company_id = models.ForeignKey(
         Company,
         on_delete=models.PROTECT,
