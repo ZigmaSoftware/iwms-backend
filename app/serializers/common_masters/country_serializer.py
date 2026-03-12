@@ -4,9 +4,9 @@ from app.models.common_masters.country import Country
 from app.validators.unique_name_validator import unique_name_validator
 
 class CountrySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
-    continent_name = serializers.CharField(
-        source="continent_id.name", read_only=True
-    )
+    # continent_name = serializers.CharField(
+    #     source="continent_id.name", read_only=True
+    # )
 
     class Meta:
         model = Country
