@@ -27,3 +27,4 @@ class TenancyReadSerializerMixin(serializers.Serializer):
     def get_project_name(self, obj):
         project = getattr(obj, "project_id", None)
         return getattr(project, "name", None)
+

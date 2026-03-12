@@ -4,7 +4,7 @@ from rest_framework import viewsets
 from rest_framework.exceptions import NotFound
 
 from app.models.superadmin_masters.project import Project
-from app.permissions.platform import PlatformOrCompanyAdminOnly
+from app.permissions.platform import PlatformOrCompanyAdminOnly, PlatformOrCompanyAdminFullAccess
 from app.serializers.superadmin_masters.project_create_serializer import (
     ProjectCreateSerializer,
     ProjectSerializer,
@@ -12,7 +12,7 @@ from app.serializers.superadmin_masters.project_create_serializer import (
 )
 
 class CompanyProjectCreateViewSet(viewsets.ModelViewSet):
-    permission_classes = [PlatformOrCompanyAdminOnly]
+    permission_classes = [PlatformOrCompanyAdminFullAccess]
     queryset = Project.objects.select_related("company_id").filter(is_deleted=False).order_by("name")
     serializer_class = ProjectSerializer
     lookup_field = "unique_id"
@@ -55,3 +55,5 @@ class CompanyProjectCreateViewSet(viewsets.ModelViewSet):
             and getattr(user, "is_superuser", False)
             and getattr(user, "company_id", None) is None
         )
+
+

@@ -19,7 +19,7 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
     # QUERYSET (Company Scoped)
     # ---------------------------------------------------------
     def get_queryset(self):
-        company_id = self.request.company.unique_id
+        company_id = self._company()
 
         qs = CompanyUserScreenPermission.objects.filter(
             company_id_id=company_id
@@ -47,10 +47,12 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
         url_path=r"bulk-sync-multi/(?P<staffusertype_id>[^/.]+)"
     )
     def bulk_sync_multi(self, request, staffusertype_id):
+
+        company = self._company()
+
         data = dict(request.data)
         data["staffusertype_id"] = staffusertype_id
-        data["company_id"] = request.company.unique_id
-
+        data["company_id"] = company.unique_id
         with transaction.atomic():
             serializer = CompanyUserScreenPermissionMultiScreenSerializer(data=data)
             serializer.is_valid(raise_exception=True)
@@ -73,6 +75,9 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
     # ---------------------------------------------------------
     @action(detail=False, methods=["get"], url_path="by-staff-format")
     def by_staff_format(self, request):
+
+        company = self._company()
+
         staffusertype_id = request.query_params.get("staffusertype_id")
         mainscreen_id = request.query_params.get("mainscreen_id")
 
@@ -83,7 +88,7 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
             )
 
         qs = CompanyUserScreenPermission.objects.filter(
-            company_id_id=request.company.unique_id,
+            company_id_id=company,
             staffusertype_id_id=staffusertype_id,
             mainscreen_id_id=mainscreen_id,
             is_deleted=False,
@@ -102,7 +107,7 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
             })["actions"].append(act)
 
         return Response({
-            "company_id": request.company.unique_id,
+            "company_id": company.unique_id,
             "usertype_id": qs.first().usertype_id_id,
             "staffusertype_id": staffusertype_id,
             "mainscreen_id": mainscreen_id,
@@ -119,8 +124,11 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
         url_path=r"delete-by-staffusertype/(?P<staffusertype_id>[^/.]+)",
     )
     def delete_by_staffusertype(self, request, staffusertype_id):
+
+        company = self._company()
+
         qs = CompanyUserScreenPermission.objects.filter(
-            company_id_id=request.company.unique_id,
+            company_id_id=company,
             staffusertype_id_id=staffusertype_id,
         )
 

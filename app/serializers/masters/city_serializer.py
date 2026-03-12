@@ -10,11 +10,12 @@ class CitySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     district_name  = serializers.CharField(source="district_id.name", read_only=True)
     company_name   = serializers.CharField(source="company_id.name", read_only=True)
     project_name   = serializers.CharField(source="project_id.name", read_only=True)
+    
 
     class Meta:
         model = City
         fields = "__all__"
-        read_only_fields = ["unique_id"]
+        read_only_fields = ["unique_id"]    
         validators = []
 
     def validate(self, attrs):

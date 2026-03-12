@@ -33,8 +33,8 @@ class CustomerCreationSeeder(BaseSeeder):
         state = State.objects.get(name="Tamil Nadu")
         district = District.objects.get(name="Chennai")
         city = City.objects.get(name="Chennai City")
-        zone = Zone.objects.get(name="Zone 1")
-        ward = Ward.objects.get(name="Ward 1")
+        zone = Zone.objects.get(zone_name="Zone 1")
+        ward = Ward.objects.get(ward_name="Ward 1")
 
         # --------------------------------------------------
         # PROPERTY HIERARCHY

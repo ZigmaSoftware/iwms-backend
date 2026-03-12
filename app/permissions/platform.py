@@ -1,4 +1,4 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 
 class PlatformSuperAdminOnly(BasePermission):
@@ -33,7 +33,7 @@ class CompanyAdminOnly(BasePermission):
         )
 
 
-class PlatformOrCompanyAdminOnly(BasePermission):
+class PlatformOrCompanyAdminFullAccess(BasePermission):
     """Allow platform super admins or company staff users with admin role."""
 
     message = "Platform super admin or company admin only"
@@ -56,6 +56,47 @@ class PlatformOrCompanyAdminOnly(BasePermission):
         )
 
         return is_platform_super_admin or is_company_admin
+
+
+
+
+class PlatformOrCompanyAdminOnly(BasePermission):
+    """
+    Allow:
+    - Platform super admin → full access
+    - Company admin → read-only access
+    """
+
+    message = "Platform super admin only"
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+
+        if not user or not user.is_authenticated:
+            return False
+
+        # ✅ Platform Super Admin → Full Access
+        is_platform_super_admin = bool(
+            getattr(user, "is_superuser", False)
+            and getattr(user, "company_id", None) is None
+        )
+
+        if is_platform_super_admin:
+            return True
+
+        # ✅ Company Admin
+        role = getattr(getattr(user, "staffusertype_id", None), "name", "")
+        is_company_admin = bool(
+            not getattr(user, "is_superuser", False)
+            and getattr(user, "company_id", None) is not None
+            and (role or "").lower() == "admin"
+        )
+
+        if is_company_admin:
+            # 🔒 Allow only SAFE methods (GET, HEAD, OPTIONS)
+            return request.method in SAFE_METHODS
+
+        return False
 
 
 class StaffUserOnly(BasePermission):

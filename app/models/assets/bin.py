@@ -53,12 +53,14 @@ class Bin(BaseMaster):
         Company,
         on_delete=models.PROTECT,
         related_name="bins",
+        to_field="unique_id",
         db_column="company_id",
     )
     project_id = models.ForeignKey(
         Project,
         on_delete=models.PROTECT,
         related_name="bins",
+        to_field="unique_id",
         db_column="project_id",
     )
 
@@ -83,7 +85,7 @@ class Bin(BaseMaster):
         choices=BinStatus.choices,
         default=BinStatus.ACTIVE,
     )
-
+   
     # ---------- Audit ----------
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

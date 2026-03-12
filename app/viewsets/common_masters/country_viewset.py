@@ -1,11 +1,15 @@
 from rest_framework import viewsets
 from app.models.common_masters.country import Country
 from app.serializers.common_masters.country_serializer import CountrySerializer
+from app.utils.audit_mixin import AuditViewSetMixin
 
 class CountryViewSet(viewsets.ModelViewSet):
     queryset = Country.objects.filter(is_deleted=False)
     serializer_class = CountrySerializer
     lookup_field = "unique_id"
+
+    AUDIT_MODULE = "common-masters"
+    AUDIT_ENDPOINT = "countries"
 
     def get_queryset(self):
         queryset = Country.objects.filter(is_deleted=False)
