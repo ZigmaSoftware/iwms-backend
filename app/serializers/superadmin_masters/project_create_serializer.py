@@ -206,7 +206,7 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
             "description",
             "is_active",
         ]
-        read_only_fields = ["unique_id", "company_unique_id", "company_name", "is_active"]
+        read_only_fields = ["unique_id", "company_unique_id", "company_name"]
 
     def update(self, instance, validated_data):
         # Keep legacy behavior: PUT without description clears description.
