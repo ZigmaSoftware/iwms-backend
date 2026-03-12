@@ -29,7 +29,7 @@ class Property(BaseMaster):
 
     unique_id = models.CharField(
         max_length=40,
-        primary_key=True,               # FIXED
+        primary_key=True,               
         unique=True,
         default=generate_propertyName_id,
         editable=False

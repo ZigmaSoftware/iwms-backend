@@ -5,7 +5,15 @@ from .district import DistrictSeeder
 from .city import CitySeeder
 from .zone import ZoneSeeder
 from .ward import WardSeeder
-from .bin import BinSeeder
+from .bins import BinSeeder
+from .wastetype import WasteTypeSeeder
+from .areatype import AreaTypeSeeder
+from .hierarchy import AdministrativeHierarchySeeder
+from .panchayat import PanchayatSeeder
+from .collection_point import CollectionPointSeeder
+from .point_collection import PointCollectionSeeder
+from .weighbridge import WeighbridgeCheckSeeder
+from .trip import TripSeeder
 
 MASTER_SEEDERS = [
     ContinentSeeder,
@@ -13,7 +21,15 @@ MASTER_SEEDERS = [
     StateSeeder,
     DistrictSeeder,
     CitySeeder,
+    AreaTypeSeeder,
+    AdministrativeHierarchySeeder,
     ZoneSeeder,
     WardSeeder,
-    BinSeeder
+    PanchayatSeeder,
+    WasteTypeSeeder,
+    CollectionPointSeeder,
+    BinSeeder,
+    TripSeeder,
+    PointCollectionSeeder,
+    WeighbridgeCheckSeeder
 ]

@@ -8,6 +8,8 @@ from app.models.screen_managements.companyuserscreenpermission import CompanyUse
 from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.auth_user import User
 
+from app.models.superadmin_masters.project import Project
+
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(required=True)
@@ -142,6 +144,14 @@ class LoginSerializer(serializers.Serializer):
         company = getattr(staff_record, "company_id", None) or getattr(login_user, "company_id", None)
         if not company:
             raise serializers.ValidationError("Staff record has no company assigned")
+        
+        projects_queryset = Project.objects.filter(
+        company_id=company,
+        is_active=True,
+        is_deleted=False
+    ).values("unique_id", "name")
+
+        projects = list(projects_queryset)
 
         permissions = self._resolve_permissions(
             company_unique_id=company.unique_id,
@@ -157,6 +167,7 @@ class LoginSerializer(serializers.Serializer):
             "user_type": "staff",
             "staffusertype_id": staff_usertype.unique_id,
             "company_unique_id": company.unique_id,
+            "projects": projects,        
             "profile_object": staff_record,
         }
 

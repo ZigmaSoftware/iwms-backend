@@ -4,39 +4,60 @@ from app.models.masters.zone import Zone
 from app.serializers.masters.zone_serializer import ZoneSerializer
 
 
-class ZoneViewSet(CompanyScopedViewSet):
+# class ZoneViewSet(CompanyScopedViewSet):
+#     serializer_class = ZoneSerializer
+#     lookup_field = "unique_id"
+
+#     def get_queryset(self):
+#         qs = (
+#             Zone.objects
+#             .filter(is_deleted=False)
+#             .select_related(
+#                 "continent_id",
+#                 "country_id",
+#                 "state_id",
+#                 "district_id",
+#                 "city_id",
+#             )
+#         )
+
+#         params = self.request.query_params
+
+#         filter_map = {
+#             "continent": "continent_id__unique_id",
+#             "country": "country_id__unique_id",
+#             "state": "state_id__unique_id",
+#             "district": "district_id__unique_id",
+#             "city": "city_id__unique_id",
+#         }
+
+#         for param, field in filter_map.items():
+#             value = params.get(param)
+#             if value:
+#                 qs = qs.filter(**{field: value})
+
+#         return qs
+
+#     def perform_destroy(self, instance):
+#         instance.delete()  # soft delete
+
+
+
+
+
+from rest_framework.viewsets import ModelViewSet
+from app.models.masters.zone import Zone
+from app.serializers.masters.zone_serializer import ZoneSerializer
+from app.utils.audit_mixin import AuditViewSetMixin
+
+
+class ZoneViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+    queryset = Zone.objects.filter(is_deleted=False)
     serializer_class = ZoneSerializer
     lookup_field = "unique_id"
 
-    def get_queryset(self):
-        qs = (
-            Zone.objects
-            .filter(is_deleted=False)
-            .select_related(
-                "continent_id",
-                "country_id",
-                "state_id",
-                "district_id",
-                "city_id",
-            )
-        )
-
-        params = self.request.query_params
-
-        filter_map = {
-            "continent": "continent_id__unique_id",
-            "country": "country_id__unique_id",
-            "state": "state_id__unique_id",
-            "district": "district_id__unique_id",
-            "city": "city_id__unique_id",
-        }
-
-        for param, field in filter_map.items():
-            value = params.get(param)
-            if value:
-                qs = qs.filter(**{field: value})
-
-        return qs
+    AUDIT_MODULE = "masters"
+    AUDIT_ENDPOINT ="zone"
 
     def perform_destroy(self, instance):
-        instance.delete()  # soft delete
+        instance.delete()

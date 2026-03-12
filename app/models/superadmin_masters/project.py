@@ -38,3 +38,4 @@ class Project(BaseMaster):
         self.is_deleted = True
         self.is_active = False
         self.save(update_fields=["is_deleted", "is_active"])
+

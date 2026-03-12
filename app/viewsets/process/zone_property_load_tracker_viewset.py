@@ -34,3 +34,4 @@ class ZonePropertyLoadTrackerViewSet(ModelViewSet):
             {"detail": "Deletion not allowed. Tracker is system-managed."},
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
+

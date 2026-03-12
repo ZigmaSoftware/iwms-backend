@@ -1,12 +1,16 @@
 from rest_framework import viewsets
 from app.models.common_masters.state import State
 from app.serializers.common_masters.state_serializer import StateSerializer
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class StateViewSet(viewsets.ModelViewSet):
+class StateViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
     queryset = State.objects.all()   # REQUIRED for DRF basename detection
     serializer_class = StateSerializer
     lookup_field = "unique_id"
+
+    AUDIT_MODULE = "common-masters"
+    AUDIT_ENDPOINT = "states"
 
     def get_queryset(self):
         queryset = State.objects.filter(is_deleted=False)\

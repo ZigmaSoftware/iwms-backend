@@ -79,7 +79,7 @@ class ZonePropertyLoadTrackerSerializer(TenancyReadSerializerMixin, serializers.
         zone = obj.zone
         return {
             "unique_id": zone.unique_id,
-            "name": zone.name,
+            "name": zone.zone_name,
         }
 
     def get_vehicle_details(self, obj):

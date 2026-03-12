@@ -9,11 +9,13 @@ from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.project import Project
 
 
+
 def generate_city_id():
     return f"CITY-{generate_unique_id()}"
 
 
 class City(BaseMaster):
+
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
