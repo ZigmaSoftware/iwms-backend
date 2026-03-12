@@ -11,6 +11,8 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     ward_name = serializers.CharField(source="collection_point_id.ward_id.ward_name", read_only = True)
     wastetype_name = serializers.CharField(source="wastetype_id.waste_type_name", read_only = True)
     collection_point_name = serializers.CharField(source="collection_point_id.cp_name", read_only = True)
+    zone_id = serializers.CharField(source="collection_point_id.ward_id.zone_id.unique_id", read_only=True)  # ✅ for zone_id   
+    zone_name = serializers.CharField(source="collection_point_id.ward_id.zone_id.zone_name", read_only=True)  # ✅ for zone_name
 
     class Meta:
         model = Bins
@@ -22,6 +24,8 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "project_name",
             "panchayat_id",
             "panchayat_name",
+            "zone_id",
+            "zone_name",
             "ward_id",
             "ward_name",
             "collection_point_id",

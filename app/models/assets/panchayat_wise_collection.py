@@ -5,7 +5,7 @@ from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.models.transport_masters.trip import Trip
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-
+from app.models.assets.point_collection import PointCollection
 from app.models.masters.panchayat import Panchayat
 
 
@@ -40,6 +40,15 @@ class PanchayatCollection(BaseMaster):
         max_digits=12,
         decimal_places=2,
         default=0
+    )
+
+    point_collection_id = models.ForeignKey(
+        PointCollection,
+        on_delete=models.PROTECT,
+        related_name="panchayat_collections",
+        db_column="point_collection_id",
+        null=True,
+        blank=True
     )
 
     collection_date = models.DateField()

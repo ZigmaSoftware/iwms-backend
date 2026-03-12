@@ -43,6 +43,7 @@ class LoginViewSet(ViewSet):
         profile_object = serializer.validated_data.get("profile_object")
         company_unique_id = serializer.validated_data.get("company_unique_id")
         staffusertype_unique_id = serializer.validated_data.get("staffusertype_id")
+        projects = serializer.validated_data.get("projects", [])
 
         # -------------------------
         # ROLE RESOLUTION
@@ -160,7 +161,7 @@ class LoginViewSet(ViewSet):
         access["employee_id"] = employee_id
         access["company_unique_id"] = company_unique_id
         access["company_name"] = company_name
-        access["project_unique_id"] = getattr(getattr(user, "project_id", None), "unique_id", None)
+        access["projects"] = projects
 
         iat = access["iat"]
         exp = access["exp"]
@@ -199,6 +200,7 @@ class LoginViewSet(ViewSet):
                 "employee_id": employee_id,
                 "company_unique_id": company_unique_id,
                 "company_name": company_name,
+                "projects": projects,
                 "profile": profile_payload,
             },
             status=status.HTTP_200_OK

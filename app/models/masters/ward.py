@@ -113,8 +113,8 @@ class Ward(BaseMaster):
         editable=False
     )
 
-    company_id = models.ForeignKey(Company, on_delete=models.PROTECT)
-    project_id = models.ForeignKey(Project, on_delete=models.PROTECT)
+    company_id = models.ForeignKey(Company, on_delete=models.PROTECT,null=True,blank=True)
+    project_id = models.ForeignKey(Project, on_delete=models.PROTECT,null=True,blank=True)
 
     state_id = models.ForeignKey(State, on_delete=models.PROTECT)
     district_id = models.ForeignKey(District, on_delete=models.PROTECT)

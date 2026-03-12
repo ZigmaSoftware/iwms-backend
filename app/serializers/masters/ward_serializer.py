@@ -102,6 +102,8 @@ class WardSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
             "unique_id",
             "created_at",
             "updated_at",
+            "company_id",
+            "project_id",
         ]
 
     def validate(self, attrs):

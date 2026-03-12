@@ -15,6 +15,8 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
         source="ward_id.ward_name",
         read_only=True
     )
+    zone_id = serializers.CharField(source="ward_id.zone_id.unique_id", read_only=True)  
+    zone_name = serializers.CharField(source="ward_id.zone_id.zone_name", read_only=True)  
 
     class Meta:
         model = Collection_point
@@ -32,6 +34,8 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
             "district_name",
             "panchayat_id",
             "panchayat_name",
+            "zone_id",
+            "zone_name",
             "ward_id",
             "ward_name",
             "cp_name",

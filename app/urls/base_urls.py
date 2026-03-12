@@ -35,6 +35,7 @@ from ..viewsets.assets.point_collection_viewset import PointCollectionViewSet
 from ..viewsets.assets.panchayat_wise_collection_viewset import PanchayatWiseCollectionViewSet
 from ..viewsets.assets.weighbridge_viewset import WeighbridgeCheckViewSet
 from ..viewsets.assets.ward_wise_collection_viewset import WardWiseCollectionViewSet
+from ..viewsets.assets.zone_wise_collection_viewset import ZoneWiseCollectionViewSet
 
 # Waste types
 from ..viewsets.waste_types.property_viewset import PropertyViewSet
@@ -162,7 +163,7 @@ router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet)
 # ============================================================
 # GROUP: USER CREATION
 # ============================================================
-# router.register_group("user-creations", "users-creation",  StaffViewSet)
+router.register_group("user-creations", "users-creation",  StaffViewSet)
 router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creations", "stafftemplate-creation",  StaffTemplateViewSet)
 router.register_group("user-creations", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)
@@ -240,6 +241,7 @@ router.register_group("bp-palakkad", "ward-collection",         WardWiseCollecti
 router.register_group("bp-palakkad", "weighbridge",         WeighbridgeCheckViewSet)
 router.register_group("bp-palakkad", "areatype",         AreaTypeViewSet)
 router.register_group("bp-palakkad", "hierarchy",         AdministrativeHierarchyViewSet)
+router.register_group("bp-palakkad", "zone-collection",         ZoneWiseCollectionViewSet)
 
 
 # ============================================================

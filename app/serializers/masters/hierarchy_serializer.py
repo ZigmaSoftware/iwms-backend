@@ -16,6 +16,6 @@ class AdministrativeHierarchySerializer(serializers.ModelSerializer):
             "level_name",
             "area_type",
             "area_type_name",
-            
+            "is_active",
         ]
         read_only_fields = ("unique_id",)

@@ -23,7 +23,7 @@ class AreaType(BaseMaster):
     state_id = models.ForeignKey(
         State,
         on_delete = models.PROTECT,
-        related_name="panchayat",
+        related_name="area_type",
         db_column="state_id",
         
     )
@@ -31,7 +31,7 @@ class AreaType(BaseMaster):
     city_id = models.ForeignKey(
         City,
         on_delete = models.PROTECT,
-        related_name="panchayat",
+        related_name="area_type",
         db_column="city_id",
         
     )
@@ -39,7 +39,7 @@ class AreaType(BaseMaster):
     district_id = models.ForeignKey(
         District,
         on_delete = models.PROTECT,
-        related_name="panchayat",
+        related_name="area_type",
         db_column="district_id",
         
     )

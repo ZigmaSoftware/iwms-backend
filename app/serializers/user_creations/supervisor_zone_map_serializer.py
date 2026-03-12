@@ -10,6 +10,7 @@ from app.models.user_creations.staffcreation import Staffcreation
 # WARD SERIALIZER
 # ============================================================
 class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+    area_type = serializers.CharField(source="ward_id.area_type_id.name", read_only=True)
     class Meta:
         model = Ward
         fields = [
@@ -18,11 +19,11 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "company_name",
             "project_id",
             "project_name",
-            "name",
+            "ward_name",
             "area_type",
-            "coordinates",
+            # "coordinates",
             "geofencing_type",
-            "geofencing_color",
+            # "geofencing_color",
         ]
 
 
@@ -31,6 +32,7 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 # ============================================================
 class ZoneWithWardsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     wards = serializers.SerializerMethodField()
+    area_type = serializers.CharField(source="zone_id.area_type_id.name", read_only=True)
 
     class Meta:
         model = Zone
@@ -40,13 +42,13 @@ class ZoneWithWardsSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "company_name",
             "project_id",
             "project_name",
-            "name",
+            "zone_name",
             "city_id",
             "district_id",
             "area_type",
-            "coordinates",
+            # "coordinates",
             "geofencing_type",
-            "geofencing_color",
+            # "geofencing_color",
             "wards",
         ]
 
@@ -68,6 +70,8 @@ class SupervisorZoneMapSerializer(TenancyReadSerializerMixin, serializers.ModelS
     )
 
     zones = serializers.SerializerMethodField()
+    staff_name = serializers.CharField(source="supervisor_id.employee_name", read_only=True)
+
 
     class Meta:
         model = SupervisorZoneMap
@@ -78,6 +82,7 @@ class SupervisorZoneMapSerializer(TenancyReadSerializerMixin, serializers.ModelS
             "project_id",
             "project_name",
             "supervisor_id",
+            "staff_name",
             "district_id",
             "city_id",
             "zone_ids",

@@ -47,7 +47,7 @@ class SupervisorZoneMapSeeder:
             Zone.objects.filter(is_active=True, is_deleted=False).select_related(
                 "district_id",
                 "city_id",
-            ).order_by("name")
+            ).order_by("zone_name")
         )
         if not zones:
             print("No zones found. Skipping supervisor zone map seeding.")

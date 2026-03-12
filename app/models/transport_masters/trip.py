@@ -43,7 +43,7 @@ class Trip(BaseMaster):
     staff_id = models.ForeignKey(
         StaffTemplate,
         on_delete=models.PROTECT,
-        related_name="trip_instances",
+        related_name="trip",
         db_column="staff_template_id",
         to_field="unique_id"
     )
@@ -51,7 +51,7 @@ class Trip(BaseMaster):
     waste_type_id = models.ForeignKey(
         WasteType,
         on_delete=models.PROTECT,
-        related_name="trip_instances",
+        related_name="trip",
         db_column="waste_type_id",
         to_field="unique_id",
     )

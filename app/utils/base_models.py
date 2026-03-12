@@ -2,6 +2,41 @@ from django.db import models
 from django.conf import settings
 
 
+
+
+class Account(models.Model):
+
+    # Use string primary key
+    account_id = models.CharField(
+        max_length=50,
+        primary_key=True,
+        editable=False
+    )
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    staff = models.OneToOneField(
+        "app.Staffcreation",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    def save(self, *args, **kwargs):
+        # Auto assign account_id from related model
+        if self.user:
+            self.account_id = self.user.unique_id
+        elif self.staff:
+            self.account_id = self.staff.staff_unique_id
+
+        super().save(*args, **kwargs)
+
+
 class BaseMaster(models.Model):
     """Shared active/deleted flags for most tables."""
     is_active = models.BooleanField(default=True)
@@ -10,7 +45,7 @@ class BaseMaster(models.Model):
     
 
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        Account,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -18,7 +53,7 @@ class BaseMaster(models.Model):
     )
 
     updated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        Account,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
