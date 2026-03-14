@@ -67,3 +67,5 @@ class WeighbridgeCheckViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             "overall_weight_difference": total_difference["total"] or 0,
             "results": serializer.data
         })
+
+

@@ -50,7 +50,9 @@ class WeighbridgeCheck(BaseMaster):
 
     weighbridge_weight = models.DecimalField(
         max_digits=12,
-        decimal_places=2
+        decimal_places=2,
+        null=True,
+        blank=True
     )
 
     weight_difference = models.DecimalField(
@@ -92,7 +94,7 @@ class WeighbridgeCheck(BaseMaster):
 
         total_collected = self.total_collected_weight
 
-        if total_collected > 0:
+        if self.weighbridge_weight and total_collected > 0:
             self.weight_difference = self.weighbridge_weight - total_collected
 
             difference_percent = abs(
