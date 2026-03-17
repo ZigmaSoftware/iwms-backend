@@ -3,7 +3,7 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.common_masters.continent import Continent
 from app.validators.unique_name_validator import unique_name_validator
 
-class ContinentSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+class ContinentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Continent
         fields = "__all__"
@@ -11,7 +11,7 @@ class ContinentSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
         validators = []  # disable DRF unique constraint
 
     def validate(self, attrs):
-        return unique_name_validator(
+        return unique_name_validator(       
             Model=Continent,
             name_field="name",
         )(self, attrs)

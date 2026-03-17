@@ -8,6 +8,7 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.screen_managements.userscreenaction import UserScreenAction
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+from django.db.models import Q, UniqueConstraint
 
 
 
@@ -81,17 +82,19 @@ class CompanyUserScreenPermission(BaseMaster):
     class Meta:
         ordering = ["order_no"]
         constraints = [
-        models.UniqueConstraint(
-            fields=[
-                "company_id",
-                "usertype_id",
-                "staffusertype_id",
-                "userscreen_id",
-                "userscreenaction_id",
-            ],
-            name="unique_company_role_screen_action"
-        )
-        ]
+    UniqueConstraint(
+        fields=[
+            "company_id",
+            "usertype_id",
+            "staffusertype_id",
+            "mainscreen_id",
+            "userscreen_id",
+            "userscreenaction_id",
+        ],
+        condition=Q(is_deleted=False),
+        name="uq_active_company_user_screen_permission",
+    )
+]
 
 
     def delete(self, *args, **kwargs):

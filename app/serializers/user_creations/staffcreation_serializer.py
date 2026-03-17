@@ -147,6 +147,8 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
             "created_at",
             "updated_at",
+            "is_active",
+            "is_deleted",
         ]
 
         read_only_fields = ["unique_id", "created_at", "updated_at"]

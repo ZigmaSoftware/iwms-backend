@@ -3,7 +3,7 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.common_masters.state import State
 from app.validators.unique_name_validator import unique_name_validator
 
-class StateSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+class StateSerializer( serializers.ModelSerializer):
     continent_name = serializers.CharField(source="continent_id.name", read_only=True)
     country_name = serializers.CharField(source="country_id.name", read_only=True)
 
