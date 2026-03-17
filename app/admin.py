@@ -8,7 +8,7 @@ from app.models.customers.customercreation import CustomerCreation
 
 @admin.register(Staffcreation)
 class StaffcreationAdmin(admin.ModelAdmin):
-    list_display = ("staff_unique_id", "emp_id", "employee_name", "username", "email", "is_active", "is_deleted")
+    list_display = ("staff_unique_id", "emp_id", "employee_name", "username", "office_email", "is_active", "is_deleted")
     list_filter = ("is_active", "is_deleted", "is_staff")
     search_fields = ("employee_name", "username", "email", "staff_unique_id")
     ordering = ("-created_at",)

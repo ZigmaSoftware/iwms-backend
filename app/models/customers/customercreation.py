@@ -12,6 +12,7 @@ from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
+from app.models.masters.panchayat import Panchayat
 from app.models.superadmin_masters.project import Project
 
 
@@ -54,9 +55,6 @@ class CustomerCreation(BaseMaster):
     building_no = models.CharField(max_length=20)
     street = models.CharField(max_length=100)
     area = models.CharField(max_length=50)
-    # password = models.CharField(max_length=128, blank=True, null=True)
-    # user_type = models.ForeignKey(UserType, on_delete=models.SET_NULL, related_name="customer_creation", null=True, blank=True)
-
     ward = models.ForeignKey(Ward, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)
     zone = models.ForeignKey(Zone, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)
     city = models.ForeignKey(City, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)
@@ -67,6 +65,21 @@ class CustomerCreation(BaseMaster):
     pincode = models.CharField(max_length=10)
     latitude = models.CharField(max_length=100)
     longitude = models.CharField(max_length=100)
+
+    panchayat_id = models.ForeignKey(
+        Panchayat,
+        on_delete=models.PROTECT,
+        related_name="customer_creations",
+        db_column="panchayat_id",
+        blank=True,
+        null=True
+    )
+    sqft = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
 
     id_proof_type = models.CharField(
         max_length=20,
@@ -109,7 +122,6 @@ class CustomerCreation(BaseMaster):
 
     is_superuser = models.BooleanField(default=False)
 
-    # Type Links
     user_type_id = models.ForeignKey(
         UserType,
         on_delete=models.SET_NULL,
@@ -154,3 +166,6 @@ class CustomerCreation(BaseMaster):
         Required by Django REST Framework's permission system.
         """
         return True
+    
+
+# raise, ape

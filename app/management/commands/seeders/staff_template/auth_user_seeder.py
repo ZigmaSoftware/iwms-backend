@@ -66,7 +66,7 @@ class AuthUserSeeder(BaseSeeder):
             staff, created = Staffcreation.objects.get_or_create(
                 employee_name=employee_name,
                 defaults={
-                    "email": email,
+                    "office_email": email,
                     "user_type_id": staff_type,
                     "staffusertype_id": role,
                     "password": password,

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from app.models.role_assigns.staffUserType import StaffUserType
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
@@ -10,6 +11,21 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     # --------------------------------------------------
     unique_id = serializers.CharField(source="staff_unique_id", read_only=True)
     emp_id = serializers.CharField(read_only=True)
+    staffusertype_id = serializers.PrimaryKeyRelatedField(
+    queryset=StaffUserType.objects.all(),
+    required=False,
+    allow_null=True
+)
+    password = serializers.CharField(
+    required=False,
+    allow_blank=True,
+    # write_only=True
+)
+
+    staffusertype_name = serializers.CharField(
+    source="staffusertype_id.name",
+    read_only=True
+)
 
     # --------------------------------------------------
     #  Office-level: Driving licence
@@ -110,6 +126,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "project_id",
             "project_name",
             "emp_id",
+            "password",
 
             # Office details
             "employee_name",
@@ -144,6 +161,8 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "permanent_address",
             "contact_mobile",
             "contact_email",
+              "staffusertype_id",
+            "staffusertype_name",
 
             "created_at",
             "updated_at",

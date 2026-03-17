@@ -70,7 +70,7 @@ from .screen_managements.companyuserscreenpermission import CompanyUserScreenPer
 # GROUP: USER CREATION & STAFF
 # ============================================================
 from .user_creations.staffcreation import (
-    Staffcreation,
+    StaffcreationOfficeDetails,
     StaffPersonalDetails,
 )
 from .user_creations.stafftemplate import StaffTemplate
@@ -182,7 +182,7 @@ __all__ = [
     "CompanyUserScreenPermission",
 
     # User Creation & Staff
-    "Staffcreation",
+    "StaffcreationOfficeDetails",
     "StaffPersonalDetails",
     "StaffTemplate",
     "AlternativeStaffTemplate",
