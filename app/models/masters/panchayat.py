@@ -63,7 +63,6 @@ class Panchayat(BaseMaster):
         on_delete = models.PROTECT,
         related_name="panchayat",
         db_column="district_id",
-        
     )
 
     area_type_id = models.ForeignKey(

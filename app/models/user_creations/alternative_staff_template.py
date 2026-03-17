@@ -12,9 +12,8 @@ def generate_alternative_staff_template_id():
 
 class AlternativeStaffTemplate(models.Model):
     """
-    Purpose:
-    Tracks temporary or permanent staff substitutions against a staff template
-    with approval workflow and audit trail.
+    Tracks temporary or permanent staff substitutions against
+    a staff template with approval workflow and audit trail.
     """
 
     APPROVAL_STATUS_CHOICES = (
@@ -23,7 +22,10 @@ class AlternativeStaffTemplate(models.Model):
         ('REJECTED', 'Rejected'),
     )
 
-    # ---- Core Identifiers ----
+    # ------------------------------------------------------------------
+    # CORE IDENTIFIER
+    # ------------------------------------------------------------------
+
     unique_id = models.CharField(
         max_length=50,
         primary_key=True,
@@ -31,19 +33,24 @@ class AlternativeStaffTemplate(models.Model):
         editable=False
     )
 
-    # ---- Business Mapping ----
+    # ------------------------------------------------------------------
+    # BUSINESS RELATIONSHIPS
+    # ------------------------------------------------------------------
+
     staff_template = models.ForeignKey(
         'app.StaffTemplate',
         on_delete=models.PROTECT,
         db_column='staff_template_id',
         related_name='alternative_templates'
     )
+
     company_id = models.ForeignKey(
         Company,
         on_delete=models.PROTECT,
         related_name="alternative_staff_templates",
         db_column="company_id",
     )
+
     project_id = models.ForeignKey(
         Project,
         on_delete=models.PROTECT,
@@ -53,7 +60,10 @@ class AlternativeStaffTemplate(models.Model):
 
     effective_date = models.DateField()
 
-    # ---- Staff Assignment ----
+    # ------------------------------------------------------------------
+    # STAFF ASSIGNMENT
+    # ------------------------------------------------------------------
+
     driver_id = models.ForeignKey(
         Staffcreation,
         on_delete=models.PROTECT,
@@ -78,11 +88,21 @@ class AlternativeStaffTemplate(models.Model):
         help_text="List of extra operator IDs"
     )
 
-    # ---- Change Justification ----
-    change_reason = models.CharField(max_length=100)
-    change_remarks = models.TextField(null=True, blank=True)
+    # ------------------------------------------------------------------
+    # CHANGE JUSTIFICATION
+    # ------------------------------------------------------------------
 
-    # ---- Approval Workflow ----
+    change_reason = models.CharField(max_length=100)
+
+    change_remarks = models.TextField(
+        null=True,
+        blank=True
+    )
+
+    # ------------------------------------------------------------------
+    # APPROVAL WORKFLOW
+    # ------------------------------------------------------------------
+
     requested_by = models.ForeignKey(
         Staffcreation,
         on_delete=models.PROTECT,
@@ -105,48 +125,67 @@ class AlternativeStaffTemplate(models.Model):
         default='PENDING'
     )
 
-    # ---- HUMAN READABLE BUSINESS CODE ----
+    # ------------------------------------------------------------------
+    # HUMAN READABLE CODE
+    # ------------------------------------------------------------------
+
     display_code = models.CharField(
         max_length=100,
         unique=True,
         db_index=True,
         editable=False,
-        help_text="Human-friendly identifier (e.g. RAVI-KART-01-ALT-01)"
+        help_text="Example: RAVI-KART-01-ALT-01"
     )
 
-    # ---- Audit ----
+    # ------------------------------------------------------------------
+    # AUDIT
+    # ------------------------------------------------------------------
+
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # ------------------------------------------------------------------
+    # META CONFIGURATION
+    # ------------------------------------------------------------------
 
     class Meta:
         ordering = ['-created_at']
+
         indexes = [
             models.Index(fields=['staff_template', 'effective_date']),
             models.Index(fields=['approval_status']),
             models.Index(fields=['display_code']),
         ]
 
+        constraints = [
+            models.UniqueConstraint(
+                fields=['staff_template', 'effective_date'],
+                name='unique_staff_template_per_effective_date'
+            )
+        ]
+
     # ------------------------------------------------------------------
     # DISPLAY CODE GENERATION
     # ------------------------------------------------------------------
+
     def _generate_display_code(self):
         """
-        Format: <PARENT_DISPLAY_CODE>-ALT-<SEQ>
-        Example: RAVI-KART-01-ALT-01
-        
-        This creates a clear hierarchy showing:
-        - Which staff template this is an alternative for
-        - Sequential numbering for multiple alternatives
+        Format:
+        <PARENT_DISPLAY_CODE>-ALT-<SEQ>
+
+        Example:
+        RAVI-KART-01-ALT-01
         """
+
         if not self.staff_template:
             return f"UNKNOWN-ALT-{self.pk or '00'}"
 
         parent_code = getattr(self.staff_template, 'display_code', None)
+
         if not parent_code:
             parent_code = f"TPL-{self.staff_template.pk}"
 
         base_code = f"{parent_code}-ALT"
 
-        # Find highest existing sequence for this parent template
         last_code = (
             AlternativeStaffTemplate.objects
             .filter(display_code__startswith=base_code)
@@ -163,15 +202,23 @@ class AlternativeStaffTemplate(models.Model):
             last_seq = 0
 
         next_seq = last_seq + 1
+
         return f"{base_code}-{next_seq:02d}"
 
     # ------------------------------------------------------------------
-    # OVERRIDE SAVE
+    # SAVE OVERRIDE
     # ------------------------------------------------------------------
+
     def save(self, *args, **kwargs):
+
         if not self.display_code:
             self.display_code = self._generate_display_code()
+
         super().save(*args, **kwargs)
+
+    # ------------------------------------------------------------------
+    # STRING REPRESENTATION
+    # ------------------------------------------------------------------
 
     def __str__(self):
         return self.display_code
