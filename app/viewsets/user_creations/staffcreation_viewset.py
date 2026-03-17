@@ -7,6 +7,8 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 
 from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.staffcreation_serializer import StaffcreationSerializer
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 class StaffcreationViewset(CompanyScopedViewSet):
@@ -53,8 +55,55 @@ class StaffcreationViewset(CompanyScopedViewSet):
 
         if serializer.is_valid():
             with transaction.atomic():
-                company = self._company()
-                project = self._project()
+                # Handle platform superadmin vs company user
+                if self._is_platform_super_admin():
+                    # Get company from request data for platform superadmin
+                    company_unique_id = request.data.get("company_id")
+                    if not company_unique_id:
+                        from rest_framework.exceptions import ValidationError
+                        raise ValidationError({"company_id": "company_id is required"})
+                    
+                    company = Company.objects.filter(unique_id=company_unique_id).first()
+                    if not company:
+                        from rest_framework.exceptions import ValidationError
+                        raise ValidationError({"company_id": "Invalid company_id"})
+                    
+                    # Get project from request data
+                    project_unique_id = (
+                        request.headers.get(self.project_header)
+                        or request.data.get("project_id")
+                        or request.data.get("project_unique_id")
+                    )
+                    if project_unique_id:
+                        project = Project.objects.filter(
+                            unique_id=project_unique_id,
+                            company_id=company
+                        ).first()
+                        if not project:
+                            from rest_framework.exceptions import ValidationError
+                            raise ValidationError({"project_id": "Invalid project_id for this company"})
+                    else:
+                        # Get the first active project for the company as default
+                        project = Project.objects.filter(
+                            company_id=company,
+                            is_active=True,
+                            is_deleted=False
+                        ).first()
+                        if not project:
+                            from rest_framework.exceptions import ValidationError
+                            raise ValidationError({"project_id": "project_id is required - no active project found for this company"})
+                else:
+                    # Company user - use scoped methods
+                    company = self._company()
+                    if not company:
+                        from rest_framework.exceptions import PermissionDenied
+                        raise PermissionDenied("Company user required")
+                    
+                    project = self._project()
+                    if not project:
+                        from rest_framework.exceptions import ValidationError
+                        raise ValidationError({"project_id": "project_id is required"})
+
                 serializer.save(
                     company_id=company,
                     project_id=project,

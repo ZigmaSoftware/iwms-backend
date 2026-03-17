@@ -21,7 +21,7 @@ class Account(models.Model):
     )
 
     staff = models.OneToOneField(
-        "app.Staffcreation",
+        "app.StaffcreationOfficeDetails",
         on_delete=models.CASCADE,
         null=True,
         blank=True
