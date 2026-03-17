@@ -3,6 +3,7 @@ from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+from app.utils.base_models import Account  # ✅ ADD THIS
 
 
 class StaffTemplateSeeder(BaseSeeder):
@@ -19,6 +20,12 @@ class StaffTemplateSeeder(BaseSeeder):
             .first()
         )
 
+    def _get_account(self, staff):
+        """
+        Convert Staff → Account (FK requirement)
+        """
+        return Account.objects.filter(staff=staff).first()
+
     def run(self):
         """
         Seed a minimal staff template using first available driver/operator users.
@@ -32,6 +39,7 @@ class StaffTemplateSeeder(BaseSeeder):
 
         company = getattr(driver, "company_id", None) or getattr(operator, "company_id", None)
         project = getattr(driver, "project_id", None) or getattr(operator, "project_id", None)
+
         if not company:
             company, _ = Company.objects.get_or_create(
                 name="IWMS",
@@ -41,6 +49,7 @@ class StaffTemplateSeeder(BaseSeeder):
                     "is_deleted": False,
                 },
             )
+
         if not project:
             project_name = f"{company.name} Main Project"
             project, _ = Project.objects.get_or_create(
@@ -53,6 +62,13 @@ class StaffTemplateSeeder(BaseSeeder):
                 },
             )
 
+        # ✅ FIX: convert to Account
+        account = self._get_account(driver)
+
+        if not account:
+            self.log("No Account found for driver. Seeder aborted.")
+            return
+
         StaffTemplate.objects.get_or_create(
             driver_id=driver,
             operator_id=operator,
@@ -60,9 +76,9 @@ class StaffTemplateSeeder(BaseSeeder):
                 "company_id": company,
                 "project_id": project,
                 "extra_operator_id": [],
-                "created_by": driver,
-                "updated_by": driver,
-                "approved_by": driver,
+                "created_by": account,   # ✅ FIXED
+                "updated_by": account,   # ✅ FIXED
+                "approved_by": driver,   # ✅ correct (Staff)
                 "status": "ACTIVE",
                 "approval_status": "APPROVED",
             },

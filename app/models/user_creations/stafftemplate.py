@@ -1,9 +1,11 @@
 from django.db import models
 from django.db.models import Max
+from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from .staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+
 
 
 # ------------------------------------------------------------------
@@ -12,7 +14,7 @@ from app.models.superadmin_masters.project import Project
 def generate_stafftemplate_id():
     return f"STFTEMP-{generate_unique_id(length=6)}"
 
-class StaffTemplate(models.Model):
+class StaffTemplate(BaseMaster):
     
     class ApprovalStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"
@@ -77,20 +79,6 @@ class StaffTemplate(models.Model):
     )
 
     # ---------------- AUDIT FIELDS ----------------
-    created_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        related_name="stafftemplate_created",
-        db_column="created_by",
-        to_field="staff_unique_id"
-    )
-    updated_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        related_name="stafftemplate_updated",
-        db_column="updated_by",
-        to_field="staff_unique_id"
-    )
     approved_by = models.ForeignKey(
         Staffcreation,
         on_delete=models.PROTECT,

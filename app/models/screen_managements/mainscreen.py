@@ -45,7 +45,7 @@ class MainScreen(BaseMaster):
 
     mainscreen_name = models.CharField(max_length=50, unique=True)
     icon_name = models.CharField(max_length=50, unique=True)
-    order_no = models.IntegerField(unique=True)
+    order_no = models.IntegerField()
 
     description = models.CharField(max_length=255, blank=True, null=True)
 
@@ -56,6 +56,12 @@ class MainScreen(BaseMaster):
         ordering = ["order_no"]
         verbose_name = "Main Screen"
         verbose_name_plural = "Main Screens"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["mainscreentype_id", "order_no"],
+                name="unique_order_per_mainscreentype"
+            )
+        ]
 
     def __str__(self):
         return self.mainscreen_name
