@@ -120,3 +120,5 @@ class ZonePropertyLoadTrackerSerializer(TenancyReadSerializerMixin, serializers.
             )
 
         return attrs
+
+
