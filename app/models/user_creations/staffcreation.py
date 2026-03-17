@@ -17,7 +17,7 @@ def generate_staff_unique_id():
     return f"STC-{generate_unique_id()}"
 
 
-class Staffcreation(BaseMaster):
+class StaffcreationOfficeDetails(BaseMaster):
     staff_unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -72,7 +72,7 @@ class Staffcreation(BaseMaster):
         help_text="Required for platform super admins. Staff users may be created without it."
     )
 
-    email = models.EmailField(
+    office_email = models.EmailField(
         null=True,
         blank=True,
     )
@@ -183,7 +183,7 @@ class Staffcreation(BaseMaster):
         for salt in range(100):
             candidate = self._derive_emp_id(self.staff_unique_id, salt)
             exists = (
-                Staffcreation.objects.filter(emp_id=candidate)
+                StaffcreationOfficeDetails.objects.filter(emp_id=candidate)
                 .exclude(pk=self.pk)
                 .exists()
             )
@@ -215,7 +215,7 @@ class Staffcreation(BaseMaster):
 
 class StaffPersonalDetails(models.Model):
     staff = models.OneToOneField(
-        Staffcreation,
+        StaffcreationOfficeDetails,
         on_delete=models.CASCADE,
         related_name="personal_details"
     )
@@ -259,3 +259,7 @@ class StaffPersonalDetails(models.Model):
         if self.staff and not self.staff_unique_id:
             self.staff_unique_id = self.staff.staff_unique_id
         super().save(*args, **kwargs)
+
+
+# Backward compatibility alias
+Staffcreation = StaffcreationOfficeDetails
