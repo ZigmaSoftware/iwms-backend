@@ -245,20 +245,61 @@ class StaffTemplateViewSet(CompanyScopedViewSet):
 
     # ================= ACCOUNT RESOLVE (FIX) =================
 
+    # def _get_account(self, staff_user, request_user):
+    #     """
+    #     Convert Staff/User → Account (FK requirement)
+    #     """
+    #     if staff_user:
+    #         return Account.objects.filter(staff=staff_user).first()
+
+    #     if request_user and not request_user.is_anonymous:
+    #         return Account.objects.filter(user=request_user).first()
+
+    #     return None
+
     def _get_account(self, staff_user, request_user):
         """
-        Convert Staff/User → Account (FK requirement)
+        Always return Account (never None)
         """
+
         if staff_user:
-            return Account.objects.filter(staff=staff_user).first()
+            account, _ = Account.objects.get_or_create(staff=staff_user)
+            return account
 
         if request_user and not request_user.is_anonymous:
-            return Account.objects.filter(user=request_user).first()
+            account, _ = Account.objects.get_or_create(user=request_user)
+            return account
 
         return None
 
     # ================= CREATE =================
 
+    # def perform_create(self, serializer):
+    #     staff_user = self._resolve_request_user()
+    #     request_user = getattr(self.request, "user", None)
+
+    #     if not staff_user and (not request_user or request_user.is_anonymous):
+    #         raise NotAuthenticated("Authentication required")
+
+    #     # ✅ FIX: Convert to Account
+    #     account = self._get_account(staff_user, request_user)
+
+    #     instance = serializer.save(
+    #         created_by=account,
+    #         updated_by=account,
+    #         approved_by=serializer.validated_data.get("approved_by"),
+
+    #     )
+
+    #     if staff_user:
+    #         self._log_audit(
+    #             user=staff_user,
+    #             action=StaffTemplateAuditLog.Action.CREATE,
+    #             entity_id=instance.unique_id,
+    #             remarks=None,
+    #             company_id=instance.company_id,
+    #             project_id=instance.project_id,
+    #         )
     def perform_create(self, serializer):
         staff_user = self._resolve_request_user()
         request_user = getattr(self.request, "user", None)
@@ -266,14 +307,15 @@ class StaffTemplateViewSet(CompanyScopedViewSet):
         if not staff_user and (not request_user or request_user.is_anonymous):
             raise NotAuthenticated("Authentication required")
 
-        # ✅ FIX: Convert to Account
         account = self._get_account(staff_user, request_user)
+
+        if not account:
+            raise Exception("Account not found or created")  # 🔥 fail fast
 
         instance = serializer.save(
             created_by=account,
             updated_by=account,
             approved_by=serializer.validated_data.get("approved_by"),
-
         )
 
         if staff_user:
@@ -285,7 +327,6 @@ class StaffTemplateViewSet(CompanyScopedViewSet):
                 company_id=instance.company_id,
                 project_id=instance.project_id,
             )
-
     # ================= UPDATE =================
 
     def perform_update(self, serializer):
