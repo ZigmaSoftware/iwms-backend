@@ -1,6 +1,6 @@
 import hashlib
 from django.db import models
-from app.utils.base_models import BaseMaster
+from app.utils.base_models import Account, BaseMaster
 from app.utils.comfun import generate_unique_id
 from ..role_assigns.userType import UserType
 from ..role_assigns.staffUserType import StaffUserType
@@ -194,6 +194,8 @@ class StaffcreationOfficeDetails(BaseMaster):
         self.emp_id = self._derive_emp_id(self.staff_unique_id, 999999)
 
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
+
         if not self.emp_id:
             self._ensure_emp_id()
             update_fields = kwargs.get("update_fields")
@@ -203,6 +205,9 @@ class StaffcreationOfficeDetails(BaseMaster):
                 kwargs["update_fields"] = list(update_fields)
 
         super().save(*args, **kwargs)
+
+        if is_new:
+            Account.objects.get_or_create(staff=self)
 
     @property
     def is_authenticated(self):
