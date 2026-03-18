@@ -227,20 +227,27 @@ from app.utils.base_models import Account
 
 
 class CompanyScopedViewSet(viewsets.ModelViewSet):
-    """
-    Enterprise Multi-Tenant Base ViewSet
-
-    PLATFORM SUPERADMIN
-        • Full access
-        • Must send company_id when creating company-scoped models
-
-    COMPANY USERS
-        • Scoped to their company
-        • company_id automatically assigned
-        • project_id required
-    """
 
     project_header = "X-Project-Id"
+
+    # ==========================================================
+    # HELPER — only pass created_by/updated_by if model supports it
+    # ==========================================================
+
+    def _build_save_kwargs(self, serializer, base_kwargs: dict, **audit_fields) -> dict:
+        """
+        Merges base_kwargs with audit fields (created_by, updated_by)
+        only if the model actually has those fields.
+        Prevents TypeError for models that don't extend BaseMaster.
+        """
+        model = getattr(getattr(serializer, "Meta", None), "model", None)
+        result = dict(base_kwargs)
+
+        for field_name, value in audit_fields.items():
+            if model and hasattr(model, field_name):
+                result[field_name] = value
+
+        return result
 
     # ==========================================================
     # ACCOUNT RESOLUTION
@@ -299,6 +306,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         project_unique_id = (
             self.request.headers.get(self.project_header)
             or self.request.query_params.get("project")
+            or self.request.data.get("project_id_input")
             or self.request.data.get("project_id")
             or self.request.data.get("project_unique_id")
         )
@@ -324,11 +332,9 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
         queryset = super().filter_queryset(queryset)
 
-        # PLATFORM SUPERADMIN
         if self._is_platform_super_admin():
             return queryset
 
-        # COMPANY USERS
         company = self._company()
 
         if not company:
@@ -353,17 +359,17 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         model = getattr(getattr(serializer, "Meta", None), "model", None)
         account = self._get_account()
 
-        # ------------------------------------------------------
         # PLATFORM SUPERADMIN
-        # ------------------------------------------------------
-
         if self._is_platform_super_admin():
 
             save_kwargs = {}
 
             if model and hasattr(model, "company_id"):
 
-                company_unique_id = self.request.data.get("company_id")
+                company_unique_id = (
+                    self.request.data.get("company_id_input")
+                    or self.request.data.get("company_id")
+                )
 
                 if not company_unique_id:
                     raise ValidationError({"company_id": "company_id is required"})
@@ -381,6 +387,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
                 project_unique_id = (
                     self.request.headers.get(self.project_header)
+                    or self.request.data.get("project_id_input")
                     or self.request.data.get("project_id")
                 )
 
@@ -395,13 +402,14 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
                     save_kwargs["project_id"] = project
 
-            serializer.save(**save_kwargs, created_by=account)
+            # ← safe: only pass created_by if model has the field
+            final_kwargs = self._build_save_kwargs(
+                serializer, save_kwargs, created_by=account
+            )
+            serializer.save(**final_kwargs)
             return
 
-        # ------------------------------------------------------
         # COMPANY USER
-        # ------------------------------------------------------
-
         company = self._company()
 
         if not company:
@@ -421,7 +429,11 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
             save_kwargs["project_id"] = project
 
-        serializer.save(**save_kwargs, created_by=account)
+        # ← safe: only pass created_by if model has the field
+        final_kwargs = self._build_save_kwargs(
+            serializer, save_kwargs, created_by=account
+        )
+        serializer.save(**final_kwargs)
 
     # ==========================================================
     # UPDATE
@@ -431,10 +443,54 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
         account = self._get_account()
 
+        # PLATFORM SUPERADMIN
         if self._is_platform_super_admin():
-            serializer.save(updated_by=account)
+
+            save_kwargs = {}
+            model = getattr(getattr(serializer, "Meta", None), "model", None)
+            instance = serializer.instance
+
+            if model and hasattr(model, "company_id"):
+
+                company_unique_id = (
+                    self.request.data.get("company_id_input")
+                    or self.request.data.get("company_id")
+                )
+
+                if company_unique_id:
+                    company = Company.objects.filter(
+                        unique_id=company_unique_id
+                    ).first()
+                    if company:
+                        save_kwargs["company_id"] = company
+                else:
+                    save_kwargs["company_id"] = getattr(instance, "company_id", None)
+
+            if model and hasattr(model, "project_id"):
+
+                project_unique_id = (
+                    self.request.headers.get(self.project_header)
+                    or self.request.data.get("project_id_input")
+                    or self.request.data.get("project_id")
+                )
+
+                if project_unique_id:
+                    project = Project.objects.filter(
+                        unique_id=project_unique_id
+                    ).first()
+                    if project:
+                        save_kwargs["project_id"] = project
+                else:
+                    save_kwargs["project_id"] = getattr(instance, "project_id", None)
+
+            # ← safe: only pass updated_by if model has the field
+            final_kwargs = self._build_save_kwargs(
+                serializer, save_kwargs, updated_by=account
+            )
+            serializer.save(**final_kwargs)
             return
 
+        # COMPANY USER
         company = self._company()
 
         if not company:
@@ -451,7 +507,11 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         if model and hasattr(model, "project_id"):
             save_kwargs["project_id"] = getattr(instance, "project_id", None) or self._project()
 
-        serializer.save(**save_kwargs, updated_by=account)
+        # ← safe: only pass updated_by if model has the field
+        final_kwargs = self._build_save_kwargs(
+            serializer, save_kwargs, updated_by=account
+        )
+        serializer.save(**final_kwargs)
 
     # ==========================================================
     # DELETE (SOFT DELETE SUPPORT)
