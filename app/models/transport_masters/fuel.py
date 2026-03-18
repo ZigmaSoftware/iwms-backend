@@ -28,18 +28,7 @@ class Fuel(BaseMaster):
     # Business fields
     fuel_type = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="fuels",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="fuels",
-        db_column="project_id",
-    )
+
 
     # Status flags
     class Meta:
