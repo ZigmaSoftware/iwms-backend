@@ -1,6 +1,4 @@
 from rest_framework import serializers
-from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.models.transport_masters.fuel import Fuel
@@ -8,10 +6,6 @@ from app.validators.unique_name_validator import unique_name_validator
 
 
 class UniqueIdOrPkField(serializers.SlugRelatedField):
-    """
-    Accepts related object via unique_id (preferred) or numeric PK; serializes as unique_id.
-    """
-
     def to_representation(self, value):
         return getattr(value, self.slug_field, None) or super().to_representation(value)
 
@@ -25,7 +19,26 @@ class UniqueIdOrPkField(serializers.SlugRelatedField):
                 raise
 
 
-class VehicleCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+class VehicleCreationSerializer(serializers.ModelSerializer):
+
+    # Read fields — return IDs and names in response
+    company_id = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
+    project_id = serializers.SerializerMethodField()
+    project_name = serializers.SerializerMethodField()
+
+    # Write fields — accept IDs from frontend
+    company_id_input = serializers.CharField(
+        write_only=True,
+        required=True,
+    )
+    project_id_input = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
+
     vehicle_type_id = UniqueIdOrPkField(
         source="vehicle_type",
         slug_field="unique_id",
@@ -41,16 +54,24 @@ class VehicleCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSer
         allow_null=True,
     )
 
-    vehicle_type_name = serializers.CharField(source="vehicle_type.vehicleType", read_only=True)
-    fuel_type_name = serializers.CharField(source="fuel_type.fuel_type", read_only=True)
+    vehicle_type_name = serializers.CharField(
+        source="vehicle_type.vehicleType",
+        read_only=True
+    )
+    fuel_type_name = serializers.CharField(
+        source="fuel_type.fuel_type",
+        read_only=True
+    )
 
     class Meta:
         model = VehicleCreation
         fields = [
             "unique_id",
             "company_id",
+            "company_id_input",
             "company_name",
             "project_id",
+            "project_id_input",
             "project_name",
             "vehicle_type_id",
             "fuel_type_id",
@@ -72,9 +93,28 @@ class VehicleCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSer
             "updated_at",
         ]
         read_only_fields = ["unique_id"]
-        validators = []  # disable DRF unique constraint
+        validators = []
+
+    def get_company_id(self, obj):
+        company = getattr(obj, "company_id", None)
+        return getattr(company, "unique_id", None)
+
+    def get_company_name(self, obj):
+        company = getattr(obj, "company_id", None)
+        return getattr(company, "name", None)
+
+    def get_project_id(self, obj):
+        project = getattr(obj, "project_id", None)
+        return getattr(project, "unique_id", None)
+
+    def get_project_name(self, obj):
+        project = getattr(obj, "project_id", None)
+        return getattr(project, "name", None)
 
     def validate(self, attrs):
+        attrs.pop("company_id_input", None)
+        attrs.pop("project_id_input", None)
+
         return unique_name_validator(
             Model=VehicleCreation,
             name_field="vehicle_no",
