@@ -7,5 +7,4 @@ ASSET_SEEDERS = [
     PropertySeeder,
     SubPropertySeeder,
     FuelSeeder,
-
 ]

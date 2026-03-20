@@ -49,6 +49,7 @@ from ..viewsets.process.zone_property_load_tracker_viewset import ZonePropertyLo
 from ..viewsets.customers.customercreation_viewset import CustomerCreationViewSet
 from ..viewsets.customers.wastecollection_viewset import WasteCollectionViewSet
 from ..viewsets.customers.feedback_viewset import FeedBackViewSet
+from ..viewsets.customers.userchargerule_viewset import UserChargeRuleViewSet
 
 # Role assignments
 from ..viewsets.role_assigns.usertype_viewset import UserTypeViewSet
@@ -190,6 +191,7 @@ router.register_group("login", "login-user",      DesktopLoginViewSet)
 router.register_group("customers", "customercreations", CustomerCreationViewSet)
 router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customers", "feedbacks",         FeedBackViewSet)
+router.register_group("customers", "user-charge-rules", UserChargeRuleViewSet)
 
 # ============================================================
 # GROUP: GRIEVANCES

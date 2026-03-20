@@ -1,37 +1,25 @@
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.customers.customercreation import CustomerCreation
+from app.models.customers.userchargerule import UserChargeRule
 from app.models.superadmin_masters.project import Project
-from app.serializers.customers.customercreation_serializer import CustomerCreationSerializer
+from app.serializers.customers.userchargerule_serializer import UserChargeRuleSerializer
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
-class CustomerCreationViewSet(CompanyScopedViewSet):
-    permission_resource = "CustomerCreation"
-    serializer_class = CustomerCreationSerializer
+class UserChargeRuleViewSet(CompanyScopedViewSet):
+    permission_resource = "UserChargeRule"
+    serializer_class = UserChargeRuleSerializer
     lookup_field = "unique_id"
 
     queryset = (
-        CustomerCreation.objects
+        UserChargeRule.objects
         .filter(is_deleted=False)
         .select_related(
             "company_id",
             "project_id",
-            "ward",
-            "zone",
-            "city",
-            "district",
-            "state",
-            "country",
-            "panchayat_id",
-            "property_ref",
-            "sub_property",
-            "is_bulkwaste_generator"
+            "property_id",
+            "subproperty_id",
         )
-        .order_by("customer_name")
+        .order_by("unique_id")
     )
-
-    # -----------------------------------------------------
-    # Resolve default project
-    # -----------------------------------------------------
 
     def _resolve_default_project(self):
         company = self._company()
@@ -54,10 +42,6 @@ class CustomerCreationViewSet(CompanyScopedViewSet):
             unique_id=project_unique_id,
             company_id=company,
         ).first()
-
-    # -----------------------------------------------------
-    # Project Resolver
-    # -----------------------------------------------------
 
     def _project(self):
         project = super()._project()

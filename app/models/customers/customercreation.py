@@ -121,6 +121,7 @@ class CustomerCreation(BaseMaster):
     )
 
     is_superuser = models.BooleanField(default=False)
+    is_bulkwaste_generator = models.BooleanField(default=False)
 
     user_type_id = models.ForeignKey(
         UserType,
