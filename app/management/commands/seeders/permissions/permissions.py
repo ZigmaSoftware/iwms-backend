@@ -111,6 +111,7 @@ class PermissionSeeder(BaseSeeder):
                 "customercreations",
                 "wastecollections",
                 "feedbacks",
+                "user-charge-rules",
             ],
             "grivences": [
                 "complaints",

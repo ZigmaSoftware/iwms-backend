@@ -50,8 +50,6 @@ class FuelSeeder(BaseSeeder):
         for fuel in fuels:
             obj, created = Fuel.objects.get_or_create(
                 fuel_type=fuel["fuel_type"],
-                company_id=company,
-                project_id=project,
                 defaults={
                     "description": fuel["description"],
                     "is_active": True,

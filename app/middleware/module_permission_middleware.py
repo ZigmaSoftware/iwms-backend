@@ -111,6 +111,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "CustomerCreation",
         "WasteCollection",
         "FeedBack",
+        "UserChargeRule",
     },
     "grivences": {
         "Complaint",
