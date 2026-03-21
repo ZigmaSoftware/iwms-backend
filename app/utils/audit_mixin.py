@@ -1,5 +1,5 @@
 from django.forms.models import model_to_dict
-from app.models.assets.common_audit import CommonAudit
+from app.utils.common_audit import CommonAudit
 from datetime import datetime, date, time
 from decimal import Decimal
 from uuid import UUID
@@ -10,19 +10,6 @@ class AuditViewSetMixin:
     AUDIT_MODULE = None
     AUDIT_ENDPOINT = None
 
-    # def _serialize_instance(self, instance):
-    #     """
-    #     Convert model instance to dict safely.
-    #     Handles ForeignKeys by storing their unique_id.
-    #     """
-    #     data = model_to_dict(instance)
-
-    #     for field in instance._meta.fields:
-    #         if field.is_relation and field.name in data:
-    #             related = getattr(instance, field.name)
-    #             data[field.name] = getattr(related, "unique_id", None) if related else None
-
-    #     return data
 
     def _serialize_instance(self, instance):
         data = model_to_dict(instance)

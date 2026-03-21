@@ -10,6 +10,8 @@ class CollectionPointViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     serializer_class = CollectionPointSerializer
     lookup_field = "unique_id"
 
+    permission_resource = "CollectionPoint"
+
     AUDIT_MODULE = "bp-palakkad"
     AUDIT_ENDPOINT ="collection-point"
 

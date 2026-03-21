@@ -74,7 +74,7 @@
 
 
 
-from app.models.assets.panchayat_wise_collection import PanchayatCollection
+from app.models.collections.panchayat_wise_collection import PanchayatCollection
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 

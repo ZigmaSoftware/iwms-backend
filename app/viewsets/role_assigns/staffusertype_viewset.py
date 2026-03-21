@@ -1,9 +1,11 @@
 from django.shortcuts import get_object_or_404
 
+from rest_framework.response import Response
 from rest_framework import viewsets
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.serializers.role_assigns.staffusertype_serializer import StaffUserTypeSerializer
+from rest_framework.decorators import action
 
 
 class StaffUserTypeViewSet(CompanyScopedViewSet):
@@ -14,3 +16,18 @@ class StaffUserTypeViewSet(CompanyScopedViewSet):
 
     def perform_destroy(self, instance):
         instance.delete()
+
+    @action(detail=False, methods=["get"], url_path="role-choices")
+    def role_choices(self, request):
+        user = request.user
+
+        choices = StaffUserType.STAFF_ROLE_CHOICES
+
+        # 🔐 Optional: restrict roles based on logged-in user
+        if not user.is_superuser:
+            choices = [c for c in choices if c[0] != "superadmin"]
+
+        return Response([
+            {"value": key, "label": label}
+            for key, label in choices
+        ])

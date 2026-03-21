@@ -10,8 +10,8 @@ class StaffUserTypeSeeder(BaseSeeder):
 
     def run(self):
         role_map = {
-            "staff": ["admin", "driver", "operator", "supervisor"],
-            "platform": ["superadmin"],
+            "staff": ["CompanyAdmin", "Company Driver", "Company Operator", "Company Supervisor", "Company User", "Company Project Admin"],
+            "platform": ["SuperAdmin"],
         }
 
         for user_type_name, roles in role_map.items():
@@ -33,3 +33,5 @@ class StaffUserTypeSeeder(BaseSeeder):
                 )
 
         self.log("---Staff user types seeded for staff and platform roles---")
+
+

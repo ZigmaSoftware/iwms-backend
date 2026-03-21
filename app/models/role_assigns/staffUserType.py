@@ -28,12 +28,13 @@ class StaffUserType(BaseMaster):
     )
 
     STAFF_ROLE_CHOICES = [
-        ("admin", "Admin"),
-        ("operator", "Operator"),
-        ("driver", "Driver"),
-        ("supervisor", "Supervisor"),
+        ("company_admin", "CompanyAdmin"),
+        ("company_operator", "Company Operator"),
+        ("company_driver", "Company Driver"),
+        ("company_supervisor", "Company Supervisor"),
         ("superadmin", "Superadmin"),
-        ("user", "User"),
+        ("company_user", "Company User"),
+        ("company_project_admin", "Company Project Admin"),
     ]
 
     unique_id = models.CharField(
