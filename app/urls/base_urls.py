@@ -32,10 +32,10 @@ from ..viewsets.assets.bin_viewset import BinViewSet
 from ..viewsets.assets.collection_point_viewset import CollectionPointViewSet
 from ..viewsets.assets.bins_viewset import BinsViewSet
 from ..viewsets.assets.point_collection_viewset import PointCollectionViewSet
-from ..viewsets.assets.panchayat_wise_collection_viewset import PanchayatWiseCollectionViewSet
+from ..viewsets.collections.panchayat_wise_collection_viewset import PanchayatWiseCollectionViewSet
 from ..viewsets.assets.weighbridge_viewset import WeighbridgeCheckViewSet
-from ..viewsets.assets.ward_wise_collection_viewset import WardWiseCollectionViewSet
-from ..viewsets.assets.zone_wise_collection_viewset import ZoneWiseCollectionViewSet
+from ..viewsets.collections.ward_wise_collection_viewset import WardWiseCollectionViewSet
+from ..viewsets.collections.zone_wise_collection_viewset import ZoneWiseCollectionViewSet
 
 # Waste types
 from ..viewsets.waste_types.property_viewset import PropertyViewSet
@@ -131,6 +131,10 @@ router.register_group("masters", "districts",     DistrictViewSet)
 router.register_group("masters", "cities",        CityViewSet)
 router.register_group("masters", "zones",         ZoneViewSet)
 router.register_group("masters", "wards",         WardViewSet)
+router.register_group("masters", "panchayat",         PanhayatViewSet)
+router.register_group("masters", "areatypes",         AreaTypeViewSet)
+router.register_group("masters", "hierarchy",         AdministrativeHierarchyViewSet)
+
 
 
 # ============================================================
@@ -143,7 +147,10 @@ router.register_group("waste-types", "subproperties", SubPropertyViewSet)
 # ============================================================
 # GROUP: Assets
 # ============================================================
-router.register_group("assets", "bins",          BinViewSet)
+# router.register_group("assets", "bins",          BinViewSet)
+router.register_group("assets", "bins",          BinsViewSet)
+router.register_group("assets", "collection-point", CollectionPointViewSet)
+router.register_group("assets", "point-collection", PointCollectionViewSet)
 
 # ============================================================
 # GROUP: SCREEN MANAGEMENT (separate group)
@@ -160,6 +167,7 @@ router.register_group("screen-managements", "companywisescreenpermissions", Comp
 # ============================================================
 router.register_group("role-assigns", "user-type",      UserTypeViewSet)
 router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet)
+router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet, basename="staffusertype-roletype")
 
 # ============================================================
 # GROUP: USER CREATION
@@ -230,21 +238,11 @@ router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainV
 
 
 # ============================================================
-# GROUP: BP Palakkad
+# GROUP: COLLECTIONS
 # ============================================================
-
-router.register_group("bp-palakkad", "panchayat",         PanhayatViewSet)
-router.register_group("bp-palakkad", "collection-point",         CollectionPointViewSet)
-router.register_group("bp-palakkad", "bins",         BinsViewSet)
-router.register_group("bp-palakkad", "trip",         TripViewSet)
-router.register_group("bp-palakkad", "point-collection",         PointCollectionViewSet)
-router.register_group("bp-palakkad", "panchayat-collection",         PanchayatWiseCollectionViewSet)
-router.register_group("bp-palakkad", "ward-collection",         WardWiseCollectionViewSet)
-router.register_group("bp-palakkad", "weighbridge",         WeighbridgeCheckViewSet)
-router.register_group("bp-palakkad", "areatype",         AreaTypeViewSet)
-router.register_group("bp-palakkad", "hierarchy",         AdministrativeHierarchyViewSet)
-router.register_group("bp-palakkad", "zone-collection",         ZoneWiseCollectionViewSet)
-
+router.register_group("collections", "panchayat-wise", PanchayatWiseCollectionViewSet)
+router.register_group("collections", "ward-wise", WardWiseCollectionViewSet)
+router.register_group("collections", "zone-wise", ZoneWiseCollectionViewSet)
 
 # ============================================================
 # GROUP: MOBILE URLS

@@ -53,8 +53,8 @@
 
 from django.db.models import Sum
 from rest_framework.response import Response
-from app.models.assets.panchayat_wise_collection import PanchayatCollection
-from app.serializers.assets.panchayat_wise_collection_serializer import PanchayatCollectionSerializer
+from app.models.collections.panchayat_wise_collection import PanchayatCollection
+from app.serializers.collections.panchayat_wise_collection_serializer import PanchayatCollectionSerializer
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from datetime import date
 from app.utils.audit_mixin import AuditViewSetMixin
@@ -64,6 +64,8 @@ class PanchayatWiseCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     serializer_class = PanchayatCollectionSerializer
     lookup_field = "unique_id"
+
+    permission_resource = "PanchayatCollection"
 
     AUDIT_MODULE = "bp-palakkad"
     AUDIT_ENDPOINT = "panchayat-collection"

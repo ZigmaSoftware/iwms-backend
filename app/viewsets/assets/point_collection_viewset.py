@@ -9,9 +9,9 @@ from datetime import date
 
 from app.models.assets.point_collection import PointCollection
 from app.serializers.assets.point_collection_serializer import PointCollectionSerializer
-from app.models.assets.panchayat_wise_collection import PanchayatCollection
-from app.models.assets.ward_wise_collection import WardCollection
-from app.models.assets.zone_wise_collection import ZoneCollection
+from app.models.collections.panchayat_wise_collection import PanchayatCollection
+from app.models.collections.ward_wise_collection import WardCollection
+from app.models.collections.zone_wise_collection import ZoneCollection
 
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
@@ -21,6 +21,8 @@ class PointCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     serializer_class = PointCollectionSerializer
     lookup_field = "unique_id"
+
+    permission_resource = "PointCollection"
 
     AUDIT_MODULE = "bp-palakkad"
     AUDIT_ENDPOINT = "point-collection"

@@ -215,18 +215,13 @@ class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
                     Q(is_superuser=False)
                     | (
                         Q(is_superuser=True)
-                        & Q(company_id__isnull=True)
-                        & Q(project_id__isnull=True)
+                       
                         & Q(staff_id__isnull=True)
                         & Q(customer_id__isnull=True)
                     )
                 ),
             ),
-            # Non-superusers must belong to a company (staff + customers are tenants).
-            models.CheckConstraint(
-                name="non_superuser_requires_company",
-                check=(Q(is_superuser=True) | Q(company_id__isnull=False)),
-            ),
+           
         ]
 
     def __str__(self):

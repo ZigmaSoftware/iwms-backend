@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.models.assets.zone_wise_collection import ZoneCollection
+from app.models.collections.zone_wise_collection import ZoneCollection
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 

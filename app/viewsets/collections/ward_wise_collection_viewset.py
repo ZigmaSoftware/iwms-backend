@@ -58,9 +58,9 @@
 
 from django.db.models import Sum, Count
 from rest_framework.response import Response
-from app.models.assets.ward_wise_collection import WardCollection
-from app.models.assets.zone_wise_collection import ZoneCollection
-from app.serializers.assets.ward_wise_collection_serializer import WardCollectionSerializer
+from app.models.collections.ward_wise_collection import WardCollection
+from app.models.collections.zone_wise_collection import ZoneCollection
+from app.serializers.collections.ward_wise_collection_serializer import WardCollectionSerializer
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from datetime import date
 from app.utils.audit_mixin import AuditViewSetMixin
@@ -70,6 +70,8 @@ class WardWiseCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     serializer_class = WardCollectionSerializer
     lookup_field = "unique_id"
+
+    permission_resource = "WardCollection"
 
     AUDIT_MODULE = "bp-palakkad"
     AUDIT_ENDPOINT = "ward-collection"

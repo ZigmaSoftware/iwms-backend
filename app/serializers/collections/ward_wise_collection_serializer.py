@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.models.assets.ward_wise_collection import WardCollection
+from app.models.collections.ward_wise_collection import WardCollection
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 
