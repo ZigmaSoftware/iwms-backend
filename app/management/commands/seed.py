@@ -107,6 +107,7 @@ STAFF_SEEDERS = [
 # ORDER MATTERS - DEFINE IT ONCE
 # --------------------------------------------------
 ORDERED_GROUPS = [
+    "platform",
     "masters",
     "assets",
     "collections",
@@ -115,10 +116,14 @@ ORDERED_GROUPS = [
     "permission",
     "customers",
     "user-creation",
+    "staff",
     "vehicles",
     "grievance",
+<<<<<<< HEAD
     "staff",
     "platform",
+=======
+>>>>>>> 3a5ccbb6b51fc7abd0932f7078538d0a81e8293c
 ]
 
 SEED_GROUPS = {
@@ -135,9 +140,15 @@ SEED_GROUPS = {
     "user-creation": USER_CREATION_SEEDERS,
     "user-creations": USER_CREATION_SEEDERS,
     "grievance": GRIEVANCE_SEEDERS,
+<<<<<<< HEAD
     "grivences": GRIEVANCE_SEEDERS,
     "vehicles": VEHICLE_SEEDERS,
     "staff": STAFF_SEEDERS,
+=======
+    "staff": STAFF_SEEDERS,
+    "vehicles": VEHICLE_SEEDERS,
+
+>>>>>>> 3a5ccbb6b51fc7abd0932f7078538d0a81e8293c
 }
 
 # --------------------------------------------------

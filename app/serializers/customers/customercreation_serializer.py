@@ -143,6 +143,7 @@ class CustomerCreationSerializer(
             "country_name",
             "property_name",
             "sub_property_name",
+            "is_bulkwaste_generator"
         ]
 
         read_only_fields = ["unique_id"]

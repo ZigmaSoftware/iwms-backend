@@ -92,6 +92,7 @@ from .user_creations.auditlog import AuditLog
 from .customers.customercreation import CustomerCreation
 from .customers.wastecollection import WasteCollection
 from .customers.feedback import FeedBack
+from .customers.userchargerule import UserChargeRule
 
 
 # ============================================================
@@ -197,6 +198,7 @@ __all__ = [
     "CustomerCreation",
     "WasteCollection",
     "FeedBack",
+    "UserChargeRule",
 
     # Grievances
     "Complaint",
