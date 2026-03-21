@@ -37,6 +37,9 @@ from app.management.commands.seeders.transport_masters.trip_instance import (
 from app.management.commands.seeders.transport_masters.vehicleCreation import (
     VehicleCreationSeeder,
 )
+from app.management.commands.seeders.transport_masters.vehicleTypeCreation import (
+    VehicleTypeCreationSeeder,
+)
 from app.management.commands.seeders.user_creations.alternative_staff_template_seeder import (
     AlternativeStaffTemplateSeeder,
 )
@@ -85,6 +88,7 @@ USER_CREATION_SEEDERS = [
 ]
 
 VEHICLE_SEEDERS = [
+    VehicleTypeCreationSeeder,
     VehicleCreationSeeder,
     ZonePropertyLoadTrackerSeeder,
     RoutePlanSeeder,
@@ -119,11 +123,6 @@ ORDERED_GROUPS = [
     "staff",
     "vehicles",
     "grievance",
-<<<<<<< HEAD
-    "staff",
-    "platform",
-=======
->>>>>>> 3a5ccbb6b51fc7abd0932f7078538d0a81e8293c
 ]
 
 SEED_GROUPS = {
@@ -140,15 +139,9 @@ SEED_GROUPS = {
     "user-creation": USER_CREATION_SEEDERS,
     "user-creations": USER_CREATION_SEEDERS,
     "grievance": GRIEVANCE_SEEDERS,
-<<<<<<< HEAD
-    "grivences": GRIEVANCE_SEEDERS,
-    "vehicles": VEHICLE_SEEDERS,
-    "staff": STAFF_SEEDERS,
-=======
     "staff": STAFF_SEEDERS,
     "vehicles": VEHICLE_SEEDERS,
 
->>>>>>> 3a5ccbb6b51fc7abd0932f7078538d0a81e8293c
 }
 
 # --------------------------------------------------
