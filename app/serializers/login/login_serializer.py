@@ -158,11 +158,13 @@ class LoginSerializer(serializers.Serializer):
             usertype_unique_id=user_type.unique_id,
             staffusertype_unique_id=staff_usertype.unique_id,
         )
-        # print("Resolved permissions:", permissions)
 
-        permissions = self._apply_role_defaults(permissions, staff_usertype.name)
+        if not permissions:
+            permissions = self._apply_role_defaults(permissions, staff_usertype.name)
+        
 
-        # print("Final permissions after applying role defaults:", permissions)
+        # permissions = self._apply_role_defaults(permissions, staff_usertype.name)
+
 
         return {
             "user": login_user,
@@ -204,7 +206,10 @@ class LoginSerializer(serializers.Serializer):
 
     def _build_platform_payload(self, user):
         permissions = self._resolve_permissions(include_all=True)
-        # print("Platform user - all permissions:", permissions)
+
+        permissions = self._apply_role_defaults(permissions, "superadmin")
+        
+        
 
         return {
             "user": user,

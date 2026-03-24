@@ -65,6 +65,7 @@ from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedSt
 
 # Authentication
 from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
+from ..viewsets.login.permission_viewset import PermissionViewSet
 
 # Screen management
 from ..viewsets.screen_managements.mainscreentype_viewset import MainScreenTypeViewSet
@@ -163,7 +164,7 @@ router.register_group("screen-managements", "companywisescreenpermissions", Comp
 
 
 # ============================================================
-# GROUP: USER & ROLE ASSIGNMENT
+# GROUP: USER & ROLE ASSIGNMENT 
 # ============================================================
 router.register_group("role-assigns", "user-type",      UserTypeViewSet)
 router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet)
@@ -191,6 +192,7 @@ router.register_group("process", "zone-property-load-tracker", ZonePropertyLoadT
 # GROUP: AUTHENTICATION
 # ============================================================
 router.register_group("login", "login-user",      DesktopLoginViewSet)
+router.register_group("login", "my-permissions",     PermissionViewSet, basename="user-permissions")
 
 
 # ============================================================
