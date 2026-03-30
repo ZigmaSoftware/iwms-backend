@@ -9,6 +9,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 class PanhayatViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     serializer_class = PanchayatSerializer
     lookup_field = "unique_id"
+    permission_resource = "Panchayat"
 
     AUDIT_MODULE = "bp-palakkad"
     AUDIT_ENDPOINT ="panchayat"

@@ -1,234 +1,3 @@
-# from rest_framework import status
-# from rest_framework.response import Response
-# from rest_framework.decorators import action
-# from django.db import transaction
-
-# from app.models.superadmin_masters.company import Company
-# from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-# from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
-# from app.serializers.screen_managements.companyuserscreenpermission_serializer import (
-#     CompanyUserScreenPermissionSerializer,
-#     CompanyUserScreenPermissionMultiScreenSerializer,
-# )
-
-
-# class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
-#     serializer_class = CompanyUserScreenPermissionSerializer
-#     lookup_field = "unique_id"
-
-#     # ---------------------------------------------------------
-#     # QUERYSET (Company Scoped)
-#     # ---------------------------------------------------------
-#     def get_queryset(self):
-
-#         company = self._company()
-
-#         # If middleware provides company
-#         if company:
-#             return CompanyUserScreenPermission.objects.filter(
-#                 company_id_id=company.unique_id,
-#                 is_deleted=False
-#             )
-
-#         # fallback → read company_id from query params
-#         company_id = self.request.query_params.get("company_id")
-
-#         if not company_id:
-#             return CompanyUserScreenPermission.objects.filter(is_deleted=False)
-
-#         return CompanyUserScreenPermission.objects.filter(
-#             company_id_id=company_id,
-#             is_deleted=False
-#         )
-
-#     # ---------------------------------------------------------
-#     # RETRIEVE
-#     # ---------------------------------------------------------
-#     def retrieve(self, request, *args, **kwargs):
-#         instance = self.get_object()
-#         serializer = self.get_serializer(instance)
-#         return Response(serializer.data)
-
-#     # ---------------------------------------------------------
-#     # BULK SYNC MULTI SCREEN
-#     # ---------------------------------------------------------
-#     @action(
-#         detail=False,
-#         methods=["post"],
-#         url_path=r"bulk-sync-multi/(?P<staffusertype_id>[^/.]+)"
-#     )
-#     def bulk_sync_multi(self, request, staffusertype_id):
-
-#         company_id = request.data.get("company_id")
-
-#         if not company_id:
-#             return Response({"error": "company_id is required"}, status=400)
-
-#         company = Company.objects.filter(unique_id=company_id).first()
-
-#         if not company:
-#             return Response({"error": "Invalid company"}, status=400)
-
-#         data = dict(request.data)
-#         data["staffusertype_id"] = staffusertype_id
-#         data["company_id"] = company.unique_id
-
-#         with transaction.atomic():
-#             serializer = CompanyUserScreenPermissionMultiScreenSerializer(data=data)
-#             serializer.is_valid(raise_exception=True)
-#             result = serializer.save()
-
-#         return Response({
-#             "created": CompanyUserScreenPermissionSerializer(
-#                 result["created"], many=True
-#             ).data,
-#             "updated": CompanyUserScreenPermissionSerializer(
-#                 result["updated"], many=True
-#             ).data,
-#             "deleted": CompanyUserScreenPermissionSerializer(
-#                 result["deleted"], many=True
-#             ).data,
-#         }, status=status.HTTP_200_OK)
-
-#     # ---------------------------------------------------------
-#     # GET → BY STAFF USER TYPE + MAINSCREEN
-#     # ---------------------------------------------------------
-#     @action(detail=False, methods=["get"], url_path="by-staff-format")
-#     def by_staff_format(self, request):
-
-#         company_id = request.query_params.get("company_id")
-#         staffusertype_id = request.query_params.get("staffusertype_id")
-#         mainscreen_id = request.query_params.get("mainscreen_id")
-
-#         if not company_id or not staffusertype_id or not mainscreen_id:
-#             return Response(
-#                 {"error": "company_id, staffusertype_id and mainscreen_id are required"},
-#                 status=400,
-#             )
-
-#         company = Company.objects.filter(unique_id=company_id).first()
-
-#         if not company:
-#             return Response({"error": "Invalid company"}, status=400)
-
-#         qs = CompanyUserScreenPermission.objects.filter(
-#             company_id_id=company.unique_id,
-#             staffusertype_id_id=staffusertype_id,
-#             mainscreen_id_id=mainscreen_id,
-#             is_deleted=False,
-#         )
-
-#         if not qs.exists():
-#             return Response({"detail": "No permissions found"}, status=404)
-
-#         screen_map = {}
-
-#         for perm in qs:
-#             scr = perm.userscreen_id_id
-#             act = perm.userscreenaction_id_id
-
-#             screen_map.setdefault(scr, {
-#                 "userscreen_id": scr,
-#                 "actions": []
-#             })["actions"].append(act)
-
-#         return Response({
-#             "company_id": company.unique_id,
-#             "usertype_id": qs.first().usertype_id_id,
-#             "staffusertype_id": staffusertype_id,
-#             "mainscreen_id": mainscreen_id,
-#             "screens": list(screen_map.values()),
-#             "description": qs.first().description or "",
-#         })
-    
-
-#     # ---------------------------------------------------------
-#     # put → BY STAFF USER TYPE + MAINSCREEN
-#     # ---------------------------------------------------------
-
-
-#     @action(
-#     detail=False,
-#     methods=["put"],
-#     url_path=r"update-by-staffusertype/(?P<staffusertype_id>[^/.]+)"
-# )
-#     def update_by_staffusertype(self, request, staffusertype_id):
-
-#         company_id = request.data.get("company_id")
-#         mainscreen_id = request.data.get("mainscreen_id")
-
-#         if not company_id or not mainscreen_id:
-#             return Response(
-#                 {"error": "company_id and mainscreen_id are required"},
-#                 status=400
-#             )
-
-#         company = Company.objects.filter(unique_id=company_id).first()
-
-#         if not company:
-#             return Response({"error": "Invalid company"}, status=400)
-
-#         data = dict(request.data)
-#         data["staffusertype_id"] = staffusertype_id
-#         data["company_id"] = company.unique_id
-
-#         with transaction.atomic():
-
-#             serializer = CompanyUserScreenPermissionMultiScreenSerializer(data=data)
-#             serializer.is_valid(raise_exception=True)
-#             result = serializer.save()
-
-#         return Response({
-#             "created": CompanyUserScreenPermissionSerializer(
-#                 result["created"], many=True
-#             ).data,
-#             "updated": CompanyUserScreenPermissionSerializer(
-#                 result["updated"], many=True
-#             ).data,
-#             "deleted": CompanyUserScreenPermissionSerializer(
-#                 result["deleted"], many=True
-#             ).data,
-#         }, status=status.HTTP_200_OK)
-
-#     # ---------------------------------------------------------
-#     # DELETE BY STAFF USER TYPE
-#     # ---------------------------------------------------------
-#     @action(
-#         detail=False,
-#         methods=["delete"],
-#         url_path=r"delete-by-staffusertype/(?P<staffusertype_id>[^/.]+)/?",
-#     )
-#     def delete_by_staffusertype(self, request, staffusertype_id):
-
-#         company_id = request.query_params.get("company_id")
-
-#         if not company_id:
-#             return Response({"error": "company_id is required"}, status=400)
-        
-#         company = Company.objects.filter(unique_id=company_id).first()
-
-#         if not company:
-#             return Response({"error": "Invalid company"}, status=400)
-
-#         qs = CompanyUserScreenPermission.objects.filter(
-#             company_id_id=company.unique_id,
-#             staffusertype_id_id=staffusertype_id,
-#         )
-
-#         if not qs.exists():
-#             return Response({"detail": "No permissions found"}, status=404)
-
-#         deleted_count = qs.count()
-#         qs.update(is_deleted=True, is_active=False)
-
-#         return Response({
-#             "message": "Permissions deleted successfully",
-#             "deleted_count": deleted_count,
-#             "staffusertype_id": staffusertype_id,
-#         })
-
-
-
 from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import action
@@ -343,10 +112,12 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
         return self._sync_permissions(request, staffusertype_id, update_only=True)
 
     # ---------------------------------------------------------
-    # By Staff + Mainscreen
+    # By Staff + Mainscreen (Shows ALL screens with their actions)
     # ---------------------------------------------------------
     @action(detail=False, methods=["get"], url_path="by-staff-format")
     def by_staff_format(self, request):
+        from app.models.screen_managements.userscreen import UserScreen
+        
         company, error = self._company_from_request(request, source="query", required=True)
         if error:
             return error
@@ -360,6 +131,13 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Get ALL screens for this mainscreen
+        all_screens = UserScreen.objects.filter(
+            mainscreen_id_id=mainscreen_id,
+            is_deleted=False,
+        ).order_by("unique_id")
+
+        # Get permissions for this company + staff + mainscreen
         qs = CompanyUserScreenPermission.objects.filter(
             company_id_id=company.unique_id,
             staffusertype_id_id=staffusertype_id,
@@ -367,35 +145,137 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
             is_deleted=False,
         )
 
-        # Return 200 empty payload (frontend-friendly)
+        # Build permissions map
+        screen_map = {}
+        usertype_id = None
+        description = ""
+
+        for perm in qs:
+            scr_id = perm.userscreen_id_id
+            act_id = perm.userscreenaction_id_id
+            
+            if not usertype_id and perm.usertype_id_id:
+                usertype_id = perm.usertype_id_id
+            if not description and perm.description:
+                description = perm.description
+
+            screen_map.setdefault(scr_id, {"userscreen_id": scr_id, "actions": []})["actions"].append(act_id)
+
+        # Build final screens list: ALL screens, with actions for those that have permissions
+        screens = []
+        for userscreen in all_screens:
+            scr_id = userscreen.unique_id
+            actions = screen_map.get(scr_id, {}).get("actions", [])
+            
+            screens.append({
+                "userscreen_id": scr_id,
+                "userscreen_name": userscreen.userscreen_name,
+                "folder_name": userscreen.folder_name,
+                "icon_name": userscreen.icon_name,
+                "actions": actions,
+                "has_permissions": len(actions) > 0,
+            })
+
+        return Response(
+            {
+                "company_id": company.unique_id,
+                "usertype_id": usertype_id,
+                "staffusertype_id": staffusertype_id,
+                "mainscreen_id": mainscreen_id,
+                "screens": screens,
+                "description": description,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # ---------------------------------------------------------
+    # All Screens By Staff (across all mainscreens)
+    # ---------------------------------------------------------
+    @action(detail=False, methods=["get"], url_path="all-screens-by-staff")
+    def all_screens_by_staff(self, request):
+        """
+        Get ALL screens assigned to a staff user type across all mainscreens.
+        Grouped by mainscreen for better visibility.
+        
+        Query params:
+        - staffusertype_id: required
+        - company_id: optional (uses middleware scope if available)
+        """
+        company, error = self._company_from_request(request, source="query", required=True)
+        if error:
+            return error
+
+        staffusertype_id = request.query_params.get("staffusertype_id")
+        if not staffusertype_id:
+            return Response(
+                {"error": "staffusertype_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get ALL permissions for this company + staff user type (no mainscreen filter)
+        qs = CompanyUserScreenPermission.objects.filter(
+            company_id_id=company.unique_id,
+            staffusertype_id_id=staffusertype_id,
+            is_deleted=False,
+        ).select_related("mainscreen_id", "usertype_id")
+
         if not qs.exists():
             return Response(
                 {
                     "company_id": company.unique_id,
                     "staffusertype_id": staffusertype_id,
-                    "mainscreen_id": mainscreen_id,
+                    "mainscreens": [],
+                    "total_screens": 0,
                     "usertype_id": None,
-                    "screens": [],
-                    "description": "",
                 },
                 status=status.HTTP_200_OK,
             )
 
-        screen_map = {}
-        for perm in qs:
-            scr = perm.userscreen_id_id
-            act = perm.userscreenaction_id_id
-            screen_map.setdefault(scr, {"userscreen_id": scr, "actions": []})["actions"].append(act)
+        # Group by mainscreen
+        mainscreen_map = {}
+        usertype_id = None
 
-        first = qs.first()
+        for perm in qs:
+            if not usertype_id and perm.usertype_id_id:
+                usertype_id = perm.usertype_id_id
+
+            mainscreen_id = perm.mainscreen_id_id
+            mainscreen_name = perm.mainscreen_id.mainscreen_name if perm.mainscreen_id else "Unknown"
+
+            if mainscreen_id not in mainscreen_map:
+                mainscreen_map[mainscreen_id] = {
+                    "mainscreen_id": mainscreen_id,
+                    "mainscreen_name": mainscreen_name,
+                    "screens": {},
+                }
+
+            scr_id = perm.userscreen_id_id
+            act_id = perm.userscreenaction_id_id
+
+            if scr_id not in mainscreen_map[mainscreen_id]["screens"]:
+                mainscreen_map[mainscreen_id]["screens"][scr_id] = {
+                    "userscreen_id": scr_id,
+                    "actions": [],
+                }
+
+            mainscreen_map[mainscreen_id]["screens"][scr_id]["actions"].append(act_id)
+
+        # Convert to final format
+        mainscreens = []
+        total_screens = 0
+        for mainscreen_data in mainscreen_map.values():
+            screens_list = list(mainscreen_data["screens"].values())
+            mainscreen_data["screens"] = screens_list
+            total_screens += len(screens_list)
+            mainscreens.append(mainscreen_data)
+
         return Response(
             {
                 "company_id": company.unique_id,
-                "usertype_id": first.usertype_id_id if first else None,
                 "staffusertype_id": staffusertype_id,
-                "mainscreen_id": mainscreen_id,
-                "screens": list(screen_map.values()),
-                "description": (first.description or "") if first else "",
+                "usertype_id": usertype_id,
+                "mainscreens": mainscreens,
+                "total_screens": total_screens,
             },
             status=status.HTTP_200_OK,
         )

@@ -249,6 +249,25 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
         return result
 
+    def _first_present_data_value(self, *keys):
+        """
+        Returns (is_present, value) for the first key found in request.data.
+        Distinguishes between omitted keys and explicit null values.
+        """
+        data = getattr(self.request, "data", {}) or {}
+        for key in keys:
+            if key in data:
+                return True, data.get(key)
+        return False, None
+
+    @staticmethod
+    def _is_nullish(value):
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "null", "none"}:
+            return True
+        return False
+
     # ==========================================================
     # ACCOUNT RESOLUTION
     # ==========================================================
@@ -365,41 +384,52 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
             save_kwargs = {}
 
             if model and hasattr(model, "company_id"):
-
-                company_unique_id = (
-                    self.request.data.get("company_id_input")
-                    or self.request.data.get("company_id")
+                company_field = model._meta.get_field("company_id")
+                has_company_input, company_input = self._first_present_data_value(
+                    "company_id_input",
+                    "company_id",
                 )
 
-                if not company_unique_id:
+                if has_company_input:
+                    if self._is_nullish(company_input):
+                        if not company_field.null:
+                            raise ValidationError({"company_id": "company_id cannot be null"})
+                        save_kwargs["company_id"] = None
+                    else:
+                        company = Company.objects.filter(unique_id=company_input).first()
+                        if not company:
+                            raise ValidationError({"company_id": "Invalid company_id"})
+                        save_kwargs["company_id"] = company
+                elif not company_field.null:
                     raise ValidationError({"company_id": "company_id is required"})
 
-                company = Company.objects.filter(
-                    unique_id=company_unique_id
-                ).first()
-
-                if not company:
-                    raise ValidationError({"company_id": "Invalid company_id"})
-
-                save_kwargs["company_id"] = company
-
             if model and hasattr(model, "project_id"):
-
-                project_unique_id = (
-                    self.request.headers.get(self.project_header)
-                    or self.request.data.get("project_id_input")
-                    or self.request.data.get("project_id")
+                project_field = model._meta.get_field("project_id")
+                header_project = self.request.headers.get(self.project_header)
+                has_project_input, project_input = self._first_present_data_value(
+                    "project_id_input",
+                    "project_id",
                 )
 
-                if project_unique_id:
+                project_provided = False
+                project_unique_id = None
 
-                    project = Project.objects.filter(
-                        unique_id=project_unique_id
-                    ).first()
+                if not self._is_nullish(header_project):
+                    project_provided = True
+                    project_unique_id = header_project
+                elif has_project_input:
+                    project_provided = True
+                    if not self._is_nullish(project_input):
+                        project_unique_id = project_input
 
+                if project_provided and project_unique_id is None:
+                    if not project_field.null:
+                        raise ValidationError({"project_id": "project_id cannot be null"})
+                    save_kwargs["project_id"] = None
+                elif project_unique_id is not None:
+                    project = Project.objects.filter(unique_id=project_unique_id).first()
                     if not project:
                         raise ValidationError({"project_id": "Invalid project_id"})
-
                     save_kwargs["project_id"] = project
 
             # ← safe: only pass created_by if model has the field
@@ -451,35 +481,53 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
             instance = serializer.instance
 
             if model and hasattr(model, "company_id"):
-
-                company_unique_id = (
-                    self.request.data.get("company_id_input")
-                    or self.request.data.get("company_id")
+                company_field = model._meta.get_field("company_id")
+                has_company_input, company_input = self._first_present_data_value(
+                    "company_id_input",
+                    "company_id",
                 )
 
-                if company_unique_id:
-                    company = Company.objects.filter(
-                        unique_id=company_unique_id
-                    ).first()
-                    if company:
+                if has_company_input:
+                    if self._is_nullish(company_input):
+                        if not company_field.null:
+                            raise ValidationError({"company_id": "company_id cannot be null"})
+                        save_kwargs["company_id"] = None
+                    else:
+                        company = Company.objects.filter(unique_id=company_input).first()
+                        if not company:
+                            raise ValidationError({"company_id": "Invalid company_id"})
                         save_kwargs["company_id"] = company
                 else:
                     save_kwargs["company_id"] = getattr(instance, "company_id", None)
 
             if model and hasattr(model, "project_id"):
-
-                project_unique_id = (
-                    self.request.headers.get(self.project_header)
-                    or self.request.data.get("project_id_input")
-                    or self.request.data.get("project_id")
+                project_field = model._meta.get_field("project_id")
+                header_project = self.request.headers.get(self.project_header)
+                has_project_input, project_input = self._first_present_data_value(
+                    "project_id_input",
+                    "project_id",
                 )
 
-                if project_unique_id:
-                    project = Project.objects.filter(
-                        unique_id=project_unique_id
-                    ).first()
-                    if project:
-                        save_kwargs["project_id"] = project
+                project_provided = False
+                project_unique_id = None
+
+                if not self._is_nullish(header_project):
+                    project_provided = True
+                    project_unique_id = header_project
+                elif has_project_input:
+                    project_provided = True
+                    if not self._is_nullish(project_input):
+                        project_unique_id = project_input
+
+                if project_provided and project_unique_id is None:
+                    if not project_field.null:
+                        raise ValidationError({"project_id": "project_id cannot be null"})
+                    save_kwargs["project_id"] = None
+                elif project_unique_id is not None:
+                    project = Project.objects.filter(unique_id=project_unique_id).first()
+                    if not project:
+                        raise ValidationError({"project_id": "Invalid project_id"})
+                    save_kwargs["project_id"] = project
                 else:
                     save_kwargs["project_id"] = getattr(instance, "project_id", None)
 

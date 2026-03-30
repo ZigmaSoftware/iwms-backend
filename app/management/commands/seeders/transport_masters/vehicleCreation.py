@@ -15,27 +15,37 @@ class VehicleCreationSeeder(BaseSeeder):
     def _get_or_create_vehicle_type(self, vehicle_type, company, project):
         obj, created = VehicleTypeCreation.objects.get_or_create(
             vehicleType=vehicle_type,
-            company_id=company,
-            project_id=project,
             defaults={
                 "description": f"{vehicle_type} vehicle type",
+                "company_id": company,
+                "project_id": project,
                 "is_active": True,
                 "is_deleted": False,
             },
         )
 
-        if not created and obj.is_deleted:
-            obj.is_deleted = False
-            obj.is_active = True
-            obj.save(update_fields=["is_deleted", "is_active"])
+        if not created:
+            update_fields = []
+            if obj.is_deleted:
+                obj.is_deleted = False
+                update_fields.append("is_deleted")
+            if not obj.is_active:
+                obj.is_active = True
+                update_fields.append("is_active")
+            if obj.company_id_id != company.unique_id:
+                obj.company_id = company
+                update_fields.append("company_id")
+            if obj.project_id_id != project.unique_id:
+                obj.project_id = project
+                update_fields.append("project_id")
+            if update_fields:
+                obj.save(update_fields=update_fields)
 
         return obj
 
-    def _get_or_create_fuel(self, fuel_type, company, project):
+    def _get_or_create_fuel(self, fuel_type):
         obj, created = Fuel.objects.get_or_create(
             fuel_type=fuel_type,
-            company_id=company,
-            project_id=project,
             defaults={
                 "description": f"{fuel_type} fuel type",
                 "is_active": True,
@@ -76,8 +86,8 @@ class VehicleCreationSeeder(BaseSeeder):
         }
 
         fuels = {
-            "Diesel": self._get_or_create_fuel("Diesel", company, project),
-            "CNG": self._get_or_create_fuel("CNG", company, project),
+            "Diesel": self._get_or_create_fuel("Diesel"),
+            "CNG": self._get_or_create_fuel("CNG"),
         }
 
         vehicles = [

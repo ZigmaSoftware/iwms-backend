@@ -65,6 +65,7 @@ from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedSt
 
 # Authentication
 from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
+from ..viewsets.login.permission_viewset import PermissionViewSet
 
 # Screen management
 from ..viewsets.screen_managements.mainscreentype_viewset import MainScreenTypeViewSet
@@ -163,7 +164,7 @@ router.register_group("screen-managements", "companywisescreenpermissions", Comp
 
 
 # ============================================================
-# GROUP: USER & ROLE ASSIGNMENT
+# GROUP: USER & ROLE ASSIGNMENT 
 # ============================================================
 router.register_group("role-assigns", "user-type",      UserTypeViewSet)
 router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet)
@@ -183,23 +184,24 @@ router.register_group("user-creations", "unassigned-staff-pool", UnassignedStaff
 # ============================================================
 # GROUP: PROCESS
 # ============================================================
-router.register_group("process", "route-plans",    RoutePlanViewSet)
-router.register_group("process", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
+router.register_group("process-items", "route-plans",    RoutePlanViewSet)
+router.register_group("process-items", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
 
 
 # ============================================================
 # GROUP: AUTHENTICATION
 # ============================================================
 router.register_group("login", "login-user",      DesktopLoginViewSet)
+router.register_group("login", "my-permissions",     PermissionViewSet, basename="user-permissions")
 
 
 # ============================================================
 # GROUP: CUSTOMER MODULES
 # ============================================================
-router.register_group("customers", "customercreations", CustomerCreationViewSet)
-router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
-router.register_group("customers", "feedbacks",         FeedBackViewSet)
-router.register_group("customers", "user-charge-rules", UserChargeRuleViewSet)
+router.register_group("customer-masters", "customercreations", CustomerCreationViewSet)
+router.register_group("customer-masters", "wastecollections",  WasteCollectionViewSet)
+router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
+router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
 
 # ============================================================
 # GROUP: GRIEVANCES

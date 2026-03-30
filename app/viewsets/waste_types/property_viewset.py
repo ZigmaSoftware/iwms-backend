@@ -4,7 +4,7 @@ from app.models.waste_types.property import Property
 from app.serializers.waste_types.property_serializer import PropertySerializer
 
 
-class PropertyViewSet(CompanyScopedViewSet):
+class PropertyViewSet(viewsets.ModelViewSet):
     queryset = Property.objects.filter(is_deleted=False)
     serializer_class = PropertySerializer
     lookup_field = "unique_id"

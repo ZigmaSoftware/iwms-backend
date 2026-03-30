@@ -92,6 +92,8 @@ class CustomerCreationSerializer(
     property_name = serializers.CharField(source="property_ref.property_name", read_only=True)
     sub_property_name = serializers.CharField(source="sub_property.sub_property_name", read_only=True)
 
+    is_bulkwaste_generator = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = CustomerCreation
 

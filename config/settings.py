@@ -189,8 +189,9 @@ REST_FRAMEWORK = {
         'app.authentication.jwt.JWTUserAuthentication',
     ],
     # Global pagination: limit/offset style with page metadata, 20 items per page
-    "DEFAULT_PAGINATION_CLASS": "app.utils.pagination.LimitOffsetWithPage",
-    "PAGE_SIZE": 20,
+    # "DEFAULT_PAGINATION_CLASS": "app.utils.pagination.LimitOffsetWithPage",
+    # "PAGE_SIZE": 20,
+    "DEFAULT_PAGINATION_CLASS": None
 }
 
 # -------------------------------------------------------
