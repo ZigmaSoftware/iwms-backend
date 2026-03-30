@@ -4,6 +4,8 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
 
+from django.contrib.auth.hashers import make_password
+
 
 class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     # --------------------------------------------------
@@ -101,6 +103,17 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         allow_null=True,
     )
 
+    username = serializers.CharField(
+    required=False,
+    allow_blank=True,
+    allow_null=True
+)
+    
+    user_type_id = serializers.CharField(
+    source="staffusertype_id.usertype_id.unique_id",read_only=True)
+
+    
+
     # --------------------------------------------------
     # Internal mapping for personal table
     # --------------------------------------------------
@@ -126,6 +139,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "project_id",
             "project_name",
             "emp_id",
+            "username",
             "password",
 
             # Office details
@@ -161,6 +175,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "permanent_address",
             "contact_mobile",
             "contact_email",
+            "user_type_id",
               "staffusertype_id",
             "staffusertype_name",
 
@@ -192,6 +207,18 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     def create(self, validated_data):
         personal_data = self._pop_personal_data(validated_data)
 
+        password = validated_data.get("password")
+        if password:
+            validated_data["password"] = make_password(password)
+
+
+        validated_data["is_active"] = True
+
+        staffusertype = validated_data.get("staffusertype_id")
+        if staffusertype and staffusertype.usertype_id:
+            validated_data["user_type_id"] = staffusertype.usertype_id
+
+
         staff = Staffcreation.objects.create(**validated_data)
 
         StaffPersonalDetails.objects.create(
@@ -209,6 +236,14 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     # --------------------------------------------------
     def update(self, instance, validated_data):
         personal_data = self._pop_personal_data(validated_data)
+
+        password = validated_data.get("password")
+        if password:
+            validated_data["password"] = make_password(password)
+
+        staffusertype = validated_data.get("staffusertype_id")
+        if staffusertype and staffusertype.usertype_id:
+            validated_data["user_type_id"] = staffusertype.usertype_id
 
         staff = super().update(instance, validated_data)
 

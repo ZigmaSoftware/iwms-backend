@@ -405,12 +405,7 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                         ])
                         updated.append(obj)
                 else:
-                    if update_only:
-                        missing_keys.append(key)
-                        order_no += 1
-                        continue
-
-                    # ✅ SAFE CREATE (FIXED)
+                    # ✅ SAFE CREATE (FIXED) - Allow creating new permissions in both create and update modes
                     obj = CompanyUserScreenPermission(
                         company_id_id=company_id,
                         usertype_id_id=usertype_id,
@@ -428,18 +423,6 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                     created.append(obj)
 
                 order_no += 1
-
-        # Update-only guard
-        if update_only and missing_keys:
-            sample = ", ".join(f"{screen}:{action}" for screen, action in missing_keys[:5])
-            raise serializers.ValidationError(
-                {
-                    "screens": (
-                        "Update mode cannot create new permissions. "
-                        f"New selections found: {sample}"
-                    )
-                }
-            )
 
         # Soft delete
         for key, obj in existing_lookup.items():

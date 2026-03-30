@@ -7,3 +7,4 @@ class AdministrativeHierarchyViewSet(ModelViewSet):
     queryset = AdministrativeHierarchy.objects.filter(is_deleted=False)
     serializer_class = AdministrativeHierarchySerializer
     lookup_field = "unique_id"
+    permission_resource = "AdministrativeHierarchy"

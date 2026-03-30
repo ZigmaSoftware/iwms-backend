@@ -24,7 +24,7 @@ class CustomerCreationViewSet(CompanyScopedViewSet):
             "panchayat_id",
             "property_ref",
             "sub_property",
-            "is_bulkwaste_generator"
+            # "is_bulkwaste_generator"
         )
         .order_by("customer_name")
     )

@@ -11,6 +11,7 @@ class AreaTypeViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     
     serializer_class = AreaTypeSerializer
     lookup_field = "unique_id"
+    permission_resource = "AreaType"
 
     AUDIT_MODULE = "bp-palakkad"
     AUDIT_ENDPOINT ="areatype"

@@ -76,6 +76,9 @@ MODULE_RESOURCE_ALLOWLIST = {
         "City",
         "Zone",
         "Ward",
+        "Panchayat",
+        "AreaType",
+        "AdministrativeHierarchy",
     },
     "waste-types": {
         "Property",

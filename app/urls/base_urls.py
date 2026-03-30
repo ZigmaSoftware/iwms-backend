@@ -184,8 +184,8 @@ router.register_group("user-creations", "unassigned-staff-pool", UnassignedStaff
 # ============================================================
 # GROUP: PROCESS
 # ============================================================
-router.register_group("process", "route-plans",    RoutePlanViewSet)
-router.register_group("process", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
+router.register_group("process-items", "route-plans",    RoutePlanViewSet)
+router.register_group("process-items", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
 
 
 # ============================================================
@@ -198,10 +198,10 @@ router.register_group("login", "my-permissions",     PermissionViewSet, basename
 # ============================================================
 # GROUP: CUSTOMER MODULES
 # ============================================================
-router.register_group("customers", "customercreations", CustomerCreationViewSet)
-router.register_group("customers", "wastecollections",  WasteCollectionViewSet)
-router.register_group("customers", "feedbacks",         FeedBackViewSet)
-router.register_group("customers", "user-charge-rules", UserChargeRuleViewSet)
+router.register_group("customer-masters", "customercreations", CustomerCreationViewSet)
+router.register_group("customer-masters", "wastecollections",  WasteCollectionViewSet)
+router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
+router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
 
 # ============================================================
 # GROUP: GRIEVANCES
