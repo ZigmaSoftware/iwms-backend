@@ -191,10 +191,10 @@ class PermissionSeeder(BaseSeeder):
         # --------------------------------------------------
         staff_type = UserType.objects.get(name__iexact="staff")
 
-        admin_role = StaffUserType.objects.get(name="admin", usertype_id=staff_type)
-        driver_role = StaffUserType.objects.get(name="driver", usertype_id=staff_type)
-        operator_role = StaffUserType.objects.get(name="operator", usertype_id=staff_type)
-        supervisor_role = StaffUserType.objects.get(name="supervisor", usertype_id=staff_type)
+        admin_role = StaffUserType.objects.get(name="Admin", usertype_id=staff_type)
+        driver_role = StaffUserType.objects.get(name="Company Driver", usertype_id=staff_type)
+        operator_role = StaffUserType.objects.get(name="Company Operator", usertype_id=staff_type)
+        supervisor_role = StaffUserType.objects.get(name="Company Supervisor", usertype_id=staff_type)
 
         platform_type = UserType.objects.filter(name__iexact="platform").first()
         superadmin_role = None

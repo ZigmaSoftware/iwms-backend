@@ -9,9 +9,9 @@ from .panchayat import PanchayatSeeder
 MASTER_SEEDERS = [
     DistrictSeeder,
     CitySeeder,
-    ZoneSeeder,
-    WardSeeder,
-    PanchayatSeeder,
     AreaTypeSeeder,
     AdministrativeHierarchySeeder,
+    PanchayatSeeder,
+    ZoneSeeder,
+    WardSeeder,
 ]
