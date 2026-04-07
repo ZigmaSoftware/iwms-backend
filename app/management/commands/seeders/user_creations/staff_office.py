@@ -52,19 +52,19 @@ class StaffOfficeSeeder:
             return
 
         role_admin = StaffUserType.objects.filter(
-            name__iexact="admin",
+            name__iexact="Admin",
             usertype_id=staff_type,
         ).first()
         role_driver = StaffUserType.objects.filter(
-            name__iexact="driver",
+            name__iexact="Company Driver",
             usertype_id=staff_type,
         ).first()
         role_operator = StaffUserType.objects.filter(
-            name__iexact="operator",
+            name__iexact="Company Operator",
             usertype_id=staff_type,
         ).first()
         role_supervisor = StaffUserType.objects.filter(
-            name__iexact="supervisor",
+            name__iexact="Company Supervisor",
             usertype_id=staff_type,
         ).first()
 
