@@ -18,7 +18,18 @@ class AreaTypeViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
 
     def get_queryset(self):
-        return AreaType.objects.filter(is_deleted=False)
+        queryset = AreaType.objects.filter(is_deleted=False)
 
+        company_uid = self.request.query_params.get("company_id")
+        project_uid = self.request.query_params.get("project_id")
+
+        if company_uid:
+            queryset = queryset.filter(company_id__unique_id=company_uid)
+
+        if project_uid:
+            queryset = queryset.filter(project_id__unique_id=project_uid)
+
+        return queryset
+    
     def perform_destroy(self, instance):
         instance.delete()
