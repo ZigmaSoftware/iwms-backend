@@ -46,7 +46,7 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     serializer_class = BinsSerializer
     lookup_field = "unique_id"
 
-    permission_resource = "Bins"
+    permission_resource = "Bin"
 
     AUDIT_MODULE = "bp-palakkad"
     AUDIT_ENDPOINT ="bins"

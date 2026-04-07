@@ -21,7 +21,7 @@ class RoutePlanSeeder:
             is_active=True
         )
 
-        supervisor_role = StaffUserType.objects.get(name__iexact="supervisor")
+        supervisor_role = StaffUserType.objects.get(name__iexact="Company Supervisor")
         supervisors = Staffcreation.objects.filter(
             staffusertype_id=supervisor_role,
             is_active=True,

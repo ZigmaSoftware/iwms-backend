@@ -18,11 +18,11 @@ class SupervisorZoneMapSeeder:
 
         staff_type = UserType.objects.get(name__iexact="staff")
         supervisor_role = StaffUserType.objects.get(
-            name="supervisor",
+            name="Company Supervisor",
             usertype_id=staff_type,
         )
         admin_role = StaffUserType.objects.get(
-            name="admin",
+            name="Admin",
             usertype_id=staff_type,
         )
 

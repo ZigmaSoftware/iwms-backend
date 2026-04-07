@@ -13,7 +13,7 @@ class StaffUserTypeViewSet(CompanyScopedViewSet):
     serializer_class = StaffUserTypeSerializer
     lookup_field = "unique_id"
     
-    permission_resource = "Staffusertypes"
+    permission_resource = "StaffUserType"
 
     def perform_destroy(self, instance):
         instance.delete()

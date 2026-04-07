@@ -151,7 +151,8 @@ router.register_group("waste-types", "subproperties", SubPropertyViewSet)
 # router.register_group("assets", "bins",          BinViewSet)
 router.register_group("assets", "bins",          BinsViewSet)
 router.register_group("assets", "collection-point", CollectionPointViewSet)
-router.register_group("assets", "point-collection", PointCollectionViewSet)
+router.register_group("assets","waste-types", WasteTypeViewSet)
+
 
 # ============================================================
 # GROUP: SCREEN MANAGEMENT (separate group)
@@ -181,6 +182,7 @@ router.register_group("user-creations", "supervisor-zone-map", SupervisorZoneMap
 router.register_group("user-creations", "unassigned-staff-pool", UnassignedStaffPoolViewSet)
 
 
+
 # ============================================================
 # GROUP: PROCESS
 # ============================================================
@@ -202,6 +204,7 @@ router.register_group("customer-masters", "customercreations", CustomerCreationV
 router.register_group("customer-masters", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
 router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
+router.register_group("customer-masters", "point-collection", PointCollectionViewSet)
 
 # ============================================================
 # GROUP: GRIEVANCES
