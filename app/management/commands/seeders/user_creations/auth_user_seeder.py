@@ -43,12 +43,12 @@ class AuthUserSeeder(BaseSeeder):
         driver_role, _ = StaffUserType.objects.get_or_create(
             name="Company Driver",
             usertype_id=staff_type,
-            # defaults={"display_name": "Driver"}
+            defaults={"display_name": "Driver"}
         )
         operator_role, _ = StaffUserType.objects.get_or_create(
             name="Company Operator",
             usertype_id=staff_type,
-            # defaults={"display_name": "Operator"}
+            defaults={"display_name": "Operator"}
         )
         approver_role, _ = StaffUserType.objects.get_or_create(
             name="Admin",

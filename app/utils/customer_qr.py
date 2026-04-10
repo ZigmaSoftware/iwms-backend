@@ -1,0 +1,145 @@
+import json
+import re
+from io import BytesIO
+
+import qrcode
+from django.conf import settings
+from django.core.files.base import ContentFile
+
+
+QR_SUBPROPERTY_APARTMENT = "apartment"
+QR_SUBPROPERTY_VILLA = "villa"
+QR_SUBPROPERTY_INDIVIDUAL_HOUSE = "individual_house"
+QR_SUBPROPERTY_INDUSTRY = "industry"
+QR_SUBPROPERTY_OTHER = "other"
+
+QR_PAYLOAD_MODE_FULL = "full"
+QR_PAYLOAD_MODE_ID_ONLY = "id"
+
+
+def _clean_text(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _drop_empty_fields(data):
+    return {
+        key: value
+        for key, value in data.items()
+        if value is not None and value != ""
+    }
+
+
+def _normalize_subproperty_name(name):
+    cleaned = _clean_text(name)
+    if not cleaned:
+        return ""
+    return re.sub(r"[^a-z0-9]+", " ", cleaned.lower()).strip()
+
+
+def resolve_subproperty_type(subproperty_name):
+    normalized = _normalize_subproperty_name(subproperty_name)
+
+    if "apartment" in normalized:
+        return QR_SUBPROPERTY_APARTMENT
+    if "villa" in normalized:
+        return QR_SUBPROPERTY_VILLA
+    if "industry" in normalized or "industrial" in normalized:
+        return QR_SUBPROPERTY_INDUSTRY
+    if (
+        "individual house" in normalized
+        or normalized == "house"
+        or ("individual" in normalized and "house" in normalized)
+    ):
+        return QR_SUBPROPERTY_INDIVIDUAL_HOUSE
+
+    return QR_SUBPROPERTY_OTHER
+
+
+def generate_qr_data(instance):
+    """
+    Build structured QR payload from customer instance.
+
+    Toggle minimal payload by setting:
+    CUSTOMER_QR_PAYLOAD_MODE = "id"
+    """
+    payload_mode = str(
+        getattr(settings, "CUSTOMER_QR_PAYLOAD_MODE", QR_PAYLOAD_MODE_FULL)
+    ).strip().lower()
+
+    if payload_mode == QR_PAYLOAD_MODE_ID_ONLY:
+        return {"id": _clean_text(getattr(instance, "unique_id", None))}
+
+    subproperty_name = ""
+    subproperty_obj = getattr(instance, "sub_property", None)
+    if subproperty_obj is not None:
+        subproperty_name = getattr(subproperty_obj, "sub_property_name", "") or ""
+
+    subproperty_type = resolve_subproperty_type(subproperty_name)
+
+    base = {
+        "customer_name": _clean_text(getattr(instance, "customer_name", None)),
+        "phone_number": _clean_text(getattr(instance, "contact_no", None)),
+    }
+
+    if subproperty_type == QR_SUBPROPERTY_APARTMENT:
+        payload = {
+            **base,
+            "apartment_name": _clean_text(getattr(instance, "apartment_name", None)),
+            "block": _clean_text(getattr(instance, "block_no", None)),
+            "flat_number": _clean_text(getattr(instance, "flat_no", None)),
+        }
+    elif subproperty_type == QR_SUBPROPERTY_VILLA:
+        payload = {
+            **base,
+            "villa_number": (
+                _clean_text(getattr(instance, "villa_no", None))
+                or _clean_text(getattr(instance, "building_no", None))
+            ),
+        }
+    elif subproperty_type == QR_SUBPROPERTY_INDIVIDUAL_HOUSE:
+        payload = {
+            **base,
+            "building_number": _clean_text(getattr(instance, "building_no", None)),
+        }
+    elif subproperty_type == QR_SUBPROPERTY_INDUSTRY:
+        payload = {
+            **base,
+            "industry_name": _clean_text(getattr(instance, "industry_name", None)),
+            "industry_type": _clean_text(getattr(instance, "industry_type", None)),
+        }
+    else:
+        payload = {
+            **base,
+            "subproperty": _clean_text(subproperty_name),
+            "building_number": _clean_text(getattr(instance, "building_no", None)),
+        }
+
+    return _drop_empty_fields(payload)
+
+
+def generate_customer_qr_content(data):
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(payload)
+    qr.make(fit=True)
+    image = qr.make_image(fill_color="black", back_color="white")
+
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return ContentFile(buffer.getvalue())
+
+
+def generate_apartment_qr_data(apartment_name):
+    return {
+        "type": "apartment",
+        "apartment_name": _clean_text(apartment_name),
+    }

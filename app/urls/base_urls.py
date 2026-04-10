@@ -110,6 +110,9 @@ from ..viewsets.attendance_view.attendance_list import AttendanceListViewSet
 
 
 router = GroupedRouter()
+# customer_property_user_count = CustomerCreationViewSet.as_view(
+#     {"get": "property_user_count"}
+# )
 
 # ============================================================
 # GROUP: SUPERADMIN MASTERS

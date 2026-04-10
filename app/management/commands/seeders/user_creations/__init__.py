@@ -9,7 +9,7 @@ from .unassigned_staff_pool import UnassignedStaffPoolSeeder
 USER_CREATION_SEEDERS = [
     StaffOfficeSeeder,
     StaffPersonalSeeder,
-   
+    SupervisorZoneMapSeeder,
 ]
 
 STAFF_TEMPLATE_SEEDERS = [
@@ -19,6 +19,5 @@ STAFF_TEMPLATE_SEEDERS = [
 ]
 
 LATE_USER_CREATION_SEEDERS = [
-     SupervisorZoneMapSeeder,
     UnassignedStaffPoolSeeder,
 ]
