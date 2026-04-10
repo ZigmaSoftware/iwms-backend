@@ -86,6 +86,8 @@ MODULE_RESOURCE_ALLOWLIST = {
     },
     "assets": {
         "Bin",
+        "CollectionPoint",
+        "WasteType"
     },
     "screen-managements": {
         "MainScreenType",

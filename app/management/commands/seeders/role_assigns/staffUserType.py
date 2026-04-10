@@ -10,7 +10,7 @@ class StaffUserTypeSeeder(BaseSeeder):
 
     def run(self):
         role_map = {
-            "staff": ["Admin","CompanyAdmin", "Company Driver", "Company Operator", "Company Supervisor", "Company User", "Company Project Admin"],
+            "staff": ["CompanyAdmin", "Company Driver", "Company Operator", "Company Supervisor", "Company User", "Company Project Admin"],
             "platform": ["SuperAdmin"],
         }
 

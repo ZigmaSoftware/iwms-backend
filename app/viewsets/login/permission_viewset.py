@@ -136,6 +136,7 @@ class PermissionViewSet(ViewSet):
         Returns latest permissions for current user.
         """
         permissions = self._resolve_permissions_for_user(request.user)
+        
 
         return Response(
             {
@@ -305,3 +306,4 @@ class PermissionViewSet(ViewSet):
                 action_list.append(action_name)
 
         return permissions
+    
