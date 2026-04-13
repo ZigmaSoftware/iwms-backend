@@ -117,10 +117,10 @@ ORDERED_GROUPS = [
     "collections",
     "role-assigns",
     "company",
-    "screen-managements",
+    "staff",
     "user-creation",
     "customers",
-    "staff",
+    "screen-managements",
     "vehicles",
     "grievance",
 ]
