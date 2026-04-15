@@ -8,6 +8,8 @@ from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
@@ -15,52 +17,84 @@ from app.validators.unique_name_validator import unique_name_validator
 
 
 class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
-    ward_id = serializers.PrimaryKeyRelatedField(
+    company_id = serializers.SlugRelatedField(
+        # source="company_id",
+        queryset=Company.objects.all(),
+        slug_field="unique_id",
+        required=False,
+        allow_null=True,
+        )
+
+    project_id = serializers.SlugRelatedField(
+        # source="project_id",
+        queryset=Project.objects.all(),
+        slug_field="unique_id",
+        required=False,
+        allow_null=True,
+    )
+    ward_id = serializers.SlugRelatedField(
         source="ward",
         queryset=Ward.objects.all(),
+        slug_field="unique_id",
         required=False,
         allow_null=True,
     )
-    zone_id = serializers.PrimaryKeyRelatedField(
+    zone_id = serializers.SlugRelatedField(
         source="zone",
         queryset=Zone.objects.all(),
+        slug_field="unique_id",
         required=False,
         allow_null=True,
     )
-    city_id = serializers.PrimaryKeyRelatedField(
+    city_id = serializers.SlugRelatedField (
         source="city",
         queryset=City.objects.all(),
+        slug_field="unique_id",
         required=False,
         allow_null=True,
     )
-    district_id = serializers.PrimaryKeyRelatedField(
+    district_id = serializers.SlugRelatedField(
         source="district",
         queryset=District.objects.all(),
+        slug_field="unique_id",
         required=False,
         allow_null=True,
     )
-    state_id = serializers.PrimaryKeyRelatedField(
+    state_id = serializers.SlugRelatedField(
         source="state",
         queryset=State.objects.all(),
+        slug_field="unique_id",
     )
-    country_id = serializers.PrimaryKeyRelatedField(
+    country_id = serializers.SlugRelatedField(
         source="country",
         queryset=Country.objects.all(),
+        slug_field="unique_id",
     )
-    panchayat_id = serializers.PrimaryKeyRelatedField(
+    panchayat_id = serializers.SlugRelatedField(
+        # source="panchayat_id",
         queryset=Panchayat.objects.all(),
+        slug_field="unique_id",
         required=False,
         allow_null=True,
     )
-    property_id = serializers.PrimaryKeyRelatedField(
+    property_id = serializers.SlugRelatedField(
         source="property_ref",
         queryset=Property.objects.all(),
+        slug_field="unique_id",
     )
-    sub_property_id = serializers.PrimaryKeyRelatedField(
+    sub_property_id = serializers.SlugRelatedField(
         source="sub_property",
         queryset=SubProperty.objects.all(),
+        slug_field="unique_id",
     )
-
+    panchayat_id = serializers.SlugRelatedField(
+        # source="panchayat_id",
+        queryset=Panchayat.objects.all(),
+        slug_field="unique_id",
+        required=False,
+        allow_null=True,
+    )
+    panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
     ward_name = serializers.CharField(source="ward.ward_name", read_only=True)
     zone_name = serializers.CharField(source="zone.zone_name", read_only=True)
     city_name = serializers.CharField(source="city.name", read_only=True)
@@ -122,6 +156,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "is_active",
             "ward_name",
             "zone_name",
+            "panchayat_name",
             "city_name",
             "district_name",
             "state_name",
@@ -135,27 +170,27 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         validators = []
 
     def validate(self, attrs):
-        attrs = unique_name_validator(
-            Model=CustomerCreation,
-            name_field="customer_name",
-        )(self, attrs)
+        # attrs = unique_name_validator(
+        #     Model=CustomerCreation,
+        #     name_field="user_name",
+        # )(self, attrs)
 
         instance = getattr(self, "instance", None)
         name = attrs.get("customer_name") or getattr(instance, "customer_name", None)
         mobile = attrs.get("contact_no") or getattr(instance, "contact_no", None)
 
-        if name and mobile:
-            qs = CustomerCreation.objects.filter(
-                customer_name__iexact=name,
-                contact_no=mobile,
-                is_deleted=False,
-            )
-            if instance:
-                qs = qs.exclude(pk=instance.pk)
-            if qs.exists():
-                raise serializers.ValidationError(
-                    {"detail": "Customer with the same name and mobile already exists."}
-                )
+        # if name and mobile:
+        #     qs = CustomerCreation.objects.filter(
+        #         customer_name__iexact=name,
+        #         contact_no=mobile,
+        #         is_deleted=False,
+        #     )
+        #     if instance:
+        #         qs = qs.exclude(pk=instance.pk)
+        #     if qs.exists():
+        #         raise serializers.ValidationError(
+        #             {"detail": "Customer with the same name and mobile already exists."}
+        #         )
 
         sub_property = attrs.get("sub_property") or getattr(instance, "sub_property", None)
 
