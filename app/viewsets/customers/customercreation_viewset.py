@@ -7,7 +7,7 @@ from django.db.models.functions import Upper
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from app.models.superadmin_masters.company import Company
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
