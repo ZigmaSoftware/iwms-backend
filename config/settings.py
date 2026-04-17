@@ -1,7 +1,9 @@
 from pathlib import Path
 import os
 import pymysql
+from dotenv import load_dotenv
 
+load_dotenv()
 pymysql.install_as_MySQLdb()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -10,7 +12,7 @@ from django.conf import settings
 # -------------------------------------------------------
 # SECRET KEY – use this one only (your exact key)
 # -------------------------------------------------------
-SECRET_KEY = 'django-insecure-8$arlvxjc7$dw$(0!gyw)55qbm%9*az3wwr)6$7kku-dw6zoiz'
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # DEBUG = True
 
@@ -114,14 +116,28 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # -------------------------------------------------------
 # Database (MySQL)
 # -------------------------------------------------------
-DATABASES = {
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'iwmsdb',
+#         'USER': 'root',
+#         'PASSWORD': 'admin@123',
+#         'HOST': 'localhost',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#         },
+#     }
+# }
+
+DATABASES = {   
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'iwmsdb',
-        'USER': 'root',
-        'PASSWORD': 'admin@123',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'ENGINE': os.getenv("DB_ENGINE", "django.db.backends.mysql"),
+        'NAME': os.getenv("DB_NAME", "iwmsdb"), 
+        'USER': os.getenv("DB_USER", "root"),
+        'PASSWORD': os.getenv("DB_PASSWORD", "admin@123"),
+        'HOST': os.getenv("DB_HOST", "localhost"),
+        'PORT': os.getenv("DB_PORT", "3306"),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },

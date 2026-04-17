@@ -58,67 +58,71 @@ def resolve_subproperty_type(subproperty_name):
     return QR_SUBPROPERTY_OTHER
 
 
+# def generate_qr_data(instance):
+#     """
+#     Build structured QR payload from customer instance.
+
+#     Toggle minimal payload by setting:
+#     CUSTOMER_QR_PAYLOAD_MODE = "id"
+#     """
+#     payload_mode = str(
+#         getattr(settings, "CUSTOMER_QR_PAYLOAD_MODE", QR_PAYLOAD_MODE_FULL)
+#     ).strip().lower()
+
+#     if payload_mode == QR_PAYLOAD_MODE_ID_ONLY:
+#         return {"id": _clean_text(getattr(instance, "unique_id", None))}
+
+#     subproperty_name = ""
+#     subproperty_obj = getattr(instance, "sub_property", None)
+#     if subproperty_obj is not None:
+#         subproperty_name = getattr(subproperty_obj, "sub_property_name", "") or ""
+
+#     subproperty_type = resolve_subproperty_type(subproperty_name)
+
+#     base = {
+#         "customer_name": _clean_text(getattr(instance, "customer_name", None)),
+#         "phone_number": _clean_text(getattr(instance, "contact_no", None)),
+#     }
+
+#     if subproperty_type == QR_SUBPROPERTY_APARTMENT:
+#         payload = {
+#             **base,
+#             "apartment_name": _clean_text(getattr(instance, "apartment_name", None)),
+#             "block": _clean_text(getattr(instance, "block_no", None)),
+#             "flat_number": _clean_text(getattr(instance, "flat_no", None)),
+#         }
+#     elif subproperty_type == QR_SUBPROPERTY_VILLA:
+#         payload = {
+#             **base,
+#             "villa_number": (
+#                 _clean_text(getattr(instance, "villa_no", None))
+#                 or _clean_text(getattr(instance, "building_no", None))
+#             ),
+#         }
+#     elif subproperty_type == QR_SUBPROPERTY_INDIVIDUAL_HOUSE:
+#         payload = {
+#             **base,
+#             "building_number": _clean_text(getattr(instance, "building_no", None)),
+#         }
+#     elif subproperty_type == QR_SUBPROPERTY_INDUSTRY:
+#         payload = {
+#             **base,
+#             "industry_name": _clean_text(getattr(instance, "industry_name", None)),
+#             "industry_type": _clean_text(getattr(instance, "industry_type", None)),
+#         }
+#     else:
+#         payload = {
+#             **base,
+#             "subproperty": _clean_text(subproperty_name),
+#             "building_number": _clean_text(getattr(instance, "building_no", None)),
+#         }
+
+#     return _drop_empty_fields(payload)
+
 def generate_qr_data(instance):
-    """
-    Build structured QR payload from customer instance.
-
-    Toggle minimal payload by setting:
-    CUSTOMER_QR_PAYLOAD_MODE = "id"
-    """
-    payload_mode = str(
-        getattr(settings, "CUSTOMER_QR_PAYLOAD_MODE", QR_PAYLOAD_MODE_FULL)
-    ).strip().lower()
-
-    if payload_mode == QR_PAYLOAD_MODE_ID_ONLY:
-        return {"id": _clean_text(getattr(instance, "unique_id", None))}
-
-    subproperty_name = ""
-    subproperty_obj = getattr(instance, "sub_property", None)
-    if subproperty_obj is not None:
-        subproperty_name = getattr(subproperty_obj, "sub_property_name", "") or ""
-
-    subproperty_type = resolve_subproperty_type(subproperty_name)
-
-    base = {
-        "customer_name": _clean_text(getattr(instance, "customer_name", None)),
-        "phone_number": _clean_text(getattr(instance, "contact_no", None)),
+    return {
+        "id": _clean_text(getattr(instance, "unique_id", None))
     }
-
-    if subproperty_type == QR_SUBPROPERTY_APARTMENT:
-        payload = {
-            **base,
-            "apartment_name": _clean_text(getattr(instance, "apartment_name", None)),
-            "block": _clean_text(getattr(instance, "block_no", None)),
-            "flat_number": _clean_text(getattr(instance, "flat_no", None)),
-        }
-    elif subproperty_type == QR_SUBPROPERTY_VILLA:
-        payload = {
-            **base,
-            "villa_number": (
-                _clean_text(getattr(instance, "villa_no", None))
-                or _clean_text(getattr(instance, "building_no", None))
-            ),
-        }
-    elif subproperty_type == QR_SUBPROPERTY_INDIVIDUAL_HOUSE:
-        payload = {
-            **base,
-            "building_number": _clean_text(getattr(instance, "building_no", None)),
-        }
-    elif subproperty_type == QR_SUBPROPERTY_INDUSTRY:
-        payload = {
-            **base,
-            "industry_name": _clean_text(getattr(instance, "industry_name", None)),
-            "industry_type": _clean_text(getattr(instance, "industry_type", None)),
-        }
-    else:
-        payload = {
-            **base,
-            "subproperty": _clean_text(subproperty_name),
-            "building_number": _clean_text(getattr(instance, "building_no", None)),
-        }
-
-    return _drop_empty_fields(payload)
-
 
 def generate_customer_qr_content(data):
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
@@ -138,8 +142,20 @@ def generate_customer_qr_content(data):
     return ContentFile(buffer.getvalue())
 
 
+# def generate_apartment_qr_data(apartment_name):
+#     return {
+#         "type": "apartment",
+#         "apartment_name": _clean_text(apartment_name),
+#     }
+
 def generate_apartment_qr_data(apartment_name):
+    apartment_name = _clean_text(apartment_name)
+
+    if apartment_name:
+        apartment_id = f"APT-{apartment_name.replace(' ', '').upper()}"
+    else:
+        apartment_id = "APT-UNKNOWN"
+
     return {
-        "type": "apartment",
-        "apartment_name": _clean_text(apartment_name),
+        "apartment_id": apartment_id
     }
