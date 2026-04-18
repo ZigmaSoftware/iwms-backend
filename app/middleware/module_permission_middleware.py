@@ -108,11 +108,11 @@ MODULE_RESOURCE_ALLOWLIST = {
         "SupervisorZoneMap",
         "UnassignedStaffPool",
     },
-    "process": {
+    "process-items": {
         "RoutePlan",
         "ZonePropertyLoadTracker",
     },
-    "customers": {
+    "customer-masters": {
         "CustomerCreation",
         "WasteCollection",
         "FeedBack",
