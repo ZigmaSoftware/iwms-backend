@@ -13,6 +13,5 @@ MASTER_SEEDERS = [
     AdministrativeHierarchySeeder,
     ZoneSeeder,
     WardSeeder,
-    PanchayatSeeder,
-    
+    PanchayatSeeder,   
 ]
