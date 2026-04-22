@@ -239,10 +239,20 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-permission-cache",
+    }
+}
+
 # -------------------------------------------------------
 # Custom User Model
 # -------------------------------------------------------
 AUTH_USER_MODEL = "app.User"
+
+MY_API_KEY = os.getenv("MY_API_KEY", "abc123")
 
 # -------------------------------------------------------
 # JWT CONFIG (import at the end)

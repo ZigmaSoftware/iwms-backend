@@ -3,7 +3,7 @@ from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.models.assets.collection_point import Collection_point
 from app.models.user_creations.waste_collection_bluetooth import WasteType
-from app.models.transport_masters.trip import Trip
+from app.models.transport_masters.trip_definition import TripDefinition
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.user_creations.stafftemplate import StaffTemplate
@@ -54,7 +54,7 @@ class PointCollection(BaseMaster):
     collection_time = models.TimeField()
 
     trip_id = models.ForeignKey(
-        Trip,
+        TripDefinition,
         on_delete=models.PROTECT,
         related_name="point_collections",
         db_column="trip_id"
