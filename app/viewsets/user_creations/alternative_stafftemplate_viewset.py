@@ -54,20 +54,45 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
             "approved_by",
         )
 
+    # def _resolve_request_user(self):
+    #     user = getattr(self.request, "user", None)
+    #     if user and not getattr(user, "is_anonymous", False):
+    #         return user
+
+    #     raw_request = getattr(self.request, "_request", None)
+    #     raw_user = getattr(raw_request, "user", None) if raw_request else None
+    #     if raw_user and not getattr(raw_user, "is_anonymous", False):
+    #         return raw_user
+
+    #     payload = getattr(self.request, "jwt_payload", None) or getattr(raw_request, "jwt_payload", None)
+    #     unique_id = payload.get("unique_id") if isinstance(payload, dict) else None
+    #     if unique_id:
+    #         return Staffcreation.objects.filter(staff_unique_id=unique_id).first()
+
+    #     return None
+
     def _resolve_request_user(self):
+        from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
+
+        # 1. Try JWT payload (BEST METHOD)
+        payload = getattr(self.request, "jwt_payload", None)
+        if isinstance(payload, dict):
+            unique_id = payload.get("unique_id")
+            if unique_id:
+                staff = StaffcreationOfficeDetails.objects.filter(
+                    staff_unique_id=unique_id
+                ).first()
+                if staff:
+                    return staff
+
+        # 2. Fallback → username match
         user = getattr(self.request, "user", None)
-        if user and not getattr(user, "is_anonymous", False):
-            return user
-
-        raw_request = getattr(self.request, "_request", None)
-        raw_user = getattr(raw_request, "user", None) if raw_request else None
-        if raw_user and not getattr(raw_user, "is_anonymous", False):
-            return raw_user
-
-        payload = getattr(self.request, "jwt_payload", None) or getattr(raw_request, "jwt_payload", None)
-        unique_id = payload.get("unique_id") if isinstance(payload, dict) else None
-        if unique_id:
-            return Staffcreation.objects.filter(staff_unique_id=unique_id).first()
+        if user and not user.is_anonymous:
+            staff = StaffcreationOfficeDetails.objects.filter(
+                username=user.username
+            ).first()
+            if staff:
+                return staff
 
         return None
 
