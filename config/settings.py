@@ -52,6 +52,7 @@ ALLOWED_HOSTS = [
     '192.168.5.20',
     '192.168.6.198',
     '192.168.1.156',
+    "aura-haustorial-elayne.ngrok-free.dev"
     
     
 ]
@@ -235,6 +236,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.5\.20(:d+)?$",
     r"^http://192\.168\.6\.198(:d+)?$",
     r"^http://192\.168\.1\.156(:d+)?$",
+    "https://aura-haustorial-elayne.ngrok-free.dev",
 ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

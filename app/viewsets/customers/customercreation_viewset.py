@@ -97,12 +97,9 @@ def get_or_create_apartment_qr(apartment_name,company_id,request):
     if not obj:
         return None
 
-    # already exists
-    # if obj.apartment_qr:
-    #     obj.apartment_qr.delete(save=False)
 
     # generate QR
-    qr_data = generate_apartment_qr_data(apartment_name)
+    qr_data = generate_apartment_qr_data(obj.apartment_unique_id)
     qr_file = generate_customer_qr_content(qr_data)
 
     file_name = f"apartment_{apartment_name}.png".replace(" ", "_")
