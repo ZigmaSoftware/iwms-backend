@@ -36,7 +36,7 @@ class PointCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "collection_point_id",
             "collection_point_id__panchayat_id",
             "collection_point_id__ward_id",
-            "collection_point_id__ward_id__zone_id",   # ← needed for zone sync
+            "collection_point_id__ward_id__zone_id",   
             "waste_type_id",
             "trip_id",
             "company_id",

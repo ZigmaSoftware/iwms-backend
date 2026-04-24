@@ -8,7 +8,7 @@ from app.serializers.role_assigns.staffusertype_serializer import StaffUserTypeS
 from rest_framework.decorators import action
 
 
-class StaffUserTypeViewSet(CompanyScopedViewSet):
+class StaffUserTypeViewSet(viewsets.ModelViewSet):
     queryset = StaffUserType.objects.filter(is_deleted=False)
     serializer_class = StaffUserTypeSerializer
     lookup_field = "unique_id"

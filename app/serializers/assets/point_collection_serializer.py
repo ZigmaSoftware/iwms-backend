@@ -73,7 +73,7 @@ from rest_framework import serializers
 from app.models.assets.point_collection import PointCollection
 from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.models.assets.collection_point import Collection_point
-from app.models.transport_masters.trip import Trip
+from app.models.transport_masters.trip_definition import TripDefinition
 from app.models.assets.bins import Bins
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
@@ -97,7 +97,7 @@ class PointCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
 
     trip_id = serializers.SlugRelatedField(
         slug_field="unique_id",
-        queryset=Trip.objects.all()
+        queryset=TripDefinition.objects.all()
     )
 
     # Display fields

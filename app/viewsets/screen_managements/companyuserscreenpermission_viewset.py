@@ -1,3 +1,7 @@
+from django.core.cache import cache
+from rest_framework import status, viewsets
+from collections import defaultdict
+from app.models.screen_managements.userscreen import UserScreen
 from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import action
@@ -17,6 +21,8 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
     serializer_class = CompanyUserScreenPermissionSerializer
     lookup_field = "unique_id"
+
+    permission_resource = "companywisescreenpermissions"
 
     # Makes newest records appear first on page 1
     filter_backends = [OrderingFilter]
@@ -116,77 +122,89 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
     # ---------------------------------------------------------
     @action(detail=False, methods=["get"], url_path="by-staff-format")
     def by_staff_format(self, request):
-        from app.models.screen_managements.userscreen import UserScreen
-        
-        company, error = self._company_from_request(request, source="query", required=True)
-        if error:
-            return error
+        company = self._company()
+        if not company:
+            return Response({"error": "company required"}, status=400)
 
         staffusertype_id = request.query_params.get("staffusertype_id")
         mainscreen_id = request.query_params.get("mainscreen_id")
 
         if not staffusertype_id or not mainscreen_id:
             return Response(
-                {"error": "staffusertype_id and mainscreen_id are required"},
+                {"error": "staffusertype_id and mainscreen_id required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Get ALL screens for this mainscreen
-        all_screens = UserScreen.objects.filter(
-            mainscreen_id_id=mainscreen_id,
-            is_deleted=False,
-        ).order_by("unique_id")
+        # 🔥 CACHE KEY
+        cache_key = f"perm_{company.unique_id}_{staffusertype_id}_{mainscreen_id}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
 
-        # Get permissions for this company + staff + mainscreen
-        qs = CompanyUserScreenPermission.objects.filter(
+        # 🔥 OPTIMIZED QUERY (NO MODEL LOAD)
+        perms = CompanyUserScreenPermission.objects.filter(
             company_id_id=company.unique_id,
             staffusertype_id_id=staffusertype_id,
             mainscreen_id_id=mainscreen_id,
             is_deleted=False,
+        ).values(
+            "userscreen_id_id",
+            "userscreenaction_id_id",
+            "usertype_id_id",
+            "description",
         )
 
-        # Build permissions map
-        screen_map = {}
+        # 🔥 FAST MAP BUILD
+        screen_map = defaultdict(list)
         usertype_id = None
         description = ""
 
-        for perm in qs:
-            scr_id = perm.userscreen_id_id
-            act_id = perm.userscreenaction_id_id
-            
-            if not usertype_id and perm.usertype_id_id:
-                usertype_id = perm.usertype_id_id
-            if not description and perm.description:
-                description = perm.description
+        for p in perms:
+            screen_map[p["userscreen_id_id"]].append(p["userscreenaction_id_id"])
 
-            screen_map.setdefault(scr_id, {"userscreen_id": scr_id, "actions": []})["actions"].append(act_id)
+            if not usertype_id:
+                usertype_id = p["usertype_id_id"]
 
-        # Build final screens list: ALL screens, with actions for those that have permissions
-        screens = []
-        for userscreen in all_screens:
-            scr_id = userscreen.unique_id
-            actions = screen_map.get(scr_id, {}).get("actions", [])
-            
-            screens.append({
-                "userscreen_id": scr_id,
-                "userscreen_name": userscreen.userscreen_name,
-                "folder_name": userscreen.folder_name,
-                "icon_name": userscreen.icon_name,
-                "actions": actions,
-                "has_permissions": len(actions) > 0,
-            })
+            if not description:
+                description = p["description"]
 
-        return Response(
-            {
-                "company_id": company.unique_id,
-                "usertype_id": usertype_id,
-                "staffusertype_id": staffusertype_id,
-                "mainscreen_id": mainscreen_id,
-                "screens": screens,
-                "description": description,
-            },
-            status=status.HTTP_200_OK,
+        # 🔥 LIGHTWEIGHT QUERY
+        screens_qs = UserScreen.objects.filter(
+            mainscreen_id_id=mainscreen_id,
+            is_deleted=False,
+        ).values(
+            "unique_id",
+            "userscreen_name",
+            "folder_name",
+            "icon_name",
         )
+
+        # 🔥 FAST RESPONSE BUILD
+        screens = [
+            {
+                "userscreen_id": s["unique_id"],
+                "userscreen_name": s["userscreen_name"],
+                "folder_name": s["folder_name"],
+                "icon_name": s["icon_name"],
+                "actions": screen_map.get(s["unique_id"], []),
+                "has_permissions": s["unique_id"] in screen_map,
+            }
+            for s in screens_qs
+        ]
+
+        response_data = {
+            "company_id": company.unique_id,
+            "staffusertype_id": staffusertype_id,
+            "usertype_id": usertype_id,
+            "mainscreen_id": mainscreen_id,
+            "screens": screens,
+            "description": description,
+        }
+
+        # 🔥 CACHE SAVE (5 min)
+        cache.set(cache_key, response_data, timeout=300)
+
+        return Response(response_data)
 
     # ---------------------------------------------------------
     # All Screens By Staff (across all mainscreens)

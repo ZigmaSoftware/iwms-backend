@@ -89,7 +89,7 @@ class PermissionSeeder(BaseSeeder):
                 "mainscreens",
                 "userscreens",
                 "userscreen-action",
-                "companywisescreenpermissions",
+                "CompanyUserScreenPermission",
             ],
             "role-assigns": [
                 "user-type",
