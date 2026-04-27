@@ -2,7 +2,7 @@ from django.db import transaction
 
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 from app.models.user_creations.staffcreation import Staffcreation
@@ -14,7 +14,7 @@ from app.models.superadmin_masters.project import Project
 class StaffcreationViewset(CompanyScopedViewSet):
     queryset = Staffcreation.objects.select_related("personal_details").all()
     serializer_class = StaffcreationSerializer
-    parser_classes = (MultiPartParser, FormParser)
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
     permission_resource = "StaffCreation"
     lookup_field = "staff_unique_id"
 

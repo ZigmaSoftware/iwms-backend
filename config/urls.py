@@ -48,6 +48,8 @@ urlpatterns = [
         name="swagger-ui",
     ),
 
+    # Data endpoints for BP
+
     path("apis/property/", property_data, name="property-data"),
     path("apis/subproperty/", subproperty_data, name="subproperty-data"),
     path("apis/ward/", ward_data, name="ward-data"),
