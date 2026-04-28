@@ -15,6 +15,8 @@ from app.models.waste_types.subproperty import SubProperty
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.validators.unique_name_validator import unique_name_validator
 
+from django.contrib.auth.hashers import make_password
+
 
 class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     company_id = serializers.SlugRelatedField(
@@ -115,6 +117,8 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
     is_bulkwaste_generator = serializers.BooleanField(read_only=True)
     qr_code = serializers.ImageField(read_only=True)
 
+    password = serializers.CharField(write_only=True, required=False)
+
     class Meta:
         model = CustomerCreation
         fields = [
@@ -152,6 +156,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "sub_property_id",
             "username",
             "email",
+            "password",
             "is_deleted",
             "is_active",
             "ward_name",
@@ -168,6 +173,35 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         ]
         read_only_fields = ["unique_id"]
         validators = []
+
+
+        # =============================
+    # CREATE (HASH PASSWORD)
+    # =============================
+    def create(self, validated_data):
+        password = validated_data.pop("password", None)
+
+        instance = super().create(validated_data)
+
+        if password:
+            instance.password = make_password(password)
+            instance.save(update_fields=["password"])
+
+        return instance
+
+    # =============================
+    # UPDATE (HASH PASSWORD)
+    # =============================
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+
+        instance = super().update(instance, validated_data)
+
+        if password:
+            instance.password = make_password(password)
+            instance.save(update_fields=["password"])
+
+        return instance
 
     def validate(self, attrs):
         # attrs = unique_name_validator(

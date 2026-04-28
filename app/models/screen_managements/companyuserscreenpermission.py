@@ -81,6 +81,9 @@ class CompanyUserScreenPermission(BaseMaster):
 
     class Meta:
         ordering = ["order_no"]
+        indexes = [
+            models.Index(fields=["company_id", "staffusertype_id", "mainscreen_id"]),
+        ]
         constraints = [
     UniqueConstraint(
         fields=[
