@@ -51,7 +51,7 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
             "staff_template",
             "driver_id",
             "operator_id",
-            "requested_by",
+            # "requested_by",
             "approved_by",
         )
 
@@ -95,7 +95,7 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
 
         instance = serializer.save(
             approval_status="PENDING",
-            requested_by=user,  # can be None if allowed in model
+            # requested_by=user,  # can be None if allowed in model
             company_id=company,
             project_id=project,
         )

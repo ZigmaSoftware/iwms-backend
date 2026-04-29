@@ -66,11 +66,11 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
         slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
     )
-    requested_by = UniqueIdOrPkField(
-        slug_field="staff_unique_id",
-        queryset=Staffcreation.objects.filter(is_deleted=False),
-        required=False,
-    )
+    # requested_by = UniqueIdOrPkField(
+    #     slug_field="staff_unique_id",
+    #     queryset=Staffcreation.objects.filter(is_deleted=False),
+    #     required=False,
+    # )
     approved_by = UniqueIdOrPkField(
         slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
@@ -122,7 +122,7 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
             'extra_operator',
             'change_reason',
             'change_remarks',
-            'requested_by',
+            # 'requested_by',
             'approved_by',
             'approval_status',
             'created_at',
