@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
@@ -11,6 +12,31 @@ class MainScreenViewSet(viewsets.ModelViewSet):
     serializer_class = MainScreenSerializer
     queryset = MainScreen.objects.filter(is_deleted=False)
     lookup_field = "unique_id"
+
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+
+        # Ensure backend-only fields don't fail "required" validation when UI omits them.
+        if not data.get("icon_name"):
+            data["icon_name"] = (data.get("mainscreen_name") or "").strip()
+
+        if not data.get("order_no"):
+            mainscreentype_id = data.get("mainscreentype_id")
+            if mainscreentype_id:
+                with transaction.atomic():
+                    last = (
+                        MainScreen.objects.select_for_update()
+                        .filter(mainscreentype_id=mainscreentype_id, is_deleted=False)
+                        .order_by("-order_no")
+                        .first()
+                    )
+                    data["order_no"] = (last.order_no if last else 0) + 1
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def get_queryset(self):
         queryset = super().get_queryset()
