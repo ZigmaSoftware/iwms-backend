@@ -6,6 +6,10 @@ from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.user_serializer import UniqueIdOrPkField
 
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
+
 
 
 class CommaSeparatedListField(serializers.ListField):
@@ -36,6 +40,18 @@ class CommaSeparatedListField(serializers.ListField):
 
 
 class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+
+    company_id = UniqueIdOrPkField(
+    slug_field="unique_id",
+    queryset=Company.objects.all(),
+    required=False
+)
+
+    project_id = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=Project.objects.all(),
+        required=False
+    )
     staff_template = UniqueIdOrPkField(
         slug_field="unique_id",
         queryset=StaffTemplate.objects.all(),
@@ -50,11 +66,11 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
         slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
     )
-    requested_by = UniqueIdOrPkField(
-        slug_field="staff_unique_id",
-        queryset=Staffcreation.objects.filter(is_deleted=False),
-        required=False,
-    )
+    # requested_by = UniqueIdOrPkField(
+    #     slug_field="staff_unique_id",
+    #     queryset=Staffcreation.objects.filter(is_deleted=False),
+    #     required=False,
+    # )
     approved_by = UniqueIdOrPkField(
         slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
@@ -106,7 +122,7 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
             'extra_operator',
             'change_reason',
             'change_remarks',
-            'requested_by',
+            # 'requested_by',
             'approved_by',
             'approval_status',
             'created_at',

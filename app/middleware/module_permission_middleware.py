@@ -105,7 +105,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "StaffCreation",
         "StaffTemplateCreation",
         "AlternativeStaffTemplate",
-        "SupervisorZoneMap",
+        "supervisor-zone-map",
         "UnassignedStaffPool",
     },
     "process-items": {
