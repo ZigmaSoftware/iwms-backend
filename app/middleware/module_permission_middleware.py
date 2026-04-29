@@ -94,7 +94,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "MainScreen",
         "UserScreen",
         "UserScreenAction",
-        "CompanyUserScreenPermission",
+        "companywisescreenpermissions",
     },
     "role-assigns": {
         "UserType",

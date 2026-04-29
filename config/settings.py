@@ -1,7 +1,9 @@
 from pathlib import Path
 import os
 import pymysql
+from dotenv import load_dotenv
 
+load_dotenv()
 pymysql.install_as_MySQLdb()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -10,7 +12,7 @@ from django.conf import settings
 # -------------------------------------------------------
 # SECRET KEY – use this one only (your exact key)
 # -------------------------------------------------------
-SECRET_KEY = 'django-insecure-8$arlvxjc7$dw$(0!gyw)55qbm%9*az3wwr)6$7kku-dw6zoiz'
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # DEBUG = True
 
@@ -50,6 +52,7 @@ ALLOWED_HOSTS = [
     '192.168.5.20',
     '192.168.6.198',
     '192.168.1.156',
+    "aura-haustorial-elayne.ngrok-free.dev"
     
     
 ]
@@ -114,14 +117,28 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # -------------------------------------------------------
 # Database (MySQL)
 # -------------------------------------------------------
-DATABASES = {
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'iwmsdb',
+#         'USER': 'root',
+#         'PASSWORD': 'admin@123',
+#         'HOST': 'localhost',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#         },
+#     }
+# }
+
+DATABASES = {   
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'iwmsdb',
-        'USER': 'root',
-        'PASSWORD': 'admin@123',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'ENGINE': os.getenv("DB_ENGINE", "django.db.backends.mysql"),
+        'NAME': os.getenv("DB_NAME", "iwmsdb"), 
+        'USER': os.getenv("DB_USER", "root"),
+        'PASSWORD': os.getenv("DB_PASSWORD", "admin@123"),
+        'HOST': os.getenv("DB_HOST", "localhost"),
+        'PORT': os.getenv("DB_PORT", "3306"),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
@@ -219,14 +236,25 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://192\.168\.5\.20(:d+)?$",
     r"^http://192\.168\.6\.198(:d+)?$",
     r"^http://192\.168\.1\.156(:d+)?$",
+    "https://aura-haustorial-elayne.ngrok-free.dev",
 ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-permission-cache",
+    }
+}
 
 # -------------------------------------------------------
 # Custom User Model
 # -------------------------------------------------------
 AUTH_USER_MODEL = "app.User"
+
+MY_API_KEY = os.getenv("MY_API_KEY", "abc123")
 
 # -------------------------------------------------------
 # JWT CONFIG (import at the end)

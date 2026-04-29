@@ -26,6 +26,26 @@ def generate_customer_id():
     """Generate readable prefixed ID, e.g., CUS-20251028001"""
     return f"CUS-{generate_unique_id()}"
 
+def generate_apartment_id():
+    """Generate readable prefixed ID like APT-20260424001"""
+    return f"APT-{generate_unique_id()}"
+
+
+def get_or_create_apartment_id(apartment_name, latitude, longitude, company_id):
+        apartment_name = (apartment_name or "").strip().upper()
+
+        existing = CustomerCreation.objects.filter(
+            apartment_name__iexact=apartment_name,
+            latitude=latitude,
+            longitude=longitude,
+            company_id=company_id,
+            is_deleted=False
+        ).first()
+
+        if existing and existing.apartment_unique_id:
+            return existing.apartment_unique_id
+
+        return generate_apartment_id()
 
 class CustomerCreation(BaseMaster):
     QR_TRIGGER_FIELDS = {
@@ -107,6 +127,20 @@ class CustomerCreation(BaseMaster):
     apartment_name = models.CharField(max_length=100, null=True, blank=True)
     block_no = models.CharField(max_length=20, null=True, blank=True)
     flat_no = models.CharField(max_length=20, null=True, blank=True)
+
+    apartment_qr = models.ImageField(
+        upload_to="apartment_qr/",
+        blank=True,
+        null=True
+    )
+
+    apartment_unique_id = models.CharField(
+    max_length=50,
+    null=True,
+    blank=True,
+    db_index=True
+)
+
     villa_no = models.CharField(max_length=20, null=True, blank=True)
     industry_name = models.CharField(max_length=100, null=True, blank=True)
     industry_type = models.CharField(max_length=100, null=True, blank=True)
@@ -208,11 +242,7 @@ class CustomerCreation(BaseMaster):
         null=True
     )
 
-    apartment_qr = models.ImageField(
-        upload_to="apartment_qr/",
-        blank=True,
-        null=True
-    )
+    
 
     class Meta:
         verbose_name = "Customer"
@@ -296,6 +326,20 @@ class CustomerCreation(BaseMaster):
         super().save(update_fields=["qr_code"])
 
     def save(self, *args, **kwargs):
+
+        if self.block_no:
+            self.block_no = self.block_no.upper()
+
+
+        if self.apartment_name and self.latitude and self.longitude:
+            if not self.apartment_unique_id:
+                self.apartment_unique_id = get_or_create_apartment_id(
+                    self.apartment_name,
+                    self.latitude,
+                    self.longitude,
+                    self.company_id
+                )
+
         is_create = self._state.adding
         requested_update_fields = kwargs.get("update_fields")
         qr_refresh_required = self._should_refresh_qr(
@@ -319,4 +363,3 @@ class CustomerCreation(BaseMaster):
 
     def generate_qr_data(self):
         return build_customer_qr_data(self)
-
