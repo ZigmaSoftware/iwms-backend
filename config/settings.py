@@ -52,9 +52,7 @@ ALLOWED_HOSTS = [
     '192.168.5.20',
     '192.168.6.198',
     '192.168.1.156',
-    "aura-haustorial-elayne.ngrok-free.dev"
-    
-    
+    "aura-haustorial-elayne.ngrok-free.dev"    
 ]
 
 # -------------------------------------------------------
