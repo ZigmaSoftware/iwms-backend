@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
@@ -9,6 +9,7 @@ from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.alternative_stafftemplate_serializer import (
     AlternativeStaffTemplateSerializer
 )
+
 
 
 class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
@@ -50,26 +51,13 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
             "staff_template",
             "driver_id",
             "operator_id",
-            "requested_by",
+            # "requested_by",
             "approved_by",
         )
 
-    # def _resolve_request_user(self):
-    #     user = getattr(self.request, "user", None)
-    #     if user and not getattr(user, "is_anonymous", False):
-    #         return user
-
-    #     raw_request = getattr(self.request, "_request", None)
-    #     raw_user = getattr(raw_request, "user", None) if raw_request else None
-    #     if raw_user and not getattr(raw_user, "is_anonymous", False):
-    #         return raw_user
-
-    #     payload = getattr(self.request, "jwt_payload", None) or getattr(raw_request, "jwt_payload", None)
-    #     unique_id = payload.get("unique_id") if isinstance(payload, dict) else None
-    #     if unique_id:
-    #         return Staffcreation.objects.filter(staff_unique_id=unique_id).first()
-
-    #     return None
+    # --------------------------------------------------
+    # ✅ USER RESOLUTION (NO SUPERADMIN CREATION)
+    # --------------------------------------------------
 
     def _resolve_request_user(self):
         from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
@@ -87,25 +75,45 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
 
         # 2. Fallback → username match
         user = getattr(self.request, "user", None)
-        if user and not user.is_anonymous:
-            staff = StaffcreationOfficeDetails.objects.filter(
-                username=user.username
-            ).first()
-            if staff:
-                return staff
+
+        if user and not getattr(user, "is_anonymous", False):
+            # Try to map logged-in user to staff
+            staff = Staffcreation.objects.filter(username=user.username).first()
+            return staff  # may be None (allowed)
+
+        # JWT fallback
+        payload = getattr(self.request, "jwt_payload", None)
+        unique_id = payload.get("unique_id") if isinstance(payload, dict) else None
+
+        if unique_id:
+            return Staffcreation.objects.filter(staff_unique_id=unique_id).first()
 
         return None
 
+    # --------------------------------------------------
+    # CREATE (🔥 FRONTEND-DRIVEN COMPANY/PROJECT)
+    # --------------------------------------------------
+
     def perform_create(self, serializer):
         user = self._resolve_request_user()
-        if not user:
-            raise NotAuthenticated("Authentication required")
+
+        company = serializer.validated_data.get("company_id")
+        project = serializer.validated_data.get("project_id")
+
+        # ✅ Strict validation
+        if not company or not project:
+            raise serializers.ValidationError({
+                "company_id": "Company is required",
+                "project_id": "Project is required"
+            })
+
         instance = serializer.save(
             approval_status="PENDING",
-            requested_by=user,
-            company_id=getattr(user, "company_id", None) or getattr(serializer.validated_data.get("staff_template", None), "company_id", None),
-            project_id=getattr(user, "project_id", None) or getattr(serializer.validated_data.get("staff_template", None), "project_id", None),
+            # requested_by=user,  # can be None if allowed in model
+            company_id=company,
+            project_id=project,
         )
+
         self._log_audit(
             user=user,
             action=StaffTemplateAuditLog.Action.CREATE,

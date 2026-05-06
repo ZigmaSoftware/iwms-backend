@@ -122,9 +122,9 @@ class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
     # ---------------------------------------------------------
     @action(detail=False, methods=["get"], url_path="by-staff-format")
     def by_staff_format(self, request):
-        company = self._company()
-        if not company:
-            return Response({"error": "company required"}, status=400)
+        company, error = self._company_from_request(request, source="query", required=True)
+        if error:
+            return error
 
         staffusertype_id = request.query_params.get("staffusertype_id")
         mainscreen_id = request.query_params.get("mainscreen_id")

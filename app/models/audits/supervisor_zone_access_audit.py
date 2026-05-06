@@ -34,7 +34,9 @@ class SupervisorZoneAccessAudit(models.Model):
         on_delete=models.PROTECT,
         related_name="performed_zone_access_audits",
         to_field="staff_unique_id",
-        db_column="performed_by"
+        db_column="performed_by",
+        null=True,
+        blank=True
     )
     company_id = models.ForeignKey(
         Company,

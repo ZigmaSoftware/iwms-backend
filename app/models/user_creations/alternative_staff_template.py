@@ -49,6 +49,8 @@ class AlternativeStaffTemplate(models.Model):
         on_delete=models.PROTECT,
         related_name="alternative_staff_templates",
         db_column="company_id",
+        null=True,
+        blank=True
     )
 
     project_id = models.ForeignKey(
@@ -56,6 +58,8 @@ class AlternativeStaffTemplate(models.Model):
         on_delete=models.PROTECT,
         related_name="alternative_staff_templates",
         db_column="project_id",
+        null=True,
+        blank=True
     )
 
     effective_date = models.DateField()
@@ -103,12 +107,12 @@ class AlternativeStaffTemplate(models.Model):
     # APPROVAL WORKFLOW
     # ------------------------------------------------------------------
 
-    requested_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column='requested_by',
-        related_name='alt_staff_requested'
-    )
+    # requested_by = models.ForeignKey(
+    #     Staffcreation,
+    #     on_delete=models.PROTECT,
+    #     db_column='requested_by',
+    #     related_name='alt_staff_requested'
+    # )
 
     approved_by = models.ForeignKey(
         Staffcreation,
