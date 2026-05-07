@@ -104,6 +104,8 @@ class PointCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     bin_name = serializers.CharField(source="bin_id.bin_name", read_only=True)
     collection_point_name = serializers.CharField(source="collection_point_id.cp_name", read_only=True)
     wastetype_name = serializers.CharField(source="waste_type_id.waste_type_name", read_only=True)
+    district_name = serializers.CharField(source="district_id.name", read_only=True)
+    city_name = serializers.CharField(source="city_id.name", read_only=True)
     zone_id = serializers.CharField(source="collection_point_id.ward_id.zone_id.unique_id", read_only=True)  # ✅ for zone_id
     zone_name = serializers.CharField(source="collection_point_id.ward_id.zone_id.zone_name", read_only=True)  # ✅ for zone_name
 
@@ -162,6 +164,10 @@ class PointCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
             "company_name",
             "project_id",
             "project_name",
+            "district_id",
+            "district_name",
+            "city_id",
+            "city_name",
             "panchayat_id",
             "panchayat_name",
             "zone_id",

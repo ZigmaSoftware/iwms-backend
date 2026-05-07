@@ -7,6 +7,7 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.assets.point_collection import PointCollection
 from app.models.masters.panchayat import Panchayat
+from app.models.transport_masters.trip_definition import TripDefinition
 
 
 def generate_panchayat_collection_id():
@@ -54,7 +55,7 @@ class PanchayatCollection(BaseMaster):
     collection_date = models.DateField()
 
     trip_id = models.ForeignKey(
-        Trip,
+        TripDefinition,
         on_delete=models.PROTECT,
         related_name="panchayat_collections",
         db_column="trip_id"

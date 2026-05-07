@@ -7,6 +7,8 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     panchayat_name = serializers.CharField(source="collection_point_id.panchayat_id.panchayat_name", read_only = True)
     panchayat_id = serializers.CharField(source="collection_point_id.panchayat_id", read_only = True)
+    district_name = serializers.CharField(source="district_id.name", read_only=True)
+    city_name = serializers.CharField(source="city_id.name", read_only=True)
     ward_id = serializers.CharField(source="collection_point_id.ward_id", read_only = True)
     ward_name = serializers.CharField(source="collection_point_id.ward_id.ward_name", read_only = True)
     wastetype_name = serializers.CharField(source="wastetype_id.waste_type_name", read_only = True)
@@ -24,6 +26,10 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "project_name",
             "panchayat_id",
             "panchayat_name",
+            "district_id",
+            "district_name",
+            "city_id",
+            "city_name",
             "zone_id",
             "zone_name",
             "ward_id",
