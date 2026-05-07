@@ -6,6 +6,7 @@ from app.models.transport_masters.trip import Trip
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.masters.zone import Zone
+from app.models.transport_masters.trip_definition import TripDefinition
 
 
 def generate_zone_collection_id():
@@ -48,7 +49,7 @@ class ZoneCollection(BaseMaster):
     collection_date = models.DateField()
 
     trip_id = models.ForeignKey(
-        Trip,
+        TripDefinition,
         on_delete=models.PROTECT,
         related_name="zone_collections",
         db_column="trip_id"
