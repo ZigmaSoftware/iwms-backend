@@ -207,7 +207,7 @@ router.register_group("customer-masters", "customercreations", CustomerCreationV
 router.register_group("customer-masters", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
 router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
-router.register_group("customer-masters", "point-collection", PointCollectionViewSet)
+
 
 # ============================================================
 # GROUP: GRIEVANCES
@@ -248,6 +248,7 @@ router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainV
 # ============================================================
 # GROUP: COLLECTIONS
 # ============================================================
+router.register_group("collections", "point-collection", PointCollectionViewSet)
 router.register_group("collections", "panchayat-wise", PanchayatWiseCollectionViewSet)
 router.register_group("collections", "ward-wise", WardWiseCollectionViewSet)
 router.register_group("collections", "zone-wise", ZoneWiseCollectionViewSet)

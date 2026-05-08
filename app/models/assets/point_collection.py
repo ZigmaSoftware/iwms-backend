@@ -9,6 +9,8 @@ from app.models.superadmin_masters.project import Project
 from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.assets.bins import Bins
 from app.models.masters.panchayat import Panchayat
+from app.models.masters.city import City
+from app.models.masters.district import District
 
 
 def generate_point_collection_id():
@@ -43,6 +45,24 @@ class PointCollection(BaseMaster):
         on_delete=models.PROTECT,
         related_name="point_collections",
         db_column="collection_point_id"
+    )
+
+    district_id = models.ForeignKey(
+        District,
+        on_delete=models.PROTECT,
+        related_name="point_collections",
+        db_column="district_id",
+        null=True,
+        blank=True
+    )
+
+    city_id = models.ForeignKey(
+        City,
+        on_delete=models.PROTECT,
+        related_name="point_collections",
+        db_column="city_id",
+        null=True,
+        blank=True
     )
 
     point_collection_weight = models.DecimalField(
@@ -81,6 +101,10 @@ class PointCollection(BaseMaster):
 
 
     def save(self, *args, **kwargs):
+        if self.collection_point_id:
+            self.district_id = self.collection_point_id.district_id
+            self.city_id = self.collection_point_id.city_id
+
         if self.point_collection_weight and self.point_collection_weight > 0:
             self.is_collected = True
         super().save(*args, **kwargs)
