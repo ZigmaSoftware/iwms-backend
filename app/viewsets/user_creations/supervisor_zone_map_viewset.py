@@ -14,6 +14,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
+
 class SupervisorZoneMapViewSet(CompanyScopedViewSet,AuditViewSetMixin):
     """
     Zone assignment controller.

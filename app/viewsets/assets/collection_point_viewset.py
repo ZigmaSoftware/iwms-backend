@@ -12,7 +12,7 @@ class CollectionPointViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
     permission_resource = "CollectionPoint"
 
-    AUDIT_MODULE = "bp-palakkad"
+    AUDIT_MODULE = "assets"
     AUDIT_ENDPOINT ="collection-point"
 
     def get_queryset(self):

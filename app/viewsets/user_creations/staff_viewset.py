@@ -5,13 +5,17 @@ from rest_framework.response import Response
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.user_serializer import StaffSerializer
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class StaffViewSet(CompanyScopedViewSet):
+class StaffViewSet(CompanyScopedViewSet,AuditViewSetMixin):
     queryset = Staffcreation.objects.filter(is_deleted=False)
     serializer_class = StaffSerializer
     lookup_field = "staff_unique_id"
     permission_resource = "UsersCreation"
+
+    AUDIT_MODULE = "user-creations"
+    AUDIT_ENDPOINT = "staffs"
 
     def get_object(self):
         lookup_field = self.lookup_field

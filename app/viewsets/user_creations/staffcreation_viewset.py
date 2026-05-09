@@ -9,14 +9,18 @@ from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.staffcreation_serializer import StaffcreationSerializer
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class StaffcreationViewset(CompanyScopedViewSet):
+class StaffcreationViewset(CompanyScopedViewSet,AuditViewSetMixin):
     queryset = Staffcreation.objects.select_related("personal_details").all()
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     permission_resource = "StaffCreation"
     lookup_field = "staff_unique_id"
+
+    AUDIT_MODULE = "user-creations"
+    AUDIT_ENDPOINT = "staffcreation"
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = [

@@ -24,7 +24,7 @@ class PointCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     permission_resource = "PointCollection"
 
-    AUDIT_MODULE = "bp-palakkad"
+    AUDIT_MODULE = "assets"
     AUDIT_ENDPOINT = "point-collection"
 
     # -------------------------------------------------

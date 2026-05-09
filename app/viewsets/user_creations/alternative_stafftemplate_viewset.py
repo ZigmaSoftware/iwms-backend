@@ -9,10 +9,11 @@ from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.user_creations.alternative_stafftemplate_serializer import (
     AlternativeStaffTemplateSerializer
 )
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
 
-class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
+class AlternativeStaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
     """
     API Contract:
     - Create alternative staff mapping
@@ -30,6 +31,9 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet):
     #  CRITICAL: single source of truth for middleware
     permission_resource = "AlternativeStaffTemplate"
     lookup_field = "unique_id"
+
+    AUDIT_MODULE = "user-creations"
+    AUDIT_ENDPOINT = "alternative-staff-templates"
 
     def get_queryset(self):
         qs = super().get_queryset()
