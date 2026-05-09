@@ -169,9 +169,10 @@ from app.utils.base_models import Account  # ✅ IMPORTANT FIX
 from app.serializers.user_creations.stafftemplate_serializer import (
     StaffTemplateSerializer
 )
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class StaffTemplateViewSet(CompanyScopedViewSet):
+class StaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
     """
     Staff Template API
     """
@@ -179,6 +180,9 @@ class StaffTemplateViewSet(CompanyScopedViewSet):
     serializer_class = StaffTemplateSerializer
     lookup_field = "unique_id"
     permission_resource = "StaffTemplateCreation"
+
+    AUDIT_MODULE = "user-creations"
+    AUDIT_ENDPOINT = "staff-templates"
 
     def get_queryset(self):
         qs = StaffTemplate.objects.all()

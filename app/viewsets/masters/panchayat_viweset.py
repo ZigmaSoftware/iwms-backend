@@ -11,7 +11,7 @@ class PanhayatViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     lookup_field = "unique_id"
     permission_resource = "Panchayat"
 
-    AUDIT_MODULE = "bp-palakkad"
+    AUDIT_MODULE = "masters"
     AUDIT_ENDPOINT ="panchayat"
 
     def get_queryset(self):

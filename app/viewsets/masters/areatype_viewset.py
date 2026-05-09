@@ -13,7 +13,7 @@ class AreaTypeViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     lookup_field = "unique_id"
     permission_resource = "AreaType"
 
-    AUDIT_MODULE = "bp-palakkad"
+    AUDIT_MODULE = "masters"
     AUDIT_ENDPOINT ="areatype"
 
 

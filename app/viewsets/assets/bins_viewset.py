@@ -48,7 +48,7 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
     permission_resource = "Bin"
 
-    AUDIT_MODULE = "bp-palakkad"
+    AUDIT_MODULE = "assets"
     AUDIT_ENDPOINT ="bins"
 
     def create(self, request, *args, **kwargs):

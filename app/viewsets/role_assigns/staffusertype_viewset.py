@@ -6,12 +6,16 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.serializers.role_assigns.staffusertype_serializer import StaffUserTypeSerializer
 from rest_framework.decorators import action
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class StaffUserTypeViewSet(viewsets.ModelViewSet):
+class StaffUserTypeViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
     queryset = StaffUserType.objects.filter(is_deleted=False)
     serializer_class = StaffUserTypeSerializer
     lookup_field = "unique_id"
+
+    AUDIT_MODULE = "role-assigns"   
+    AUDIT_ENDPOINT = "staff-user-type"
     
     permission_resource = "StaffUserType"
 

@@ -10,12 +10,16 @@ from app.serializers.superadmin_masters.project_create_serializer import (
     ProjectSerializer,
     ProjectUpdateSerializer,
 )
+from app.utils.audit_mixin import AuditViewSetMixin
 
-class CompanyProjectCreateViewSet(viewsets.ModelViewSet):
+class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [PlatformOrCompanyAdminFullAccess]
     queryset = Project.objects.select_related("company_id").filter(is_deleted=False).order_by("name")
     serializer_class = ProjectSerializer
     lookup_field = "unique_id"
+
+    AUDIT_MODULE = "superadmin-masters"
+    AUDIT_ENDPOINT = "projects"
     
 
     def get_queryset(self):

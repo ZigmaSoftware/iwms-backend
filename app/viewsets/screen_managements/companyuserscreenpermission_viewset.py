@@ -16,11 +16,15 @@ from app.serializers.screen_managements.companyuserscreenpermission_serializer i
 )
 
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class CompanyUserScreenPermissionViewSet(CompanyScopedViewSet):
+class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     serializer_class = CompanyUserScreenPermissionSerializer
     lookup_field = "unique_id"
+
+    AUDIT_MODULE = "screen-managements"
+    AUDIT_ENDPOINT = "company-user-screen-permissions"
 
     permission_resource = "companywisescreenpermissions"
 
