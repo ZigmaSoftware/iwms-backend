@@ -7,9 +7,10 @@ from app.models.user_creations.unassigned_staff_pool import UnassignedStaffPool
 from app.serializers.user_creations.unassigned_staff_pool_serializer import (
     UnassignedStaffPoolSerializer
 )
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class UnassignedStaffPoolViewSet(ModelViewSet):
+class UnassignedStaffPoolViewSet(ModelViewSet,AuditViewSetMixin):
     """
     Controls staff availability by zone & ward.
     Used by system + supervisors.
@@ -18,6 +19,9 @@ class UnassignedStaffPoolViewSet(ModelViewSet):
     serializer_class = UnassignedStaffPoolSerializer
     permission_resource = "UnassignedStaffPool"
     swagger_tags = ["Desktop / Staff Availability"]
+
+    AUDIT_MODULE = "user-creations"
+    AUDIT_ENDPOINT = "unassigned-staff-pool"
 
     def get_queryset(self):
         qs = UnassignedStaffPool.objects.all()

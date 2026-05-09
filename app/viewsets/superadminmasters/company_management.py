@@ -43,12 +43,15 @@ from app.serializers.superadmin_masters.company_create_serializer import (
     CompanySerializer,
     PlatformCompanyCreateSerializer,
 )
+from app.utils.audit_mixin import AuditViewSetMixin
 
-
-class PlatformCompanyCreateViewSet(viewsets.ModelViewSet):
+class PlatformCompanyCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [PlatformOrCompanyAdminOnly]
     serializer_class = CompanySerializer
     lookup_field = "unique_id"
+
+    AUDIT_MODULE = "superadmin-masters"
+    AUDIT_ENDPOINT = "companies"
 
     # 🔹 Role-Based Queryset
     def get_queryset(self):
