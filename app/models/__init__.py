@@ -64,6 +64,7 @@ from .screen_managements.mainscreen import MainScreen
 from .screen_managements.userscreen import UserScreen
 from .screen_managements.userscreenaction import UserScreenAction
 from .screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
+from .screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
 
 
 # ============================================================
@@ -181,6 +182,7 @@ __all__ = [
     "UserScreen",
     "UserScreenAction",
     "CompanyUserScreenPermission",
+    "CompanyUserScreenColumnPermission",
 
     # User Creation & Staff
     "StaffcreationOfficeDetails",
