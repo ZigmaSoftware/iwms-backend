@@ -64,6 +64,20 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
     # --------------------------------------------------
 
     def _resolve_request_user(self):
+        from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
+
+        # 1. Try JWT payload (BEST METHOD)
+        payload = getattr(self.request, "jwt_payload", None)
+        if isinstance(payload, dict):
+            unique_id = payload.get("unique_id")
+            if unique_id:
+                staff = StaffcreationOfficeDetails.objects.filter(
+                    staff_unique_id=unique_id
+                ).first()
+                if staff:
+                    return staff
+
+        # 2. Fallback → username match
         user = getattr(self.request, "user", None)
 
         if user and not getattr(user, "is_anonymous", False):

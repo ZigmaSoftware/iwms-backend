@@ -3,13 +3,17 @@ from rest_framework.response import Response
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.grivences.complaints import Complaint
 from app.serializers.grivences.complaint_serializer import ComplaintSerializer
+from app.utils.audit_mixin import AuditViewSetMixin
 
-class ComplaintViewSet(CompanyScopedViewSet):
+class ComplaintViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = ComplaintSerializer
     lookup_field = "unique_id"
     queryset = Complaint.objects.filter(is_deleted=False).select_related(
         "customer", "zone", "ward"
     )
+
+    AUDIT_MODULE = "grivences"
+    AUDIT_ENDPOINT = "complaints"
 
     def get_queryset(self):
         qs = Complaint.objects.filter(is_deleted=False)
