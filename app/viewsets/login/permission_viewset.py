@@ -122,6 +122,7 @@ from django.utils import timezone
 
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
+from app.utils.permission_response import resolve_permission_payload
 
 
 class PermissionViewSet(ViewSet):
@@ -136,11 +137,13 @@ class PermissionViewSet(ViewSet):
         Returns latest permissions for current user.
         """
         permissions = self._resolve_permissions_for_user(request.user)
+        permission_details = self._resolve_permission_details_for_user(request.user)
         
 
         return Response(
             {
                 "permissions": permissions,
+                "permission_details": permission_details,
                 "timestamp": timezone.now().isoformat(),
                 "source": "database"
             },
@@ -179,6 +182,27 @@ class PermissionViewSet(ViewSet):
             usertype_unique_id=user_type.unique_id,
             staffusertype_unique_id=staff_usertype.unique_id if staff_usertype else None
         )
+
+    def _resolve_permission_details_for_user(self, user):
+        if getattr(user, "is_superuser", False):
+            return resolve_permission_payload(include_all=True)["permission_details"]
+
+        staff_user = self._resolve_staff_user(user)
+        if not staff_user:
+            return {}
+
+        company = getattr(staff_user, "company_id", None)
+        user_type = getattr(staff_user, "user_type_id", None)
+        staff_usertype = getattr(staff_user, "staffusertype_id", None)
+
+        if not company or not user_type:
+            return {}
+
+        return resolve_permission_payload(
+            company_unique_id=company.unique_id,
+            usertype_unique_id=user_type.unique_id,
+            staffusertype_unique_id=staff_usertype.unique_id if staff_usertype else None,
+        )["permission_details"]
 
     # ------------------------------------------------------------------
     # SUPERADMIN FULL PERMISSION

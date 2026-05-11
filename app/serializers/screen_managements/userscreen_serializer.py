@@ -2,7 +2,6 @@
 # serializers/screen_managements/userscreen_serializer.py
 # =========================================================
 
-from django.apps import apps
 from django.db import transaction
 
 from rest_framework import serializers
@@ -16,6 +15,7 @@ from app.models.screen_managements.userscreen import UserScreen
 from app.utils.userscreen_column_sync import (
     sync_screen_columns
 )
+from app.utils.model_mapper import resolve_userscreen_model
 
 
 class UserScreenSerializer(
@@ -181,26 +181,6 @@ class UserScreenSerializer(
                     "Both model_app_label and model_name are required together."
             })
 
-        # =================================================
-        # CHECK DJANGO MODEL EXISTS
-        # =================================================
-
-        if model_app_label and model_name:
-
-            try:
-
-                apps.get_model(
-                    model_app_label,
-                    model_name
-                )
-
-            except LookupError:
-
-                raise serializers.ValidationError({
-                    "model_name":
-                        "Invalid Django model mapping."
-                })
-
         return data
 
     # =====================================================
@@ -208,12 +188,6 @@ class UserScreenSerializer(
     # =====================================================
 
     def create(self, validated_data):
-
-        print("===================================")
-        print("USERSCREEN CREATE STARTED")
-        print("===================================")
-
-        print("VALIDATED DATA:", validated_data)
 
         # =================================================
         # AUTO ICON
@@ -241,34 +215,8 @@ class UserScreenSerializer(
 
         instance = super().create(validated_data)
 
-        print("USERSCREEN CREATED:", instance.unique_id)
-
-        print("MODEL APP:", instance.model_app_label)
-
-        print("MODEL NAME:", instance.model_name)
-
-        # =================================================
-        # AUTO COLUMN SYNC
-        # =================================================
-
-        if (
-            instance.model_app_label
-            and instance.model_name
-        ):
-
-            print("SYNC STARTED")
-
+        if resolve_userscreen_model(instance):
             sync_screen_columns(instance)
-
-            print("SYNC COMPLETED")
-
-        else:
-
-            print("SYNC SKIPPED - MODEL MAPPING EMPTY")
-
-        print("===================================")
-        print("USERSCREEN CREATE COMPLETED")
-        print("===================================")
 
         return instance
 
@@ -308,19 +256,7 @@ class UserScreenSerializer(
         # RE-SYNC COLUMNS
         # =================================================
 
-        if (
-            instance.model_app_label
-            and instance.model_name
-        ):
-
-            print("RE-SYNC STARTED")
-
+        if resolve_userscreen_model(instance):
             sync_screen_columns(instance)
-
-            print("RE-SYNC COMPLETED")
-
-        else:
-
-            print("RE-SYNC SKIPPED - MODEL MAPPING EMPTY")
 
         return instance
