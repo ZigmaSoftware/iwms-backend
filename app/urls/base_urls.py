@@ -73,6 +73,11 @@ from ..viewsets.screen_managements.mainscreen_viewset import MainScreenViewSet
 from ..viewsets.screen_managements.userscreen_viewset import UserScreenViewSet
 from ..viewsets.screen_managements.userscreenaction_viewset import UserScreenActionViewSet
 from ..viewsets.screen_managements.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
+from ..viewsets.screen_managements.permission_api_views import (
+    CompanyPermissionsAPIView,
+    PermissionAssignAPIView,
+    UserScreenColumnsAPIView,
+)
 
 # Transport masters
 from ..viewsets.transport_masters.vehicletypecreation_viewset import VehicleTypeCreationViewSet
@@ -326,5 +331,11 @@ router.register_group(
 # URLS
 # ============================================================
 urlpatterns = [
+    path(
+        "permissions/userscreen/<str:userscreen_id>/columns/",
+        UserScreenColumnsAPIView.as_view(),
+    ),
+    path("permissions/assign/", PermissionAssignAPIView.as_view()),
+    path("permissions/company/<str:company_id>/", CompanyPermissionsAPIView.as_view()),
     path("", include(router.urls)),
 ]
