@@ -20,6 +20,7 @@ from app.models.waste_types.property import Property
 
 from app.serializers.customers.customercreation_serializer import CustomerCreationSerializer
 
+from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.customer_qr import generate_customer_qr_content, generate_apartment_qr_data
 
 
@@ -109,11 +110,14 @@ def get_or_create_apartment_qr(apartment_name,company_id,request):
     return obj.apartment_qr.url
 
 
-class CustomerCreationViewSet(CompanyScopedViewSet):
+class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     permission_resource = "CustomerCreation"
     serializer_class = CustomerCreationSerializer
     lookup_field = "unique_id"
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    AUDIT_MODULE = "customer-masters"
+    AUDIT_ENDPOINT = "customercreations"
 
     queryset = (
         CustomerCreation.objects
@@ -152,8 +156,19 @@ class CustomerCreationViewSet(CompanyScopedViewSet):
                 self.request
             )
 
+        new_data = self._serialize_instance(instance)
+
+        self.log_audit(
+            self.request,
+            instance=instance,
+            previous_data=None,
+            new_data=new_data
+        )
+
 
     def perform_update(self, serializer):
+        previous_data = self._serialize_instance(serializer.instance)
+
         instance = serializer.save()
 
         if instance.apartment_name:
@@ -162,6 +177,15 @@ class CustomerCreationViewSet(CompanyScopedViewSet):
                 instance.company_id,
                 self.request
             )
+
+        new_data = self._serialize_instance(instance)
+
+        self.log_audit(
+            self.request,
+            instance=instance,
+            previous_data=previous_data,
+            new_data=new_data
+        )
     
     # -----------------------------------------------------
     # Subproperty Resolver

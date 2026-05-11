@@ -16,12 +16,15 @@ from app.models.transport_masters.fuel import Fuel
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.serializers.transport_masters.vehicleCreation_serializer import VehicleCreationSerializer
+from app.utils.audit_mixin import AuditViewSetMixin
 
-
-class VehicleCreationViewSet(CompanyScopedViewSet):
+class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     queryset = VehicleCreation.objects.filter(is_deleted=False)
     serializer_class = VehicleCreationSerializer
     lookup_field = "unique_id"
+
+    AUDIT_MODULE = "transport-masters"
+    AUDIT_ENDPOINT = "vehicles"
 
     def get_object(self):
         lookup_field = self.lookup_field
