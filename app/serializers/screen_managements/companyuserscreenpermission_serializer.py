@@ -229,9 +229,11 @@
 from rest_framework import serializers
 
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
 from app.models.role_assigns.userType import UserType
 from app.models.screen_managements.userscreen import UserScreen
 from app.models.screen_managements.userscreenaction import UserScreenAction
+from app.models.screen_managements.userscreencolumn import UserScreenColumn
 from app.models.superadmin_masters.company import Company
 from app.models.screen_managements.mainscreen import MainScreen
 from app.models.role_assigns.staffUserType import StaffUserType
@@ -260,7 +262,8 @@ class CompanyUserScreenPermissionSerializer(serializers.ModelSerializer):
 
 class ScreenActionSerializer(serializers.Serializer):
     userscreen_id = serializers.CharField()
-    actions = serializers.ListField(child=serializers.CharField(), allow_empty=True)
+    actionIds = serializers.ListField(child=serializers.CharField(), allow_empty=True)
+    columnIds = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
 
 
 # ---------------------------------------------------------
@@ -328,7 +331,7 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         # Validate actions
         all_action_ids = set()
         for scr in data["screens"]:
-            for aid in scr.get("actions", []):
+            for aid in scr.get("actionIds", []):
                 all_action_ids.add(aid)
 
         if all_action_ids:
@@ -341,6 +344,22 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
             if invalid:
                 raise serializers.ValidationError({"screens": f"Invalid actions: {', '.join(invalid)}"})
 
+        # Validate columns
+        all_column_ids = set()
+        for scr in data["screens"]:
+            for cid in scr.get("columnIds", []):
+                all_column_ids.add(cid)
+
+        if all_column_ids:
+            valid_ids = set(
+                UserScreenColumn.objects.filter(unique_id__in=all_column_ids, is_deleted=False)
+                .values_list("unique_id", flat=True)
+            )
+
+            invalid = all_column_ids - valid_ids
+            if invalid:
+                raise serializers.ValidationError({"screens": f"Invalid columns: {', '.join(invalid)}"})
+
         # Attach resolved values
         data["resolved_company_id"] = company.unique_id
         data["resolved_usertype_id"] = usertype.unique_id
@@ -350,7 +369,7 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         return data
 
     # ---------------------------------------------------------
-    # CORE LOGIC (FIXED)
+    # CORE LOGIC (EXTENDED FOR COLUMN PERMISSIONS)
     # ---------------------------------------------------------
 
     def create(self, validated_data):
@@ -363,6 +382,7 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         update_only = bool(self.context.get("update_only", False))
 
         created, updated, deleted = [], [], []
+        created_columns, updated_columns, deleted_columns = [], [], []
         missing_keys = []
 
         existing_qs = CompanyUserScreenPermission.objects.filter(
@@ -381,16 +401,20 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
 
         for scr in screens:
             scr_id = scr["userscreen_id"]
+            action_ids = scr.get("actionIds", [])
+            column_ids = scr.get("columnIds", [])
+
             order_no = 1
 
-            for act_id in scr["actions"]:
+            # Process actions
+            for act_id in action_ids:
                 key = (scr_id, act_id)
                 incoming_keys.add(key)
 
                 obj = existing_lookup.get(key)
 
                 if obj:
-                    # UPDATE
+                    # UPDATE existing action permission
                     if obj.is_deleted or not obj.is_active or obj.order_no != order_no or obj.description != desc:
                         obj.is_deleted = False
                         obj.is_active = True
@@ -405,7 +429,7 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                         ])
                         updated.append(obj)
                 else:
-                    # ✅ SAFE CREATE (FIXED) - Allow creating new permissions in both create and update modes
+                    # CREATE new action permission
                     obj = CompanyUserScreenPermission(
                         company_id_id=company_id,
                         usertype_id_id=usertype_id,
@@ -418,13 +442,19 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                         is_deleted=False,
                         is_active=True,
                     )
-
-                    obj.save()  # 🔥 important fix
+                    obj.save()
                     created.append(obj)
+
+                # Process column permissions for this action
+                if column_ids:
+                    self._process_column_permissions(
+                        obj, column_ids, desc,
+                        created_columns, updated_columns, deleted_columns
+                    )
 
                 order_no += 1
 
-        # Soft delete
+        # Soft delete action permissions that are no longer needed
         for key, obj in existing_lookup.items():
             if key not in incoming_keys:
                 if not obj.is_deleted:
@@ -433,8 +463,83 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                     obj.save(update_fields=["is_deleted", "is_active", "updated_at"])
                     deleted.append(obj)
 
+                    # Also soft delete associated column permissions
+                    CompanyUserScreenColumnPermission.objects.filter(
+                        companyuserscreenpermission_id=obj.unique_id,
+                        is_deleted=False
+                    ).update(
+                        is_deleted=True,
+                        is_active=False,
+                        updated_at=obj.updated_at
+                    )
+
         return {
             "created": created,
             "updated": updated,
-            "deleted": deleted
+            "deleted": deleted,
+            "created_columns": created_columns,
+            "updated_columns": updated_columns,
+            "deleted_columns": deleted_columns
         }
+
+    def _process_column_permissions(self, action_permission, column_ids, desc,
+                                   created_columns, updated_columns, deleted_columns):
+        """
+        Process column permissions for a given action permission.
+        """
+        # Get existing column permissions for this action
+        existing_column_perms = CompanyUserScreenColumnPermission.objects.filter(
+            companyuserscreenpermission_id=action_permission.unique_id,
+            is_deleted=False
+        )
+
+        existing_lookup = {
+            obj.userscreencolumn_id_id: obj
+            for obj in existing_column_perms
+        }
+
+        incoming_column_keys = set(column_ids)
+        order_no = 1
+
+        for col_id in column_ids:
+            obj = existing_lookup.get(col_id)
+
+            if obj:
+                # UPDATE existing column permission
+                if obj.is_deleted or not obj.is_active or obj.order_no != order_no:
+                    obj.is_deleted = False
+                    obj.is_active = True
+                    obj.order_no = order_no
+                    obj.description = desc
+                    obj.save(update_fields=[
+                        "is_deleted", "is_active", "order_no", "description", "updated_at"
+                    ])
+                    updated_columns.append(obj)
+            else:
+                # CREATE new column permission
+                obj = CompanyUserScreenColumnPermission(
+                    companyuserscreenpermission_id=action_permission.unique_id,
+                    userscreencolumn_id_id=col_id,
+                    can_view=True,  # Default permissions
+                    can_edit=False,
+                    can_filter=True,
+                    can_search=True,
+                    can_sort=True,
+                    description=desc,
+                    order_no=order_no,
+                    is_deleted=False,
+                    is_active=True,
+                )
+                obj.save()
+                created_columns.append(obj)
+
+            order_no += 1
+
+        # Soft delete column permissions that are no longer in the list
+        for col_key, obj in existing_lookup.items():
+            if col_key not in incoming_column_keys:
+                if not obj.is_deleted:
+                    obj.is_deleted = True
+                    obj.is_active = False
+                    obj.save(update_fields=["is_deleted", "is_active", "updated_at"])
+                    deleted_columns.append(obj)

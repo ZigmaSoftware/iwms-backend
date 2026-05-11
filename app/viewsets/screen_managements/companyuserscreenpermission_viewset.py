@@ -9,10 +9,14 @@ from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
 from app.models.superadmin_masters.company import Company
 from app.serializers.screen_managements.companyuserscreenpermission_serializer import (
     CompanyUserScreenPermissionMultiScreenSerializer,
     CompanyUserScreenPermissionSerializer,
+)
+from app.serializers.screen_managements.companyuserscreencolumnpermission_serializer import (
+    CompanyUserScreenColumnPermissionSerializer,
 )
 
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
@@ -85,6 +89,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                 "created": CompanyUserScreenPermissionSerializer(result["created"], many=True).data,
                 "updated": CompanyUserScreenPermissionSerializer(result["updated"], many=True).data,
                 "deleted": CompanyUserScreenPermissionSerializer(result["deleted"], many=True).data,
+                "created_columns": CompanyUserScreenColumnPermissionSerializer(result.get("created_columns", []), many=True).data,
+                "updated_columns": CompanyUserScreenColumnPermissionSerializer(result.get("updated_columns", []), many=True).data,
+                "deleted_columns": CompanyUserScreenColumnPermissionSerializer(result.get("deleted_columns", []), many=True).data,
             },
             status=status.HTTP_200_OK,
         )
@@ -152,25 +159,59 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             mainscreen_id_id=mainscreen_id,
             is_deleted=False,
         ).values(
+            "unique_id",
             "userscreen_id_id",
             "userscreenaction_id_id",
             "usertype_id_id",
             "description",
         )
 
+        # Get column permissions for these action permissions
+        action_permission_ids = [p["unique_id"] for p in perms]
+        column_perms = CompanyUserScreenColumnPermission.objects.filter(
+            companyuserscreenpermission_id__in=action_permission_ids,
+            is_deleted=False,
+        ).values(
+            "companyuserscreenpermission_id_id",
+            "userscreencolumn_id_id",
+            "can_view",
+            "can_edit",
+            "can_filter",
+            "can_search",
+            "can_sort",
+        )
+
         # 🔥 FAST MAP BUILD
-        screen_map = defaultdict(list)
+        screen_map = defaultdict(lambda: {"actions": [], "columns": []})
+        column_map = defaultdict(list)
         usertype_id = None
         description = ""
 
         for p in perms:
-            screen_map[p["userscreen_id_id"]].append(p["userscreenaction_id_id"])
+            screen_map[p["userscreen_id_id"]]["actions"].append(p["userscreenaction_id_id"])
 
             if not usertype_id:
                 usertype_id = p["usertype_id_id"]
 
             if not description:
                 description = p["description"]
+
+        # Build column permissions map
+        for cp in column_perms:
+            action_perm_id = cp["companyuserscreenpermission_id_id"]
+            # Find which screen this action permission belongs to
+            for perm in perms:
+                if perm["unique_id"] == action_perm_id:
+                    screen_id = perm["userscreen_id_id"]
+                    column_map[screen_id].append({
+                        "column_id": cp["userscreencolumn_id_id"],
+                        "can_view": cp["can_view"],
+                        "can_edit": cp["can_edit"],
+                        "can_filter": cp["can_filter"],
+                        "can_search": cp["can_search"],
+                        "can_sort": cp["can_sort"],
+                    })
+                    break
 
         # 🔥 LIGHTWEIGHT QUERY
         screens_qs = UserScreen.objects.filter(
@@ -190,7 +231,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                 "userscreen_name": s["userscreen_name"],
                 "folder_name": s["folder_name"],
                 "icon_name": s["icon_name"],
-                "actions": screen_map.get(s["unique_id"], []),
+                "actionIds": screen_map[s["unique_id"]]["actions"] if s["unique_id"] in screen_map else [],
+                "columnIds": [col["column_id"] for col in column_map.get(s["unique_id"], [])],
+                "columnPermissions": column_map.get(s["unique_id"], []),
                 "has_permissions": s["unique_id"] in screen_map,
             }
             for s in screens_qs
