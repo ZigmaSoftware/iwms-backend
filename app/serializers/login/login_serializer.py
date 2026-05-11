@@ -4,11 +4,11 @@ from django.db.models import Q
 
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
-from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
 from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.auth_user import User
 
 from app.models.superadmin_masters.project import Project
+from app.utils.permission_response import resolve_permission_payload
 
 
 class LoginSerializer(serializers.Serializer):
@@ -53,6 +53,21 @@ class LoginSerializer(serializers.Serializer):
 
         return permissions
 
+    def _resolve_permission_payload(
+        self,
+        *,
+        company_unique_id=None,
+        usertype_unique_id=None,
+        staffusertype_unique_id=None,
+        include_all=False
+    ):
+        return resolve_permission_payload(
+            company_unique_id=company_unique_id,
+            usertype_unique_id=usertype_unique_id,
+            staffusertype_unique_id=staffusertype_unique_id,
+            include_all=include_all,
+        )
+
     def _resolve_permissions(
         self,
         *,
@@ -61,32 +76,13 @@ class LoginSerializer(serializers.Serializer):
         staffusertype_unique_id=None,
         include_all=False
     ):
-        queryset = CompanyUserScreenPermission.objects.filter(
-            is_active=True,
-            is_deleted=False
-        ).select_related(
-            "mainscreen_id",
-            "userscreen_id",
-            "userscreenaction_id",
+        payload = self._resolve_permission_payload(
+            company_unique_id=company_unique_id,
+            usertype_unique_id=usertype_unique_id,
+            staffusertype_unique_id=staffusertype_unique_id,
+            include_all=include_all,
         )
-
-        if include_all:
-            return self._format_permissions(queryset)
-
-        if not company_unique_id or not usertype_unique_id:
-            return {}
-
-        filters = {
-            "company_id_id": company_unique_id,
-            "usertype_id_id": usertype_unique_id,
-        }
-
-        if staffusertype_unique_id:
-            filters["staffusertype_id_id"] = staffusertype_unique_id
-        else:
-            filters["staffusertype_id__isnull"] = True
-
-        return self._format_permissions(queryset.filter(**filters))
+        return payload["permissions"]
 
     def _apply_role_defaults(self, permissions, role_name):
         if not role_name:
@@ -153,11 +149,13 @@ class LoginSerializer(serializers.Serializer):
 
         projects = list(projects_queryset)
 
-        permissions = self._resolve_permissions(
+        permission_payload = self._resolve_permission_payload(
             company_unique_id=company.unique_id,
             usertype_unique_id=user_type.unique_id,
             staffusertype_unique_id=staff_usertype.unique_id,
         )
+        permissions = permission_payload["permissions"]
+        permission_details = permission_payload["permission_details"]
 
         if not permissions:
             permissions = self._apply_role_defaults(permissions, staff_usertype.name)
@@ -169,6 +167,7 @@ class LoginSerializer(serializers.Serializer):
         return {
             "user": login_user,
             "permissions": permissions,
+            "permission_details": permission_details,
             "user_type": "staff",
             "staffusertype_id": staff_usertype.unique_id,
             "company_unique_id": company.unique_id,
@@ -189,15 +188,17 @@ class LoginSerializer(serializers.Serializer):
         if not company:
             raise serializers.ValidationError("Customer record has no company assigned")
 
-        permissions = self._resolve_permissions(
+        permission_payload = self._resolve_permission_payload(
             company_unique_id=company.unique_id,
             usertype_unique_id=user_type.unique_id,
             staffusertype_unique_id=None,
         )
+        permissions = permission_payload["permissions"]
 
         return {
             "user": login_user,
             "permissions": permissions,
+            "permission_details": permission_payload["permission_details"],
             "user_type": "customer",
             "staffusertype_id": None,
             "company_unique_id": company.unique_id,
@@ -205,7 +206,8 @@ class LoginSerializer(serializers.Serializer):
         }
 
     def _build_platform_payload(self, user):
-        permissions = self._resolve_permissions(include_all=True)
+        permission_payload = self._resolve_permission_payload(include_all=True)
+        permissions = permission_payload["permissions"]
 
         permissions = self._apply_role_defaults(permissions, "superadmin")
         
@@ -214,6 +216,7 @@ class LoginSerializer(serializers.Serializer):
         return {
             "user": user,
             "permissions": permissions,
+            "permission_details": permission_payload["permission_details"],
             "user_type": "platform",
             "staffusertype_id": getattr(getattr(user, "staffusertype_id", None), "unique_id", None),
             "company_unique_id": getattr(getattr(user, "company_id", None), "unique_id", None),

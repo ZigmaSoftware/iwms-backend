@@ -63,6 +63,7 @@ from .screen_managements.mainscreentype import MainScreenType
 from .screen_managements.mainscreen import MainScreen
 from .screen_managements.userscreen import UserScreen
 from .screen_managements.userscreenaction import UserScreenAction
+from .screen_managements.userscreencolumn import UserScreenColumn
 from .screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
 from .screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
 
@@ -181,6 +182,7 @@ __all__ = [
     "MainScreen",
     "UserScreen",
     "UserScreenAction",
+    "UserScreenColumn",
     "CompanyUserScreenPermission",
     "CompanyUserScreenColumnPermission",
 

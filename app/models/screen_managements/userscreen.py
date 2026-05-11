@@ -1,8 +1,7 @@
 from django.db import models
-from django.apps import apps
-
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
+from app.utils.model_mapper import resolve_userscreen_model
 
 from .mainscreen import MainScreen
 
@@ -104,16 +103,4 @@ class UserScreen(BaseMaster):
 
     @property
     def django_model_class(self):
-
-        if not self.model_app_label or not self.model_name:
-            return None
-
-        try:
-
-            return apps.get_model(
-                self.model_app_label,
-                self.model_name
-            )
-
-        except LookupError:
-            return None
+        return resolve_userscreen_model(self)

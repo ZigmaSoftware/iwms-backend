@@ -39,6 +39,7 @@ class LoginViewSet(ViewSet):
 
         user = serializer.validated_data["user"]
         permissions = serializer.validated_data["permissions"]
+        permission_details = serializer.validated_data.get("permission_details", {})
         user_type = serializer.validated_data.get("user_type", "staff")
         profile_object = serializer.validated_data.get("profile_object")
         company_unique_id = serializer.validated_data.get("company_unique_id")
@@ -157,6 +158,7 @@ class LoginViewSet(ViewSet):
         access["role"] = role
         access["email"] = email
         access["permissions"] = permissions
+        access["permission_details"] = permission_details
         access["emp_id"] = emp_id
         access["employee_id"] = employee_id
         access["company_unique_id"] = company_unique_id
@@ -192,6 +194,7 @@ class LoginViewSet(ViewSet):
                 "name": name,
                 "role": role,
                 "permissions": permissions,
+                "permission_details": permission_details,
                 "access_token": token,
                 "token_type": "Bearer",
                 "expires_in": exp - iat,

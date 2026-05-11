@@ -1,4 +1,6 @@
 from django.core.cache import cache
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, viewsets
 from collections import defaultdict
 from app.models.screen_managements.userscreen import UserScreen
@@ -37,6 +39,11 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     ordering_fields = ["created_at", "updated_at"]
     ordering = ["-updated_at", "-created_at"]
 
+    def get_serializer_class(self):
+        if getattr(self, "action", None) == "create":
+            return CompanyUserScreenPermissionMultiScreenSerializer
+        return super().get_serializer_class()
+
     # ---------------------------------------------------------
     # Helpers
     # ---------------------------------------------------------
@@ -51,7 +58,11 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             return scoped_company, None
 
         payload = request.query_params if source == "query" else request.data
-        company_id = payload.get("company_id") or payload.get("company_unique_id")
+        company_id = (
+            payload.get("company_id")
+            or payload.get("companyId")
+            or payload.get("company_unique_id")
+        )
 
         if not company_id:
             if required:
@@ -66,6 +77,63 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             return None, Response({"error": "Invalid company"}, status=status.HTTP_400_BAD_REQUEST)
 
         return company, None
+
+    def _normalize_permission_payloads(self, payload):
+        if "permissions" not in payload:
+            return [payload]
+
+        normalized = []
+        for permission in payload.get("permissions", []):
+            normalized.append({
+                "companyId": payload.get("companyId") or payload.get("company_id"),
+                "projectId": payload.get("projectId") or payload.get("project_id"),
+                "userTypeId": (
+                    payload.get("userTypeId")
+                    or payload.get("usertypeId")
+                    or payload.get("usertype_id")
+                ),
+                "staffUserTypeId": (
+                    payload.get("staffUserTypeId")
+                    or payload.get("staffusertype_id")
+                ),
+                "mainScreenId": permission.get("mainScreenId") or permission.get("mainscreen_id"),
+                "userScreens": permission.get("userScreens") or permission.get("screens") or [],
+                "description": payload.get("description", ""),
+            })
+        return normalized
+
+    def _sync_nested_permissions(self, request, update_only=False):
+        payloads = self._normalize_permission_payloads(request.data)
+        results = []
+
+        with transaction.atomic():
+            for payload in payloads:
+                serializer = CompanyUserScreenPermissionMultiScreenSerializer(
+                    data=payload,
+                    context={"update_only": update_only},
+                )
+                serializer.is_valid(raise_exception=True)
+                results.append(serializer.save())
+
+        cache.clear()
+
+        return Response(
+            {
+                "message": "Permissions saved successfully",
+                "results": [
+                    {
+                        "created": len(result["created"]),
+                        "updated": len(result["updated"]),
+                        "deleted": len(result["deleted"]),
+                        "created_columns": len(result["created_columns"]),
+                        "updated_columns": len(result["updated_columns"]),
+                        "deleted_columns": len(result["deleted_columns"]),
+                    }
+                    for result in results
+                ],
+            },
+            status=status.HTTP_200_OK,
+        )
 
     def _sync_permissions(self, request, staffusertype_id, update_only=False):
         company, error = self._company_from_request(request, source="data", required=True)
@@ -83,6 +151,8 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             )
             serializer.is_valid(raise_exception=True)
             result = serializer.save()
+
+        cache.clear()
 
         return Response(
             {
@@ -102,13 +172,56 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     def get_queryset(self):
         company, _ = self._company_from_request(self.request, source="query", required=False)
 
-        qs = CompanyUserScreenPermission.objects.filter(is_deleted=False)
+        qs = CompanyUserScreenPermission.objects.filter(is_deleted=False).select_related(
+            "company_id",
+            "project_id",
+            "usertype_id",
+            "staffusertype_id",
+            "mainscreen_id",
+            "userscreen_id",
+            "userscreenaction_id",
+        )
 
-        # Safety: avoid returning all companies when no company scope/filter is present
         if not company:
+            if self._is_platform_super_admin():
+                return qs
             return qs.none()
 
         return qs.filter(company_id_id=company.unique_id)
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                "companyId",
+                openapi.IN_QUERY,
+                description="Company unique_id. Also accepts company_id.",
+                type=openapi.TYPE_STRING,
+            ),
+            openapi.Parameter(
+                "company_id",
+                openapi.IN_QUERY,
+                description="Company unique_id.",
+                type=openapi.TYPE_STRING,
+            ),
+        ],
+        responses={200: CompanyUserScreenPermissionSerializer(many=True)},
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        request_body=CompanyUserScreenPermissionMultiScreenSerializer,
+        responses={200: "Permissions saved successfully", 201: CompanyUserScreenPermissionSerializer},
+    )
+    def create(self, request, *args, **kwargs):
+        if "permissions" in request.data or "userScreens" in request.data or "screens" in request.data:
+            return self._sync_nested_permissions(request, update_only=False)
+
+        serializer = CompanyUserScreenPermissionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     # ---------------------------------------------------------
     # Retrieve
@@ -166,19 +279,15 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             "description",
         )
 
-        # Get column permissions for these action permissions
-        action_permission_ids = [p["unique_id"] for p in perms]
         column_perms = CompanyUserScreenColumnPermission.objects.filter(
-            companyuserscreenpermission_id__in=action_permission_ids,
+            company_id_id=company.unique_id,
+            staffusertype_id_id=staffusertype_id,
+            userscreen_id_id__in=[p["userscreen_id_id"] for p in perms],
             is_deleted=False,
         ).values(
-            "companyuserscreenpermission_id_id",
-            "userscreencolumn_id_id",
+            "userscreen_id_id",
+            "column_id_id",
             "can_view",
-            "can_edit",
-            "can_filter",
-            "can_search",
-            "can_sort",
         )
 
         # 🔥 FAST MAP BUILD
@@ -198,20 +307,10 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         # Build column permissions map
         for cp in column_perms:
-            action_perm_id = cp["companyuserscreenpermission_id_id"]
-            # Find which screen this action permission belongs to
-            for perm in perms:
-                if perm["unique_id"] == action_perm_id:
-                    screen_id = perm["userscreen_id_id"]
-                    column_map[screen_id].append({
-                        "column_id": cp["userscreencolumn_id_id"],
-                        "can_view": cp["can_view"],
-                        "can_edit": cp["can_edit"],
-                        "can_filter": cp["can_filter"],
-                        "can_search": cp["can_search"],
-                        "can_sort": cp["can_sort"],
-                    })
-                    break
+            column_map[cp["userscreen_id_id"]].append({
+                "column_id": cp["column_id_id"],
+                "can_view": cp["can_view"],
+            })
 
         # 🔥 LIGHTWEIGHT QUERY
         screens_qs = UserScreen.objects.filter(

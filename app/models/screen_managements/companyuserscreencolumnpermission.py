@@ -1,11 +1,14 @@
 from django.db import models
-from django.db.models import Q, UniqueConstraint
+from django.db.models import UniqueConstraint
 
+from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.role_assigns.userType import UserType
+from app.models.screen_managements.userscreen import UserScreen
+from app.models.screen_managements.userscreencolumn import UserScreenColumn
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-
-from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
-from app.models.screen_managements.userscreencolumn import UserScreenColumn
 
 
 def generate_companyuserscreencolumnpermission_id():
@@ -13,126 +16,102 @@ def generate_companyuserscreencolumnpermission_id():
 
 
 class CompanyUserScreenColumnPermission(BaseMaster):
-    """
-    Column-level permissions for UserScreens.
-    Links CompanyUserScreenPermission (which handles action-level permissions)
-    to specific UserScreenColumn for granular column access control.
-    """
-
     unique_id = models.CharField(
         max_length=70,
         primary_key=True,
         unique=True,
         default=generate_companyuserscreencolumnpermission_id,
-        editable=False
+        editable=False,
     )
 
-    # Link to the parent action permission
-    companyuserscreenpermission_id = models.ForeignKey(
-        CompanyUserScreenPermission,
-        on_delete=models.CASCADE,
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="userscreen_column_permissions",
+        to_field="unique_id",
+        db_column="company_id",
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="userscreen_column_permissions",
+        to_field="unique_id",
+        db_column="project_id",
+        null=True,
+        blank=True,
+    )
+    usertype_id = models.ForeignKey(
+        UserType,
+        on_delete=models.PROTECT,
+        related_name="userscreen_column_permissions",
+        to_field="unique_id",
+        db_column="usertype_id",
+        null=True,
+        blank=True,
+    )
+    staffusertype_id = models.ForeignKey(
+        StaffUserType,
+        on_delete=models.PROTECT,
+        related_name="userscreen_column_permissions",
+        to_field="unique_id",
+        db_column="staffusertype_id",
+        null=True,
+        blank=True,
+    )
+    userscreen_id = models.ForeignKey(
+        UserScreen,
+        on_delete=models.PROTECT,
         related_name="column_permissions",
         to_field="unique_id",
-        db_column="companyuserscreenpermission_id",
-        help_text="Parent action permission this column permission belongs to"
+        db_column="userscreen_id",
     )
-
-    # Link to the specific column
-    userscreencolumn_id = models.ForeignKey(
+    column_id = models.ForeignKey(
         UserScreenColumn,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="company_permissions",
         to_field="unique_id",
-        db_column="userscreencolumn_id",
-        help_text="The specific column this permission applies to"
+        db_column="column_id",
     )
 
-    # Permission flags for this column
-    can_view = models.BooleanField(
-        default=True,
-        help_text="Whether the user can view this column's data"
-    )
-
-    can_edit = models.BooleanField(
-        default=False,
-        help_text="Whether the user can edit this column's data"
-    )
-
-    can_filter = models.BooleanField(
-        default=True,
-        help_text="Whether the user can filter by this column"
-    )
-
-    can_search = models.BooleanField(
-        default=True,
-        help_text="Whether the user can search within this column"
-    )
-
-    can_sort = models.BooleanField(
-        default=True,
-        help_text="Whether the user can sort by this column"
-    )
-
-    # Ordering
-    order_no = models.IntegerField(
-        default=1,
-        help_text="Display order for this column permission"
-    )
-
-    description = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text="Optional description for this column permission"
-    )
+    can_view = models.BooleanField(default=True)
+    order_no = models.IntegerField(default=1)
+    description = models.CharField(max_length=255, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        ordering = ["order_no"]
         verbose_name = "Company User Screen Column Permission"
         verbose_name_plural = "Company User Screen Column Permissions"
-
-        # Ensure unique combination of permission + column
+        indexes = [
+            models.Index(fields=["company_id", "project_id", "userscreen_id"]),
+            models.Index(fields=["company_id", "staffusertype_id", "userscreen_id"]),
+            models.Index(fields=["userscreen_id", "column_id", "is_active", "is_deleted"]),
+        ]
         constraints = [
             UniqueConstraint(
-                fields=["companyuserscreenpermission_id", "userscreencolumn_id"],
-                condition=Q(is_deleted=False),
-                name="unique_company_screen_column_permission"
-            ),
-            models.Index(
                 fields=[
-                    "companyuserscreenpermission_id",
-                    "userscreencolumn_id",
+                    "company_id",
+                    "project_id",
+                    "usertype_id",
+                    "staffusertype_id",
+                    "userscreen_id",
+                    "column_id",
                     "is_deleted",
-                    "is_active"
                 ],
-                name="idx_company_column_perm_active"
-            ),
+                name="uq_company_project_screen_column_perm",
+            )
         ]
 
+    @property
+    def userscreencolumn_id(self):
+        return self.column_id
+
     def __str__(self):
-        return f"{self.companyuserscreenpermission_id} - {self.userscreencolumn_id.column_name}"
+        return f"{self.company_id} - {self.userscreen_id} - {self.column_id}"
 
     def delete(self, *args, **kwargs):
-        """Soft delete"""
         self.is_active = False
         self.is_deleted = True
         self.save(update_fields=["is_active", "is_deleted"])
-
-    # Helper properties
-    @property
-    def company_id(self):
-        """Get company from parent permission"""
-        return self.companyuserscreenpermission_id.company_id
-
-    @property
-    def userscreen_id(self):
-        """Get userscreen from parent permission"""
-        return self.companyuserscreenpermission_id.userscreen_id
-
-    @property
-    def userscreenaction_id(self):
-        """Get action from parent permission"""
-        return self.companyuserscreenpermission_id.userscreenaction_id</content>
-<parameter name="filePath">iwms-backend/app/models/screen_managements/companyuserscreencolumnpermission.py
