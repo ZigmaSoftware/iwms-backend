@@ -1,10 +1,12 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
+from app.utils.model_mapper import resolve_userscreen_model
+
 from .mainscreen import MainScreen
+
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-
 
 
 def generate_userscreen_id():
@@ -46,6 +48,26 @@ class UserScreen(BaseMaster):
     userscreen_name = models.CharField(max_length=50, unique=True)
     folder_name = models.CharField(max_length=50, unique=True)
     icon_name = models.CharField(max_length=50, unique=True)
+    
+    # =====================================================
+    # DYNAMIC MODEL MAPPING
+    # =====================================================
+
+    model_app_label = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Django app label. Example: hrms"
+    )
+
+    model_name = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Django model name. Example: Employee"
+    )
+
+    # =====================================================
 
     # REMOVE unique=True
     order_no = models.IntegerField()
@@ -74,3 +96,11 @@ class UserScreen(BaseMaster):
         self.is_active = False
         self.is_deleted = True
         self.save(update_fields=["is_active", "is_deleted"])
+        
+      # =====================================================
+    # OPTIONAL HELPER
+    # =====================================================
+
+    @property
+    def django_model_class(self):
+        return resolve_userscreen_model(self)

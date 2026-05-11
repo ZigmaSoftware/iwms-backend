@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../iwms-app"
+		},
+		{
+			"path": "../iwms-frontend"
+		}
+	],
+	"settings": {}
+}

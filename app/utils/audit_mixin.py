@@ -1,4 +1,5 @@
 from django.forms.models import model_to_dict
+from django.db.models.fields.files import FieldFile
 from app.utils.common_audit import CommonAudit
 from datetime import datetime, date, time
 from decimal import Decimal
@@ -49,7 +50,7 @@ class AuditViewSetMixin:
                 data[field.name] = str(value)
 
             elif isinstance(value, FieldFile):
-                data[field.name] = str(value) if value else None
+                data[field.name] = value.name or None
 
             else:
                 data[field.name] = value
