@@ -13,7 +13,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 
 
-class AlternativeStaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
+class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     """
     API Contract:
     - Create alternative staff mapping
@@ -104,6 +104,15 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
             project_id=project,
         )
 
+        new_data = self._serialize_instance(instance)
+
+        self.log_audit(
+            self.request,
+            instance=instance,
+            previous_data=None,
+            new_data=new_data
+        )
+
         self._log_audit(
             user=user,
             action=StaffTemplateAuditLog.Action.CREATE,
@@ -114,21 +123,34 @@ class AlternativeStaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
         )
 
     def perform_update(self, serializer):
-        user = self._resolve_request_user()
-        if not user:
+
+        if not self.request.user.is_authenticated:
             raise NotAuthenticated("Authentication required")
-        instance = serializer.save(
-            company_id=getattr(serializer.instance, "company_id", None) or getattr(user, "company_id", None),
-            project_id=getattr(serializer.instance, "project_id", None) or getattr(user, "project_id", None),
+
+        staff_user = self._resolve_request_user()
+
+        previous_data = self._serialize_instance(serializer.instance)
+
+        instance = serializer.save()
+
+        new_data = self._serialize_instance(instance)
+
+        self.log_audit(
+            self.request,
+            instance=instance,
+            previous_data=previous_data,
+            new_data=new_data
         )
-        self._log_audit(
-            user=user,
-            action=StaffTemplateAuditLog.Action.MODIFY,
-            entity_id=instance.unique_id,
-            remarks=instance.change_remarks,
-            company_id=instance.company_id,
-            project_id=instance.project_id,
-        )
+
+        if staff_user:
+            self._log_audit(
+                user=staff_user,
+                action=StaffTemplateAuditLog.Action.MODIFY,
+                entity_id=instance.unique_id,
+                remarks=instance.change_remarks,
+                company_id=instance.company_id,
+                project_id=instance.project_id,
+            )
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()

@@ -3,7 +3,7 @@ from app.models.common_masters.country import Country
 from app.serializers.common_masters.country_serializer import CountrySerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 
-class CountryViewSet(viewsets.ModelViewSet):
+class CountryViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
     queryset = Country.objects.filter(is_deleted=False)
     serializer_class = CountrySerializer
     lookup_field = "unique_id"

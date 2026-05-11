@@ -12,7 +12,7 @@ from app.models.superadmin_masters.project import Project
 from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class StaffcreationViewset(CompanyScopedViewSet,AuditViewSetMixin):
+class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
     queryset = Staffcreation.objects.select_related("personal_details").all()
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
@@ -108,10 +108,23 @@ class StaffcreationViewset(CompanyScopedViewSet,AuditViewSetMixin):
                         from rest_framework.exceptions import ValidationError
                         raise ValidationError({"project_id": "project_id is required"})
 
-                serializer.save(
-                    company_id=company,
-                    project_id=project,
-                )
+                # serializer.save(
+                #     company_id=company,
+                #     project_id=project,
+                # )
+                instance = serializer.save(
+                company_id=company,
+                project_id=project,
+            )
+
+            new_data = self._serialize_instance(instance)
+
+            self.log_audit(
+                self.request,
+                instance=instance,
+                previous_data=None,
+                new_data=new_data
+            )
             return Response(
                 {"status": True, "message": "Staff Created Successfully"},
                 status=status.HTTP_201_CREATED
@@ -134,10 +147,25 @@ class StaffcreationViewset(CompanyScopedViewSet,AuditViewSetMixin):
             with transaction.atomic():
                 company = getattr(instance, "company_id", None) or self._company()
                 project = getattr(instance, "project_id", None) or self._project()
-                serializer.save(
-                    company_id=company,
-                    project_id=project,
-                )
+                # serializer.save(
+                #     company_id=company,
+                #     project_id=project,
+                # )
+                previous_data = self._serialize_instance(instance)
+
+            updated_instance = serializer.save(
+                company_id=company,
+                project_id=project,
+            )
+
+            new_data = self._serialize_instance(updated_instance)
+
+            self.log_audit(
+                self.request,
+                instance=updated_instance,
+                previous_data=previous_data,
+                new_data=new_data
+            )
             return Response(
                 {"status": True, "message": "Staff Updated Successfully"},
                 status=status.HTTP_200_OK
@@ -150,6 +178,16 @@ class StaffcreationViewset(CompanyScopedViewSet,AuditViewSetMixin):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        # instance.delete()
+        previous_data = self._serialize_instance(instance)
+
+        self.log_audit(
+            self.request,
+            instance=instance,
+            previous_data=previous_data,
+            new_data=None
+        )
+
         instance.delete()
 
         return Response(

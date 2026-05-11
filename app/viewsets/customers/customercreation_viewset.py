@@ -30,6 +30,7 @@ from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 
 from app.models.customers.customercreation import CustomerCreation
+from app.utils.audit_mixin import AuditViewSetMixin
 
 PROPERTY_GROUPING = {
     "apartment": {
@@ -109,11 +110,14 @@ def get_or_create_apartment_qr(apartment_name,company_id,request):
     return obj.apartment_qr.url
 
 
-class CustomerCreationViewSet(CompanyScopedViewSet):
+class CustomerCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     permission_resource = "CustomerCreation"
     serializer_class = CustomerCreationSerializer
     lookup_field = "unique_id"
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    AUDIT_MODULE = "customers"
+    AUDIT_ENDPOINT = "customer-creation"
 
     queryset = (
         CustomerCreation.objects

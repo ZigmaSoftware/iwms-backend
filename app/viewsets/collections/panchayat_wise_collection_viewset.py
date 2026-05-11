@@ -67,14 +67,14 @@ class PanchayatWiseCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     permission_resource = "PanchayatCollection"
 
-    AUDIT_MODULE = "bp-palakkad"
+    AUDIT_MODULE = "collections"
     AUDIT_ENDPOINT = "panchayat-collection"
 
     def get_queryset(self):
         return PanchayatCollection.objects.select_related(
             "point_collection_id",
-            "point_collection_id__bin_id",                    # ✅ for bin_name
-            "point_collection_id__collection_point_id",       # ✅ for cp_name, lat, lng
+            "point_collection_id__bin_id",                  
+            "point_collection_id__collection_point_id",       
             "panchayat_id",
             "waste_type_id",
             "trip_id",
