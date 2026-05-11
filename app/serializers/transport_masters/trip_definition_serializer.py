@@ -1,6 +1,4 @@
 from rest_framework import serializers
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.transport_masters.trip_definition import TripDefinition
@@ -90,17 +88,6 @@ class TripDefinitionSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
         queryset=SubProperty.objects.all(),
         write_only=True,
     )
-    company_id = UniqueIdOrPkField(
-        slug_field="unique_id",
-        queryset=Company.objects.all(),
-        write_only=True,
-    )
-    project_id = UniqueIdOrPkField(
-        slug_field="unique_id",
-        queryset=Project.objects.all(),
-        write_only=True,
-    )
-
     # ------------------------------------------------------
     # OUTPUT FIELDS (READ-ONLY | Nested Objects)
     # ------------------------------------------------------

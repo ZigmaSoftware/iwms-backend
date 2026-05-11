@@ -8,9 +8,10 @@ from app.serializers.transport_masters.trip_definition_serializer import (
     TripDefinitionSwaggerSerializer,
 )
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class TripDefinitionViewSet(CompanyScopedViewSet):
+class TripDefinitionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     queryset = TripDefinition.objects.select_related(
         "routeplan_id",
         "staff_template_id",
@@ -22,6 +23,8 @@ class TripDefinitionViewSet(CompanyScopedViewSet):
     lookup_field = "unique_id"
     swagger_tags = ["Desktop / Operations / Trip Definition"]
     permission_resource = "TripDefinition"
+    AUDIT_MODULE = "transport-masters"
+    AUDIT_ENDPOINT = "trip-definitions"
 
     @swagger_auto_schema(request_body=TripDefinitionSwaggerSerializer)
     def create(self, request, *args, **kwargs):
