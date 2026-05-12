@@ -24,7 +24,7 @@ class PointCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     permission_resource = "PointCollection"
 
-    AUDIT_MODULE = "assets"
+    AUDIT_MODULE = "collections"
     AUDIT_ENDPOINT = "point-collection"
 
     # -------------------------------------------------
@@ -267,7 +267,25 @@ class PointCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     @transaction.atomic
     def perform_update(self, serializer):
 
-        instance = serializer.save(updated_by=self.request.user.account)
+        super().perform_update(serializer)
+
+        instance = serializer.instance
+
+
+        previous_data = self._serialize_instance(serializer.instance)
+
+        instance = serializer.save(
+            updated_by=self.request.user.account
+        )
+
+        new_data = self._serialize_instance(instance)
+
+        self.log_audit(
+            self.request,
+            instance=instance,
+            previous_data=previous_data,
+            new_data=new_data
+        )
 
         panchayat = instance.collection_point_id.panchayat_id
         ward      = instance.collection_point_id.ward_id
@@ -283,12 +301,12 @@ class PointCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if ward:
             if instance.is_collected:
                 self._sync_ward_collection(instance, ward)
-                self._sync_zone_collection(instance, ward)   # ← re-sync zone on update
+                self._sync_zone_collection(instance, ward)   
             else:
                 WardCollection.objects.filter(
                     point_collection_id=instance
                 ).update(is_deleted=True)
-                self._sync_zone_collection(instance, ward)   # ← re-sync zone on uncollect
+                self._sync_zone_collection(instance, ward)   
 
     # -------------------------------------------------
     # LIST WITH TOTALS

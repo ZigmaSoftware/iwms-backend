@@ -73,7 +73,7 @@ class WardWiseCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     permission_resource = "WardCollection"
 
-    AUDIT_MODULE = "bp-palakkad"
+    AUDIT_MODULE = "collections"
     AUDIT_ENDPOINT = "ward-collection"
 
     def get_queryset(self):

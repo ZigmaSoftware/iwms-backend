@@ -31,6 +31,7 @@ from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 
 from app.models.customers.customercreation import CustomerCreation
+from app.utils.audit_mixin import AuditViewSetMixin
 
 PROPERTY_GROUPING = {
     "apartment": {

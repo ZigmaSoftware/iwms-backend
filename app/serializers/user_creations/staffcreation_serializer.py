@@ -11,7 +11,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     # --------------------------------------------------
     # Core identifiers
     # --------------------------------------------------
-    unique_id = serializers.CharField(source="staff_unique_id", read_only=True)
+    unique_id = serializers.CharField(source="staff_unique_id")
     emp_id = serializers.CharField(read_only=True)
     staffusertype_id = serializers.PrimaryKeyRelatedField(
     queryset=StaffUserType.objects.all(),
