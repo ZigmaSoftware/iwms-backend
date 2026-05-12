@@ -282,7 +282,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         column_perms = CompanyUserScreenColumnPermission.objects.filter(
             company_id_id=company.unique_id,
             staffusertype_id_id=staffusertype_id,
-            userscreen_id_id__in=[p["userscreen_id_id"] for p in perms],
+            userscreen_id__mainscreen_id_id=mainscreen_id,
             is_deleted=False,
         ).values(
             "userscreen_id_id",

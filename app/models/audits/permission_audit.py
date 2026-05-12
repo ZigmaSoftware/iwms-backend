@@ -5,7 +5,7 @@ from app.models.user_creations.staffcreation import Staffcreation
 
 
 class PermissionAuditLog(models.Model):
-    """Track permission updates for audit trail."""
+    """Track permission updates for audit trail."""   
 
     ACTION_CHOICES = [
         ("create", "Created"),
