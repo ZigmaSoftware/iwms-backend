@@ -172,7 +172,7 @@ from app.serializers.user_creations.stafftemplate_serializer import (
 from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class StaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
+class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     """
     Staff Template API
     """
@@ -249,17 +249,6 @@ class StaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
 
     # ================= ACCOUNT RESOLVE (FIX) =================
 
-    # def _get_account(self, staff_user, request_user):
-    #     """
-    #     Convert Staff/User → Account (FK requirement)
-    #     """
-    #     if staff_user:
-    #         return Account.objects.filter(staff=staff_user).first()
-
-    #     if request_user and not request_user.is_anonymous:
-    #         return Account.objects.filter(user=request_user).first()
-
-    #     return None
 
     def _get_account(self, staff_user, request_user):
         """
@@ -278,32 +267,6 @@ class StaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
 
     # ================= CREATE =================
 
-    # def perform_create(self, serializer):
-    #     staff_user = self._resolve_request_user()
-    #     request_user = getattr(self.request, "user", None)
-
-    #     if not staff_user and (not request_user or request_user.is_anonymous):
-    #         raise NotAuthenticated("Authentication required")
-
-    #     # ✅ FIX: Convert to Account
-    #     account = self._get_account(staff_user, request_user)
-
-    #     instance = serializer.save(
-    #         created_by=account,
-    #         updated_by=account,
-    #         approved_by=serializer.validated_data.get("approved_by"),
-
-    #     )
-
-    #     if staff_user:
-    #         self._log_audit(
-    #             user=staff_user,
-    #             action=StaffTemplateAuditLog.Action.CREATE,
-    #             entity_id=instance.unique_id,
-    #             remarks=None,
-    #             company_id=instance.company_id,
-    #             project_id=instance.project_id,
-    #         )
     def perform_create(self, serializer):
         staff_user = self._resolve_request_user()
         request_user = getattr(self.request, "user", None)
@@ -320,6 +283,15 @@ class StaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
             created_by=account,
             updated_by=account,
             approved_by=serializer.validated_data.get("approved_by"),
+        )
+
+        new_data = self._serialize_instance(instance)
+
+        self.log_audit(
+            self.request,
+            instance=instance,
+            previous_data=None,
+            new_data=new_data
         )
 
         if staff_user:
@@ -343,12 +315,31 @@ class StaffTemplateViewSet(CompanyScopedViewSet,AuditViewSetMixin):
         # ✅ FIX: Convert to Account
         account = self._get_account(staff_user, request_user)
 
+        # instance = serializer.save(
+        #     updated_by=account,
+        #     approved_by=serializer.validated_data.get(
+        #         "approved_by",
+        #         serializer.instance.approved_by
+        #     ),
+        # )
+
+        previous_data = self._serialize_instance(serializer.instance)
+
         instance = serializer.save(
             updated_by=account,
             approved_by=serializer.validated_data.get(
                 "approved_by",
                 serializer.instance.approved_by
             ),
+        )
+
+        new_data = self._serialize_instance(instance)
+
+        self.log_audit(
+            self.request,
+            instance=instance,
+            previous_data=previous_data,
+            new_data=new_data
         )
 
         if staff_user:

@@ -4,6 +4,7 @@ from app.utils.common_audit import CommonAudit
 from datetime import datetime, date, time
 from decimal import Decimal
 from uuid import UUID
+from django.db.models.fields.files import FieldFile
 
 
 class AuditViewSetMixin:
@@ -11,6 +12,21 @@ class AuditViewSetMixin:
     AUDIT_MODULE = None
     AUDIT_ENDPOINT = None
 
+    def get_audit_object_id(self, instance):
+
+        possible_fields = [
+            "unique_id",
+            "staff_unique_id",
+            "id",
+            "pk",
+        ]
+
+        for field in possible_fields:
+            value = getattr(instance, field, None)
+            if value:
+                return str(value)
+
+        return None
 
     def _serialize_instance(self, instance):
         data = model_to_dict(instance)
@@ -47,7 +63,8 @@ class AuditViewSetMixin:
             module_name=self.AUDIT_MODULE,
             endpoint_name=self.AUDIT_ENDPOINT,
             method=request.method,
-            object_id=getattr(instance, "unique_id", None),
+            # object_id=getattr(instance, "unique_id", None),
+            object_id=self.get_audit_object_id(instance),
             previous_data=previous_data,
             new_data=new_data,
             createdBy=str(request.user) if request.user.is_authenticated else "SYSTEM",
