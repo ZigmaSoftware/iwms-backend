@@ -18,7 +18,7 @@ class CommonAudit(models.Model):
 
     module_name = models.CharField(max_length=150)
     endpoint_name = models.CharField(max_length=150)
-    method = models.CharField(max_length=10)  # POST, PUT, DELETE, GET
+    method = models.CharField(max_length=10)  
 
     previous_data = models.JSONField(null=True, blank=True)
     new_data = models.JSONField(null=True, blank=True)

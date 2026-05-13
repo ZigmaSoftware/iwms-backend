@@ -97,6 +97,8 @@ from ..viewsets.audits.staff_template_audit_log_viewset import StaffTemplateAudi
 from ..viewsets.audits.audit_log_viewset import AuditLogViewSet
 from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
 
+from ..viewsets.audits.common_audit_viewset import CommonAuditViewSet
+
 # Grivences
 from ..viewsets.grivences.complaint_viewset import ComplaintViewSet
 from ..viewsets.grivences.main_category_viewset import MainCategoryViewSet
@@ -241,6 +243,8 @@ router.register_group("audits", "supervisor-zone-access-audit", SupervisorZoneAc
 router.register_group("audits", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
 router.register_group("audits", "audit-log", AuditLogViewSet)
 router.register_group("audits", "login-audit", LoginAuditViewSet)
+
+router.register_group("audits", "common-audit", CommonAuditViewSet)
 
 # ============================================================
 # GROUP: WASTE BLUETOOTH
