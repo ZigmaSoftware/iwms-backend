@@ -206,10 +206,17 @@ class StaffOfficeSeeder:
 
         for staff_data in staff_list:
             hashed_password = staff_data.pop("_hashed_password", None)
-            staff, created = Staffcreation.objects.update_or_create(
-                employee_name=staff_data["employee_name"],
-                defaults=staff_data
-            )
+            staff = Staffcreation.objects.filter(
+            employee_name=staff_data["employee_name"]
+            ).first()
+
+            if staff:
+                for key, value in staff_data.items():
+                    setattr(staff, key, value)
+                created = False
+            else:
+                staff = Staffcreation.objects.create(**staff_data)
+                created = True
 
             if hashed_password and (created or not staff.password):
                 staff.password = hashed_password

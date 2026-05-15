@@ -73,6 +73,7 @@ from ..viewsets.screen_managements.mainscreen_viewset import MainScreenViewSet
 from ..viewsets.screen_managements.userscreen_viewset import UserScreenViewSet
 from ..viewsets.screen_managements.userscreenaction_viewset import UserScreenActionViewSet
 from ..viewsets.screen_managements.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
+from ..viewsets.screen_managements.companyuserscreencolumnpermission_viewset import CompanyUserScreenColumnPermissionViewSet
 from ..viewsets.screen_managements.permission_api_views import (
     CompanyPermissionsAPIView,
     PermissionAssignAPIView,
@@ -96,6 +97,8 @@ from ..viewsets.audits.supervisor_zone_access_audit_viewset import SupervisorZon
 from ..viewsets.audits.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
 from ..viewsets.audits.audit_log_viewset import AuditLogViewSet
 from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
+
+from ..viewsets.audits.common_audit_viewset import CommonAuditViewSet
 
 # Grivences
 from ..viewsets.grivences.complaint_viewset import ComplaintViewSet
@@ -170,6 +173,7 @@ router.register_group("screen-managements", "mainscreens",           MainScreenV
 router.register_group("screen-managements", "userscreens",           UserScreenViewSet)
 router.register_group("screen-managements", "userscreen-action",     UserScreenActionViewSet)
 router.register_group("screen-managements", "companywisescreenpermissions", CompanyUserScreenPermissionViewSet)
+router.register_group("screen-managements", "column-permissions", CompanyUserScreenColumnPermissionViewSet)
 
 
 # ============================================================
@@ -241,6 +245,8 @@ router.register_group("audits", "supervisor-zone-access-audit", SupervisorZoneAc
 router.register_group("audits", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
 router.register_group("audits", "audit-log", AuditLogViewSet)
 router.register_group("audits", "login-audit", LoginAuditViewSet)
+
+router.register_group("audits", "common-audit", CommonAuditViewSet)
 
 # ============================================================
 # GROUP: WASTE BLUETOOTH

@@ -51,7 +51,7 @@ class PermissionSeeder(BaseSeeder):
         # 2. ACTIONS
         # --------------------------------------------------
         actions = {}
-        for name in ["add", "view", "edit", "delete"]:
+        for name in ["add", "view", "edit", "delete","show"]:
             action, _ = UserScreenAction.objects.get_or_create(
                 action_name=name,
                 defaults={
@@ -76,6 +76,8 @@ class PermissionSeeder(BaseSeeder):
                 "cities",
                 "zones",
                 "wards",
+                "panchayat",
+                "area type"
             ],
             "waste-types": [
                 "properties",
@@ -83,6 +85,8 @@ class PermissionSeeder(BaseSeeder):
             ],
             "assets": [
                 "bins",
+                "collection point",
+                "waste type",
             ],
             "screen-managements": [
                 "mainscreentype",
@@ -112,6 +116,11 @@ class PermissionSeeder(BaseSeeder):
                 "wastecollections",
                 "feedbacks",
                 "user-charge-rules",
+            ],
+            "waste-management": [
+                "collection monitoring",
+                "panchayat base collection",
+                "ward base collection",
             ],
             "grivences": [
                 "complaints",
@@ -185,6 +194,30 @@ class PermissionSeeder(BaseSeeder):
                 screen.is_active = True
                 screen.is_deleted = False
                 screen.save(update_fields=["order_no", "is_active", "is_deleted"])
+
+        # --------------------------------------------------
+        # 4B. MAP MODELS FOR WASTE MANAGEMENT SCREENS
+        # --------------------------------------------------
+        waste_management_model_map = {
+            "collection monitoring": ("app", "PointCollection"),
+            "panchayat base collection": ("app", "PanchayatCollection"),
+            "ward base collection": ("app", "WardCollection"),
+        }
+
+        waste_management_main = mainscreens.get("waste-management")
+        if waste_management_main:
+            for userscreen in UserScreen.objects.filter(
+                mainscreen_id=waste_management_main,
+                is_deleted=False,
+            ):
+                model_info = waste_management_model_map.get(userscreen.userscreen_name)
+                if model_info:
+                    app_label, model_name = model_info
+                    if userscreen.model_app_label != app_label or userscreen.model_name != model_name:
+                        userscreen.model_app_label = app_label
+                        userscreen.model_name = model_name
+                        userscreen.save(update_fields=["model_app_label", "model_name"])
+                        self.log(f"Mapped {userscreen.userscreen_name} → {app_label}.{model_name}")
 
         # --------------------------------------------------
         # 5. ROLES
