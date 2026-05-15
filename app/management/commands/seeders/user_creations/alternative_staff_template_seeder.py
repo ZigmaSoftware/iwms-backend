@@ -72,7 +72,7 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
                 "extra_operator_id": [str(extra_operator.staff_unique_id)] if extra_operator else [],
                 "change_reason": "Temporary staff substitution",
                 "change_remarks": "Seeder-generated record for baseline validation",
-                "requested_by": driver,
+                # "requested_by": driver,
                 "approved_by": approver,
                 "approval_status": "APPROVED",
             }

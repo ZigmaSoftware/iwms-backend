@@ -73,6 +73,7 @@ from ..viewsets.screen_managements.mainscreen_viewset import MainScreenViewSet
 from ..viewsets.screen_managements.userscreen_viewset import UserScreenViewSet
 from ..viewsets.screen_managements.userscreenaction_viewset import UserScreenActionViewSet
 from ..viewsets.screen_managements.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
+from ..viewsets.screen_managements.companyuserscreencolumnpermission_viewset import CompanyUserScreenColumnPermissionViewSet
 from ..viewsets.screen_managements.permission_api_views import (
     CompanyPermissionsAPIView,
     PermissionAssignAPIView,
@@ -172,6 +173,7 @@ router.register_group("screen-managements", "mainscreens",           MainScreenV
 router.register_group("screen-managements", "userscreens",           UserScreenViewSet)
 router.register_group("screen-managements", "userscreen-action",     UserScreenActionViewSet)
 router.register_group("screen-managements", "companywisescreenpermissions", CompanyUserScreenPermissionViewSet)
+router.register_group("screen-managements", "column-permissions", CompanyUserScreenColumnPermissionViewSet)
 
 
 # ============================================================

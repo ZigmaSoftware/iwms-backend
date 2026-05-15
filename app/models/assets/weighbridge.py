@@ -2,6 +2,7 @@ from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.models.transport_masters.trip import Trip
+from app.models.transport_masters.trip_definition import TripDefinition
 from decimal import Decimal
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -42,7 +43,7 @@ class WeighbridgeCheck(BaseMaster):
     )
 
     trip_id = models.ForeignKey(
-        Trip,
+        TripDefinition,
         on_delete=models.PROTECT,
         related_name="weighbridge_checks",
         db_column="trip_id"

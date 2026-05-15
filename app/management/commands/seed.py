@@ -7,7 +7,7 @@ from app.management.commands.seeders.audits.vehicle_trip_audit import VehicleTri
 from app.management.commands.seeders.assets.bins import BinSeeder
 from app.management.commands.seeders.assets.collection_point import CollectionPointSeeder
 from app.management.commands.seeders.assets.point_collection import PointCollectionSeeder
-from app.management.commands.seeders.assets.weighbridge import WeighbridgeCheckSeeder
+# from app.management.commands.seeders.assets.weighbridge import WeighbridgeCheckSeeder
 from app.management.commands.seeders.collections import COLLECTION_SEEDERS
 from app.management.commands.seeders.common_masters import COMMON_MASTER_SEEDERS
 from app.management.commands.seeders.customers import CUSTOMER_SEEDERS
@@ -72,7 +72,7 @@ MASTER_SEEDERS = [
     BinSeeder,
     TripSeeder,
     PointCollectionSeeder,
-    WeighbridgeCheckSeeder,
+    # WeighbridgeCheckSeeder,
 ]
 
 ASSET_SEEDERS = [

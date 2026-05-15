@@ -267,9 +267,9 @@ class PointCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     @transaction.atomic
     def perform_update(self, serializer):
 
-        super().perform_update(serializer)
+        # super().perform_update(serializer)
 
-        instance = serializer.instance
+        # instance = serializer.instance
 
 
         previous_data = self._serialize_instance(serializer.instance)
