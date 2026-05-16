@@ -65,6 +65,8 @@ class WardViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     serializer_class = WardSerializer
     lookup_field = "unique_id"
 
+    permission_resource = "Ward"
+
     AUDIT_MODULE = "masters"
     AUDIT_ENDPOINT ="ward"
 
