@@ -90,6 +90,51 @@ def build_permission_details(action_queryset, column_queryset=None):
     return details
 
 
+def build_column_permissions(column_queryset):
+    grouped = {}
+    flat = []
+
+    for column_permission in column_queryset.order_by(
+        "userscreen_id__mainscreen_id__order_no",
+        "userscreen_id__order_no",
+        "order_no",
+    ):
+        userscreen = column_permission.userscreen_id
+        mainscreen = userscreen.mainscreen_id
+        column = column_permission.column_id
+
+        payload = {
+            "uniqueId": column_permission.unique_id,
+            "companyId": column_permission.company_id_id,
+            "projectId": column_permission.project_id_id,
+            "userTypeId": column_permission.usertype_id_id,
+            "staffUserTypeId": column_permission.staffusertype_id_id,
+            "mainScreenId": mainscreen.unique_id,
+            "mainScreenName": mainscreen.mainscreen_name,
+            "userScreenId": userscreen.unique_id,
+            "userScreenName": userscreen.userscreen_name,
+            "columnId": column.unique_id,
+            "fieldName": column.field_name,
+            "displayName": column.display_name,
+            "dataType": column.data_type,
+            "dbColumn": column.db_column,
+            "canView": column_permission.can_view,
+            "isRequired": column.is_required,
+            "orderNo": column_permission.order_no,
+        }
+
+        flat.append(payload)
+        grouped.setdefault(mainscreen.mainscreen_name, {}).setdefault(
+            userscreen.userscreen_name,
+            [],
+        ).append(payload)
+
+    return {
+        "grouped": grouped,
+        "flat": flat,
+    }
+
+
 def permission_querysets(
     *,
     company_unique_id=None,
@@ -137,4 +182,5 @@ def resolve_permission_payload(**filters):
     return {
         "permissions": build_action_permissions(action_queryset),
         "permission_details": build_permission_details(action_queryset, column_queryset),
+        "column_permissions": build_column_permissions(column_queryset),
     }

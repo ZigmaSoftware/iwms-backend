@@ -1,31 +1,3 @@
-# from django.db.models.signals import post_save, post_delete
-# from django.dispatch import receiver
-# from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
-
-
-# @receiver(post_save, sender=CompanyUserScreenPermission)
-# def log_permission_change(sender, instance, created, **kwargs):
-#     """Log when permissions are created or updated."""
-#     from app.models.audits.permission_audit import PermissionAuditLog
-    
-#     action = "create" if created else "update"
-#     PermissionAuditLog.objects.create(
-#         permission=instance,
-#         action=action,
-#         updated_by=instance.updated_by if hasattr(instance, "updated_by") else None
-#     )
-
-
-# @receiver(post_delete, sender=CompanyUserScreenPermission)
-# def log_permission_delete(sender, instance, **kwargs):
-#     """Log when permissions are deleted."""
-#     from app.models.audits.permission_audit import PermissionAuditLog
-    
-#     PermissionAuditLog.objects.create(
-#         permission=None,  # instance already deleted
-#         action="delete",
-#     )
-
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -33,7 +5,7 @@ from app.models.screen_managements.companyuserscreenpermission import CompanyUse
 from app.models.audits.permission_audit import PermissionAuditLog
 
 from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.superadmin_masters.company import Company  # adjust import if different
+from app.models.superadmin_masters.company import Company  
 
 
 @receiver(post_save, sender=CompanyUserScreenPermission)

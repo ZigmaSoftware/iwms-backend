@@ -138,12 +138,14 @@ class PermissionViewSet(ViewSet):
         """
         permissions = self._resolve_permissions_for_user(request.user)
         permission_details = self._resolve_permission_details_for_user(request.user)
+        column_permissions = self._resolve_column_permissions_for_user(request.user)
         
 
         return Response(
             {
                 "permissions": permissions,
                 "permission_details": permission_details,
+                "column_permissions": column_permissions,
                 "timestamp": timezone.now().isoformat(),
                 "source": "database"
             },
@@ -203,6 +205,27 @@ class PermissionViewSet(ViewSet):
             usertype_unique_id=user_type.unique_id,
             staffusertype_unique_id=staff_usertype.unique_id if staff_usertype else None,
         )["permission_details"]
+
+    def _resolve_column_permissions_for_user(self, user):
+        if getattr(user, "is_superuser", False):
+            return resolve_permission_payload(include_all=True)["column_permissions"]
+
+        staff_user = self._resolve_staff_user(user)
+        if not staff_user:
+            return {}
+
+        company = getattr(staff_user, "company_id", None)
+        user_type = getattr(staff_user, "user_type_id", None)
+        staff_usertype = getattr(staff_user, "staffusertype_id", None)
+
+        if not company or not user_type:
+            return {}
+
+        return resolve_permission_payload(
+            company_unique_id=company.unique_id,
+            usertype_unique_id=user_type.unique_id,
+            staffusertype_unique_id=staff_usertype.unique_id if staff_usertype else None,
+        )["column_permissions"]
 
     # ------------------------------------------------------------------
     # SUPERADMIN FULL PERMISSION

@@ -29,12 +29,16 @@ class CustomerCreationSeeder(BaseSeeder):
         # --------------------------------------------------
         # LOCATION HIERARCHY
         # --------------------------------------------------
-        country = Country.objects.get(name="India")
-        state = State.objects.get(name="Tamil Nadu")
-        district = District.objects.get(name="Chennai")
-        city = City.objects.get(name="Chennai City")
-        zone = Zone.objects.get(zone_name="Zone 1")
-        ward = Ward.objects.get(ward_name="Ward 1")
+        country = Country.objects.filter(name="India").first()
+        state = State.objects.filter(name="Tamil Nadu").first()
+        district = District.objects.filter(name="Chennai").first()
+        city = City.objects.filter(name="Chennai City").first()
+        zone = Zone.objects.filter(zone_name="Zone 1").first()
+        ward = Ward.objects.filter(ward_name="Ward 1").first()
+
+        if not all([country, state, district, city, zone, ward]):
+            self.log("Required location hierarchy missing.")
+            return
 
         # --------------------------------------------------
         # PROPERTY HIERARCHY
