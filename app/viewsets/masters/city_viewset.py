@@ -12,6 +12,8 @@ class CityViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     serializer_class = CitySerializer
     lookup_field = "unique_id"
 
+    permission_resource = "City"
+
     AUDIT_MODULE = "masters"
     AUDIT_ENDPOINT ="cities"
 

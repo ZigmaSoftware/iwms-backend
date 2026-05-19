@@ -2,12 +2,14 @@ import jwt
 import re
 
 from django.conf import settings
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
+from app.utils.permission_response import resolve_permission_payload
 
 
 # ============================================================
@@ -94,7 +96,9 @@ MODULE_RESOURCE_ALLOWLIST = {
         "MainScreen",
         "UserScreen",
         "UserScreenAction",
+        "CompanyUserScreenPermission",
         "companywisescreenpermissions",
+        "column-permissions",
     },
     "role-assigns": {
         "UserType",
@@ -145,6 +149,17 @@ MODULE_RESOURCE_ALLOWLIST["grievance"] = MODULE_RESOURCE_ALLOWLIST["grivences"]
 
 PROTECTED_MODULES = tuple(MODULE_RESOURCE_ALLOWLIST.keys())
 
+MODULE_PERMISSION_ALIASES = {
+    "customer-masters": "customers",
+    "process-items": "process",
+    "grievance": "grivences",
+}
+
+RESOURCE_PERMISSION_ALIASES = {
+    "companywisescreenpermissions": ("CompanyUserScreenPermission",),
+    "column-permissions": ("CompanyUserScreenPermission",),
+}
+
 
 # ============================================================
 # HELPERS
@@ -163,6 +178,22 @@ def _module_from_path(path):
             continue
         if part in PROTECTED_MODULES:
             return part
+    return None
+
+
+def _route_resource_from_path(path, module):
+    parts = _split_path(path)
+    try:
+        module_index = parts.index(module)
+    except ValueError:
+        return None
+
+    if module_index + 1 >= len(parts):
+        return None
+
+    resource = parts[module_index + 1]
+    if resource and not resource.startswith("v"):
+        return resource
     return None
 
 
@@ -216,6 +247,53 @@ def _authenticate_request(request):
     return JsonResponse({"detail": "User not found"}, status=401)
 
 
+def _permission_filters_for_user(user):
+    company = getattr(user, "company_id", None)
+    usertype = getattr(user, "user_type_id", None)
+    staffusertype = getattr(user, "staffusertype_id", None)
+
+    company_unique_id = getattr(company, "unique_id", None)
+    usertype_unique_id = getattr(usertype, "unique_id", None)
+    staffusertype_unique_id = getattr(staffusertype, "unique_id", None)
+
+    if not company_unique_id or not usertype_unique_id:
+        return None
+
+    return {
+        "company_unique_id": company_unique_id,
+        "usertype_unique_id": usertype_unique_id,
+        "staffusertype_unique_id": staffusertype_unique_id,
+    }
+
+
+def _resolve_permissions_for_request(request):
+    payload_permissions = getattr(request, "jwt_payload", {}).get("permissions")
+    if payload_permissions:
+        return payload_permissions
+
+    filters = _permission_filters_for_user(request.user)
+    if not filters:
+        return {}
+
+    user_id = getattr(request.user, "staff_unique_id", None) or getattr(
+        request.user, "unique_id", None
+    ) or getattr(request.user, "pk", None)
+    cache_key = (
+        "module-permissions:"
+        f"{user_id}:"
+        f"{filters['company_unique_id']}:"
+        f"{filters['usertype_unique_id']}:"
+        f"{filters.get('staffusertype_unique_id') or 'none'}"
+    )
+
+    permissions = cache.get(cache_key)
+    if permissions is None:
+        permissions = resolve_permission_payload(**filters)["permissions"]
+        cache.set(cache_key, permissions, 60)
+
+    return permissions
+
+
 # ============================================================
 # MIDDLEWARE
 # ============================================================
@@ -248,9 +326,6 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         if getattr(request.user, "is_superuser", False):
             return None
 
-        payload = request.jwt_payload
-        role = (payload.get("role") or "").lower()
-
         view_class = getattr(view_func, "cls", None)
         if not view_class:
             return None
@@ -260,6 +335,7 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             "permission_resource",
             view_class.__name__.replace("ViewSet", "")
         )
+        route_resource = _route_resource_from_path(request.path, module)
 
         allowed_resources = MODULE_RESOURCE_ALLOWLIST.get(module, set())
         if permission_resource not in allowed_resources:
@@ -277,10 +353,12 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         if not action:
             return JsonResponse({"detail": "Invalid HTTP method"}, status=405)
 
-        permissions = payload.get("permissions", {})
+        permissions = _resolve_permissions_for_request(request)
+        permission_module = MODULE_PERMISSION_ALIASES.get(module, module)
         allowed_actions = self._resolve_allowed_actions(
-            permissions.get(module, {}),
+            permissions.get(permission_module, {}),
             permission_resource,
+            route_resource,
         )
 
         if action not in allowed_actions:
@@ -302,25 +380,37 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return ""
         return re.sub(r"[\W_]+", "", name).lower()
 
-    def _resolve_allowed_actions(self, permissions_map, resource_name):
+    def _resolve_allowed_actions(self, permissions_map, resource_name, route_resource=None):
         if not permissions_map:
             return []
 
-        if resource_name in permissions_map:
-            return permissions_map[resource_name]
+        resource_candidates = [
+            candidate
+            for candidate in (
+                route_resource,
+                resource_name,
+                *RESOURCE_PERMISSION_ALIASES.get(resource_name, ()),
+            )
+            if candidate
+        ]
 
-        target = self._normalize_permission_key(resource_name)
-        for key, actions in permissions_map.items():
-            normalized = self._normalize_permission_key(key)
-            if normalized == target:
-                return actions
-            if normalized.endswith("s") and normalized[:-1] == target:
-                return actions
-            if target.endswith("s") and normalized == target[:-1]:
-                return actions
-            if target.endswith("y") and normalized == target[:-1] + "ies":
-                return actions
-            if normalized.endswith("y") and normalized[:-1] + "ies" == target:
-                return actions
+        for candidate in resource_candidates:
+            if candidate in permissions_map:
+                return permissions_map[candidate]
+
+        for candidate in resource_candidates:
+            target = self._normalize_permission_key(candidate)
+            for key, actions in permissions_map.items():
+                normalized = self._normalize_permission_key(key)
+                if normalized == target:
+                    return actions
+                if normalized.endswith("s") and normalized[:-1] == target:
+                    return actions
+                if target.endswith("s") and normalized == target[:-1]:
+                    return actions
+                if target.endswith("y") and normalized == target[:-1] + "ies":
+                    return actions
+                if normalized.endswith("y") and normalized[:-1] + "ies" == target:
+                    return actions
 
         return []

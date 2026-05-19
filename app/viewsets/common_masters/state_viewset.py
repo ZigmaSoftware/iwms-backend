@@ -9,6 +9,8 @@ class StateViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
     serializer_class = StateSerializer
     lookup_field = "unique_id"
 
+    permission_resource = "State"
+
     AUDIT_MODULE = "common-masters"
     AUDIT_ENDPOINT = "states"
 

@@ -56,6 +56,8 @@ class ZoneViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     serializer_class = ZoneSerializer
     lookup_field = "unique_id"
 
+    permission_resource = "Zone"
+
     AUDIT_MODULE = "masters"
     AUDIT_ENDPOINT ="zone"
 

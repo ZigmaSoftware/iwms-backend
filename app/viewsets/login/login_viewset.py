@@ -158,9 +158,9 @@ class LoginViewSet(ViewSet):
         access["name"] = name
         access["role"] = role
         access["email"] = email
-        access["permissions"] = permissions
-        access["permission_details"] = permission_details
-        access["column_permissions"] = column_permissions
+        # access["permissions"] = permissions
+        # access["permission_details"] = permission_details
+        # access["column_permissions"] = column_permissions
         access["emp_id"] = emp_id
         access["employee_id"] = employee_id
         access["company_unique_id"] = company_unique_id
