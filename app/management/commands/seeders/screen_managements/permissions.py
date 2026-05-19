@@ -336,24 +336,60 @@ class PermissionSeeder(BaseSeeder):
             # ----------------------------------------------
             # SUPERADMIN → FULL PLATFORM ACCESS
             # ----------------------------------------------
+            # if platform_type and superadmin_role:
+            #     for main in mainscreens.values():
+            #         for screen in UserScreen.objects.filter(mainscreen_id=main):
+            #             for order_no, action in enumerate(actions.values(), start=1):
+            #                 CompanyUserScreenPermission.objects.get_or_create(
+            #                     company_id=company,
+            #                     usertype_id=platform_type,
+            #                     staffusertype_id=superadmin_role,
+            #                     mainscreen_id=main,
+            #                     userscreen_id=screen,
+            #                     userscreenaction_id=action,
+            #                     defaults={
+            #                         "order_no": order_no,
+            #                         "description": f"{action.variable_name} {screen.userscreen_name}",
+            #                         "is_active": True,
+            #                         "is_deleted": False,
+            #                     },
+            #                 )
+
             if platform_type and superadmin_role:
-                for main in mainscreens.values():
-                    for screen in UserScreen.objects.filter(mainscreen_id=main):
-                        for order_no, action in enumerate(actions.values(), start=1):
-                            CompanyUserScreenPermission.objects.get_or_create(
-                                company_id=company,
-                                usertype_id=platform_type,
-                                staffusertype_id=superadmin_role,
-                                mainscreen_id=main,
-                                userscreen_id=screen,
-                                userscreenaction_id=action,
-                                defaults={
-                                    "order_no": order_no,
-                                    "description": f"{action.variable_name} {screen.userscreen_name}",
-                                    "is_active": True,
-                                    "is_deleted": False,
-                                },
-                            )
+
+                screens = UserScreen.objects.filter(
+                    is_deleted=False,
+                    is_active=True,
+                )
+
+                for screen in screens:
+
+                    columns = UserScreenColumn.objects.filter(
+                        userscreen_id=screen,
+                        is_deleted=False,
+                        is_active=True,
+                    )
+
+                    for order_no, column in enumerate(columns, start=1):
+
+                        CompanyUserScreenColumnPermission.objects.update_or_create(
+                            company_id=None,
+                            project_id=None,
+                            usertype_id=platform_type,
+                            staffusertype_id=superadmin_role,
+                            userscreen_id=screen,
+                            column_id=column,
+                            defaults={
+                                "can_view": True,
+                                "order_no": order_no,
+                                "description": (
+                                    f"{screen.userscreen_name} - "
+                                    f"{column.display_name}"
+                                ),
+                                "is_active": True,
+                                "is_deleted": False,
+                            },
+                        )
 
             # --------------------------------------------------
             # 7. COLUMN PERMISSIONS
