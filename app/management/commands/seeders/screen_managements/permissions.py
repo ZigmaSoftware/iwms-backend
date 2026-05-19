@@ -12,6 +12,11 @@ from app.models.role_assigns.userType import UserType
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.superadmin_masters.company import Company
 
+from app.models.screen_managements.userscreencolumn import UserScreenColumn
+from app.models.screen_managements.companyuserscreencolumnpermission import (
+    CompanyUserScreenColumnPermission,
+)
+
 
 # --------------------------------------------------
 # CONSTANTS
@@ -349,5 +354,93 @@ class PermissionSeeder(BaseSeeder):
                                     "is_deleted": False,
                                 },
                             )
+
+            # --------------------------------------------------
+            # 7. COLUMN PERMISSIONS
+            # --------------------------------------------------
+
+            self.log("Seeding column permissions...")
+
+            # --------------------------------------------------
+            # ADMIN → FULL COLUMN ACCESS
+            # --------------------------------------------------
+            for company in companies:
+
+                screens = UserScreen.objects.filter(
+                    is_deleted=False,
+                    is_active=True,
+                )
+
+                for screen in screens:
+
+                    columns = UserScreenColumn.objects.filter(
+                        userscreen_id=screen,
+                        is_deleted=False,
+                        is_active=True,
+                    )
+
+                    for order_no, column in enumerate(columns, start=1):
+
+                        CompanyUserScreenColumnPermission.objects.get_or_create(
+                            company_id=company,
+                            project_id=None,
+                            usertype_id=staff_type,
+                            staffusertype_id=admin_role,
+                            userscreen_id=screen,
+                            column_id=column,
+                            is_deleted=False,
+                            defaults={
+                                "can_view": True,
+                                "order_no": order_no,
+                                "description": (
+                                    f"{screen.userscreen_name} - "
+                                    f"{column.display_name}"
+                                ),
+                                "is_active": True,
+                            },
+                        )
+
+            # --------------------------------------------------
+            # SUPERADMIN → FULL COLUMN ACCESS
+            # --------------------------------------------------
+            if platform_type and superadmin_role:
+
+                for company in companies:
+
+                    screens = UserScreen.objects.filter(
+                        is_deleted=False,
+                        is_active=True,
+                    )
+
+                    for screen in screens:
+
+                        columns = UserScreenColumn.objects.filter(
+                            userscreen_id=screen,
+                            is_deleted=False,
+                            is_active=True,
+                        )
+
+                        for order_no, column in enumerate(columns, start=1):
+
+                            CompanyUserScreenColumnPermission.objects.get_or_create(
+                                company_id=company,
+                                project_id=None,
+                                usertype_id=platform_type,
+                                staffusertype_id=superadmin_role,
+                                userscreen_id=screen,
+                                column_id=column,
+                                is_deleted=False,
+                                defaults={
+                                    "can_view": True,
+                                    "order_no": order_no,
+                                    "description": (
+                                        f"{screen.userscreen_name} - "
+                                        f"{column.display_name}"
+                                    ),
+                                    "is_active": True,
+                                },
+                            )
+
+            self.log("Column permission seeding completed.")
 
         self.log("--- Permission seeding completed successfully (company-wise) ---")

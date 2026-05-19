@@ -9,6 +9,7 @@ class DistrictViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     queryset = District.objects.filter(is_deleted=False)
     serializer_class = DistrictSerializer
     lookup_field = "unique_id"
+    permission_resource = "District"
 
     AUDIT_MODULE = "masters"
     AUDIT_ENDPOINT ="districts"

@@ -50,6 +50,11 @@ class WardSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
     hierarchy_name = serializers.CharField(source = "hierarchy_id.level_name", read_only = True)
     zone_name = serializers.CharField(source = "zone_id.zone_name", read_only = True)
 
+    continent_name = serializers.CharField(source="state_id.continent_id.name", read_only=True)
+    country_name = serializers.CharField(source="state_id.country_id.name", read_only=True)
+    continent_id = serializers.CharField(source="state_id.continent_id.unique_id", read_only=True)
+    country_id = serializers.CharField(source="state_id.country_id.unique_id", read_only=True)
+
 
     area_type_name = serializers.CharField(
         source="area_type_id.name",
@@ -69,6 +74,11 @@ class WardSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
             "company_name",
             "project_id",
             "project_name",
+
+            "continent_id",
+            "continent_name",
+            "country_id",
+            "country_name",
 
             "state_id",
             "state_name",
