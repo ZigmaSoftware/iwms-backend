@@ -56,6 +56,7 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
             "hierarchy_name",
 
             "zone_name",
+            "description",
 
             "geofencing_type",
             
@@ -85,7 +86,7 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
         zone_name = attrs.get("zone_name")
 
         # -------------------------------
-        # 1️⃣ AreaType Must Be Rural
+        # 1️⃣ AreaType Must Be Urban
         # -------------------------------
         if area_type and area_type.name.lower() != "urban":
             raise serializers.ValidationError({
