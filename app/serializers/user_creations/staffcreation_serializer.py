@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.role_assigns.contractorUserType import ContractorUserType
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
@@ -11,7 +12,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     # --------------------------------------------------
     # Core identifiers
     # --------------------------------------------------
-    unique_id = serializers.CharField(source="staff_unique_id")
+    unique_id = serializers.CharField(source="staff_unique_id",read_only=True)
     emp_id = serializers.CharField(read_only=True)
     staffusertype_id = serializers.PrimaryKeyRelatedField(
     queryset=StaffUserType.objects.all(),
@@ -28,6 +29,16 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     source="staffusertype_id.name",
     read_only=True
 )
+
+    contractorusertype_id = serializers.PrimaryKeyRelatedField(
+        queryset=ContractorUserType.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    contractorusertype_name = serializers.CharField(
+        source="contractorusertype_id.name",
+        read_only=True,
+    )
 
     # --------------------------------------------------
     #  Office-level: Driving licence
@@ -176,8 +187,10 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "contact_mobile",
             "contact_email",
             "user_type_id",
-              "staffusertype_id",
+            "staffusertype_id",
             "staffusertype_name",
+            "contractorusertype_id",
+            "contractorusertype_name",
 
             "created_at",
             "updated_at",
@@ -218,6 +231,9 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         if staffusertype and staffusertype.usertype_id:
             validated_data["user_type_id"] = staffusertype.usertype_id
 
+        contractorusertype = validated_data.get("contractorusertype_id")
+        if contractorusertype and contractorusertype.usertype_id:
+            validated_data["user_type_id"] = contractorusertype.usertype_id
 
         staff = Staffcreation.objects.create(**validated_data)
 
@@ -244,6 +260,10 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         staffusertype = validated_data.get("staffusertype_id")
         if staffusertype and staffusertype.usertype_id:
             validated_data["user_type_id"] = staffusertype.usertype_id
+
+        contractorusertype = validated_data.get("contractorusertype_id")
+        if contractorusertype and contractorusertype.usertype_id:
+            validated_data["user_type_id"] = contractorusertype.usertype_id
 
         staff = super().update(instance, validated_data)
 

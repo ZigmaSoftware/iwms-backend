@@ -10,6 +10,7 @@ from app.models.screen_managements.companyuserscreenpermission import (
 )
 from app.models.role_assigns.userType import UserType
 from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.role_assigns.contractorUserType import ContractorUserType
 from app.models.superadmin_masters.company import Company
 
 from app.models.screen_managements.userscreencolumn import UserScreenColumn
@@ -103,6 +104,7 @@ class PermissionSeeder(BaseSeeder):
             "role-assigns": [
                 "user-type",
                 "staffusertypes",
+                "contractorusertypes",
             ],
             "user-creations": [
                 "users-creation",
@@ -228,11 +230,48 @@ class PermissionSeeder(BaseSeeder):
         # 5. ROLES
         # --------------------------------------------------
         staff_type = UserType.objects.get(name__iexact="staff")
+        contractor_type = UserType.objects.filter(name__iexact="contractor").first()
 
-        admin_role = StaffUserType.objects.get(name="Admin", usertype_id=staff_type)
+        admin_role = (
+            StaffUserType.objects.filter(usertype_id=staff_type, name__iexact="Admin").first()
+            or StaffUserType.objects.filter(usertype_id=staff_type, name__iexact="CompanyAdmin").first()
+            or StaffUserType.objects.filter(usertype_id=staff_type, name__iexact="company_admin").first()
+            or StaffUserType.objects.filter(usertype_id=staff_type, name__iexact="Company Admin").first()
+        )
+        if not admin_role:
+            admin_role, _ = StaffUserType.objects.get_or_create(
+                usertype_id=staff_type,
+                name="company_admin",
+                defaults={
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
         driver_role = StaffUserType.objects.get(name="Company Driver", usertype_id=staff_type)
         operator_role = StaffUserType.objects.get(name="Company Operator", usertype_id=staff_type)
         supervisor_role = StaffUserType.objects.get(name="Company Supervisor", usertype_id=staff_type)
+
+        contractor_admin_role = None
+        contractor_driver_role = None
+        contractor_operator_role = None
+        contractor_supervisor_role = None
+        if contractor_type:
+            contractor_admin_role = ContractorUserType.objects.filter(
+                usertype_id=contractor_type,
+                name="contractor_admin",
+            ).first()
+            contractor_driver_role = ContractorUserType.objects.filter(
+                usertype_id=contractor_type,
+                name="contractor_driver",
+            ).first()
+            contractor_operator_role = ContractorUserType.objects.filter(
+                usertype_id=contractor_type,
+                name="contractor_operator",
+            ).first()
+            contractor_supervisor_role = ContractorUserType.objects.filter(
+                usertype_id=contractor_type,
+                name="contractor_supervisor",
+            ).first()
 
         platform_type = UserType.objects.filter(name__iexact="platform").first()
         superadmin_role = None
@@ -276,6 +315,37 @@ class PermissionSeeder(BaseSeeder):
                                 "is_deleted": False,
                             },
                         )
+
+            # ----------------------------------------------
+            # CONTRACTOR ADMIN → FULL ACCESS
+            # ----------------------------------------------
+            if contractor_type and contractor_admin_role:
+                for main_name, main in mainscreens.items():
+                    for screen in UserScreen.objects.filter(mainscreen_id=main):
+                        if (
+                            main_name in ["common-masters", "masters"]
+                            and screen.userscreen_name in MASTER_VIEW_ONLY_SCREENS
+                        ):
+                            action_list = [actions["view"]]
+                        else:
+                            action_list = list(actions.values())
+
+                        for order_no, action in enumerate(action_list, start=1):
+                            CompanyUserScreenPermission.objects.get_or_create(
+                                company_id=company,
+                                usertype_id=contractor_type,
+                                staffusertype_id=None,
+                                contractorusertype_id=contractor_admin_role,
+                                mainscreen_id=main,
+                                userscreen_id=screen,
+                                userscreenaction_id=action,
+                                defaults={
+                                    "order_no": order_no,
+                                    "description": f"{action.variable_name} {screen.userscreen_name}",
+                                    "is_active": True,
+                                    "is_deleted": False,
+                                },
+                            )
 
             # ----------------------------------------------
             # LIMITED ROLES
@@ -333,6 +403,62 @@ class PermissionSeeder(BaseSeeder):
                                 },
                             )
 
+            contractor_limited_permissions = {}
+            if contractor_driver_role:
+                contractor_limited_permissions[contractor_driver_role] = {
+                    "customers": {
+                        "customercreations": ["view"],
+                    }
+                }
+            if contractor_operator_role:
+                contractor_limited_permissions[contractor_operator_role] = {
+                    "customers": {
+                        "customercreations": ["view"],
+                    }
+                }
+            if contractor_supervisor_role:
+                contractor_limited_permissions[contractor_supervisor_role] = {
+                    "transport-masters": {
+                        "trip-definition": ["add", "view", "edit"],
+                    }
+                }
+
+            for role, modules in contractor_limited_permissions.items():
+                for module_name, screens in modules.items():
+                    main = mainscreens.get(module_name)
+                    if not main:
+                        continue
+
+                    for screen_name, action_names in screens.items():
+                        screen = UserScreen.objects.filter(
+                            mainscreen_id=main,
+                            userscreen_name=screen_name,
+                        ).first()
+
+                        if not screen:
+                            continue
+
+                        for order_no, action_name in enumerate(action_names, start=1):
+                            action = actions.get(action_name)
+                            if not action:
+                                continue
+
+                            CompanyUserScreenPermission.objects.get_or_create(
+                                company_id=company,
+                                usertype_id=contractor_type,
+                                staffusertype_id=None,
+                                contractorusertype_id=role,
+                                mainscreen_id=main,
+                                userscreen_id=screen,
+                                userscreenaction_id=action,
+                                defaults={
+                                    "order_no": order_no,
+                                    "description": f"{action.variable_name} {screen.userscreen_name}",
+                                    "is_active": True,
+                                    "is_deleted": False,
+                                },
+                            )
+
             # ----------------------------------------------
             # SUPERADMIN → FULL PLATFORM ACCESS
             # ----------------------------------------------
@@ -373,10 +499,11 @@ class PermissionSeeder(BaseSeeder):
                     for order_no, column in enumerate(columns, start=1):
 
                         CompanyUserScreenColumnPermission.objects.update_or_create(
-                            company_id=None,
+                            company_id=company,
                             project_id=None,
                             usertype_id=platform_type,
                             staffusertype_id=superadmin_role,
+                            contractorusertype_id=None,
                             userscreen_id=screen,
                             column_id=column,
                             defaults={
@@ -435,6 +562,44 @@ class PermissionSeeder(BaseSeeder):
                                 "is_active": True,
                             },
                         )
+
+            # --------------------------------------------------
+            # CONTRACTOR ADMIN → FULL COLUMN ACCESS
+            # --------------------------------------------------
+            if contractor_type and contractor_admin_role:
+                for company in companies:
+                    screens = UserScreen.objects.filter(
+                        is_deleted=False,
+                        is_active=True,
+                    )
+
+                    for screen in screens:
+                        columns = UserScreenColumn.objects.filter(
+                            userscreen_id=screen,
+                            is_deleted=False,
+                            is_active=True,
+                        )
+
+                        for order_no, column in enumerate(columns, start=1):
+                            CompanyUserScreenColumnPermission.objects.get_or_create(
+                                company_id=company,
+                                project_id=None,
+                                usertype_id=contractor_type,
+                                staffusertype_id=None,
+                                contractorusertype_id=contractor_admin_role,
+                                userscreen_id=screen,
+                                column_id=column,
+                                is_deleted=False,
+                                defaults={
+                                    "can_view": True,
+                                    "order_no": order_no,
+                                    "description": (
+                                        f"{screen.userscreen_name} - "
+                                        f"{column.display_name}"
+                                    ),
+                                    "is_active": True,
+                                },
+                            )
 
             # --------------------------------------------------
             # SUPERADMIN → FULL COLUMN ACCESS
