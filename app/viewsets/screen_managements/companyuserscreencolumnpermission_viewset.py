@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 
+from app.models.role_assigns.contractorUserType import ContractorUserType
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
 from app.models.screen_managements.companyuserscreencolumnpermission import (
@@ -55,6 +56,7 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
             "project_id",
             "usertype_id",
             "staffusertype_id",
+            "contractorusertype_id",
             "userscreen_id",
             "column_id",
         )
@@ -66,6 +68,13 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
         staffusertype_id = self.request.query_params.get("staffusertype_id")
         if staffusertype_id:
             qs = qs.filter(staffusertype_id_id=staffusertype_id)
+
+        contractorusertype_id = (
+            self.request.query_params.get("contractorusertype_id")
+            or self.request.query_params.get("contractorUserTypeId")
+        )
+        if contractorusertype_id:
+            qs = qs.filter(contractorusertype_id_id=contractorusertype_id)
 
         return qs
 
@@ -133,6 +142,13 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
                 unique_id=staffusertype_id_str
             ).first()
 
+        contractorusertype = None
+        contractorusertype_id_str = vd.get("contractorusertype_id") or ""
+        if contractorusertype_id_str:
+            contractorusertype = ContractorUserType.objects.filter(
+                unique_id=contractorusertype_id_str
+            ).first()
+
         usertype = None
         usertype_id_str = vd.get("usertype_id") or ""
         if usertype_id_str:
@@ -146,6 +162,7 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
                 company_id=company,
                 project_id=project,
                 staffusertype_id=staffusertype,
+                contractorusertype_id=contractorusertype,
                 usertype_id=usertype,
                 userscreen_id=userscreen,
                 column_id=column,

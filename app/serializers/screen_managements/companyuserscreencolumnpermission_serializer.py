@@ -62,6 +62,8 @@ class UserScreenColumnPermissionWriteSerializer(serializers.Serializer):
     userscreen_id = serializers.CharField()
     column_id = serializers.CharField()
     staffusertype_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    contractorusertype_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    contractorUserTypeId = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     usertype_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     is_active = serializers.BooleanField(default=True)
     order_no = serializers.IntegerField(default=1, required=False)
@@ -78,6 +80,11 @@ class UserScreenColumnPermissionWriteSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
+        data["contractorusertype_id"] = (
+            data.get("contractorusertype_id")
+            or data.get("contractorUserTypeId")
+            or ""
+        ).strip() or None
         userscreen_id = data.get("userscreen_id")
         column_id = data.get("column_id")
         if userscreen_id and column_id:

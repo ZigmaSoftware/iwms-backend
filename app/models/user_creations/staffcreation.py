@@ -4,6 +4,7 @@ from app.utils.base_models import Account, BaseMaster
 from app.utils.comfun import generate_unique_id
 from ..role_assigns.userType import UserType
 from ..role_assigns.staffUserType import StaffUserType
+from ..role_assigns.contractorUserType import ContractorUserType
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone
@@ -107,6 +108,15 @@ class StaffcreationOfficeDetails(BaseMaster):
         null=True,
         blank=True,
         db_column="staffusertype_id",
+        related_name="staff_users"
+    )
+
+    contractorusertype_id = models.ForeignKey(
+        ContractorUserType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="contractorusertype_id",
         related_name="staff_users"
     )
 

@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 
+from app.models.role_assigns.contractorUserType import ContractorUserType
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
 from app.models.screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
 from app.models.superadmin_masters.company import Company
@@ -96,11 +97,52 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     payload.get("staffUserTypeId")
                     or payload.get("staffusertype_id")
                 ),
+                "contractorUserTypeId": (
+                    payload.get("contractorUserTypeId")
+                    or payload.get("contractorusertype_id")
+                ),
                 "mainScreenId": permission.get("mainScreenId") or permission.get("mainscreen_id"),
                 "userScreens": permission.get("userScreens") or permission.get("screens") or [],
                 "description": payload.get("description", ""),
             })
         return normalized
+
+    def _role_from_request(self, request, *, default_staffusertype_id=None, default_contractorusertype_id=None):
+        permission_for = (request.query_params.get("permission_for") or request.data.get("permission_for") or "").lower()
+        contractorusertype_id = (
+            default_contractorusertype_id
+            or request.query_params.get("contractorusertype_id")
+            or request.query_params.get("contractorUserTypeId")
+            or request.data.get("contractorusertype_id")
+            or request.data.get("contractorUserTypeId")
+        )
+        staffusertype_id = (
+            default_staffusertype_id
+            or request.query_params.get("staffusertype_id")
+            or request.query_params.get("staffUserTypeId")
+            or request.data.get("staffusertype_id")
+            or request.data.get("staffUserTypeId")
+        )
+
+        if not contractorusertype_id and staffusertype_id:
+            if str(staffusertype_id).startswith("CNTUSRTYPE-") or ContractorUserType.objects.filter(
+                unique_id=staffusertype_id,
+                is_deleted=False,
+            ).exists():
+                contractorusertype_id = staffusertype_id
+                staffusertype_id = None
+
+        if permission_for == "contractor" or contractorusertype_id:
+            return "contractor", contractorusertype_id
+        return "staff", staffusertype_id
+
+    def _role_filter_kwargs(self, permission_for, role_id):
+        if permission_for == "contractor":
+            return {"contractorusertype_id_id": role_id}
+        return {"staffusertype_id_id": role_id}
+
+    def _role_response_key(self, permission_for):
+        return "contractorusertype_id" if permission_for == "contractor" else "staffusertype_id"
 
     def _sync_nested_permissions(self, request, update_only=False):
         payloads = self._normalize_permission_payloads(request.data)
@@ -135,14 +177,36 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             status=status.HTTP_200_OK,
         )
 
-    def _sync_permissions(self, request, staffusertype_id, update_only=False):
+    def _sync_permissions(
+        self,
+        request,
+        staffusertype_id=None,
+        update_only=False,
+        contractorusertype_id=None,
+    ):
         company, error = self._company_from_request(request, source="data", required=True)
         if error:
             return error
 
+        permission_for, role_id = self._role_from_request(
+            request,
+            default_staffusertype_id=staffusertype_id,
+            default_contractorusertype_id=contractorusertype_id,
+        )
+        if not role_id:
+            return Response(
+                {"error": f"{self._role_response_key(permission_for)} is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         payload = request.data.copy()
         payload["company_id"] = company.unique_id
-        payload["staffusertype_id"] = staffusertype_id
+        if permission_for == "contractor":
+            payload["contractorusertype_id"] = role_id
+            payload["staffusertype_id"] = None
+        else:
+            payload["staffusertype_id"] = role_id
+            payload["contractorusertype_id"] = None
 
         with transaction.atomic():
             serializer = CompanyUserScreenPermissionMultiScreenSerializer(
@@ -177,6 +241,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             "project_id",
             "usertype_id",
             "staffusertype_id",
+            "contractorusertype_id",
             "mainscreen_id",
             "userscreen_id",
             "userscreenaction_id",
@@ -237,40 +302,65 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     def bulk_sync_multi(self, request, staffusertype_id):
         return self._sync_permissions(request, staffusertype_id, update_only=False)
 
+    @action(detail=False, methods=["post"], url_path=r"bulk-sync-multi-contractor/(?P<contractorusertype_id>[^/.]+)")
+    def bulk_sync_multi_contractor(self, request, contractorusertype_id):
+        return self._sync_permissions(
+            request,
+            contractorusertype_id=contractorusertype_id,
+            update_only=False,
+        )
+
     @action(detail=False, methods=["post", "put"], url_path=r"update-by-staffusertype/(?P<staffusertype_id>[^/.]+)")
     def update_by_staffusertype(self, request, staffusertype_id):
         return self._sync_permissions(request, staffusertype_id, update_only=False)
+
+    @action(detail=False, methods=["post", "put"], url_path=r"update-by-contractorusertype/(?P<contractorusertype_id>[^/.]+)")
+    def update_by_contractorusertype(self, request, contractorusertype_id):
+        return self._sync_permissions(
+            request,
+            contractorusertype_id=contractorusertype_id,
+            update_only=True,
+        )
 
     # ---------------------------------------------------------
     # By Staff + Mainscreen (Shows ALL screens with their actions)
     # ---------------------------------------------------------
     @action(detail=False, methods=["get"], url_path="by-staff-format")
     def by_staff_format(self, request):
+        return self._by_user_format(request)
+
+    @action(detail=False, methods=["get"], url_path="by-user-format")
+    def by_user_format(self, request):
+        return self._by_user_format(request)
+
+    def _by_user_format(self, request):
         company, error = self._company_from_request(request, source="query", required=True)
         if error:
             return error
 
-        staffusertype_id = request.query_params.get("staffusertype_id")
+        permission_for, role_id = self._role_from_request(request)
         mainscreen_id = request.query_params.get("mainscreen_id")
 
-        if not staffusertype_id or not mainscreen_id:
+        if not role_id or not mainscreen_id:
             return Response(
-                {"error": "staffusertype_id and mainscreen_id required"},
+                {"error": f"{self._role_response_key(permission_for)} and mainscreen_id required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # 🔥 CACHE KEY
-        cache_key = f"perm_{company.unique_id}_{staffusertype_id}_{mainscreen_id}"
+        cache_key = f"perm_{company.unique_id}_{permission_for}_{role_id}_{mainscreen_id}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
 
+        role_filters = self._role_filter_kwargs(permission_for, role_id)
+
         # 🔥 OPTIMIZED QUERY (NO MODEL LOAD)
         perms = CompanyUserScreenPermission.objects.filter(
             company_id_id=company.unique_id,
-            staffusertype_id_id=staffusertype_id,
             mainscreen_id_id=mainscreen_id,
             is_deleted=False,
+            **role_filters,
         ).values(
             "unique_id",
             "userscreen_id_id",
@@ -281,9 +371,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         column_perms = CompanyUserScreenColumnPermission.objects.filter(
             company_id_id=company.unique_id,
-            staffusertype_id_id=staffusertype_id,
             userscreen_id__mainscreen_id_id=mainscreen_id,
             is_deleted=False,
+            **role_filters,
         ).values(
             "userscreen_id_id",
             "column_id_id",
@@ -340,7 +430,8 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         response_data = {
             "company_id": company.unique_id,
-            "staffusertype_id": staffusertype_id,
+            self._role_response_key(permission_for): role_id,
+            "permission_for": permission_for,
             "usertype_id": usertype_id,
             "mainscreen_id": mainscreen_id,
             "screens": screens,
@@ -357,37 +448,49 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     # ---------------------------------------------------------
     @action(detail=False, methods=["get"], url_path="all-screens-by-staff")
     def all_screens_by_staff(self, request):
+        return self._all_screens_by_user(request)
+
+    @action(detail=False, methods=["get"], url_path="all-screens-by-user")
+    def all_screens_by_user(self, request):
+        return self._all_screens_by_user(request)
+
+    def _all_screens_by_user(self, request):
         """
         Get ALL screens assigned to a staff user type across all mainscreens.
         Grouped by mainscreen for better visibility.
         
         Query params:
-        - staffusertype_id: required
+        - staffusertype_id: required for staff
+        - contractorusertype_id: required for contractor
+        - permission_for: staff|contractor (optional; inferred from contractorusertype_id)
         - company_id: optional (uses middleware scope if available)
         """
         company, error = self._company_from_request(request, source="query", required=True)
         if error:
             return error
 
-        staffusertype_id = request.query_params.get("staffusertype_id")
-        if not staffusertype_id:
+        permission_for, role_id = self._role_from_request(request)
+        if not role_id:
             return Response(
-                {"error": "staffusertype_id is required"},
+                {"error": f"{self._role_response_key(permission_for)} is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        role_filters = self._role_filter_kwargs(permission_for, role_id)
 
         # Get ALL permissions for this company + staff user type (no mainscreen filter)
         qs = CompanyUserScreenPermission.objects.filter(
             company_id_id=company.unique_id,
-            staffusertype_id_id=staffusertype_id,
             is_deleted=False,
+            **role_filters,
         ).select_related("mainscreen_id", "usertype_id")
 
         if not qs.exists():
             return Response(
                 {
                     "company_id": company.unique_id,
-                    "staffusertype_id": staffusertype_id,
+                    self._role_response_key(permission_for): role_id,
+                    "permission_for": permission_for,
                     "mainscreens": [],
                     "total_screens": 0,
                     "usertype_id": None,
@@ -436,7 +539,8 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         return Response(
             {
                 "company_id": company.unique_id,
-                "staffusertype_id": staffusertype_id,
+                self._role_response_key(permission_for): role_id,
+                "permission_for": permission_for,
                 "usertype_id": usertype_id,
                 "mainscreens": mainscreens,
                 "total_screens": total_screens,
@@ -449,6 +553,13 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     # ---------------------------------------------------------
     @action(detail=False, methods=["delete"], url_path=r"delete-by-staffusertype/(?P<staffusertype_id>[^/.]+)/?")
     def delete_by_staffusertype(self, request, staffusertype_id):
+        return self._delete_by_usertype(request, staffusertype_id=staffusertype_id)
+
+    @action(detail=False, methods=["delete"], url_path=r"delete-by-contractorusertype/(?P<contractorusertype_id>[^/.]+)/?")
+    def delete_by_contractorusertype(self, request, contractorusertype_id):
+        return self._delete_by_usertype(request, contractorusertype_id=contractorusertype_id)
+
+    def _delete_by_usertype(self, request, staffusertype_id=None, contractorusertype_id=None):
         company, error = self._company_from_request(request, source="query", required=True)
         if error:
             return error
@@ -460,22 +571,36 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        permission_for, role_id = self._role_from_request(
+            request,
+            default_staffusertype_id=staffusertype_id,
+            default_contractorusertype_id=contractorusertype_id,
+        )
+        role_filters = self._role_filter_kwargs(permission_for, role_id)
+
         qs = CompanyUserScreenPermission.objects.filter(
             company_id_id=company.unique_id,
-            staffusertype_id_id=staffusertype_id,
             mainscreen_id_id=mainscreen_id,
             is_deleted=False,
+            **role_filters,
         )
 
         deleted_count = qs.count()
         if deleted_count > 0:
             qs.update(is_deleted=True, is_active=False)
+            CompanyUserScreenColumnPermission.objects.filter(
+                company_id_id=company.unique_id,
+                userscreen_id__mainscreen_id_id=mainscreen_id,
+                is_deleted=False,
+                **role_filters,
+            ).update(is_deleted=True, is_active=False)
 
         return Response(
             {
                 "message": "Permissions deleted successfully",
                 "deleted_count": deleted_count,
-                "staffusertype_id": staffusertype_id,
+                self._role_response_key(permission_for): role_id,
+                "permission_for": permission_for,
                 "mainscreen_id": mainscreen_id,
                 "company_id": company.unique_id,
             },

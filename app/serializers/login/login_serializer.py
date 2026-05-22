@@ -37,7 +37,9 @@ class LoginSerializer(serializers.Serializer):
             return ["customer", "staff", "platform"]
         if login_type == "platform":
             return ["platform"]
-        return ["customer", "staff", "platform"]
+        if login_type == "contractor":
+            return ["contractor", "staff", "customer", "platform"]
+        return ["customer", "staff", "platform", "contractor"]
 
     def _format_permissions(self, queryset):
         permissions = {}
@@ -59,12 +61,14 @@ class LoginSerializer(serializers.Serializer):
         company_unique_id=None,
         usertype_unique_id=None,
         staffusertype_unique_id=None,
+        contractorusertype_unique_id=None,
         include_all=False
     ):
         return resolve_permission_payload(
             company_unique_id=company_unique_id,
             usertype_unique_id=usertype_unique_id,
             staffusertype_unique_id=staffusertype_unique_id,
+            contractorusertype_unique_id=contractorusertype_unique_id,
             include_all=include_all,
         )
 
@@ -74,12 +78,14 @@ class LoginSerializer(serializers.Serializer):
         company_unique_id=None,
         usertype_unique_id=None,
         staffusertype_unique_id=None,
+        contractorusertype_unique_id=None,
         include_all=False
     ):
         payload = self._resolve_permission_payload(
             company_unique_id=company_unique_id,
             usertype_unique_id=usertype_unique_id,
             staffusertype_unique_id=staffusertype_unique_id,
+            contractorusertype_unique_id=contractorusertype_unique_id,
             include_all=include_all,
         )
         return payload["permissions"]
@@ -129,12 +135,16 @@ class LoginSerializer(serializers.Serializer):
         if not user_type:
             raise serializers.ValidationError("Invalid user type")
 
-        if user_type.name.lower() != "staff":
+        allowed_roles = ["staff", "contractor"]
+
+        if user_type.name.lower() not in allowed_roles:
             raise serializers.ValidationError("Unsupported user role type")
 
-        staff_usertype = staff_record.staffusertype_id or getattr(login_user, "staffusertype_id", None)
+        staff_usertype = getattr(staff_record, "staffusertype_id", None) or getattr(login_user, "staffusertype_id", None)
+        contractor_usertype = getattr(staff_record, "contractorusertype_id", None) or getattr(login_user, "contractorusertype_id", None)
+        role_usertype = staff_usertype or contractor_usertype
 
-        if not staff_usertype:
+        if not role_usertype:
             raise serializers.ValidationError("Staff role not assigned")
 
         company = getattr(staff_record, "company_id", None) or getattr(login_user, "company_id", None)
@@ -152,13 +162,14 @@ class LoginSerializer(serializers.Serializer):
         permission_payload = self._resolve_permission_payload(
             company_unique_id=company.unique_id,
             usertype_unique_id=user_type.unique_id,
-            staffusertype_unique_id=staff_usertype.unique_id,
+            staffusertype_unique_id=staff_usertype.unique_id if staff_usertype else None,
+            contractorusertype_unique_id=contractor_usertype.unique_id if contractor_usertype else None,
         )
         permissions = permission_payload["permissions"]
         permission_details = permission_payload["permission_details"]
 
         if not permissions:
-            permissions = self._apply_role_defaults(permissions, staff_usertype.name)
+            permissions = self._apply_role_defaults(permissions, role_usertype.name)
         
 
         # permissions = self._apply_role_defaults(permissions, staff_usertype.name)
@@ -169,8 +180,9 @@ class LoginSerializer(serializers.Serializer):
             "permissions": permissions,
             "permission_details": permission_details,
             "column_permissions": permission_payload["column_permissions"],
-            "user_type": "staff",
-            "staffusertype_id": staff_usertype.unique_id,
+            "user_type": "contractor" if contractor_usertype else "staff",
+            "staffusertype_id": staff_usertype.unique_id if staff_usertype else None,
+            "contractorusertype_id": contractor_usertype.unique_id if contractor_usertype else None,
             "company_unique_id": company.unique_id,
             "projects": projects,        
             "profile_object": staff_record,
