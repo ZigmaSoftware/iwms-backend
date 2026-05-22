@@ -373,7 +373,7 @@ class PermissionSeeder(BaseSeeder):
                     for order_no, column in enumerate(columns, start=1):
 
                         CompanyUserScreenColumnPermission.objects.update_or_create(
-                            company_id=None,
+                            company_id=company,
                             project_id=None,
                             usertype_id=platform_type,
                             staffusertype_id=superadmin_role,

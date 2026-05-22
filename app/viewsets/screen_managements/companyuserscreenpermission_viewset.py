@@ -239,7 +239,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
     @action(detail=False, methods=["post", "put"], url_path=r"update-by-staffusertype/(?P<staffusertype_id>[^/.]+)")
     def update_by_staffusertype(self, request, staffusertype_id):
-        return self._sync_permissions(request, staffusertype_id, update_only=True)
+        return self._sync_permissions(request, staffusertype_id, update_only=False)
 
     # ---------------------------------------------------------
     # By Staff + Mainscreen (Shows ALL screens with their actions)
