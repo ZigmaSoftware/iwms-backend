@@ -120,6 +120,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 
+from app.models.customers.customercreation import CustomerCreation
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
 from app.utils.permission_response import resolve_permission_payload
@@ -136,16 +137,18 @@ class PermissionViewSet(ViewSet):
         GET /api/v1/my-permissions/
         Returns latest permissions for current user.
         """
-        permissions = self._resolve_permissions_for_user(request.user)
-        permission_details = self._resolve_permission_details_for_user(request.user)
-        column_permissions = self._resolve_column_permissions_for_user(request.user)
-        
+        payload = self._resolve_permission_payload_for_user(request.user)
 
         return Response(
             {
-                "permissions": permissions,
-                "permission_details": permission_details,
-                "column_permissions": column_permissions,
+                "permissions": payload.get("permissions", {}),
+                "permission_details": payload.get("permission_details", {}),
+                "column_permissions": payload.get("column_permissions", {}),
+                "module_access": payload.get("module_access", []),
+                "app_surfaces": payload.get("app_surfaces", []),
+                "landing": payload.get("landing"),
+                "permission_version": payload.get("permission_version"),
+                "generated_at": payload.get("generated_at"),
                 "timestamp": timezone.now().isoformat(),
                 "source": "database"
             },
@@ -155,6 +158,54 @@ class PermissionViewSet(ViewSet):
     # ------------------------------------------------------------------
     # CORE LOGIC
     # ------------------------------------------------------------------
+
+    def _resolve_permission_payload_for_user(self, user):
+        if getattr(user, "is_superuser", False):
+            return resolve_permission_payload(
+                include_all=True,
+                role_name="superadmin",
+                user_type="platform",
+            )
+
+        staff_user = self._resolve_staff_user(user)
+        if staff_user:
+            company = getattr(staff_user, "company_id", None)
+            user_type = getattr(staff_user, "user_type_id", None)
+            staff_usertype = getattr(staff_user, "staffusertype_id", None)
+            contractor_usertype = getattr(staff_user, "contractorusertype_id", None)
+
+            if not company or not user_type:
+                return {}
+
+            role_name = (
+                getattr(staff_usertype, "name", None)
+                or getattr(contractor_usertype, "name", None)
+                or getattr(user_type, "name", None)
+            )
+            return resolve_permission_payload(
+                company_unique_id=company.unique_id,
+                usertype_unique_id=user_type.unique_id,
+                staffusertype_unique_id=staff_usertype.unique_id if staff_usertype else None,
+                contractorusertype_unique_id=contractor_usertype.unique_id if contractor_usertype else None,
+                role_name=role_name,
+                user_type=getattr(user_type, "name", None),
+            )
+
+        customer_user = self._resolve_customer_user(user)
+        if customer_user:
+            company = getattr(customer_user, "company_id", None)
+            user_type = getattr(customer_user, "user_type_id", None)
+            if not company or not user_type:
+                return {}
+
+            return resolve_permission_payload(
+                company_unique_id=company.unique_id,
+                usertype_unique_id=user_type.unique_id,
+                role_name="customer",
+                user_type=getattr(user_type, "name", None),
+            )
+
+        return {}
 
     def _resolve_permissions_for_user(self, user):
         """
@@ -283,6 +334,9 @@ class PermissionViewSet(ViewSet):
         staff = getattr(user, "staff", None)
         if staff:
             return staff
+        staff = getattr(user, "staff_id", None)
+        if staff:
+            return staff
 
         # Case 3: try lookup using unique_id (from JWT)
         user_unique_id = None
@@ -299,6 +353,23 @@ class PermissionViewSet(ViewSet):
                 ).first()
             except Exception:
                 return None
+
+        return None
+
+    def _resolve_customer_user(self, user):
+        if isinstance(user, CustomerCreation):
+            return user
+
+        customer = getattr(user, "customer", None)
+        if customer:
+            return customer
+        customer = getattr(user, "customer_id", None)
+        if customer:
+            return customer
+
+        user_unique_id = getattr(user, "unique_id", None)
+        if user_unique_id:
+            return CustomerCreation.objects.filter(unique_id=user_unique_id).first()
 
         return None
 
