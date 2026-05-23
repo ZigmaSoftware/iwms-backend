@@ -87,7 +87,6 @@ MODULE_RESOURCE_ALLOWLIST = {
         "SubProperty",
     },
     "assets": {
-        "Bin",
         "CollectionPoint",
         "WasteType"
     },
@@ -138,7 +137,6 @@ MODULE_RESOURCE_ALLOWLIST = {
     "audits": {
         "VehicleTripAudit",
         "TripExceptionLog",
-        "BinLoadLog",
         "SupervisorZoneAccessAudit",
         "StaffTemplateAuditLog",
     },

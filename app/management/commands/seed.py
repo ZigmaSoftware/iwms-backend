@@ -1,18 +1,17 @@
 ﻿from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from app.management.commands.seeders.audits.bin_load_log import BinLoadLogSeeder
 from app.management.commands.seeders.audits.trip_exception_log import TripExceptionLogSeeder
 from app.management.commands.seeders.audits.vehicle_trip_audit import VehicleTripAuditSeeder
-from app.management.commands.seeders.assets.bins import BinSeeder
 from app.management.commands.seeders.assets.collection_point import CollectionPointSeeder
-from app.management.commands.seeders.assets.point_collection import PointCollectionSeeder
 # from app.management.commands.seeders.assets.weighbridge import WeighbridgeCheckSeeder
 from app.management.commands.seeders.collections import COLLECTION_SEEDERS
 from app.management.commands.seeders.common_masters import COMMON_MASTER_SEEDERS
 from app.management.commands.seeders.customers import CUSTOMER_SEEDERS
 from app.management.commands.seeders.grivences import GRIEVANCE_SEEDERS
 from app.management.commands.seeders.masters import MASTER_SEEDERS as CORE_MASTER_SEEDERS
+from app.management.commands.seeders.masters.department import DepartmentSeeder
+from app.management.commands.seeders.masters.designation import DesignationSeeder
 from app.management.commands.seeders.process.routeplan_seeder import RoutePlanSeeder
 from app.management.commands.seeders.process.zone_property_load_tracker import (
     ZonePropertyLoadTrackerSeeder,
@@ -69,9 +68,9 @@ MASTER_SEEDERS = [
     *CORE_MASTER_SEEDERS,
     WasteTypeSeeder,
     CollectionPointSeeder,
-    BinSeeder,
+    DepartmentSeeder,
+    DesignationSeeder,
     TripSeeder,
-    PointCollectionSeeder,
     # WeighbridgeCheckSeeder,
 ]
 
@@ -92,7 +91,6 @@ VEHICLE_SEEDERS = [
     VehicleCreationSeeder,
     ZonePropertyLoadTrackerSeeder,
     RoutePlanSeeder,
-    BinLoadLogSeeder,
 ]
 
 STAFF_SEEDERS = [
