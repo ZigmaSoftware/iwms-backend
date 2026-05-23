@@ -35,19 +35,4 @@ pip install -r ./requirements.txt
 pip install --upgrade setuptools
 
 
-
-
-
-
-assets -> bin.py, bin serailizer, bin viewset 
-
-
-column remove
-------------
-
-staff creation
----------------
-extracuricullar activity, designation id, for department create department master and fix the dropdown in the staff master, biometric id , for staff head, i need to provide a staff details in the drown according to the department and role, 
-
-
-
+local server:  python3 manage.py runserver 192.168.1.128:4216

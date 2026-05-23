@@ -45,6 +45,7 @@ class LoginViewSet(ViewSet):
         profile_object = serializer.validated_data.get("profile_object")
         company_unique_id = serializer.validated_data.get("company_unique_id")
         staffusertype_unique_id = serializer.validated_data.get("staffusertype_id")
+        contractorusertype_unique_id = serializer.validated_data.get("contractorusertype_id")
         projects = serializer.validated_data.get("projects", [])
 
         # -------------------------
@@ -72,15 +73,19 @@ class LoginViewSet(ViewSet):
             )
             role = "superadmin" if getattr(user, "is_superuser", False) else "platform"
             email = getattr(user, "email", None)
-        else:
-            # Staff login
+        elif user_type in ["staff", "contractor"]:
+            # Staff/contractor login
             target = profile_object or user
             name = getattr(target, "employee_name", None) or getattr(user, "username", None)
-            staff_role = getattr(target, "staffusertype_id", None) or getattr(user, "staffusertype_id", None)
-            if staff_role:
-                role = staff_role.name
+            if user_type == "contractor":
+                role_type = getattr(target, "contractorusertype_id", None) or getattr(user, "contractorusertype_id", None)
             else:
-                role = "staff"
+                role_type = getattr(target, "staffusertype_id", None) or getattr(user, "staffusertype_id", None)
+
+            if role_type:
+                role = role_type.name
+            else:
+                role = user_type
             if hasattr(target, "personal_details") and getattr(target, "personal_details"):
                 email = target.personal_details.contact_email
             emp_id = getattr(target, "staff_unique_id", None)
@@ -143,11 +148,22 @@ class LoginViewSet(ViewSet):
                     "contact_no": getattr(customer_source, "contact_no", None),
                 }
             )
-        else:
+        elif user_type == "platform":
             profile_payload.update(
                 {
                     "platform_username": getattr(user, "username", None),
                     "is_superuser": getattr(user, "is_superuser", False),
+                }
+            )
+        elif user_type == "contractor":
+            contractor_source = profile_object or user
+            profile_payload.update(
+                {
+                    "staff_unique_id": emp_id,
+                    "employee_id": employee_id,
+                    "employee_name": getattr(contractor_source, "employee_name", None) or name,
+                    "emp_id": emp_id,
+                    "contractorusertype_unique_id": contractorusertype_unique_id,
                 }
             )
 

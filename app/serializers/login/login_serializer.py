@@ -15,7 +15,7 @@ class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
     login_type = serializers.ChoiceField(
-        choices=["auto", "staff", "customer", "platform"],
+        choices=["auto", "staff", "customer", "platform", "contractor"],
         default="auto",
         required=False
     )
@@ -265,7 +265,7 @@ class LoginSerializer(serializers.Serializer):
 
         queryset = (
             Staffcreation.objects
-            .select_related("user_type_id", "staffusertype_id", "personal_details", "company_id")
+            .select_related("user_type_id", "staffusertype_id", "contractorusertype_id", "personal_details", "company_id")
             .filter(is_active=True, is_deleted=False)
             .filter(lookup_filters)
         )
@@ -288,6 +288,7 @@ class LoginSerializer(serializers.Serializer):
             .select_related(
                 "staff_id__user_type_id",
                 "staff_id__staffusertype_id",
+                "staff_id__contractorusertype_id",
                 "staff_id__company_id",
                 "customer_id__user_type_id",
                 "customer_id__company_id",
