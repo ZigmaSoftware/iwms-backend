@@ -4,7 +4,6 @@ from django.utils import timezone
 from app.management.commands.seeders.base import BaseSeeder
 
 from app.models.assets.point_collection import PointCollection
-from app.models.assets.bins import Bins
 from app.models.assets.collection_point import Collection_point
 from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.models.transport_masters.trip import Trip
@@ -27,25 +26,23 @@ class PointCollectionSeeder(BaseSeeder):
         # --------------------------------------------------
         # REQUIRED FOREIGN KEYS
         # --------------------------------------------------
-        bin_obj = Bins.objects.first()
         collection_point = Collection_point.objects.first()
         waste_type = WasteType.objects.first()
         trip = TripDefinition.objects.first()
 
-        if not all([bin_obj, collection_point, waste_type, trip]):
-            self.log("Missing dependency (Bin / CollectionPoint / WasteType / Trip). Skipping PointCollection.")
+        if not all([collection_point, waste_type, trip]):
+            self.log("Missing dependency (CollectionPoint / WasteType / Trip). Skipping PointCollection.")
             return
 
         # --------------------------------------------------
         # CREATE / UPDATE POINT COLLECTION
         # --------------------------------------------------
         pc, created = PointCollection.objects.update_or_create(
-            bin_id=bin_obj,
             trip_id=trip,
+            collection_point_id=collection_point,
             collection_date=date.today(),
             defaults={
                 "waste_type_id": waste_type,
-                "collection_point_id": collection_point,
                 "point_collection_weight": 25.50,
                 "collection_time": timezone.now().time(),
                 "company_id": company,
