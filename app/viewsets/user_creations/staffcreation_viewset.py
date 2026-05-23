@@ -1,6 +1,7 @@
 from django.db import transaction
 
 from rest_framework import viewsets, filters, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
@@ -13,7 +14,13 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 
 class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
-    queryset = Staffcreation.objects.select_related("personal_details").all()
+    queryset = Staffcreation.objects.select_related(
+        "personal_details",
+        "department_id",
+        "designation_id",
+        "staffusertype_id",
+        "contractorusertype_id",
+    ).all()
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     permission_resource = "StaffCreation"
@@ -29,16 +36,29 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         "site_name",
         "department",
         "designation",
+        "department_id__department_name",
+        "department_id__department_code",
+        "designation_id__designation_name",
+        "designation_id__designation_group",
     ]
     ordering_fields = ["staff_unique_id", "employee_name", "created_at"]
 
     def get_queryset(self):
-        queryset = Staffcreation.objects.select_related("personal_details")
+        queryset = Staffcreation.objects.select_related(
+            "personal_details",
+            "department_id",
+            "designation_id",
+            "staffusertype_id",
+            "contractorusertype_id",
+        )
 
         site_name = self.request.query_params.get("site_name", None)
         employee_name = self.request.query_params.get("employee_name", None)
         active_status = self.request.query_params.get("active_status", None)
         salary_type = self.request.query_params.get("salary_type", None)
+        department_id = self.request.query_params.get("department_id", None)
+        staffusertype_id = self.request.query_params.get("staffusertype_id", None)
+        contractorusertype_id = self.request.query_params.get("contractorusertype_id", None)
 
         if site_name:
             queryset = queryset.filter(site_name__icontains=site_name)
@@ -52,7 +72,37 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         if salary_type:
             queryset = queryset.filter(salary_type__icontains=salary_type)
 
+        if department_id:
+            queryset = queryset.filter(department_id__unique_id=department_id)
+
+        if staffusertype_id:
+            queryset = queryset.filter(staffusertype_id__unique_id=staffusertype_id)
+
+        if contractorusertype_id:
+            queryset = queryset.filter(contractorusertype_id__unique_id=contractorusertype_id)
+
         return queryset.order_by("-created_at")
+
+    @action(detail=False, methods=["get"], url_path="staff-head-options")
+    def staff_head_options(self, request):
+        queryset = self.filter_queryset(self.get_queryset()).filter(active_status=True)
+
+        current_id = request.query_params.get("exclude")
+        if current_id:
+            queryset = queryset.exclude(staff_unique_id=current_id)
+
+        data = [
+            {
+                "unique_id": staff.staff_unique_id,
+                "employee_name": staff.employee_name,
+                "department_id": getattr(staff.department_id, "unique_id", None),
+                "department_name": getattr(staff.department_id, "department_name", None),
+                "staffusertype_id": getattr(staff.staffusertype_id, "unique_id", None),
+                "contractorusertype_id": getattr(staff.contractorusertype_id, "unique_id", None),
+            }
+            for staff in queryset[:200]
+        ]
+        return Response(data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
