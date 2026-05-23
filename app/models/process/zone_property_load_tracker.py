@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils import timezone
 from app.models.masters.zone import Zone
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.waste_types.property import Property
@@ -68,21 +67,6 @@ class ZonePropertyLoadTracker(models.Model):
 
     def __str__(self):
         return f"{self.zone.name} | {self.property.property_name} | {self.current_weight_kg} kg"
-
-    def create_audit_log(self, source_type=None, event_time=None):
-        from app.models.audits.bin_load_log import BinLoadLog
-
-        return BinLoadLog.objects.create(
-            zone=self.zone,
-            vehicle=self.vehicle,
-            property=self.property,
-            sub_property=self.sub_property,
-            bin=None,
-            weight_kg=self.current_weight_kg,
-            source_type=source_type or BinLoadLog.SourceType.SENSOR,
-            event_time=event_time or timezone.now(),
-            processed=False,
-        )
 
     def trigger_trip_instance(self):
         """

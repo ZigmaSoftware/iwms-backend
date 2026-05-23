@@ -56,7 +56,6 @@ class PointCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             self.request.query_params.get("collection_point")
             or self.request.query_params.get("collection_point_id")
         )
-        bin_uid = self.request.query_params.get("bin") or self.request.query_params.get("bin_id")
 
         if company_uid:
             queryset = queryset.filter(company_id__unique_id=company_uid)
@@ -81,9 +80,6 @@ class PointCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         if collection_point_uid:
             queryset = queryset.filter(collection_point_id__unique_id=collection_point_uid)
-
-        if bin_uid:
-            queryset = queryset.filter(bin_id__unique_id=bin_uid)
 
         return queryset
 
