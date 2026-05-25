@@ -21,6 +21,13 @@ class ContractorUserTypeViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="role-choices")
     def role_choices(self, request):
+        user = request.user
+
+        choices = ContractorUserType.STAFF_ROLE_CHOICES
+
+        # 🔐 Optional: restrict roles based on logged-in user
+        if not user.is_superuser:
+            choices = [c for c in choices if c[0] != "superadmin"]
         return Response([
             {"value": key, "label": label}
             for key, label in ContractorUserType.CONTRACTOR_ROLE_CHOICES

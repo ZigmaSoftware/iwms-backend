@@ -4,6 +4,7 @@ from django.core.management.base import BaseCommand
 from app.management.commands.seeders.audits.trip_exception_log import TripExceptionLogSeeder
 from app.management.commands.seeders.audits.vehicle_trip_audit import VehicleTripAuditSeeder
 from app.management.commands.seeders.assets.collection_point import CollectionPointSeeder
+from app.management.commands.seeders.assets.bins import BinSeeder
 # from app.management.commands.seeders.assets.weighbridge import WeighbridgeCheckSeeder
 from app.management.commands.seeders.collections import COLLECTION_SEEDERS
 from app.management.commands.seeders.common_masters import COMMON_MASTER_SEEDERS
@@ -68,6 +69,7 @@ MASTER_SEEDERS = [
     *CORE_MASTER_SEEDERS,
     WasteTypeSeeder,
     CollectionPointSeeder,
+    BinSeeder,
     DepartmentSeeder,
     DesignationSeeder,
     TripSeeder,
@@ -134,7 +136,7 @@ SEED_GROUPS = {
     # "permission": PERMISSION_SEEDERS,
     "screen-managements": PERMISSION_SEEDERS,
     "customers": CUSTOMER_SEEDERS,
-    "user-creation": USER_CREATION_SEEDERS,
+    "user-creation": USER_CREATION_SEEDERS, 
     "user-creations": USER_CREATION_SEEDERS,
     "grievance": GRIEVANCE_SEEDERS,
     "staff": STAFF_SEEDERS,

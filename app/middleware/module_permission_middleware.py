@@ -87,6 +87,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "SubProperty",
     },
     "assets": {
+        "Bin",
         "CollectionPoint",
         "WasteType"
     },

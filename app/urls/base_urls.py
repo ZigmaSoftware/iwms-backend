@@ -30,6 +30,7 @@ from ..viewsets.masters.designation_viewset import DesignationViewSet
 
 from ..viewsets.assets.collection_point_viewset import CollectionPointViewSet
 from ..viewsets.assets.point_collection_viewset import PointCollectionViewSet
+from ..viewsets.assets.bins_viewset import BinsViewSet
 from ..viewsets.collections.panchayat_wise_collection_viewset import PanchayatWiseCollectionViewSet
 from ..viewsets.assets.weighbridge_viewset import WeighbridgeCheckViewSet
 from ..viewsets.collections.ward_wise_collection_viewset import WardWiseCollectionViewSet
@@ -159,6 +160,7 @@ router.register_group("waste-types", "subproperties", SubPropertyViewSet)
 # ============================================================
 # GROUP: Assets
 # ============================================================
+router.register_group("assets", "bins", BinsViewSet)
 router.register_group("assets", "collection-point", CollectionPointViewSet)
 router.register_group("assets","waste-types", WasteTypeViewSet)
 
