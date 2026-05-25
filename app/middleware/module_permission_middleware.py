@@ -89,7 +89,8 @@ MODULE_RESOURCE_ALLOWLIST = {
     "assets": {
         "Bin",
         "CollectionPoint",
-        "WasteType"
+        "WasteType",
+        "Bin"
     },
     "screen-managements": {
         "MainScreenType",
@@ -155,6 +156,7 @@ MODULE_PERMISSION_ALIASES = {
 }
 
 RESOURCE_PERMISSION_ALIASES = {
+    "Bin": ("bins",),
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),
     "column-permissions": ("CompanyUserScreenPermission",),
 }
@@ -194,6 +196,18 @@ def _route_resource_from_path(path, module):
     if resource and not resource.startswith("v"):
         return resource
     return None
+
+
+def _resource_allowlist_candidates(permission_resource, route_resource=None):
+    return {
+        candidate
+        for candidate in (
+            permission_resource,
+            route_resource,
+            *RESOURCE_PERMISSION_ALIASES.get(permission_resource, ()),
+        )
+        if candidate
+    }
 
 
 def _authenticate_request(request):
@@ -341,12 +355,26 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         route_resource = _route_resource_from_path(request.path, module)
 
         allowed_resources = MODULE_RESOURCE_ALLOWLIST.get(module, set())
-        if permission_resource not in allowed_resources:
+        allowed_resource_keys = {
+            self._normalize_permission_key(resource)
+            for resource in allowed_resources
+        }
+        resource_candidates = _resource_allowlist_candidates(
+            permission_resource,
+            route_resource,
+        )
+        resource_allowed = any(
+            self._normalize_permission_key(candidate) in allowed_resource_keys
+            for candidate in resource_candidates
+        )
+
+        if not resource_allowed:
             return JsonResponse(
                 {
                     "detail": "Permission denied",
                     "module": module,
                     "resource": permission_resource,
+                    "route_resource": route_resource,
                     "reason": "Resource not allowed",
                 },
                 status=403,

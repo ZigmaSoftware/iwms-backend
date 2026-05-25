@@ -54,12 +54,20 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "unique_id",
             "created_at",
             "updated_at",
-            "is_active",
             "is_deleted"
         ]
+        extra_kwargs = {
+            "bin_qr": {"required": False, "allow_blank": True, "allow_null": True},
+            "bin_image": {"required": False, "allow_blank": True},
+        }
 
 
     def validate(self, attrs):
+        if attrs.get("bin_qr") is None:
+            attrs["bin_qr"] = ""
+
+        if not attrs.get("bin_image"):
+            attrs["bin_image"] = "default.png"
         
         if self.instance and "bin_name" not in attrs:
             return attrs
