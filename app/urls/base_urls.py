@@ -161,7 +161,7 @@ router.register_group("waste-types", "subproperties", SubPropertyViewSet)
 # ============================================================
 # GROUP: Assets
 # ============================================================
-router.register_group("assets", "bins", BinsViewSet)
+
 router.register_group("assets", "collection-point", CollectionPointViewSet)
 router.register_group("assets","waste-types", WasteTypeViewSet)
 router.register_group("assets", "bins", BinsViewSet)
