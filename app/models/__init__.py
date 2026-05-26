@@ -139,6 +139,11 @@ from .audits.staff_template_audit_log import StaffTemplateAuditLog
 from .audits.supervisor_zone_access_audit import SupervisorZoneAccessAudit
 from .audits.trip_exception_log import TripExceptionLog
 from .audits.vehicle_trip_audit import VehicleTripAudit
+from app.utils.common_audit import CommonAudit
+from app.models.collections.ward_wise_collection import WardCollection
+from app.models.collections.zone_wise_collection import ZoneCollection
+from app.models.collections.panchayat_wise_collection import PanchayatCollection
+from app.models.assets.point_collection import PointCollection
 
 
 # ============================================================

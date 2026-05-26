@@ -73,7 +73,6 @@ class PanchayatWiseCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def get_queryset(self):
         return PanchayatCollection.objects.select_related(
             "point_collection_id",
-            "point_collection_id__bin_id",                  
             "point_collection_id__collection_point_id",       
             "panchayat_id",
             "waste_type_id",

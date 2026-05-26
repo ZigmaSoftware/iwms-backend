@@ -1,32 +1,10 @@
 """
 Shared fixtures and factories for all unit tests.
+
+Database: tests use SQLite in-memory (overridden via django_db_setup).
+This avoids MySQL FK-creation issues and makes tests fast and portable.
 """
 import pytest
-from django.db import connection
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.common_masters.continent import Continent
-from app.models.common_masters.country import Country
-from app.models.common_masters.state import State
-from app.models.masters.district import District
-from app.models.masters.city import City
-from app.models.masters.zone import Zone
-from app.models.masters.ward import Ward
-from app.models.masters.areatype import AreaType
-from app.models.role_assigns.userType import UserType
-from app.models.superadmin_masters.auth_user import User
-from app.utils.common_audit import CommonAudit
-
-
-@pytest.fixture(scope="session", autouse=True)
-def create_audit_table(django_db_setup, django_db_blocker):
-    """Create the common_audit table (not in app models, so not auto-created)."""
-    with django_db_blocker.unblock():
-        with connection.schema_editor() as schema_editor:
-            try:
-                schema_editor.create_model(CommonAudit)
-            except Exception:
-                pass  # table may already exist in the in-memory db across sessions
 
 
 # ─────────────────────────────────────────────
@@ -35,6 +13,7 @@ def create_audit_table(django_db_setup, django_db_blocker):
 
 @pytest.fixture
 def company(db):
+    from app.models.superadmin_masters.company import Company
     return Company.objects.create(name="Test Company", description="A test company")
 
 
@@ -50,11 +29,13 @@ def project(db, company):
 
 @pytest.fixture
 def continent(db):
+    from app.models.common_masters.continent import Continent
     return Continent.objects.create(name="Asia")
 
 
 @pytest.fixture
 def country(db, continent):
+    from app.models.common_masters.country import Country
     return Country.objects.create(
         name="India",
         continent_id=continent,
@@ -65,6 +46,7 @@ def country(db, continent):
 
 @pytest.fixture
 def state(db, continent, country):
+    from app.models.common_masters.state import State
     return State.objects.create(
         name="Tamil Nadu",
         label="TN",
@@ -75,6 +57,7 @@ def state(db, continent, country):
 
 @pytest.fixture
 def district(db, continent, country, state):
+    from app.models.masters.district import District
     return District.objects.create(
         name="Chennai",
         continent_id=continent,
@@ -98,7 +81,8 @@ def city(db, company, project, continent, country, state, district):
 
 
 @pytest.fixture
-def area_type(db, continent, country, state, district, city):
+def area_type(db, state, district, city):
+    from app.models.masters.areatype import AreaType
     return AreaType.objects.create(
         name="Urban",
         state_id=state,
@@ -109,6 +93,7 @@ def area_type(db, continent, country, state, district, city):
 
 @pytest.fixture
 def zone(db, state, district, city):
+    from app.models.masters.zone import Zone
     return Zone.objects.create(
         zone_name="Zone 1",
         state_id=state,
@@ -135,11 +120,13 @@ def ward(db, state, district, city, zone):
 
 @pytest.fixture
 def user_type(db):
+    from app.models.role_assigns.userType import UserType
     return UserType.objects.create(name="Staff")
 
 
 @pytest.fixture
 def superuser(db):
+    from app.models.superadmin_masters.auth_user import User
     return User.objects.create_superuser(
         username="admin_test",
         password="testpass123",
@@ -154,8 +141,9 @@ def api_client():
 
 @pytest.fixture
 def auth_client(api_client, superuser):
-    """APIClient authenticated as superuser via JWT."""
+    """APIClient authenticated as superuser via JWT with unique_id claim."""
     from rest_framework_simplejwt.tokens import AccessToken
     token = AccessToken.for_user(superuser)
+    token["unique_id"] = superuser.unique_id  # required by JWTUserAuthentication
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
     return api_client
