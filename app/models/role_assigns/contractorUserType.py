@@ -6,12 +6,11 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
 
+def generate_contractor_usertype_id():
+    return f"CNTUSRTYPE-{generate_unique_id()}"
 
-def generate_staff_usertype_id():
-    return f"STUSRTYPE-{generate_unique_id()}"
 
-
-class StaffUserType(BaseMaster):
+class ContractorUserType(BaseMaster):
     company_id = models.ForeignKey(
         Company,
         on_delete=models.PROTECT,
@@ -27,44 +26,42 @@ class StaffUserType(BaseMaster):
         db_column="project_id",
     )
 
-    STAFF_ROLE_CHOICES = [
-        ("company_admin", "Company Admin"),
-        ("company_operator", "Company Operator"),
-        ("company_driver", "Company Driver"),
-        ("company_supervisor", "Company Supervisor"),
-        # ("superadmin", "Superadmin"),
-        ("company_user", "Company User"),
-        ("company_project_admin", "Company Project Admin"),
+    CONTRACTOR_ROLE_CHOICES = [
+        ("contractor_admin", "Contractor Admin"),
+        ("contractor_supervisor", "Contractor Supervisor"),
+        ("contractor_operator", "Contractor Operator"),
+        ("contractor_worker", "Contractor Worker"),
+        ("contractor_driver", "Contractor Driver"),
     ]
 
     unique_id = models.CharField(
-        max_length=30,
+        max_length=35,
         primary_key=True,
         unique=True,
-        default=generate_staff_usertype_id,
-        editable=False
+        default=generate_contractor_usertype_id,
+        editable=False,
     )
 
     usertype_id = models.ForeignKey(
         UserType,
         on_delete=models.PROTECT,
-        related_name="staffusertypes",
-        to_field="unique_id"
+        related_name="contractorusertypes",
+        to_field="unique_id",
     )
 
     name = models.CharField(
         max_length=50,
-        choices=STAFF_ROLE_CHOICES
+        choices=CONTRACTOR_ROLE_CHOICES,
     )
 
     class Meta:
         ordering = ["name"]
-        verbose_name = "Staff User Type"
-        verbose_name_plural = "Staff User Types"
+        verbose_name = "Contractor User Type"
+        verbose_name_plural = "Contractor User Types"
         constraints = [
             models.UniqueConstraint(
                 fields=["usertype_id", "name", "is_deleted"],
-                name="unique_staff_role_per_usertype_not_deleted"
+                name="unique_contractor_role_per_usertype_not_deleted",
             )
         ]
 

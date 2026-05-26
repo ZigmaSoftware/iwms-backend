@@ -10,6 +10,7 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from django.db.models import Q, UniqueConstraint
 
+from app.models.role_assigns.contractorUserType import ContractorUserType
 
 
 def generate_companyuserscreenpermission_id():
@@ -44,6 +45,16 @@ class CompanyUserScreenPermission(BaseMaster):
         on_delete=models.PROTECT,
         to_field="unique_id",
         db_column="staffusertype_id",
+        related_name="userscreenpermissions",
+        null=True,
+        blank=True
+    )
+
+    contractorusertype_id = models.ForeignKey(
+        ContractorUserType,
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        db_column="contractorusertype_id",
         related_name="userscreenpermissions",
         null=True,
         blank=True
@@ -83,21 +94,23 @@ class CompanyUserScreenPermission(BaseMaster):
         ordering = ["order_no"]
         indexes = [
             models.Index(fields=["company_id", "staffusertype_id", "mainscreen_id"]),
+            models.Index(fields=["company_id", "contractorusertype_id", "mainscreen_id"]),
         ]
         constraints = [
-    UniqueConstraint(
-        fields=[
-            "company_id",
-            "usertype_id",
-            "staffusertype_id",
-            "mainscreen_id",
-            "userscreen_id",
-            "userscreenaction_id",
-        ],
-        condition=Q(is_deleted=False),
-        name="uq_active_company_user_screen_permission",
-    )
-]
+            UniqueConstraint(
+                fields=[
+                    "company_id",
+                    "usertype_id",
+                    "staffusertype_id",
+                    "contractorusertype_id",
+                    "mainscreen_id",
+                    "userscreen_id",
+                    "userscreenaction_id",
+                ],
+                condition=Q(is_deleted=False),
+                name="uq_active_company_user_screen_permission",
+            )
+        ]
 
 
     def delete(self, *args, **kwargs):

@@ -89,7 +89,8 @@ MODULE_RESOURCE_ALLOWLIST = {
     "assets": {
         "Bin",
         "CollectionPoint",
-        "WasteType"
+        "WasteType",
+        "Bin"
     },
     "screen-managements": {
         "MainScreenType",
@@ -138,7 +139,6 @@ MODULE_RESOURCE_ALLOWLIST = {
     "audits": {
         "VehicleTripAudit",
         "TripExceptionLog",
-        "BinLoadLog",
         "SupervisorZoneAccessAudit",
         "StaffTemplateAuditLog",
     },
@@ -156,6 +156,7 @@ MODULE_PERMISSION_ALIASES = {
 }
 
 RESOURCE_PERMISSION_ALIASES = {
+    "Bin": ("bins",),
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),
     "column-permissions": ("CompanyUserScreenPermission",),
 }
@@ -195,6 +196,18 @@ def _route_resource_from_path(path, module):
     if resource and not resource.startswith("v"):
         return resource
     return None
+
+
+def _resource_allowlist_candidates(permission_resource, route_resource=None):
+    return {
+        candidate
+        for candidate in (
+            permission_resource,
+            route_resource,
+            *RESOURCE_PERMISSION_ALIASES.get(permission_resource, ()),
+        )
+        if candidate
+    }
 
 
 def _authenticate_request(request):
@@ -251,10 +264,12 @@ def _permission_filters_for_user(user):
     company = getattr(user, "company_id", None)
     usertype = getattr(user, "user_type_id", None)
     staffusertype = getattr(user, "staffusertype_id", None)
+    contractorusertype = getattr(user, "contractorusertype_id", None)
 
     company_unique_id = getattr(company, "unique_id", None)
     usertype_unique_id = getattr(usertype, "unique_id", None)
     staffusertype_unique_id = getattr(staffusertype, "unique_id", None)
+    contractorusertype_unique_id = getattr(contractorusertype, "unique_id", None)
 
     if not company_unique_id or not usertype_unique_id:
         return None
@@ -263,6 +278,7 @@ def _permission_filters_for_user(user):
         "company_unique_id": company_unique_id,
         "usertype_unique_id": usertype_unique_id,
         "staffusertype_unique_id": staffusertype_unique_id,
+        "contractorusertype_unique_id": contractorusertype_unique_id,
     }
 
 
@@ -283,7 +299,8 @@ def _resolve_permissions_for_request(request):
         f"{user_id}:"
         f"{filters['company_unique_id']}:"
         f"{filters['usertype_unique_id']}:"
-        f"{filters.get('staffusertype_unique_id') or 'none'}"
+        f"{filters.get('staffusertype_unique_id') or 'none'}:"
+        f"{filters.get('contractorusertype_unique_id') or 'none'}"
     )
 
     permissions = cache.get(cache_key)
@@ -338,12 +355,26 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         route_resource = _route_resource_from_path(request.path, module)
 
         allowed_resources = MODULE_RESOURCE_ALLOWLIST.get(module, set())
-        if permission_resource not in allowed_resources:
+        allowed_resource_keys = {
+            self._normalize_permission_key(resource)
+            for resource in allowed_resources
+        }
+        resource_candidates = _resource_allowlist_candidates(
+            permission_resource,
+            route_resource,
+        )
+        resource_allowed = any(
+            self._normalize_permission_key(candidate) in allowed_resource_keys
+            for candidate in resource_candidates
+        )
+
+        if not resource_allowed:
             return JsonResponse(
                 {
                     "detail": "Permission denied",
                     "module": module,
                     "resource": permission_resource,
+                    "route_resource": route_resource,
                     "reason": "Resource not allowed",
                 },
                 status=403,

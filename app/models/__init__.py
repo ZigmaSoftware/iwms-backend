@@ -18,12 +18,13 @@ from .masters.district import District
 from .masters.city import City
 from .masters.zone import Zone
 from .masters.ward import Ward
+from .masters.department import Department
+from .masters.designation import Designation
 
 
 # ============================================================
 # GROUP: ASSETS
 # ============================================================
-from .assets.bin import Bin
 from .transport_masters.fuel import Fuel
 
 
@@ -138,7 +139,6 @@ from .audits.staff_template_audit_log import StaffTemplateAuditLog
 from .audits.supervisor_zone_access_audit import SupervisorZoneAccessAudit
 from .audits.trip_exception_log import TripExceptionLog
 from .audits.vehicle_trip_audit import VehicleTripAudit
-from .audits.bin_load_log import BinLoadLog
 
 
 # ============================================================
@@ -155,9 +155,10 @@ __all__ = [
     "City",
     "Zone",
     "Ward",
+    "Department",
+    "Designation",
 
     # Assets
-    "Bin",
     "Fuel",
 
     # Tenancy
@@ -230,5 +231,4 @@ __all__ = [
     "SupervisorZoneAccessAudit",
     "TripExceptionLog",
     "VehicleTripAudit",
-    "BinLoadLog",
 ]

@@ -83,6 +83,10 @@ class PermissionAssignAPIView(APIView):
                     or payload.get("usertype_id")
                 ),
                 "staffUserTypeId": payload.get("staffUserTypeId") or payload.get("staffusertype_id"),
+                "contractorUserTypeId": (
+                    payload.get("contractorUserTypeId")
+                    or payload.get("contractorusertype_id")
+                ),
                 "mainScreenId": permission.get("mainScreenId") or permission.get("mainscreen_id"),
                 "userScreens": permission.get("userScreens") or permission.get("screens") or [],
                 "description": payload.get("description", ""),
@@ -96,6 +100,10 @@ class CompanyPermissionsAPIView(APIView):
         staffusertype_id = (
             request.query_params.get("staffUserTypeId")
             or request.query_params.get("staffusertype_id")
+        )
+        contractorusertype_id = (
+            request.query_params.get("contractorUserTypeId")
+            or request.query_params.get("contractorusertype_id")
         )
         usertype_id = request.query_params.get("usertypeId") or request.query_params.get("usertype_id")
 
@@ -116,6 +124,9 @@ class CompanyPermissionsAPIView(APIView):
         if staffusertype_id:
             action_qs = action_qs.filter(staffusertype_id_id=staffusertype_id)
             column_qs = column_qs.filter(staffusertype_id_id=staffusertype_id)
+        if contractorusertype_id:
+            action_qs = action_qs.filter(contractorusertype_id_id=contractorusertype_id)
+            column_qs = column_qs.filter(contractorusertype_id_id=contractorusertype_id)
         if usertype_id:
             action_qs = action_qs.filter(usertype_id_id=usertype_id)
             column_qs = column_qs.filter(usertype_id_id=usertype_id)
@@ -165,5 +176,6 @@ class CompanyPermissionsAPIView(APIView):
         return Response({
             "companyId": company_id,
             "projectId": project_id,
+            "contractorUserTypeId": contractorusertype_id,
             "permissions": response,
         })

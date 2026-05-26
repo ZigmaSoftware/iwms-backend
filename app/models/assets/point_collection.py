@@ -7,7 +7,6 @@ from app.models.transport_masters.trip_definition import TripDefinition
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.user_creations.stafftemplate import StaffTemplate
-from app.models.assets.bins import Bins
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.city import City
 from app.models.masters.district import District
@@ -24,13 +23,6 @@ class PointCollection(BaseMaster):
         primary_key=True,
         default=generate_point_collection_id,
         editable=False
-    )
-
-    bin_id = models.ForeignKey(
-        Bins,
-        on_delete=models.PROTECT,
-        related_name="point_collections",
-        db_column="bin_id"
     )
 
     waste_type_id = models.ForeignKey(

@@ -1,10 +1,11 @@
 from django.db import models
-from django.utils import timezone
 from app.models.masters.zone import Zone
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 from app.utils.comfun import generate_unique_id
+from django.utils import timezone
+from app.models.audits.bin_load_log import BinLoadLog
 
 
 def generate_zone_property_load_tracker_id():
@@ -68,21 +69,6 @@ class ZonePropertyLoadTracker(models.Model):
 
     def __str__(self):
         return f"{self.zone.name} | {self.property.property_name} | {self.current_weight_kg} kg"
-
-    def create_audit_log(self, source_type=None, event_time=None):
-        from app.models.audits.bin_load_log import BinLoadLog
-
-        return BinLoadLog.objects.create(
-            zone=self.zone,
-            vehicle=self.vehicle,
-            property=self.property,
-            sub_property=self.sub_property,
-            bin=None,
-            weight_kg=self.current_weight_kg,
-            source_type=source_type or BinLoadLog.SourceType.SENSOR,
-            event_time=event_time or timezone.now(),
-            processed=False,
-        )
 
     def trigger_trip_instance(self):
         """
@@ -151,3 +137,32 @@ class ZonePropertyLoadTracker(models.Model):
             UnassignedStaffPool.refresh_for_trip_instance(instance)
 
         return instance
+
+    def create_audit_log(self, event_time=None, source_type=None):
+        """
+        Create a BinLoadLog audit record for the current tracker state.
+        """
+        if event_time is None:
+            event_time = timezone.now()
+
+        # Default to SENSOR as the source for tracker-originated logs
+        source = source_type if source_type is not None else BinLoadLog.SourceType.SENSOR
+
+        weight = self.current_weight_kg or 0
+
+        try:
+            BinLoadLog.objects.create(
+                zone=self.zone,
+                vehicle=self.vehicle,
+                property=self.property,
+                sub_property=self.sub_property,
+                weight_kg=weight,
+                source_type=source,
+                event_time=event_time,
+                processed=False,
+            )
+        except Exception:
+            # If the audit table isn't present yet (migrations not applied) or
+            # any other DB issue occurs, skip creating the audit log to
+            # avoid breaking creation/update flows.
+            return None

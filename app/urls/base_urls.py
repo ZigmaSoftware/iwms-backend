@@ -25,13 +25,13 @@ from ..viewsets.masters.ward_viewset import WardViewSet
 from ..viewsets.masters.panchayat_viweset import PanhayatViewSet
 from ..viewsets.masters.areatype_viewset import AreaTypeViewSet
 from ..viewsets.masters.hierarchy_viewset import AdministrativeHierarchyViewSet
-
-# Assets
-from ..viewsets.assets.bin_viewset import BinViewSet
+from ..viewsets.masters.department_viewset import DepartmentViewSet
+from ..viewsets.masters.designation_viewset import DesignationViewSet
 
 from ..viewsets.assets.collection_point_viewset import CollectionPointViewSet
 from ..viewsets.assets.bins_viewset import BinsViewSet
 from ..viewsets.assets.point_collection_viewset import PointCollectionViewSet
+from ..viewsets.assets.bins_viewset import BinsViewSet
 from ..viewsets.collections.panchayat_wise_collection_viewset import PanchayatWiseCollectionViewSet
 from ..viewsets.assets.weighbridge_viewset import WeighbridgeCheckViewSet
 from ..viewsets.collections.ward_wise_collection_viewset import WardWiseCollectionViewSet
@@ -54,6 +54,7 @@ from ..viewsets.customers.userchargerule_viewset import UserChargeRuleViewSet
 # Role assignments
 from ..viewsets.role_assigns.usertype_viewset import UserTypeViewSet
 from ..viewsets.role_assigns.staffusertype_viewset import StaffUserTypeViewSet
+from ..viewsets.role_assigns.contractorusertype_viewset import ContractorUserTypeViewSet
 
 # User creations
 from ..viewsets.user_creations.staff_viewset import StaffViewSet
@@ -92,7 +93,6 @@ from ..viewsets.transport_masters.trip_viewset import TripViewSet
 # Audits
 from ..viewsets.audits.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
 from ..viewsets.audits.trip_exception_log_viewset import TripExceptionLogViewSet
-from ..viewsets.audits.bin_load_log_viewset import BinLoadLogViewSet
 from ..viewsets.audits.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
 from ..viewsets.audits.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
 from ..viewsets.audits.audit_log_viewset import AuditLogViewSet
@@ -146,6 +146,8 @@ router.register_group("masters", "wards",         WardViewSet)
 router.register_group("masters", "panchayat",         PanhayatViewSet)
 router.register_group("masters", "areatypes",         AreaTypeViewSet)
 router.register_group("masters", "hierarchy",         AdministrativeHierarchyViewSet)
+router.register_group("masters", "departments",       DepartmentViewSet)
+router.register_group("masters", "designations",      DesignationViewSet)
 
 
 
@@ -159,10 +161,10 @@ router.register_group("waste-types", "subproperties", SubPropertyViewSet)
 # ============================================================
 # GROUP: Assets
 # ============================================================
-# router.register_group("assets", "bins",          BinViewSet)
-router.register_group("assets", "bins",          BinsViewSet)
+
 router.register_group("assets", "collection-point", CollectionPointViewSet)
 router.register_group("assets","waste-types", WasteTypeViewSet)
+router.register_group("assets", "bins", BinsViewSet)
 
 
 # ============================================================
@@ -179,9 +181,11 @@ router.register_group("screen-managements", "column-permissions", CompanyUserScr
 # ============================================================
 # GROUP: USER & ROLE ASSIGNMENT 
 # ============================================================
-router.register_group("role-assigns", "user-type",      UserTypeViewSet)
-router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet)
-router.register_group("role-assigns", "staffusertypes", StaffUserTypeViewSet, basename="staffusertype-roletype")
+router.register_group("role-assigns", "user-type",           UserTypeViewSet)
+router.register_group("role-assigns", "staffusertypes",      StaffUserTypeViewSet)
+router.register_group("role-assigns", "staffusertypes",      StaffUserTypeViewSet, basename="staffusertype-roletype")
+router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeViewSet)
+router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeViewSet, basename="contractorusertype-roletype")
 
 # ============================================================
 # GROUP: USER CREATION
@@ -240,7 +244,6 @@ router.register_group("transport-masters", "fuels",         FuelViewSet)
 # ============================================================
 router.register_group("audits", "vehicle-trip-audit",    VehicleTripAuditViewSet)
 router.register_group("audits", "trip-exception-log",    TripExceptionLogViewSet)
-router.register_group("audits", "bin-load-log",    BinLoadLogViewSet)
 router.register_group("audits", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
 router.register_group("audits", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
 router.register_group("audits", "audit-log", AuditLogViewSet)

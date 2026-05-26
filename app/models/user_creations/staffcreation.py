@@ -4,10 +4,13 @@ from app.utils.base_models import Account, BaseMaster
 from app.utils.comfun import generate_unique_id
 from ..role_assigns.userType import UserType
 from ..role_assigns.staffUserType import StaffUserType
+from ..role_assigns.contractorUserType import ContractorUserType
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
+from app.models.masters.department import Department
+from app.models.masters.designation import Designation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -36,12 +39,25 @@ class StaffcreationOfficeDetails(BaseMaster):
     doj = models.DateField(blank=True, null=True)
     department = models.CharField(max_length=200, blank=True, null=True)
     designation = models.CharField(max_length=200, blank=True, null=True)
-    department_id = models.CharField(max_length=30, blank=True, null=True)
-    designation_id = models.CharField(max_length=20, blank=True, null=True)
+    department_id = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="department_id",
+        related_name="staff_members",
+    )
+    designation_id = models.ForeignKey(
+        Designation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="designation_id",
+        related_name="staff_members",
+    )
 
     grade = models.CharField(max_length=50, blank=True, null=True)
     site_name = models.CharField(max_length=200, blank=True, null=True)
-    biometric_id = models.CharField(max_length=100, blank=True, null=True)
     staff_head = models.CharField(max_length=200, blank=True, null=True)
     staff_head_id = models.CharField(max_length=30, blank=True, null=True)
     employee_known = models.CharField(max_length=20, blank=True, null=True)
@@ -107,6 +123,15 @@ class StaffcreationOfficeDetails(BaseMaster):
         null=True,
         blank=True,
         db_column="staffusertype_id",
+        related_name="staff_users"
+    )
+
+    contractorusertype_id = models.ForeignKey(
+        ContractorUserType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="contractorusertype_id",
         related_name="staff_users"
     )
 
@@ -246,7 +271,6 @@ class StaffPersonalDetails(models.Model):
     blood_group = models.CharField(max_length=20, blank=True, null=True)
     gender = models.CharField(max_length=20, blank=True, null=True)
     physically_challenged = models.CharField(max_length=20, blank=True, null=True)
-    extra_curricular = models.TextField(blank=True, null=True)
     present_address = models.JSONField(blank=True, null=True)
     permanent_address = models.JSONField(blank=True, null=True)
     contact_mobile = models.CharField(max_length=20, blank=True, null=True)

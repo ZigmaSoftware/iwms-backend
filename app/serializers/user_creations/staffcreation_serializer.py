@@ -1,5 +1,8 @@
 from rest_framework import serializers
 from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.role_assigns.contractorUserType import ContractorUserType
+from app.models.masters.department import Department
+from app.models.masters.designation import Designation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
@@ -11,7 +14,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     # --------------------------------------------------
     # Core identifiers
     # --------------------------------------------------
-    unique_id = serializers.CharField(source="staff_unique_id")
+    unique_id = serializers.CharField(source="staff_unique_id",read_only=True)
     emp_id = serializers.CharField(read_only=True)
     staffusertype_id = serializers.PrimaryKeyRelatedField(
     queryset=StaffUserType.objects.all(),
@@ -28,6 +31,42 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     source="staffusertype_id.name",
     read_only=True
 )
+
+    contractorusertype_id = serializers.PrimaryKeyRelatedField(
+        queryset=ContractorUserType.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    contractorusertype_name = serializers.CharField(
+        source="contractorusertype_id.name",
+        read_only=True,
+    )
+    department_id = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    designation_id = serializers.PrimaryKeyRelatedField(
+        queryset=Designation.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    department_name = serializers.CharField(
+        source="department_id.department_name",
+        read_only=True,
+    )
+    department_code = serializers.CharField(
+        source="department_id.department_code",
+        read_only=True,
+    )
+    designation_name = serializers.CharField(
+        source="designation_id.designation_name",
+        read_only=True,
+    )
+    designation_group = serializers.CharField(
+        source="designation_id.designation_group",
+        read_only=True,
+    )
 
     # --------------------------------------------------
     #  Office-level: Driving licence
@@ -70,12 +109,6 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     )
     physically_challenged = serializers.CharField(
         source="personal_details.physically_challenged",
-        required=False,
-        allow_blank=True,
-        allow_null=True,
-    )
-    extra_curricular = serializers.CharField(
-        source="personal_details.extra_curricular",
         required=False,
         allow_blank=True,
         allow_null=True,
@@ -123,7 +156,6 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         "blood_group",
         "gender",
         "physically_challenged",
-        "extra_curricular",
         "present_address",
         "permanent_address",
         "contact_mobile",
@@ -149,10 +181,13 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "designation",
             "department_id",
             "designation_id",
+            "department_name",
+            "department_code",
+            "designation_name",
+            "designation_group",
             "staff_head_id",
             "grade",
             "site_name",
-            "biometric_id",
             "staff_head",
             "employee_known",
             "photo",
@@ -170,14 +205,15 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "blood_group",
             "gender",
             "physically_challenged",
-            "extra_curricular",
             "present_address",
             "permanent_address",
             "contact_mobile",
             "contact_email",
             "user_type_id",
-              "staffusertype_id",
+            "staffusertype_id",
             "staffusertype_name",
+            "contractorusertype_id",
+            "contractorusertype_name",
 
             "created_at",
             "updated_at",
@@ -218,6 +254,9 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         if staffusertype and staffusertype.usertype_id:
             validated_data["user_type_id"] = staffusertype.usertype_id
 
+        contractorusertype = validated_data.get("contractorusertype_id")
+        if contractorusertype and contractorusertype.usertype_id:
+            validated_data["user_type_id"] = contractorusertype.usertype_id
 
         staff = Staffcreation.objects.create(**validated_data)
 
@@ -244,6 +283,10 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         staffusertype = validated_data.get("staffusertype_id")
         if staffusertype and staffusertype.usertype_id:
             validated_data["user_type_id"] = staffusertype.usertype_id
+
+        contractorusertype = validated_data.get("contractorusertype_id")
+        if contractorusertype and contractorusertype.usertype_id:
+            validated_data["user_type_id"] = contractorusertype.usertype_id
 
         staff = super().update(instance, validated_data)
 
