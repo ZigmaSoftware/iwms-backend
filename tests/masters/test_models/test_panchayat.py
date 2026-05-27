@@ -50,6 +50,11 @@ class TestPanchayatDefaults:
         assert panchayat.latitude is None
         assert panchayat.longitude is None
 
+    def test_agreed_weight_defaults(self, panchayat):
+        assert panchayat.agreed_weight_kg == 0
+        assert panchayat.weight_unit == "kg"
+        assert panchayat.effective_from is None
+
 
 @pytest.mark.django_db
 class TestPanchayatSoftDelete:
@@ -66,3 +71,13 @@ class TestPanchayatUpdate:
         panchayat.save()
         panchayat.refresh_from_db()
         assert panchayat.panchayat_name == "Updated Panchayat"
+
+    def test_update_agreed_weight(self, panchayat):
+        panchayat.agreed_weight_kg = "1250.50"
+        panchayat.weight_unit = "tonne"
+        panchayat.effective_from = "2026-05-01"
+        panchayat.save()
+        panchayat.refresh_from_db()
+        assert str(panchayat.agreed_weight_kg) == "1250.50"
+        assert panchayat.weight_unit == "tonne"
+        assert str(panchayat.effective_from) == "2026-05-01"
