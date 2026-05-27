@@ -143,7 +143,7 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
             'staff_template_display_code',
             'from_date',
             'to_date',
-            'effective_date',
+            # 'effective_date',
             'driver',
             'driver_name',
             'operator',

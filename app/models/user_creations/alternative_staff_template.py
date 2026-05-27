@@ -66,7 +66,7 @@ class AlternativeStaffTemplate(models.Model):
     to_date = models.DateField(null=True, blank=True)
 
 
-    effective_date = models.DateField()
+    # effective_date = models.DateField()
 
     # ------------------------------------------------------------------
     # STAFF ASSIGNMENT
@@ -159,14 +159,14 @@ class AlternativeStaffTemplate(models.Model):
         ordering = ['-created_at']
 
         indexes = [
-            models.Index(fields=['staff_template', 'effective_date']),
+            models.Index(fields=['staff_template']),
             models.Index(fields=['approval_status']),
             models.Index(fields=['display_code']),
         ]
 
         constraints = [
             models.UniqueConstraint(
-                fields=['staff_template', 'effective_date'],
+                fields=['staff_template'],
                 name='unique_staff_template_per_effective_date'
             )
         ]
