@@ -27,11 +27,18 @@ class TestPanchayatAPICreate:
                 "city_id": city.unique_id,
                 "district_id": district.unique_id,
                 "panchayat_name": "Test Panchayat",
+                "agreed_weight_kg": "2500.75",
+                "weight_unit": "kg",
+                "effective_from": "2026-05-01",
                 "geofencing_type": "polygon",
             },
             format="json",
         )
         assert resp.status_code in (200, 201)
+        data = resp.json()
+        assert data["agreed_weight_kg"] == "2500.75"
+        assert data["weight_unit"] == "kg"
+        assert data["effective_from"] == "2026-05-01"
 
 
 @pytest.mark.django_db
@@ -59,9 +66,20 @@ class TestPanchayatAPIUpdate:
             geofencing_type="square",
         )
         resp = auth_client.patch(
-            f"{BASE}{p.unique_id}/", {"panchayat_name": "New Name"}, format="json"
+            f"{BASE}{p.unique_id}/",
+            {
+                "panchayat_name": "New Name",
+                "agreed_weight_kg": "125.25",
+                "weight_unit": "tonne",
+                "effective_from": "2026-06-01",
+            },
+            format="json"
         )
         assert resp.status_code in (200, 204)
+        p.refresh_from_db()
+        assert str(p.agreed_weight_kg) == "125.25"
+        assert p.weight_unit == "tonne"
+        assert str(p.effective_from) == "2026-06-01"
 
 
 @pytest.mark.django_db

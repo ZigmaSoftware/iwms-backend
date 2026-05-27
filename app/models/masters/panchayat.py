@@ -19,6 +19,11 @@ class GeoFencingType(models.TextChoices):
     SQUARE = "square", "Square"
 
 
+class WeightUnit(models.TextChoices):
+    KG = "kg", "Kg"
+    TONNE = "tonne", "Tonne"
+
+
 class Panchayat(BaseMaster):
 
     unique_id = models.CharField(
@@ -87,6 +92,23 @@ class Panchayat(BaseMaster):
         default=GeoFencingType.SQUARE
     )
     panchayat_name = models.CharField(max_length=100)
+    agreed_weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Monthly agreed collection weight in kg",
+    )
+    weight_unit = models.CharField(
+        max_length=10,
+        choices=WeightUnit.choices,
+        default=WeightUnit.KG,
+        help_text="Unit for agreed weight",
+    )
+    effective_from = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date from which this agreed weight is valid",
+    )
     latitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
 
