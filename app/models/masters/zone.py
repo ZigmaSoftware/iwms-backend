@@ -77,6 +77,7 @@ class Zone(BaseMaster):
     )
 
     zone_name = models.CharField(max_length=100)
+    description = models.TextField(null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
     geofencing_type = models.CharField(max_length=20, choices=GeoFencingType.choices, default=GeoFencingType.SQUARE)

@@ -1,6 +1,7 @@
 [project]
 name = "my-django-app"
 version = "0.1.0"
+requires-python = ">=3.13"
 dependencies = [
     "asgiref==3.10.0",
     "Django==5.2.8",
@@ -24,3 +25,65 @@ dependencies = [
     "setuptools<81",
     "python-dotenv>=1.2.2",
 ]
+
+[dependency-groups]
+test = [
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "pytest-django>=4.12.0",
+]
+dev = [
+    { include-group = "test" },
+]
+
+# Unit test configuration
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.test_settings"
+pythonpath = ["."]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+testpaths = ["tests"]
+markers = [
+    "django_db: mark tests that need the Django test database",
+]
+addopts = [
+    "--tb=short",
+    "--strict-markers",
+    "-q",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/migrations/*",
+    "app/admin.py",
+    "app/apps.py",
+    "app/tests.py",
+    "app/management/*",
+    "app/signals/*",
+    "tests/*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+sort = "Cover"
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "pass",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"

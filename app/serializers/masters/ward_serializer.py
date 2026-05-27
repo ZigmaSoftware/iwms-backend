@@ -1,60 +1,21 @@
 from rest_framework import serializers
-from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.masters.ward import Ward
-from app.validators.unique_name_validator import unique_name_validator
-
-
-# class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
-#     continent_name = serializers.CharField(source="continent_id.name", read_only=True)
-#     country_name   = serializers.CharField(source="country_id.name", read_only=True)
-#     state_name     = serializers.CharField(source="state_id.name", read_only=True)
-#     district_name  = serializers.CharField(source="district_id.name", read_only=True)
-#     city_name      = serializers.CharField(source="city_id.name", read_only=True)
-#     zone_name      = serializers.CharField(source="zone_id.name", read_only=True)
-
-#     class Meta:
-#         model = Ward
-#         fields = "__all__"
-#         read_only_fields = ["unique_id"]
-
-#     def validate(self, attrs):
-#         validator = unique_name_validator(
-#             Model=Ward,
-#             scope_fields=[
-#                 "continent_id",
-#                 "country_id",
-#                 "state_id",
-#                 "district_id",
-#                 "city_id",
-#                 "zone_id",
-#             ],
-#         )
-#         validator(self, attrs)
-#         return attrs
-
-
-
-
-
-from rest_framework import serializers
 from app.models.masters.ward import Ward
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.validators.unique_name_validator import unique_name_validator
 
 
-class WardSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
+class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     state_name = serializers.CharField(source="state_id.name", read_only=True)
     city_name = serializers.CharField(source="city_id.name", read_only=True)
     district_name = serializers.CharField(source="district_id.name", read_only=True)
-    hierarchy_name = serializers.CharField(source = "hierarchy_id.level_name", read_only = True)
-    zone_name = serializers.CharField(source = "zone_id.zone_name", read_only = True)
+    hierarchy_name = serializers.CharField(source="hierarchy_id.level_name", read_only=True)
+    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True)
 
     continent_name = serializers.CharField(source="state_id.continent_id.name", read_only=True)
     country_name = serializers.CharField(source="state_id.country_id.name", read_only=True)
     continent_id = serializers.CharField(source="state_id.continent_id.unique_id", read_only=True)
     country_id = serializers.CharField(source="state_id.country_id.unique_id", read_only=True)
-
 
     area_type_name = serializers.CharField(
         source="area_type_id.name",
@@ -97,9 +58,10 @@ class WardSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
             "hierarchy_name",
 
             "ward_name",
+            "description",
 
             "geofencing_type",
-            
+
             "is_active",
             "created_at",
             "updated_at",
@@ -118,32 +80,20 @@ class WardSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
 
     def validate(self, attrs):
 
-        # -------------------------------
-        # GET VALUES (Handle Update Case)
-        # -------------------------------
         area_type = attrs.get("area_type_id") or getattr(self.instance, "area_type_id", None)
         hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         ward_name = attrs.get("ward_name")
 
-        # -------------------------------
-        # 1️⃣ AreaType Must Be urban
-        # -------------------------------
         if area_type and area_type.name.lower() != "urban":
             raise serializers.ValidationError({
                 "area_type": "ward must belong to urban area type."
             })
 
-        # -------------------------------
-        # 2️⃣ Hierarchy Must Be ward
-        # -------------------------------
         if hierarchy and hierarchy.level_name.lower() != "ward":
             raise serializers.ValidationError({
                 "hierarchy": "Hierarchy level must be ward."
             })
 
-        # -------------------------------
-        # 3️⃣ Unique ward Name
-        # -------------------------------
         if not self.instance or ward_name:
             unique_name_validator(
                 Model=Ward,

@@ -24,12 +24,10 @@ class WardWiseCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     AUDIT_ENDPOINT = "ward-collection"
 
     def get_queryset(self):
-        return WardCollection.objects.select_related(
+        return ZoneCollection.objects.select_related(
             "point_collection_id",
-            "point_collection_id__bin_id",
             "point_collection_id__collection_point_id",
-            "ward_id",
-            "ward_id__zone_id",        # needed for zone sync
+            "zone_id",
             "waste_type_id",
             "trip_id",
             "company_id",

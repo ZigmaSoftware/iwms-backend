@@ -1,5 +1,5 @@
+import os
 from datetime import timedelta
-from django.conf import settings
 
 SIMPLE_JWT = {
     # ONLY Access Token (5 hours)
@@ -13,7 +13,7 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": False,
 
     "ALGORITHM": "HS256",
-    "SIGNING_KEY": settings.SECRET_KEY,
+    "SIGNING_KEY": os.getenv("SECRET_KEY", ""),
     "AUTH_HEADER_TYPES": ("Bearer",),
     # Use pk so tokens can be minted for both Staffcreation and User
     # (their primary keys differ, but pk always resolves correctly).
