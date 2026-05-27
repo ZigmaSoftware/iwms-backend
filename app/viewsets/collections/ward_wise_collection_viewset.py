@@ -79,7 +79,6 @@ class WardWiseCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def get_queryset(self):
         return WardCollection.objects.select_related(
             "point_collection_id",
-            "point_collection_id__bin_id",
             "point_collection_id__collection_point_id",
             "ward_id",
             "ward_id__zone_id",
