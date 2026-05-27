@@ -1,9 +1,9 @@
 import os
 import re
-import datetime
 import requests
 
 from django.conf import settings
+from django.utils import timezone
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -98,7 +98,7 @@ class RecognizeViewSet(ViewSet):
             )
 
         # Save captured image into MEDIA_ROOT/captured_images/
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = timezone.localtime().strftime("%Y%m%d_%H%M%S")
         folder = os.path.join(settings.MEDIA_ROOT, "captured_images")
         os.makedirs(folder, exist_ok=True)
 
@@ -141,8 +141,8 @@ class RecognizeViewSet(ViewSet):
             )
 
         # Save recognition (match your model fields)
-        now = datetime.datetime.now()
-        today = now.date()
+        now = timezone.localtime()
+        today = timezone.localdate()
         last = (
             Recognized.objects
             .filter(staff=employee.staff, recognition_date=today)
@@ -152,6 +152,8 @@ class RecognizeViewSet(ViewSet):
         punch_type = "OUT" if last and last.punch_type == "IN" else "IN"
 
         Recognized.objects.create(
+            company_id=employee.staff.company_id,
+            project_id=employee.staff.project_id,
             staff=employee.staff,
             emp_id=employee.emp_id,
             emp_id_raw=staff_unique_id,          # keep raw string too
