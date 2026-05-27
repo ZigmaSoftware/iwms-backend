@@ -65,7 +65,7 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
             staff_template=staff_template,
             company_id=company,
             project_id=project,
-            effective_date=date.today(),
+            # effective_date=date.today(),
             driver_id=driver,
             operator_id=operator,
             defaults={

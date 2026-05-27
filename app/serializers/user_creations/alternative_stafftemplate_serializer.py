@@ -85,6 +85,7 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
     )
     driver_name = serializers.SerializerMethodField(read_only=True)
     operator_name = serializers.SerializerMethodField(read_only=True)
+    extra_operator_names = serializers.SerializerMethodField(read_only=True)
     staff_template_display_code = serializers.CharField(
         source="staff_template.display_code",
         read_only=True,
@@ -102,6 +103,32 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
         if staff and hasattr(staff, 'employee_name') and staff.employee_name:
             return staff.employee_name
         return getattr(staff, "staff_unique_id", None)
+
+    def get_extra_operator_names(self, obj):
+        extra_ids = getattr(obj, "extra_operator_id", None) or []
+        if not isinstance(extra_ids, list):
+            return []
+
+        normalized_ids = [str(item) for item in extra_ids if item not in ("", None)]
+        if not normalized_ids:
+            return []
+
+        staff_by_id = {
+            staff.staff_unique_id: staff
+            for staff in Staffcreation.objects.filter(
+                staff_unique_id__in=normalized_ids,
+                is_deleted=False,
+            )
+        }
+
+        names = []
+        for staff_id in normalized_ids:
+            staff = staff_by_id.get(staff_id)
+            if staff and getattr(staff, "employee_name", None):
+                names.append(staff.employee_name)
+            else:
+                names.append(staff_id)
+        return names
     
     class Meta:
         model = AlternativeStaffTemplate
@@ -114,12 +141,15 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
             'display_code',
             'staff_template',
             'staff_template_display_code',
-            'effective_date',
+            'from_date',
+            'to_date',
+            # 'effective_date',
             'driver',
             'driver_name',
             'operator',
             'operator_name',
             'extra_operator',
+            'extra_operator_names',
             'change_reason',
             'change_remarks',
             # 'requested_by',
@@ -175,12 +205,12 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
 
             if driver_id and driver_id in extra_ids:
                 raise serializers.ValidationError(
-                    {"extra_operator": "Extra operators cannot include the driver."}
+                    {"extra_operator": "Extra staff cannot include the primary driver."}
                 )
 
             if operator_id and operator_id in extra_ids:
                 raise serializers.ValidationError(
-                    {"extra_operator": "Extra operators cannot include the primary operator."}
+                    {"extra_operator": "Extra staff cannot include the primary operator."}
                 )
 
             if extra_ids:
