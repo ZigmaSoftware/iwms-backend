@@ -171,6 +171,34 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
         """
         instance = getattr(self, "instance", None)
 
+        # ------------------------------------------------------------------
+        # DATE RANGE VALIDATION
+        # ------------------------------------------------------------------
+        from_date = attrs.get("from_date", getattr(instance, "from_date", None))
+        to_date = attrs.get("to_date", getattr(instance, "to_date", None))
+
+        if from_date and to_date and to_date < from_date:
+            raise serializers.ValidationError(
+                {"to_date": "to_date must be on or after from_date."}
+            )
+
+        staff_template = attrs.get(
+            "staff_template", getattr(instance, "staff_template", None)
+        )
+        if staff_template and from_date and to_date:
+            overlap_qs = AlternativeStaffTemplate.objects.filter(
+                staff_template=staff_template,
+                from_date__lte=to_date,
+                to_date__gte=from_date,
+            )
+            if instance:
+                overlap_qs = overlap_qs.exclude(unique_id=instance.unique_id)
+            if overlap_qs.exists():
+                raise serializers.ValidationError(
+                    "A substitution already exists for this staff template that "
+                    "overlaps the given date range."
+                )
+
         def resolve(source_name):
             if source_name in attrs:
                 return attrs.get(source_name)
