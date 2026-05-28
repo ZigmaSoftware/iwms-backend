@@ -144,6 +144,7 @@ from app.models.collections.ward_wise_collection import WardCollection
 from app.models.collections.zone_wise_collection import ZoneCollection
 from app.models.collections.panchayat_wise_collection import PanchayatCollection
 from app.models.assets.point_collection import PointCollection
+from app.models.reports.monthly_weight_report import MonthlyWeightReport
 
 
 # ============================================================
@@ -224,6 +225,7 @@ __all__ = [
     # Bluetooth Waste
     "WasteCollectionSub",
     "WasteType",
+    "MonthlyWeightReport",
     "WasteCollectionMain",
 
     # Attendance
