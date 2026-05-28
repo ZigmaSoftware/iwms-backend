@@ -147,6 +147,12 @@ from app.models.assets.point_collection import PointCollection
 
 
 # ============================================================
+# GROUP: DAILY TRIP ASSIGNMENT
+# ============================================================
+from .daily_trip_assignment.daily_trip_assignment import DailyTripAssignment
+
+
+# ============================================================
 # EXPORTS
 # ============================================================
 __all__ = [
@@ -236,4 +242,7 @@ __all__ = [
     "SupervisorZoneAccessAudit",
     "TripExceptionLog",
     "VehicleTripAudit",
+
+    # Daily Trip Assignment
+    "DailyTripAssignment",
 ]

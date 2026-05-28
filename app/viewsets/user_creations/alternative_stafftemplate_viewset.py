@@ -40,7 +40,8 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
         staff_template = self.request.query_params.get("staff_template")
         approval_status = self.request.query_params.get("approval_status")
-        effective_date = self.request.query_params.get("effective_date")
+        from_date = self.request.query_params.get("from_date")
+        to_date = self.request.query_params.get("to_date")
 
         if staff_template:
             qs = qs.filter(staff_template_id=staff_template)
@@ -48,8 +49,11 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if approval_status:
             qs = qs.filter(approval_status=approval_status)
 
-        if effective_date:
-            qs = qs.filter(effective_date=effective_date)
+        if from_date:
+            qs = qs.filter(from_date__gte=from_date)
+
+        if to_date:
+            qs = qs.filter(to_date__lte=to_date)
 
         return qs.select_related(
             "staff_template",
