@@ -41,6 +41,11 @@ class LoginViewSet(ViewSet):
         permissions = serializer.validated_data["permissions"]
         permission_details = serializer.validated_data.get("permission_details", {})
         column_permissions = serializer.validated_data.get("column_permissions", {})
+        module_access = serializer.validated_data.get("module_access", [])
+        app_surfaces = serializer.validated_data.get("app_surfaces", [])
+        landing = serializer.validated_data.get("landing")
+        permission_version = serializer.validated_data.get("permission_version")
+        generated_at = serializer.validated_data.get("generated_at")
         user_type = serializer.validated_data.get("user_type", "staff")
         profile_object = serializer.validated_data.get("profile_object")
         company_unique_id = serializer.validated_data.get("company_unique_id")
@@ -214,6 +219,11 @@ class LoginViewSet(ViewSet):
                 "permissions": permissions,
                 "permission_details": permission_details,
                 "column_permissions": column_permissions,
+                "module_access": module_access,
+                "app_surfaces": app_surfaces,
+                "landing": landing,
+                "permission_version": permission_version,
+                "generated_at": generated_at,
                 "access_token": token,
                 "token_type": "Bearer",
                 "expires_in": exp - iat,

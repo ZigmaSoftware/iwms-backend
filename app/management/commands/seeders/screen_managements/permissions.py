@@ -227,6 +227,43 @@ class PermissionSeeder(BaseSeeder):
                         self.log(f"Mapped {userscreen.userscreen_name} → {app_label}.{model_name}")
 
         # --------------------------------------------------
+        # 4C. ENSURE NEW PANCHAYAT COLUMNS EXIST FOR FIELD PERMISSIONS
+        # --------------------------------------------------
+        masters_main = mainscreens.get("masters")
+        if masters_main:
+            panchayat_screen = UserScreen.objects.filter(
+                mainscreen_id=masters_main,
+                userscreen_name="panchayat",
+                is_deleted=False,
+            ).first()
+            if panchayat_screen:
+                panchayat_columns = [
+                    ("agreed_weight_kg", "Agreed Weight", "decimal", "agreed_weight_kg", 50),
+                    ("weight_unit", "Weight Unit", "string", "weight_unit", 51),
+                    ("effective_from", "Effective From", "date", "effective_from", 52),
+                ]
+                for field_name, display_name, data_type, db_column, order_no in panchayat_columns:
+                    UserScreenColumn.objects.update_or_create(
+                        userscreen_id=panchayat_screen,
+                        field_name=field_name,
+                        is_deleted=False,
+                        defaults={
+                            "display_name": display_name,
+                            "data_type": data_type,
+                            "db_column": db_column,
+                            "order_no": order_no,
+                            "is_required": False,
+                            "is_nullable": True,
+                            "is_active": True,
+                            "is_visible": True,
+                            "is_editable": True,
+                            "is_filterable": True,
+                            "is_searchable": True,
+                            "is_sortable": True,
+                        },
+                    )
+
+        # --------------------------------------------------
         # 5. ROLES
         # --------------------------------------------------
         staff_type = UserType.objects.get(name__iexact="staff")

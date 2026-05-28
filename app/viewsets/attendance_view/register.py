@@ -14,6 +14,11 @@ from app.models.user_creations.staffcreation import Staffcreation
 from app.utils.qr import generate_qr
 
 
+def _clean_text(value, fallback=""):
+    value = fallback if value is None else value
+    return str(value).strip()
+
+
 class RegisterViewSet(ViewSet):
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser]
@@ -94,10 +99,25 @@ class RegisterViewSet(ViewSet):
                 "qr": qr_value,
             })
 
-        name = request.data.get("name") or staff.employee_name
-        department = request.data.get("department") or staff.department
-        dob = parser.parse(request.data.get("dob")).date() if request.data.get("dob") else None
-        blood_group = request.data.get("blood_group")
+        name = _clean_text(
+            request.data.get("name"),
+            fallback=staff.employee_name or staff.username or emp_id,
+        )
+        department = _clean_text(
+            request.data.get("department"),
+            fallback=staff.department or "",
+        )
+
+        try:
+            dob = (
+                parser.parse(request.data.get("dob")).date()
+                if request.data.get("dob")
+                else None
+            )
+        except (TypeError, ValueError, OverflowError, parser.ParserError):
+            return Response({"error": "Invalid dob"}, status=400)
+
+        blood_group = _clean_text(request.data.get("blood_group"))
         # Ensure display ID exists
         if not staff.emp_id:
             staff._ensure_emp_id()
@@ -124,6 +144,8 @@ class RegisterViewSet(ViewSet):
         relative_image_path = f"emp_image/{image_filename}"
 
         emp = Employee.objects.create(
+            company_id=staff.company_id,
+            project_id=staff.project_id,
             emp_id=staff.emp_id,
             staff=staff,
             name=name,

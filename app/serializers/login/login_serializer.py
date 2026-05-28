@@ -8,7 +8,7 @@ from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.auth_user import User
 
 from app.models.superadmin_masters.project import Project
-from app.utils.permission_response import resolve_permission_payload
+from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
 
 
 class LoginSerializer(serializers.Serializer):
@@ -62,7 +62,9 @@ class LoginSerializer(serializers.Serializer):
         usertype_unique_id=None,
         staffusertype_unique_id=None,
         contractorusertype_unique_id=None,
-        include_all=False
+        include_all=False,
+        role_name=None,
+        user_type=None,
     ):
         return resolve_permission_payload(
             company_unique_id=company_unique_id,
@@ -70,6 +72,8 @@ class LoginSerializer(serializers.Serializer):
             staffusertype_unique_id=staffusertype_unique_id,
             contractorusertype_unique_id=contractorusertype_unique_id,
             include_all=include_all,
+            role_name=role_name,
+            user_type=user_type,
         )
 
     def _resolve_permissions(
@@ -97,20 +101,24 @@ class LoginSerializer(serializers.Serializer):
         defaults = {
             "driver": {
                 "customers": {
-                    "Customercreations": ["view"],
+                    "customercreations": ["view"],
                 },
-                "user-creation": {
-                    "RoutePlan": ["add", "view", "edit", "delete"],
-                    "AlternativeStaffTemplate": ["view"],
+                "process": {
+                    "route-plans": ["add", "view", "edit", "delete"],
+                },
+                "user-creations": {
+                    "alternative-stafftemplate": ["view"],
                 },
             },
             "operator": {
                 "customers": {
-                    "Customercreations": ["view"],
+                    "customercreations": ["view"],
                 },
-                "user-creation": {
-                    "RoutePlan": ["add", "view", "edit", "delete"],
-                    "AlternativeStaffTemplate": ["view"],
+                "process": {
+                    "route-plans": ["add", "view", "edit", "delete"],
+                },
+                "user-creations": {
+                    "alternative-stafftemplate": ["view"],
                 },
             },
         }
@@ -164,28 +172,37 @@ class LoginSerializer(serializers.Serializer):
             usertype_unique_id=user_type.unique_id,
             staffusertype_unique_id=staff_usertype.unique_id if staff_usertype else None,
             contractorusertype_unique_id=contractor_usertype.unique_id if contractor_usertype else None,
+            role_name=role_usertype.name,
+            user_type="contractor" if contractor_usertype else "staff",
         )
         permissions = permission_payload["permissions"]
-        permission_details = permission_payload["permission_details"]
 
         if not permissions:
             permissions = self._apply_role_defaults(permissions, role_usertype.name)
-        
-
-        # permissions = self._apply_role_defaults(permissions, staff_usertype.name)
-
+            permission_payload = finalize_permission_payload(
+                permission_payload,
+                permissions=permissions,
+                role_name=role_usertype.name,
+                user_type="contractor" if contractor_usertype else "staff",
+            )
 
         return {
             "user": login_user,
             "permissions": permissions,
-            "permission_details": permission_details,
+            "permission_details": permission_payload["permission_details"],
             "column_permissions": permission_payload["column_permissions"],
+            "module_access": permission_payload["module_access"],
+            "app_surfaces": permission_payload["app_surfaces"],
+            "landing": permission_payload["landing"],
+            "permission_version": permission_payload["permission_version"],
+            "generated_at": permission_payload["generated_at"],
             "user_type": "contractor" if contractor_usertype else "staff",
             "staffusertype_id": staff_usertype.unique_id if staff_usertype else None,
             "contractorusertype_id": contractor_usertype.unique_id if contractor_usertype else None,
             "company_unique_id": company.unique_id,
             "projects": projects,        
             "profile_object": staff_record,
+            
         }
 
     def _build_customer_payload(self, customer_record, login_user=None):
@@ -205,6 +222,8 @@ class LoginSerializer(serializers.Serializer):
             company_unique_id=company.unique_id,
             usertype_unique_id=user_type.unique_id,
             staffusertype_unique_id=None,
+            role_name="customer",
+            user_type="customer",
         )
         permissions = permission_payload["permissions"]
 
@@ -213,6 +232,11 @@ class LoginSerializer(serializers.Serializer):
             "permissions": permissions,
             "permission_details": permission_payload["permission_details"],
             "column_permissions": permission_payload["column_permissions"],
+            "module_access": permission_payload["module_access"],
+            "app_surfaces": permission_payload["app_surfaces"],
+            "landing": permission_payload["landing"],
+            "permission_version": permission_payload["permission_version"],
+            "generated_at": permission_payload["generated_at"],
             "user_type": "customer",
             "staffusertype_id": None,
             "company_unique_id": company.unique_id,
@@ -220,18 +244,31 @@ class LoginSerializer(serializers.Serializer):
         }
 
     def _build_platform_payload(self, user):
-        permission_payload = self._resolve_permission_payload(include_all=True)
+        permission_payload = self._resolve_permission_payload(
+            include_all=True,
+            role_name="superadmin",
+            user_type="platform",
+        )
         permissions = permission_payload["permissions"]
 
         permissions = self._apply_role_defaults(permissions, "superadmin")
-        
-        
+        permission_payload = finalize_permission_payload(
+            permission_payload,
+            permissions=permissions,
+            role_name="superadmin",
+            user_type="platform",
+        )
 
         return {
             "user": user,
             "permissions": permissions,
             "permission_details": permission_payload["permission_details"],
             "column_permissions": permission_payload["column_permissions"],
+            "module_access": permission_payload["module_access"],
+            "app_surfaces": permission_payload["app_surfaces"],
+            "landing": permission_payload["landing"],
+            "permission_version": permission_payload["permission_version"],
+            "generated_at": permission_payload["generated_at"],
             "user_type": "platform",
             "staffusertype_id": getattr(getattr(user, "staffusertype_id", None), "unique_id", None),
             "company_unique_id": getattr(getattr(user, "company_id", None), "unique_id", None),
