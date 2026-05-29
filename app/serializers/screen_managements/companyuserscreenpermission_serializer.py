@@ -32,6 +32,7 @@ class CompanyUserScreenPermissionSerializer(serializers.ModelSerializer):
     )
     mainscreen_name = serializers.CharField(source="mainscreen_id.mainscreen_name", read_only=True)
     company_name = serializers.CharField(source="company_id.name", read_only=True)
+    project_name = serializers.CharField(source="project_id.name", read_only=True, allow_null=True, default=None)
 
     class Meta:
         model = CompanyUserScreenPermission
