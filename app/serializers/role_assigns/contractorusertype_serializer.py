@@ -32,6 +32,9 @@ class ContractorUserTypeSerializer(TenancyReadSerializerMixin, serializers.Model
         return usertype_obj
 
     def validate(self, attrs):
+        if self.instance and "name" not in attrs:
+            return attrs
+
         return unique_name_validator(
             Model=ContractorUserType,
             name_field="name",

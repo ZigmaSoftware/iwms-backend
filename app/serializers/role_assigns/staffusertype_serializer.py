@@ -35,6 +35,9 @@ class StaffUserTypeSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     
 
     def validate(self, attrs):
+        if self.instance and "name" not in attrs:
+            return attrs
+
         return unique_name_validator(
             Model=StaffUserType,
             name_field="name",
