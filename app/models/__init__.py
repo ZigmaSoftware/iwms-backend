@@ -130,6 +130,8 @@ from .transport_masters.vehicleCreation import VehicleCreation
 from .transport_masters.trip_definition import TripDefinition
 from .transport_masters.trip_instance import TripInstance
 from .transport_masters.trip_attendance import TripAttendance
+from .transport_masters.daily_trip_assignment import DailyTripAssignment
+from .transport_masters.daily_trip_log import DailyTripLog
 
 
 # ============================================================
@@ -145,11 +147,6 @@ from app.models.collections.zone_wise_collection import ZoneCollection
 from app.models.collections.panchayat_wise_collection import PanchayatCollection
 from app.models.assets.point_collection import PointCollection
 
-
-# ============================================================
-# GROUP: DAILY TRIP ASSIGNMENT
-# ============================================================
-from .daily_trip_assignment.daily_trip_assignment import DailyTripAssignment
 
 
 # ============================================================
@@ -245,4 +242,5 @@ __all__ = [
 
     # Daily Trip Assignment
     "DailyTripAssignment",
+    "DailyTripLog",
 ]

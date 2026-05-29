@@ -9,7 +9,8 @@ from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.user_creations.alternative_staff_template import AlternativeStaffTemplate
 from app.models.masters.panchayat import Panchayat
 from app.models.assets.collection_point import Collection_point
-from app.models.waste_types.subproperty import SubProperty
+# from app.models.waste_types.subproperty import SubProperty
+from app.models.user_creations.waste_collection_bluetooth import WasteType
 
 
 def _generate_trip_assignment_unique_id(company_id, project_id):
@@ -135,7 +136,7 @@ class DailyTripAssignment(BaseMaster):
     # ------------------------------------------------------------------
 
     waste_type_id = models.ForeignKey(
-        SubProperty,
+        WasteType,
         on_delete=models.PROTECT,
         db_column="waste_type_id",
         to_field="unique_id",

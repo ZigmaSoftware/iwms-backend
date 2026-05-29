@@ -91,7 +91,8 @@ from ..viewsets.transport_masters.trip_attendance_viewset import TripAttendanceV
 from ..viewsets.transport_masters.trip_viewset import TripViewSet
 
 # Daily Trip Assignment
-from ..viewsets.daily_trip_assignment.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
+from ..viewsets.transport_masters.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
+from ..viewsets.transport_masters.daily_trip_log_viewset import DailyTripLogViewSet
 
 # Audits
 from ..viewsets.audits.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
@@ -241,6 +242,21 @@ router.register_group("transport-masters", "trip-definition",  TripDefinitionVie
 router.register_group("transport-masters", "trip-instance",    TripInstanceViewSet)
 router.register_group("transport-masters", "trip-attendance", TripAttendanceViewSet)
 router.register_group("transport-masters", "fuels",         FuelViewSet)
+router.register_group("transport-masters", "daily-trip-assignments",         DailyTripAssignmentViewSet)
+router.register_group("transport-masters", "daily-trip-logs",         DailyTripLogViewSet)
+# Alias for frontend and existing clients using singular path
+router.register_group(
+    "transport-masters",
+    "daily-trip-assignment",
+    DailyTripAssignmentViewSet,
+    basename="transport-masters-daily-trip-assignment",
+)
+router.register_group(
+    "transport-masters",
+    "daily-trip-log",
+    DailyTripLogViewSet,
+    basename="transport-masters-daily-trip-log",
+)
 
 # ============================================================
 # GROUP: AUDIT
@@ -265,7 +281,7 @@ router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainV
 # ============================================================
 # GROUP: TRIP ASSIGNMENTS
 # ============================================================
-router.register_group("trip-assignments", "daily", DailyTripAssignmentViewSet)
+# router.register_group("trip-assignments", "daily", DailyTripAssignmentViewSet)
 
 
 # ============================================================

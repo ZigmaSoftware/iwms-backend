@@ -28,6 +28,9 @@ from app.management.commands.seeders.transport_masters.trip import TripSeeder
 from app.management.commands.seeders.transport_masters.trip_attendance import (
     TripAttendanceSeeder,
 )
+from app.management.commands.seeders.transport_masters.daily_trip_log import (
+    DailyTripLogSeeder,
+)
 from app.management.commands.seeders.transport_masters.trip_definition import (
     TripDefinitionSeeder,
 )
@@ -101,6 +104,7 @@ STAFF_SEEDERS = [
     TripDefinitionSeeder,
     TripInstanceSeeder,
     TripAttendanceSeeder,
+    DailyTripLogSeeder,
     VehicleTripAuditSeeder,
     TripExceptionLogSeeder,
     UnassignedStaffPoolSeeder,
