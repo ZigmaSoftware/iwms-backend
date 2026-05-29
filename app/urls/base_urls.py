@@ -119,6 +119,7 @@ from ..viewsets.attendance_view.recognize import RecognizeViewSet
 from ..viewsets.attendance_view.employee_viewset import EmployeeViewSet
 from ..viewsets.attendance_view.staff_profile_viewset import StaffProfileViewSet
 from ..viewsets.attendance_view.attendance_list import AttendanceListViewSet
+from ..viewsets.reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
 
 
 router = GroupedRouter()
@@ -291,6 +292,11 @@ router.register_group("collections", "point-collection", PointCollectionViewSet)
 router.register_group("collections", "panchayat-wise", PanchayatWiseCollectionViewSet)
 router.register_group("collections", "ward-wise", WardWiseCollectionViewSet)
 router.register_group("collections", "zone-wise", ZoneWiseCollectionViewSet)
+
+# ============================================================
+# GROUP: REPORTS
+# ============================================================
+router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
 
 # ============================================================
 # GROUP: MOBILE URLS

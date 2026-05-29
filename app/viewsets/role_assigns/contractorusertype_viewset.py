@@ -23,7 +23,7 @@ class ContractorUserTypeViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     def role_choices(self, request):
         user = request.user
 
-        choices = ContractorUserType.STAFF_ROLE_CHOICES
+        choices = ContractorUserType.CONTRACTOR_ROLE_CHOICES
 
         # 🔐 Optional: restrict roles based on logged-in user
         if not user.is_superuser:

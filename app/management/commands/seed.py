@@ -7,6 +7,7 @@ from app.management.commands.seeders.assets.collection_point import CollectionPo
 from app.management.commands.seeders.assets.bins import BinSeeder
 # from app.management.commands.seeders.assets.weighbridge import WeighbridgeCheckSeeder
 from app.management.commands.seeders.collections import COLLECTION_SEEDERS
+from app.management.commands.seeders.reports import REPORT_SEEDERS
 from app.management.commands.seeders.common_masters import COMMON_MASTER_SEEDERS
 from app.management.commands.seeders.customers import CUSTOMER_SEEDERS
 from app.management.commands.seeders.grivences import GRIEVANCE_SEEDERS
@@ -127,6 +128,7 @@ ORDERED_GROUPS = [
     "customers",
     "vehicles",
     "grievance",
+    "reports",
 ]
 
 SEED_GROUPS = {
@@ -140,12 +142,12 @@ SEED_GROUPS = {
     # "permission": PERMISSION_SEEDERS,
     "screen-managements": PERMISSION_SEEDERS,
     "customers": CUSTOMER_SEEDERS,
-    "user-creation": USER_CREATION_SEEDERS, 
+    "user-creation": USER_CREATION_SEEDERS,
     "user-creations": USER_CREATION_SEEDERS,
     "grievance": GRIEVANCE_SEEDERS,
     "staff": STAFF_SEEDERS,
     "vehicles": VEHICLE_SEEDERS,
-
+    "reports": REPORT_SEEDERS,
 }
 
 # --------------------------------------------------
