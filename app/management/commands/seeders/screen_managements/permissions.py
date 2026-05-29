@@ -149,6 +149,12 @@ class PermissionSeeder(BaseSeeder):
                 "trip-exception-log",
                 "bin-load-log",
             ],
+            "reports": [
+                "trip-summary",
+                "monthly-distance",
+                "waste-collected-summary",
+                "monthly-waste-comparison",
+            ],
         }
 
         # --------------------------------------------------
@@ -225,6 +231,54 @@ class PermissionSeeder(BaseSeeder):
                         userscreen.model_name = model_name
                         userscreen.save(update_fields=["model_app_label", "model_name"])
                         self.log(f"Mapped {userscreen.userscreen_name} → {app_label}.{model_name}")
+
+        # --------------------------------------------------
+        # 4C-REPORTS. MONTHLY WASTE COMPARISON COLUMNS
+        # --------------------------------------------------
+        reports_main = mainscreens.get("reports")
+        if reports_main:
+            monthly_waste_screen = UserScreen.objects.filter(
+                mainscreen_id=reports_main,
+                userscreen_name="monthly-waste-comparison",
+                is_deleted=False,
+            ).first()
+            if monthly_waste_screen:
+                monthly_waste_columns = [
+                    ("month",                       "Month",                    "string",  "month",                        1),
+                    ("panchayat_name",              "Panchayat",                "string",  "panchayat_id__panchayat_name", 2),
+                    ("waste_type",                  "Waste Type",               "string",  "waste_type_id__waste_type_name", 3),
+                    ("total_agreed_weight",         "Agreed Weight (kg)",       "decimal", "agreed_weight_kg",             4),
+                    ("total_actual_weight",         "Actual Weight (kg)",       "decimal", "actual_weight_kg",             5),
+                    ("variance_kg",                 "Variance (kg)",            "decimal", "variance_kg",                  6),
+                    ("variance_percent",            "Variance %",               "decimal", "variance_percent",             7),
+                    ("report_status",               "Status",                   "string",  "report_status",                8),
+                    ("total_trips",                 "Total Trips",              "integer", "total_trips",                  9),
+                    ("collection_points_covered",   "Collection Points",        "integer", "collection_points_covered",    10),
+                    ("collection_efficiency_percent","Collection Efficiency %", "decimal", "collection_efficiency_percent",11),
+                    ("average_weight_per_trip",     "Avg Weight/Trip (kg)",     "decimal", "average_weight_per_trip",      12),
+                    ("coverage_efficiency_percent", "Coverage Efficiency %",   "decimal", "coverage_efficiency_percent",  13),
+                ]
+                for field_name, display_name, data_type, db_col, order_no in monthly_waste_columns:
+                    UserScreenColumn.objects.update_or_create(
+                        userscreen_id=monthly_waste_screen,
+                        field_name=field_name,
+                        is_deleted=False,
+                        defaults={
+                            "display_name": display_name,
+                            "data_type": data_type,
+                            "db_column": db_col,
+                            "order_no": order_no,
+                            "is_required": False,
+                            "is_nullable": True,
+                            "is_active": True,
+                            "is_visible": True,
+                            "is_editable": False,
+                            "is_filterable": True,
+                            "is_searchable": True,
+                            "is_sortable": True,
+                        },
+                    )
+                self.log("Monthly waste comparison columns seeded.")
 
         # --------------------------------------------------
         # 4C. ENSURE NEW PANCHAYAT COLUMNS EXIST FOR FIELD PERMISSIONS
