@@ -90,6 +90,9 @@ from ..viewsets.transport_masters.fuel_viewset import FuelViewSet
 from ..viewsets.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
 from ..viewsets.transport_masters.trip_viewset import TripViewSet
 
+# Daily Trip Assignment
+from ..viewsets.daily_trip_assignment.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
+
 # Audits
 from ..viewsets.audits.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
 from ..viewsets.audits.trip_exception_log_viewset import TripExceptionLogViewSet
@@ -258,6 +261,12 @@ router.register_group("audits", "common-audit", CommonAuditViewSet)
 router.register_group("waste-bluetooth", "types", WasteTypeViewSet)
 router.register_group("waste-bluetooth", "collection-sub", WasteCollectionSubViewSet)
 router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainViewSet)
+
+
+# ============================================================
+# GROUP: TRIP ASSIGNMENTS
+# ============================================================
+router.register_group("trip-assignments", "daily", DailyTripAssignmentViewSet)
 
 
 # ============================================================

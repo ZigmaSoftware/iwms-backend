@@ -62,7 +62,11 @@ class AlternativeStaffTemplate(models.Model):
         blank=True
     )
 
-    effective_date = models.DateField()
+    from_date = models.DateField(null=True, blank=True)
+    to_date = models.DateField(null=True, blank=True)
+
+
+    # effective_date = models.DateField()
 
     # ------------------------------------------------------------------
     # STAFF ASSIGNMENT
@@ -155,14 +159,14 @@ class AlternativeStaffTemplate(models.Model):
         ordering = ['-created_at']
 
         indexes = [
-            models.Index(fields=['staff_template', 'effective_date']),
+            models.Index(fields=['staff_template']),
             models.Index(fields=['approval_status']),
             models.Index(fields=['display_code']),
         ]
 
         constraints = [
             models.UniqueConstraint(
-                fields=['staff_template', 'effective_date'],
+                fields=['staff_template'],
                 name='unique_staff_template_per_effective_date'
             )
         ]
@@ -174,28 +178,72 @@ class AlternativeStaffTemplate(models.Model):
     def _generate_display_code(self):
         """
         Format:
-        <PARENT_DISPLAY_CODE>-ALT-<SEQ>
+        <DRIVER>-<OPERATOR>-<TEMPLATE_SEQ>-ALT-<ALT_SEQ>
 
         Example:
-        RAVI-KART-01-ALT-01
+        VIKR-NAVE-01-ALT-01
         """
 
-        if not self.staff_template:
-            return f"UNKNOWN-ALT-{self.pk or '00'}"
+        def resolve_staff_name(staff, fallback):
+            if not staff:
+                return fallback
+            if hasattr(staff, 'employee_name') and staff.employee_name:
+                return staff.employee_name
+            return fallback
 
-        parent_code = getattr(self.staff_template, 'display_code', None)
+        driver_name = resolve_staff_name(self.driver_id, "DRV")[:4].upper()
+        operator_name = resolve_staff_name(self.operator_id, "OPR")[:4].upper()
+        staff_base = f"{driver_name}-{operator_name}"
 
-        if not parent_code:
-            parent_code = f"TPL-{self.staff_template.pk}"
-
-        base_code = f"{parent_code}-ALT"
-
-        last_code = (
-            AlternativeStaffTemplate.objects
-            .filter(display_code__startswith=base_code)
-            .aggregate(max_code=Max("display_code"))
-            .get("max_code")
+        matching_alt_templates = AlternativeStaffTemplate.objects.filter(
+            display_code__startswith=f"{staff_base}-"
         )
+        if self.pk:
+            matching_alt_templates = matching_alt_templates.exclude(pk=self.pk)
+
+        matching_alt_codes = matching_alt_templates.values_list(
+            "display_code",
+            flat=True,
+        )
+
+        existing_base_codes = []
+        if self.staff_template:
+            StaffTemplate = self.staff_template.__class__
+            existing_base_codes.extend(
+                StaffTemplate.objects
+                .filter(display_code__startswith=f"{staff_base}-")
+                .values_list("display_code", flat=True)
+            )
+
+        for code in matching_alt_codes:
+            parts = str(code).split("-")
+            if len(parts) >= 3:
+                existing_base_codes.append("-".join(parts[:3]))
+
+        base_seq = 0
+        for code in existing_base_codes:
+            parts = str(code).split("-")
+            if len(parts) < 3:
+                continue
+            try:
+                base_seq = max(base_seq, int(parts[2]))
+            except ValueError:
+                continue
+
+        if base_seq == 0:
+            base_seq = 1
+
+        base_code = f"{staff_base}-{base_seq:02d}-ALT"
+
+        matching_base_templates = AlternativeStaffTemplate.objects.filter(
+            display_code__startswith=base_code
+        )
+        if self.pk:
+            matching_base_templates = matching_base_templates.exclude(pk=self.pk)
+
+        last_code = matching_base_templates.aggregate(
+            max_code=Max("display_code")
+        ).get("max_code")
 
         if last_code:
             try:
@@ -213,9 +261,28 @@ class AlternativeStaffTemplate(models.Model):
     # SAVE OVERRIDE
     # ------------------------------------------------------------------
 
+    def _staff_assignment_changed(self):
+        if not self.pk:
+            return False
+
+        try:
+            prev = (
+                AlternativeStaffTemplate.objects
+                .only("driver_id", "operator_id", "staff_template")
+                .get(pk=self.pk)
+            )
+        except AlternativeStaffTemplate.DoesNotExist:
+            return False
+
+        return (
+            prev.driver_id_id != self.driver_id_id
+            or prev.operator_id_id != self.operator_id_id
+            or prev.staff_template_id != self.staff_template_id
+        )
+
     def save(self, *args, **kwargs):
 
-        if not self.display_code:
+        if not self.display_code or self._staff_assignment_changed():
             self.display_code = self._generate_display_code()
 
         super().save(*args, **kwargs)

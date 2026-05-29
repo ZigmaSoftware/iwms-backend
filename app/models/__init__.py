@@ -148,6 +148,12 @@ from app.models.reports.monthly_weight_report import MonthlyWeightReport
 
 
 # ============================================================
+# GROUP: DAILY TRIP ASSIGNMENT
+# ============================================================
+from .daily_trip_assignment.daily_trip_assignment import DailyTripAssignment
+
+
+# ============================================================
 # EXPORTS
 # ============================================================
 __all__ = [
@@ -238,4 +244,7 @@ __all__ = [
     "SupervisorZoneAccessAudit",
     "TripExceptionLog",
     "VehicleTripAudit",
+
+    # Daily Trip Assignment
+    "DailyTripAssignment",
 ]
