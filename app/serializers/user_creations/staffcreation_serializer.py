@@ -141,6 +141,16 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     allow_blank=True,
     allow_null=True
 )
+
+    def validate_username(self, value):
+        if not value:
+            return value
+        qs = Staffcreation.objects.filter(username=value, is_deleted=False)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A staff member with this username already exists.")
+        return value
     
     user_type_id = serializers.CharField(
     source="staffusertype_id.usertype_id.unique_id",read_only=True)
@@ -194,6 +204,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
             #  Driving licence
             "driving_licence_no",
+            "driving_licence_expiry_date",
             "driving_licence_file",
 
             "active_status",
