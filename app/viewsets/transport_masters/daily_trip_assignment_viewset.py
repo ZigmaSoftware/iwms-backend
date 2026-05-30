@@ -4,8 +4,8 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.daily_trip_assignment.daily_trip_assignment import DailyTripAssignment
-from app.serializers.daily_trip_assignment.daily_trip_assignment_serializer import (
+from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
+from app.serializers.transport_masters.daily_trip_assignment_serializer import (
     DailyTripAssignmentSerializer,
     DailyTripAssignmentStatusSerializer,
     DailyTripAssignmentApprovalSerializer,
@@ -36,7 +36,6 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         "panchayat_id",
         "collection_point_id",
         "waste_type_id",
-        "waste_type_id__property_id",
     ).filter(is_deleted=False)
 
     serializer_class = DailyTripAssignmentSerializer

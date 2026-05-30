@@ -4,13 +4,13 @@ from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.user_creations.user_serializer import UniqueIdOrPkField
 
-from app.models.daily_trip_assignment.daily_trip_assignment import DailyTripAssignment
+from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.transport_masters.trip_definition import TripDefinition
 from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.user_creations.alternative_staff_template import AlternativeStaffTemplate
 from app.models.masters.panchayat import Panchayat
 from app.models.assets.collection_point import Collection_point
-from app.models.waste_types.subproperty import SubProperty
+from app.models.user_creations.waste_collection_bluetooth import WasteType
 
 
 # ==========================================================
@@ -44,7 +44,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     )
     waste_type_id = UniqueIdOrPkField(
         slug_field="unique_id",
-        queryset=SubProperty.objects.filter(is_deleted=False),
+        queryset=WasteType.objects.filter(is_deleted=False),
         write_only=True,
     )
 
@@ -174,8 +174,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             return None
         return {
             "unique_id": wt.unique_id,
-            "sub_property_name": wt.sub_property_name,
-            "property": getattr(getattr(wt, "property_id", None), "property_name", None),
+            "waste_type_name": getattr(wt, "waste_type_name", None),
         }
 
     # ----------------------------------------------------------
