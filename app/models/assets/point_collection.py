@@ -2,6 +2,7 @@ from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.models.assets.collection_point import Collection_point
+from app.models.assets.bins import Bins
 from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.models.transport_masters.trip_definition import TripDefinition
 from app.models.superadmin_masters.company import Company
@@ -37,6 +38,16 @@ class PointCollection(BaseMaster):
         on_delete=models.PROTECT,
         related_name="point_collections",
         db_column="collection_point_id"
+    )
+
+    bin_id = models.ForeignKey(
+        Bins,
+        on_delete=models.SET_NULL,
+        related_name="point_collections",
+        db_column="bin_id",
+        null=True,
+        blank=True,
+        to_field="unique_id",
     )
 
     district_id = models.ForeignKey(

@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound, PermissionDenied
 from app.permissions.platform import PlatformOrCompanyAdminOnly
@@ -13,6 +14,7 @@ class PlatformCompanyCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [PlatformOrCompanyAdminOnly]
     serializer_class = CompanySerializer
     lookup_field = "unique_id"
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     AUDIT_MODULE = "superadmin-masters"
     AUDIT_ENDPOINT = "companies"
