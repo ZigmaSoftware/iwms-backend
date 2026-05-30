@@ -4,7 +4,7 @@ from app.models.process.routeplan import RoutePlan
 
 
 class RoutePlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
-    SUPERVISOR_ROLE_NAME = "supervisor"
+    SUPERVISOR_ROLE_NAME ={"supervisor", "super_admin", "company supervisor", "contractor supervisor"}
 
     district_name = serializers.CharField(
         source="district_id.name", read_only=True
@@ -59,7 +59,7 @@ class RoutePlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
         staff_type = getattr(value, "staffusertype_id", None)
         role_name = getattr(staff_type, "name", "").lower()
 
-        if role_name != self.SUPERVISOR_ROLE_NAME:
+        if role_name not in self.SUPERVISOR_ROLE_NAME:
             raise serializers.ValidationError(
                 "Only supervisors can be assigned to a route plan."
             )
