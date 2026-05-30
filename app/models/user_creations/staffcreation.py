@@ -71,6 +71,10 @@ class StaffcreationOfficeDetails(BaseMaster):
         blank=True,
         null=True
     )
+    driving_licence_expiry_date = models.DateField(
+        blank=True,
+        null=True,
+    )
     driving_licence_file = models.FileField(
         upload_to="staff_licences/",
         blank=True,

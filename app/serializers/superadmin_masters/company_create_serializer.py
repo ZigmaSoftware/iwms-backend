@@ -38,7 +38,7 @@ from app.models.superadmin_masters.company import Company
 class PlatformCompanyCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = ["unique_id", "name", "description", "is_active"]
+        fields = ["unique_id", "name", "description", "company_logo", "is_active"]
         read_only_fields = ["unique_id"]
 
     def to_representation(self, instance):
@@ -62,5 +62,5 @@ class PlatformCompanyCreateSerializer(serializers.ModelSerializer):
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = ["unique_id", "name", "description", "is_active"]
+        fields = ["unique_id", "name", "description", "company_logo", "is_active"]
         read_only_fields = ["unique_id"]

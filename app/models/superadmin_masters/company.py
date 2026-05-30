@@ -18,6 +18,11 @@ class Company(BaseMaster):
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
+    company_logo = models.ImageField(
+        upload_to="company_logos/",
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         ordering = ["name"]
