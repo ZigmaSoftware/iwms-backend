@@ -1,11 +1,39 @@
 from django.db import models
 
 from app.models.masters.panchayat import Panchayat
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.utils.comfun import generate_unique_id
+
+def generate_monthlyweightreport_id():
+    return f"MWR-{generate_unique_id()}"
 
 
 class MonthlyWeightReport(models.Model):
-    unique_id = models.CharField(max_length=100, primary_key=True)
+
+    unique_id = models.CharField(
+        max_length=30,
+        primary_key=True,
+        default=generate_monthlyweightreport_id,
+        editable=False,
+    )
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="weightreport",
+        db_column="company_id",
+        null=True,
+        blank=True,
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="weightreport",
+        db_column="project_id",
+        null=True,
+        blank=True,
+    )
     panchayat_id = models.ForeignKey(
         Panchayat,
         on_delete=models.DO_NOTHING,

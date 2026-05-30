@@ -1,12 +1,11 @@
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db.models import Avg, Sum
-from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.viewsets import ViewSet
 
 from app.models.reports import MonthlyWeightReport
 from app.serializers.reports.monthly_weight_report_serializer import MonthlyWeightReportSerializer
+from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
 ZERO = Decimal("0")
@@ -40,20 +39,36 @@ def performance_status(actual, agreed):
     return "On Target"
 
 
-class MonthlyWasteComparisonReportViewSet(ViewSet):
+class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):
     permission_resource = "MonthlyWasteComparisonReport"
+    queryset = MonthlyWeightReport.objects.select_related(
+        "company_id", "project_id", "panchayat_id", "waste_type_id"
+    )
+    serializer_class = MonthlyWeightReportSerializer
+    lookup_field = "unique_id"
 
     def list(self, request):
         queryset = MonthlyWeightReport.objects.select_related(
-            "panchayat_id",
-            "waste_type_id",
+            "company_id", "project_id", "panchayat_id", "waste_type_id"
         )
 
-        user = getattr(request, "user", None)
-        if user and not getattr(user, "is_superuser", False):
-            company = getattr(user, "company_id", None)
-            if company:
-                queryset = queryset.filter(panchayat_id__company_id=company)
+        # CompanyScopedViewSet.filter_queryset handles company+project scoping for
+        # company users; for superadmin it passes through without filtering.
+        queryset = self.filter_queryset(queryset)
+
+        # Superadmin: allow optional company / project filter via query params
+        if self._is_platform_super_admin():
+            company_param = request.query_params.get("company_id")
+            project_param = request.query_params.get("project_id")
+            if company_param:
+                queryset = queryset.filter(company_id__unique_id=company_param)
+            if project_param:
+                queryset = queryset.filter(project_id__unique_id=project_param)
+        else:
+            # Company users can further narrow by project via query param
+            project_param = request.query_params.get("project_id")
+            if project_param:
+                queryset = queryset.filter(project_id__unique_id=project_param)
 
         month = request.query_params.get("month")
         panchayat_id = request.query_params.get("panchayat_id")
@@ -67,6 +82,11 @@ class MonthlyWasteComparisonReportViewSet(ViewSet):
             queryset = queryset.filter(waste_type_id=waste_type_id)
 
         grouped_rows = queryset.values(
+            "unique_id",
+            "company_id",
+            "company_id__name",
+            "project_id",
+            "project_id__name",
             "month",
             "panchayat_id",
             "panchayat_id__panchayat_name",
@@ -90,6 +110,11 @@ class MonthlyWasteComparisonReportViewSet(ViewSet):
 
             rows.append(
                 {
+                    "unique_id": row["unique_id"],
+                    "company_id": row["company_id"],
+                    "company_name": row["company_id__name"],
+                    "project_id": row["project_id"],
+                    "project_name": row["project_id__name"],
                     "month": row["month"],
                     "panchayat_id": row["panchayat_id"],
                     "panchayat_name": row["panchayat_id__panchayat_name"] or row["panchayat_id"],
@@ -130,42 +155,6 @@ class MonthlyWasteComparisonReportViewSet(ViewSet):
                 "kpis": totals,
             }
         )
-
-    def create(self, request):
-        serializer = MonthlyWeightReportSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def retrieve(self, request, pk=None):
-        try:
-            instance = MonthlyWeightReport.objects.select_related(
-                "panchayat_id", "waste_type_id"
-            ).get(unique_id=pk)
-        except MonthlyWeightReport.DoesNotExist:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = MonthlyWeightReportSerializer(instance)
-        return Response(serializer.data)
-
-    def partial_update(self, request, pk=None):
-        try:
-            instance = MonthlyWeightReport.objects.get(unique_id=pk)
-        except MonthlyWeightReport.DoesNotExist:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = MonthlyWeightReportSerializer(instance, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def destroy(self, request, pk=None):
-        try:
-            instance = MonthlyWeightReport.objects.get(unique_id=pk)
-        except MonthlyWeightReport.DoesNotExist:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        instance.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def _build_monthly_trends(self, rows):
         trends = {}
