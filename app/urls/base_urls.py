@@ -94,6 +94,12 @@ from ..viewsets.transport_masters.trip_viewset import TripViewSet
 from ..viewsets.transport_masters.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
 from ..viewsets.transport_masters.daily_trip_log_viewset import DailyTripLogViewSet
 
+# Operator mobile
+from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet
+from ..viewsets.operator_mobile.validate_bin_qr_viewset import ValidateBinQrViewSet
+from ..viewsets.operator_mobile.scan_bin_viewset import ScanBinViewSet
+from ..viewsets.operator_mobile.trip_history_viewset import TripHistoryViewSet
+
 # Audits
 from ..viewsets.audits.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
 from ..viewsets.audits.trip_exception_log_viewset import TripExceptionLogViewSet
@@ -258,6 +264,35 @@ router.register_group(
     DailyTripLogViewSet,
     basename="transport-masters-daily-trip-log",
 )
+
+# ============================================================
+# GROUP: OPERATOR MOBILE
+# ============================================================
+router.register_group(
+    "operator-mobile",
+    "my-trip-today",
+    MyTripTodayViewSet,
+    basename="operator-mobile-my-trip-today",
+)
+router.register_group(
+    "operator-mobile",
+    "validate-bin-qr",
+    ValidateBinQrViewSet,
+    basename="operator-mobile-validate-bin-qr",
+)
+router.register_group(
+    "operator-mobile",
+    "scan-bin",
+    ScanBinViewSet,
+    basename="operator-mobile-scan-bin",
+)
+router.register_group(
+    "operator-mobile",
+    "trip-history",
+    TripHistoryViewSet,
+    basename="operator-mobile-trip-history",
+)
+
 
 # ============================================================
 # GROUP: AUDIT

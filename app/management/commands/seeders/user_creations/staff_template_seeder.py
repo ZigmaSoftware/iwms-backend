@@ -3,85 +3,95 @@ from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.utils.base_models import Account  # ✅ ADD THIS
+from app.utils.base_models import Account
 
 
 class StaffTemplateSeeder(BaseSeeder):
     name = "staff_template"
 
-    def _pick_staff(self, role_name):
+    def _get_account(self, staff):
+        if not staff:
+            return None
+        account, _ = Account.objects.get_or_create(staff=staff)
+        return account
+
+    def _resolve_staff(self, username):
         return (
-            Staffcreation.objects.filter(
-                staffusertype_id__name__iexact=role_name,
-                is_active=True,
-                is_deleted=False,
-            )
+            Staffcreation.objects
+            .filter(username__iexact=username, is_active=True, is_deleted=False)
             .order_by("staff_unique_id")
             .first()
         )
 
-    def _get_account(self, staff):
-        """
-        Convert Staff → Account (FK requirement)
-        """
-        return Account.objects.filter(staff=staff).first()
+    def _ensure_company_and_project(self, *staff_members):
+        for staff in staff_members:
+            company = getattr(staff, "company_id", None)
+            project = getattr(staff, "project_id", None)
+            if company and project:
+                return company, project
 
-    def run(self):
-        """
-        Seed a minimal staff template using first available driver/operator users.
-        """
-        driver = self._pick_staff("driver")
-        operator = self._pick_staff("operator")
-
-        if not driver or not operator:
-            self.log("Driver or Operator staff not found. Seeder aborted.")
-            return
-
-        company = getattr(driver, "company_id", None) or getattr(operator, "company_id", None)
-        project = getattr(driver, "project_id", None) or getattr(operator, "project_id", None)
-
-        if not company:
-            company, _ = Company.objects.get_or_create(
-                name="IWMS",
-                defaults={
-                    "description": "Integrated Waste Management System",
-                    "is_active": True,
-                    "is_deleted": False,
-                },
-            )
-
-        if not project:
-            project_name = f"{company.name} Main Project"
-            project, _ = Project.objects.get_or_create(
-                name=project_name,
-                company_id=company,
-                defaults={
-                    "description": f"Default project for {company.name}",
-                    "is_active": True,
-                    "is_deleted": False,
-                },
-            )
-
-        # ✅ FIX: convert to Account
-        account = self._get_account(driver)
-
-        if not account:
-            self.log("No Account found for driver. Seeder aborted.")
-            return
-
-        StaffTemplate.objects.get_or_create(
-            driver_id=driver,
-            operator_id=operator,
+        company, _ = Company.objects.get_or_create(
+            name="IWMS",
             defaults={
-                "company_id": company,
-                "project_id": project,
-                "extra_operator_id": [],
-                "created_by": account,   # ✅ FIXED
-                "updated_by": account,   # ✅ FIXED
-                "approved_by": driver,   # ✅ correct (Staff)
-                "status": "ACTIVE",
-                "approval_status": "APPROVED",
+                "description": "Integrated Waste Management System",
+                "is_active": True,
+                "is_deleted": False,
             },
         )
+        project_name = f"{company.name} Main Project"
+        project, _ = Project.objects.get_or_create(
+            name=project_name,
+            company_id=company,
+            defaults={
+                "description": f"Default project for {company.name}",
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
+        return company, project
 
-        self.log("---StaffTemplate seeded successfully---")
+    def run(self):
+        """Seed two driver+operator staff templates for the operator-mobile flow."""
+
+        pairs = [
+            ("driver_user", "operator_user"),
+            ("driver2_user", "operator2_user"),
+        ]
+
+        created_count = 0
+        skipped = 0
+
+        for driver_username, operator_username in pairs:
+            driver = self._resolve_staff(driver_username)
+            operator = self._resolve_staff(operator_username)
+            if not driver or not operator:
+                self.log(
+                    f"StaffTemplate skipped: missing staff "
+                    f"({driver_username}, {operator_username})."
+                )
+                skipped += 1
+                continue
+
+            company, project = self._ensure_company_and_project(driver, operator)
+            account = self._get_account(driver)
+
+            _, was_created = StaffTemplate.objects.get_or_create(
+                driver_id=driver,
+                operator_id=operator,
+                defaults={
+                    "company_id": company,
+                    "project_id": project,
+                    "extra_operator_id": [],
+                    "created_by": account,
+                    "updated_by": account,
+                    "approved_by": driver,
+                    "status": "ACTIVE",
+                    "approval_status": "APPROVED",
+                },
+            )
+            if was_created:
+                created_count += 1
+
+        self.log(
+            f"---StaffTemplate seeded | created={created_count} | skipped={skipped}---"
+        )
