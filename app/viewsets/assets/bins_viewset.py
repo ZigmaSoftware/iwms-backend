@@ -56,20 +56,14 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         data = request.data.copy()
 
         image_file = request.FILES.get("bin_image")
-
         if image_file:
             image_path = save_uploaded_file(image_file, "bins")
             data["bin_image"] = image_path
 
-        qr_file = request.FILES.get("bin_qr")
-        if qr_file:
-            qr_path = save_uploaded_file(qr_file, "bins/qr")
-            data["bin_qr"] = qr_path
-
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        
+
         return Response(serializer.data, status=201)
     
     def get_queryset(self):
