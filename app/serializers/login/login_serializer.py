@@ -6,6 +6,7 @@ from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
 from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.auth_user import User
+from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 
 from app.models.superadmin_masters.project import Project
 from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
@@ -15,7 +16,7 @@ class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
     login_type = serializers.ChoiceField(
-        choices=["auto", "staff", "customer", "platform", "contractor"],
+        choices=["auto", "staff", "customer", "platform", "contractor", "panchayat_leader"],
         default="auto",
         required=False
     )
@@ -39,6 +40,8 @@ class LoginSerializer(serializers.Serializer):
             return ["platform"]
         if login_type == "contractor":
             return ["contractor", "staff", "customer", "platform"]
+        if login_type == "panchayat_leader":
+            return ["panchayat_leader"]
         return ["customer", "staff", "platform", "contractor"]
 
     def _format_permissions(self, queryset):
@@ -354,6 +357,46 @@ class LoginSerializer(serializers.Serializer):
             return self._build_platform_payload(user)
 
         return None
+
+    def _build_panchayat_leader_payload(self, leader):
+        panchayat = leader.panchayat_id
+        company = leader.company_id or (panchayat.company_id if panchayat else None)
+        project = leader.project_id or (panchayat.project_id if panchayat else None)
+
+        return {
+            "user": leader,
+            "permissions": {},
+            "permission_details": {},
+            "column_permissions": {},
+            "module_access": [],
+            "app_surfaces": [],
+            "landing": None,
+            "permission_version": None,
+            "generated_at": None,
+            "user_type": "panchayat_leader",
+            "staffusertype_id": None,
+            "contractorusertype_id": None,
+            "company_unique_id": company.unique_id if company else None,
+            "projects": [],
+            "profile_object": leader,
+        }
+
+    def _authenticate_panchayat_leader(self, username, password):
+        leader = (
+            PanchayatLeaderLogin.objects
+            .select_related("panchayat_id", "company_id", "project_id")
+            .filter(is_active=True, is_deleted=False)
+            .filter(Q(username__iexact=username) | Q(email__iexact=username))
+            .first()
+        )
+
+        if not leader:
+            return None
+
+        if not self._password_matches(password, leader.password):
+            return None
+
+        return self._build_panchayat_leader_payload(leader)
 
     def validate(self, attrs):
         username = attrs["username"].strip()

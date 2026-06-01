@@ -23,19 +23,26 @@ class PlatformCompanyCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        # Platform super admin
+        # Platform super admin (is_superuser=True and no company)
         if getattr(user, "is_superuser", False) and getattr(user, "company_id", None) is None:
             return Company.objects.filter(is_deleted=False).order_by("name")
 
-        # Company admin
+        # Company admin — full read access to their company
         role = getattr(getattr(user, "staffusertype_id", None), "name", "")
-        if (
-            not getattr(user, "is_superuser", False)
-            and getattr(user, "company_id", None) is not None
-            and (role or "").lower() == "admin"
-        ):
+        user_company = getattr(user, "company_id", None)
+
+        if user_company is not None and (role or "").lower() in ("admin", "company admin"):
             return Company.objects.filter(
-                unique_id=user.company_id.unique_id,
+                unique_id=user_company.unique_id,
+                is_deleted=False,
+            )
+
+        # Any other authenticated user that belongs to a company:
+        # allow read-only retrieval of their own company so the frontend
+        # can resolve the company label (lookup by unique_id in the URL).
+        if user_company is not None:
+            return Company.objects.filter(
+                unique_id=user_company.unique_id,
                 is_deleted=False,
             )
 

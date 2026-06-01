@@ -23,6 +23,7 @@ from ..viewsets.masters.zone_viewset import ZoneViewSet
 from ..viewsets.masters.ward_viewset import WardViewSet
 
 from ..viewsets.masters.panchayat_viweset import PanhayatViewSet
+from ..viewsets.masters.panchayat_leader_viewset import PanchayatLeaderLoginViewSet
 from ..viewsets.masters.areatype_viewset import AreaTypeViewSet
 from ..viewsets.masters.hierarchy_viewset import AdministrativeHierarchyViewSet
 from ..viewsets.masters.department_viewset import DepartmentViewSet
@@ -126,6 +127,7 @@ from ..viewsets.attendance_view.employee_viewset import EmployeeViewSet
 from ..viewsets.attendance_view.staff_profile_viewset import StaffProfileViewSet
 from ..viewsets.attendance_view.attendance_list import AttendanceListViewSet
 from ..viewsets.reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
+from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardViewSet
 
 
 router = GroupedRouter()
@@ -155,6 +157,7 @@ router.register_group("masters", "cities",        CityViewSet)
 router.register_group("masters", "zones",         ZoneViewSet)
 router.register_group("masters", "wards",         WardViewSet)
 router.register_group("masters", "panchayat",         PanhayatViewSet)
+router.register_group("masters", "panchayat-leaders", PanchayatLeaderLoginViewSet)
 router.register_group("masters", "areatypes",         AreaTypeViewSet)
 router.register_group("masters", "hierarchy",         AdministrativeHierarchyViewSet)
 router.register_group("masters", "departments",       DepartmentViewSet)
@@ -332,6 +335,11 @@ router.register_group("collections", "zone-wise", ZoneWiseCollectionViewSet)
 # GROUP: REPORTS
 # ============================================================
 router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
+
+# ============================================================
+# GROUP: LOCALBODY (panchayat leader portal — auth-only, no module permission check)
+# ============================================================
+router.register_group("localbody", "dashboard", LocalBodyDashboardViewSet, basename="localbody-dashboard")
 
 # ============================================================
 # GROUP: MOBILE URLS

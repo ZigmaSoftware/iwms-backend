@@ -5,6 +5,7 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
+from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 
 
 class JWTUserAuthentication(BaseAuthentication):
@@ -55,6 +56,14 @@ class JWTUserAuthentication(BaseAuthentication):
         if customer:
             request.jwt_payload = payload
             return (customer, None)
+
+        # Try to find user in PanchayatLeaderLogin (uses unique_id with prefix PLDR-)
+        leader = PanchayatLeaderLogin.objects.select_related(
+            "panchayat_id", "company_id", "project_id"
+        ).filter(unique_id=unique_id).first()
+        if leader:
+            request.jwt_payload = payload
+            return (leader, None)
 
         # Fall back to Django User (platform super admin)
         UserModel = get_user_model()
