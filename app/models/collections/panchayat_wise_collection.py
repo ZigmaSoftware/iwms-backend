@@ -52,6 +52,15 @@ class PanchayatCollection(BaseMaster):
         blank=True
     )
 
+    bin_collection_event_id = models.ForeignKey(
+        "app.BinCollectionEvent",
+        on_delete=models.PROTECT,
+        related_name="panchayat_collections",
+        db_column="bin_collection_event_id",
+        null=True,
+        blank=True,
+    )
+
     collection_date = models.DateField()
 
     trip_id = models.ForeignKey(

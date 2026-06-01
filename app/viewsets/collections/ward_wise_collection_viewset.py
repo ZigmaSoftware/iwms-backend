@@ -80,6 +80,9 @@ class WardWiseCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         return WardCollection.objects.select_related(
             "point_collection_id",
             "point_collection_id__collection_point_id",
+            "bin_collection_event_id",
+            "bin_collection_event_id__bin_id",
+            "bin_collection_event_id__collection_point_id",
             "ward_id",
             "ward_id__zone_id",
             "waste_type_id",
