@@ -78,6 +78,8 @@ class DailyTripLog(BaseMaster):
         db_column="collection_point_id",
         to_field="unique_id",
         related_name="daily_trip_logs",
+        null=True,
+        blank=True,
     )
     waste_type_id = models.ForeignKey(
         WasteType,
@@ -170,7 +172,17 @@ class DailyTripLog(BaseMaster):
         self.company_id = assignment.company_id
         self.project_id = assignment.project_id
         self.panchayat_id = assignment.panchayat_id
-        self.collection_point_id = assignment.collection_point_id
+        if assignment.collection_point_id:
+            self.collection_point_id = assignment.collection_point_id
+        elif not self.collection_point_id:
+            first_child = (
+                assignment.trip_collection_points
+                .filter(is_deleted=False)
+                .order_by("sequence")
+                .first()
+            )
+            if first_child:
+                self.collection_point_id = first_child.collection_point_id
         self.waste_type_id = assignment.waste_type_id
         self.trip_date = assignment.trip_date
         self.actual_start_time = self.actual_start_time or assignment.actual_start_time
@@ -181,10 +193,13 @@ class DailyTripLog(BaseMaster):
             self.driver_id = staff_template.driver_id
             self.operator_id = staff_template.operator_id
 
-        trip_definition = assignment.trip_definition_id
-        routeplan = getattr(trip_definition, "routeplan_id", None)
-        if routeplan and routeplan.vehicle_id:
-            self.vehicle_id = routeplan.vehicle_id
+        if getattr(assignment, "vehicle_id", None):
+            self.vehicle_id = assignment.vehicle_id
+        else:
+            trip_definition = assignment.trip_definition_id
+            routeplan = getattr(trip_definition, "routeplan_id", None)
+            if routeplan and routeplan.vehicle_id:
+                self.vehicle_id = routeplan.vehicle_id
 
     def clean(self):
         super().clean()
