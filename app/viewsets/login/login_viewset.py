@@ -102,6 +102,14 @@ class LoginViewSet(ViewSet):
                 )
                 if staff_unique:
                     employee_id = Staffcreation._derive_emp_id(staff_unique)
+        elif user_type == "panchayat_leader":
+            target = profile_object or user
+            name = (
+                getattr(target, "leader_name", None)
+                or getattr(target, "username", None)
+            )
+            role = "panchayat_leader"
+            email = getattr(target, "email", None)
 
         # -------------------------
         # JWT CREATION
@@ -169,6 +177,17 @@ class LoginViewSet(ViewSet):
                     "employee_name": getattr(contractor_source, "employee_name", None) or name,
                     "emp_id": emp_id,
                     "contractorusertype_unique_id": contractorusertype_unique_id,
+                }
+            )
+        elif user_type == "panchayat_leader":
+            leader_source = profile_object or user
+            panchayat = getattr(leader_source, "panchayat_id", None)
+            profile_payload.update(
+                {
+                    "panchayat_leader_unique_id": getattr(leader_source, "unique_id", None),
+                    "leader_name": getattr(leader_source, "leader_name", None) or name,
+                    "panchayat_unique_id": getattr(panchayat, "unique_id", None) if panchayat else None,
+                    "panchayat_name": getattr(panchayat, "panchayat_name", None) if panchayat else None,
                 }
             )
 

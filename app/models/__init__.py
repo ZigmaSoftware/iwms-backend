@@ -20,6 +20,7 @@ from .masters.zone import Zone
 from .masters.ward import Ward
 from .masters.department import Department
 from .masters.designation import Designation
+from .masters.panchayat_leader_login import PanchayatLeaderLogin
 
 
 # ============================================================
@@ -168,6 +169,7 @@ __all__ = [
     "Ward",
     "Department",
     "Designation",
+    "PanchayatLeaderLogin",
 
     # Assets
     "Fuel",
