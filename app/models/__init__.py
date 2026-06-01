@@ -132,6 +132,8 @@ from .transport_masters.trip_instance import TripInstance
 from .transport_masters.trip_attendance import TripAttendance
 from .transport_masters.daily_trip_assignment import DailyTripAssignment
 from .transport_masters.daily_trip_log import DailyTripLog
+from .transport_masters.daily_trip_collection_point import DailyTripCollectionPoint
+from .transport_masters.bin_collection_event import BinCollectionEvent
 
 
 # ============================================================
@@ -245,4 +247,6 @@ __all__ = [
     # Daily Trip Assignment
     "DailyTripAssignment",
     "DailyTripLog",
+    "DailyTripCollectionPoint",
+    "BinCollectionEvent",
 ]

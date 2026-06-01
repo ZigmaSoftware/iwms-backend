@@ -59,3 +59,7 @@ python -m pytest tests/ --cov=app --cov-report=term-missing -q
 python -m pytest tests/ --cov=app --cov-report=html -q && xdg-open htmlcov/index.html
 
 python -m pytest tests/ --cov=app --cov-report=xml -q
+
+
+https://api.qrserver.com/v1/create-qr-code/?data=QR-CP01-WET
+
