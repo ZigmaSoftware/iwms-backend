@@ -96,39 +96,23 @@ class BinCollectionEvent(BaseMaster):
         blank=True,
     )
 
-    operator_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column="operator_id",
-        to_field="staff_unique_id",
-        related_name="bin_collection_events_as_operator",
-    )
-    driver_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        db_column="driver_id",
-        to_field="staff_unique_id",
-        related_name="bin_collection_events_as_driver",
-        null=True,
-        blank=True,
-    )
+
 
     collected_weight_kg = models.DecimalField(max_digits=10, decimal_places=2)
-    scanned_qr = models.CharField(max_length=100)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    
+    driver_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    driver_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
-
-    event_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-event_at"]
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["trip_assignment_id", "event_at"]),
-            models.Index(fields=["operator_id", "event_at"]),
-            models.Index(fields=["panchayat_id", "event_at"]),
+            models.Index(fields=["trip_assignment_id", "created_at"]),
+            # models.Index(fields=["operator_id", "created_at"]),
+            # models.Index(fields=["panchayat_id", "created_at"]),
         ]
 
     def __str__(self):

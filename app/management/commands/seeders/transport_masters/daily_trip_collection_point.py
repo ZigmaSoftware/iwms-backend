@@ -18,16 +18,25 @@ class DailyTripCollectionPointSeeder(BaseSeeder):
             DailyTripAssignment.objects
             .filter(trip_date=today, is_deleted=False)
             .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-            .select_related("panchayat_id", "waste_type_id")
+            .select_related("panchayat_id", "waste_type_id", "collection_point_id")
         )
 
         if not assignments.exists():
-            self.log("No DailyTripAssignment for today — skipping.")
+            assignments = (
+                DailyTripAssignment.objects
+                .filter(is_deleted=False)
+                .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
+                .select_related("panchayat_id", "waste_type_id", "collection_point_id")
+                .order_by("-trip_date", "-scheduled_time")[:3]
+            )
+
+        if not assignments:
+            self.log("No DailyTripAssignment found — skipping.")
             return
 
         total_created = 0
         for assignment in assignments:
-            cps = (
+            cps = list(
                 Collection_point.objects
                 .filter(
                     panchayat_id=assignment.panchayat_id,
@@ -37,6 +46,19 @@ class DailyTripCollectionPointSeeder(BaseSeeder):
                 )
                 .order_by("cp_name")
             )
+            if assignment.collection_point_id and assignment.collection_point_id not in cps:
+                cps.insert(0, assignment.collection_point_id)
+
+            if not cps:
+                cps = list(
+                    Collection_point.objects
+                    .filter(
+                        company_id=assignment.company_id,
+                        project_id=assignment.project_id,
+                        is_deleted=False,
+                    )
+                    .order_by("cp_name")[:5]
+                )
 
             sequence = 0
             for cp in cps:
@@ -45,6 +67,11 @@ class DailyTripCollectionPointSeeder(BaseSeeder):
                     wastetype_id=assignment.waste_type_id,
                     is_deleted=False,
                 ).first()
+                if not bin_obj:
+                    bin_obj = Bins.objects.filter(
+                        collection_point_id=cp,
+                        is_deleted=False,
+                    ).first()
                 if not bin_obj:
                     continue
                 sequence += 1

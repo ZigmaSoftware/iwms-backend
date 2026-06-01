@@ -93,6 +93,8 @@ from ..viewsets.transport_masters.trip_viewset import TripViewSet
 # Daily Trip Assignment
 from ..viewsets.transport_masters.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
 from ..viewsets.transport_masters.daily_trip_log_viewset import DailyTripLogViewSet
+from ..viewsets.transport_masters.bin_collection_event_viewset import BinCollectionEventViewSet
+from ..viewsets.transport_masters.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
 
 # Operator mobile
 from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet
@@ -251,6 +253,8 @@ router.register_group("transport-masters", "trip-attendance", TripAttendanceView
 router.register_group("transport-masters", "fuels",         FuelViewSet)
 router.register_group("transport-masters", "daily-trip-assignments",         DailyTripAssignmentViewSet)
 router.register_group("transport-masters", "daily-trip-logs",         DailyTripLogViewSet)
+router.register_group("transport-masters", "daily-trip-collection-points",         DailyTripCollectionPointViewSet)
+router.register_group("transport-masters", "bin-collection-events",         BinCollectionEventViewSet)
 # Alias for frontend and existing clients using singular path
 router.register_group(
     "transport-masters",
@@ -263,6 +267,18 @@ router.register_group(
     "daily-trip-log",
     DailyTripLogViewSet,
     basename="transport-masters-daily-trip-log",
+)
+router.register_group(
+    "transport-masters",
+    "daily-trip-collection-point",
+    DailyTripCollectionPointViewSet,
+    basename="transport-masters-daily-trip-collection-point",
+)
+router.register_group(
+    "transport-masters",
+    "bin-collection-event",
+    BinCollectionEventViewSet,
+    basename="transport-masters-bin-collection-event",
 )
 
 # ============================================================
