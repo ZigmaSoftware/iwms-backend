@@ -91,7 +91,14 @@ from ..viewsets.transport_masters.trip_attendance_viewset import TripAttendanceV
 from ..viewsets.transport_masters.trip_viewset import TripViewSet
 
 # Daily Trip Assignment
-from ..viewsets.daily_trip_assignment.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
+from ..viewsets.transport_masters.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
+from ..viewsets.transport_masters.daily_trip_log_viewset import DailyTripLogViewSet
+
+# Operator mobile
+from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet
+from ..viewsets.operator_mobile.validate_bin_qr_viewset import ValidateBinQrViewSet
+from ..viewsets.operator_mobile.scan_bin_viewset import ScanBinViewSet
+from ..viewsets.operator_mobile.trip_history_viewset import TripHistoryViewSet
 
 # Audits
 from ..viewsets.audits.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
@@ -242,6 +249,50 @@ router.register_group("transport-masters", "trip-definition",  TripDefinitionVie
 router.register_group("transport-masters", "trip-instance",    TripInstanceViewSet)
 router.register_group("transport-masters", "trip-attendance", TripAttendanceViewSet)
 router.register_group("transport-masters", "fuels",         FuelViewSet)
+router.register_group("transport-masters", "daily-trip-assignments",         DailyTripAssignmentViewSet)
+router.register_group("transport-masters", "daily-trip-logs",         DailyTripLogViewSet)
+# Alias for frontend and existing clients using singular path
+router.register_group(
+    "transport-masters",
+    "daily-trip-assignment",
+    DailyTripAssignmentViewSet,
+    basename="transport-masters-daily-trip-assignment",
+)
+router.register_group(
+    "transport-masters",
+    "daily-trip-log",
+    DailyTripLogViewSet,
+    basename="transport-masters-daily-trip-log",
+)
+
+# ============================================================
+# GROUP: OPERATOR MOBILE
+# ============================================================
+router.register_group(
+    "operator-mobile",
+    "my-trip-today",
+    MyTripTodayViewSet,
+    basename="operator-mobile-my-trip-today",
+)
+router.register_group(
+    "operator-mobile",
+    "validate-bin-qr",
+    ValidateBinQrViewSet,
+    basename="operator-mobile-validate-bin-qr",
+)
+router.register_group(
+    "operator-mobile",
+    "scan-bin",
+    ScanBinViewSet,
+    basename="operator-mobile-scan-bin",
+)
+router.register_group(
+    "operator-mobile",
+    "trip-history",
+    TripHistoryViewSet,
+    basename="operator-mobile-trip-history",
+)
+
 
 # ============================================================
 # GROUP: AUDIT
@@ -266,7 +317,7 @@ router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainV
 # ============================================================
 # GROUP: TRIP ASSIGNMENTS
 # ============================================================
-router.register_group("trip-assignments", "daily", DailyTripAssignmentViewSet)
+# router.register_group("trip-assignments", "daily", DailyTripAssignmentViewSet)
 
 
 # ============================================================

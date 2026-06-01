@@ -115,6 +115,30 @@ class VehicleCreationSeeder(BaseSeeder):
                 "vehicle_condition": VehicleCreation.ConditionChoices.SECOND_HAND,
                 "fuel_tank_capacity": "120.00",
             },
+            {
+                "vehicle_no": "WET-VEHICLE-01",
+                "vehicle_type": vehicle_types["Compactor"],
+                "fuel_type": fuels["Diesel"],
+                "capacity": "1000.00",
+                "mileage_per_liter": "6.00",
+                "service_record": "Wet waste collection vehicle",
+                "vehicle_insurance": "ICICI Lombard",
+                "insurance_expiry_date": date(2026, 12, 31),
+                "vehicle_condition": VehicleCreation.ConditionChoices.NEW,
+                "fuel_tank_capacity": "120.00",
+            },
+            {
+                "vehicle_no": "DRY-VEHICLE-01",
+                "vehicle_type": vehicle_types["Tipping Truck"],
+                "fuel_type": fuels["Diesel"],
+                "capacity": "1000.00",
+                "mileage_per_liter": "6.20",
+                "service_record": "Dry waste collection vehicle",
+                "vehicle_insurance": "ICICI Lombard",
+                "insurance_expiry_date": date(2026, 12, 31),
+                "vehicle_condition": VehicleCreation.ConditionChoices.NEW,
+                "fuel_tank_capacity": "120.00",
+            },
         ]
 
         for entry in vehicles:

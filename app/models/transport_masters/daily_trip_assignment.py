@@ -5,11 +5,13 @@ from app.utils.base_models import BaseMaster
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.transport_masters.trip_definition import TripDefinition
+from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.user_creations.alternative_staff_template import AlternativeStaffTemplate
 from app.models.masters.panchayat import Panchayat
 from app.models.assets.collection_point import Collection_point
-from app.models.waste_types.subproperty import SubProperty
+# from app.models.waste_types.subproperty import SubProperty
+from app.models.user_creations.waste_collection_bluetooth import WasteType
 
 
 def _generate_trip_assignment_unique_id(company_id, project_id):
@@ -128,6 +130,12 @@ class DailyTripAssignment(BaseMaster):
         db_column="collection_point_id",
         to_field="unique_id",
         related_name="daily_trip_assignments",
+        null=True,
+        blank=True,
+        help_text=(
+            "Deprecated single-CP field. Use DailyTripCollectionPoint child rows; "
+            "this is retained for backward compatibility only."
+        ),
     )
 
     # ------------------------------------------------------------------
@@ -135,11 +143,25 @@ class DailyTripAssignment(BaseMaster):
     # ------------------------------------------------------------------
 
     waste_type_id = models.ForeignKey(
-        SubProperty,
+        WasteType,
         on_delete=models.PROTECT,
         db_column="waste_type_id",
         to_field="unique_id",
         related_name="daily_trip_assignments",
+    )
+
+    # ------------------------------------------------------------------
+    # VEHICLE (explicit for operator-mobile flow)
+    # ------------------------------------------------------------------
+
+    vehicle_id = models.ForeignKey(
+        VehicleCreation,
+        on_delete=models.PROTECT,
+        db_column="vehicle_id",
+        to_field="unique_id",
+        related_name="daily_trip_assignments",
+        null=True,
+        blank=True,
     )
 
     # ------------------------------------------------------------------
@@ -203,3 +225,20 @@ class DailyTripAssignment(BaseMaster):
 
     def __str__(self):
         return self.unique_id
+
+    def mark_completed_if_all_cps_collected(self):
+        children = self.trip_collection_points.filter(is_deleted=False)
+        if not children.exists():
+            return False
+        if children.filter(is_collected=False).exists():
+            return False
+        if self.status == self.STATUS_COMPLETED:
+            return True
+
+        update_fields = ["status", "updated_at"]
+        self.status = self.STATUS_COMPLETED
+        if not self.actual_end_time:
+            self.actual_end_time = timezone.localtime().time()
+            update_fields.append("actual_end_time")
+        self.save(update_fields=update_fields)
+        return True

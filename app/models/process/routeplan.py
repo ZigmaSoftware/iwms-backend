@@ -4,8 +4,10 @@ from app.utils.comfun import generate_unique_id
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.zone import Zone
+from app.models.masters.panchayat import Panchayat
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.user_creations.staffcreation import Staffcreation
+from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -47,7 +49,38 @@ class RoutePlan(BaseMaster):
         Zone,
         on_delete=models.PROTECT,
         to_field="unique_id",
-        related_name="route_plans"
+        related_name="route_plans",
+        null=True,
+        blank=True,
+    )
+
+    panchayat_id = models.ForeignKey(
+        Panchayat,
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        related_name="route_plans",
+        null=True,
+        blank=True,
+    )
+
+    staff_template_id = models.ForeignKey(
+        StaffTemplate,
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        related_name="route_plans",
+        null=True,
+        blank=True,
+        db_column="staff_template_id",
+    )
+
+    driver_id = models.ForeignKey(
+        Staffcreation,
+        on_delete=models.PROTECT,
+        to_field="staff_unique_id",
+        related_name="driver_route_plans",
+        null=True,
+        blank=True,
+        db_column="driver_id",
     )
 
     vehicle_id = models.ForeignKey(
@@ -89,10 +122,10 @@ class RoutePlan(BaseMaster):
     # DISPLAY CODE GENERATOR
     # --------------------------------------------------
     def _generate_display_code(self):
-        supervisor_name = "SUP"
-        if self.supervisor_id and self.supervisor_id.employee_name:
-            supervisor_name = (
-                self.supervisor_id.employee_name[:10]
+        driver_name = "DRV"
+        if self.driver_id and self.driver_id.employee_name:
+            driver_name = (
+                self.driver_id.employee_name[:10]
                 .upper()
                 .replace(" ", "")
             )
@@ -101,7 +134,7 @@ class RoutePlan(BaseMaster):
         if self.vehicle_id:
             vehicle_no = self.vehicle_id.vehicle_no.upper().replace(" ", "")
 
-        return f"{supervisor_name}-{vehicle_no}"
+        return f"{driver_name}-{vehicle_no}"
 
     # --------------------------------------------------
     # AUTO SET DISPLAY CODE
