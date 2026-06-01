@@ -56,7 +56,7 @@ class DailyTripCollectionPoint(BaseMaster):
     )
 
     sequence = models.PositiveIntegerField(default=1)
-
+    
     is_collected = models.BooleanField(default=False, db_index=True)
     collected_at = models.DateTimeField(null=True, blank=True)
     collected_by = models.ForeignKey(
@@ -68,12 +68,12 @@ class DailyTripCollectionPoint(BaseMaster):
         null=True,
         blank=True,
     )
-    collected_weight_kg = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-    )
+    # collected_weight_kg = models.DecimalField(
+    #     max_digits=10,
+    #     decimal_places=2,
+    #     null=True,
+    #     blank=True,
+    # )
 
     status = models.CharField(
         max_length=20,

@@ -52,12 +52,13 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         ]
         read_only_fields = [
             "unique_id",
+            "bin_qr",
             "created_at",
             "updated_at",
             "is_deleted"
         ]
         extra_kwargs = {
-            "bin_qr": {"required": False, "allow_blank": True, "allow_null": True},
+            "bin_qr": {"required": False, "read_only": True},
             "bin_image": {"required": False, "allow_blank": True},
         }
 

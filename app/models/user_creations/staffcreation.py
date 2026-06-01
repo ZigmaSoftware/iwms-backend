@@ -13,6 +13,7 @@ from app.models.masters.department import Department
 from app.models.masters.designation import Designation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+from app.utils.customer_qr import generate_customer_qr_content
 
 
 def generate_staff_unique_id():
@@ -62,6 +63,7 @@ class StaffcreationOfficeDetails(BaseMaster):
     staff_head_id = models.CharField(max_length=30, blank=True, null=True)
     employee_known = models.CharField(max_length=20, blank=True, null=True)
     photo = models.ImageField(upload_to="staff_photos/", blank=True, null=True)
+    qr_code = models.ImageField(upload_to="staff_qr/", blank=True, null=True)
     active_status = models.BooleanField(default=True)
     salary_type = models.CharField(max_length=50, blank=True, null=True)
 
@@ -222,6 +224,14 @@ class StaffcreationOfficeDetails(BaseMaster):
 
         self.emp_id = self._derive_emp_id(self.staff_unique_id, 999999)
 
+    def _regenerate_qr_code(self):
+        file_content = generate_customer_qr_content({"id": self.staff_unique_id})
+        file_name = f"{self.staff_unique_id}.png"
+        if self.qr_code:
+            self.qr_code.delete(save=False)
+        self.qr_code.save(file_name, file_content, save=False)
+        super().save(update_fields=["qr_code"])
+
     def save(self, *args, **kwargs):
         is_new = self._state.adding
 
@@ -237,6 +247,9 @@ class StaffcreationOfficeDetails(BaseMaster):
 
         if is_new:
             Account.objects.get_or_create(staff=self)
+
+        if is_new or not self.qr_code:
+            self._regenerate_qr_code()
 
     @property
     def is_authenticated(self):

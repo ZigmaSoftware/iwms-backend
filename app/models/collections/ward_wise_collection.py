@@ -46,6 +46,15 @@ class WardCollection(BaseMaster):
         blank=True
     )
 
+    bin_collection_event_id = models.ForeignKey(
+        "app.BinCollectionEvent",
+        on_delete=models.PROTECT,
+        related_name="ward_collections",
+        db_column="bin_collection_event_id",
+        null=True,
+        blank=True,
+    )
+
     ward_total_weight = models.DecimalField(
         max_digits=12,
         decimal_places=2,
