@@ -32,7 +32,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     )
     bin_ids = serializers.SlugRelatedField(
         slug_field="unique_id",
-        queryset=Bin.objects.filter(is_deleted=False),
+        queryset=Bin.objects.all(),  # allow historical refs to soft-deleted bins
         many=True,
         required=False,
     )
@@ -207,6 +207,18 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         )
         if collected_weight is not None and collected_weight <= 0:
             raise serializers.ValidationError("collected_weight_kg must be greater than 0.")
+
+        if assignment and collected_weight is not None:
+            vehicle = getattr(assignment, "vehicle_id", None)
+            if not vehicle:
+                trip_def = getattr(assignment, "trip_definition_id", None)
+                routeplan = getattr(trip_def, "routeplan_id", None) if trip_def else None
+                vehicle = getattr(routeplan, "vehicle_id", None) if routeplan else None
+            capacity = getattr(vehicle, "capacity", None)
+            if capacity is not None and collected_weight > capacity:
+                raise serializers.ValidationError(
+                    f"collected_weight_kg ({collected_weight} kg) cannot exceed vehicle capacity ({capacity} kg)."
+                )
 
         start_time = attrs.get("actual_start_time", getattr(instance, "actual_start_time", None))
         end_time = attrs.get("actual_end_time", getattr(instance, "actual_end_time", None))

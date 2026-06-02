@@ -113,9 +113,11 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         if not td:
             return None
         rp = getattr(td, "routeplan_id", None)
+        vehicle = getattr(rp, "vehicle_id", None)
         return {
             "unique_id": td.unique_id,
-            "vehicle_no": getattr(getattr(rp, "vehicle_id", None), "vehicle_no", None),
+            "vehicle_no": getattr(vehicle, "vehicle_no", None),
+            "vehicle_capacity_kg": float(vehicle.capacity) if vehicle and vehicle.capacity is not None else None,
             "display_code": getattr(rp, "display_code", None),
             "approval_status": td.approval_status,
             "status": td.status,
