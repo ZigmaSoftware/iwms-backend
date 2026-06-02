@@ -1,9 +1,8 @@
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.user_creations.unassigned_staff_pool import UnassignedStaffPool
 from app.models.user_creations.staffcreation import Staffcreation
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.masters.ward import Ward
-from app.models.masters.zone import Zone
 
 
 class UnassignedStaffPoolSeeder(BaseSeeder):
@@ -20,23 +19,24 @@ class UnassignedStaffPoolSeeder(BaseSeeder):
             self.log("UnassignedStaffPoolSeeder skipped (no staff users).")
             return
 
-        active_instances = TripInstance.objects.filter(
+        active_assignments = DailyTripAssignment.objects.filter(
             status__in=[
-                TripInstance.Status.WAITING_FOR_LOAD,
-                TripInstance.Status.READY,
-                TripInstance.Status.IN_PROGRESS,
+                DailyTripAssignment.STATUS_SCHEDULED,
+                DailyTripAssignment.STATUS_IN_PROGRESS,
             ]
-        ).select_related("staff_template", "zone")
+        ).select_related("staff_template_id", "ward_id")
 
         assigned_ids = set()
-        latest_trip_per_zone = {}
-        for instance in active_instances:
-            staff_template = instance.staff_template
+        latest_assignment_per_zone = {}
+        for assignment in active_assignments:
+            staff_template = assignment.staff_template_id
             if staff_template and staff_template.driver_id_id:
                 assigned_ids.add(staff_template.driver_id_id)
             if staff_template and staff_template.operator_id_id:
                 assigned_ids.add(staff_template.operator_id_id)
-            latest_trip_per_zone.setdefault(instance.zone_id, instance)
+            zone = getattr(getattr(assignment, "ward_id", None), "zone_id", None)
+            if zone:
+                latest_assignment_per_zone.setdefault(zone.unique_id, assignment)
 
         created = 0
         updated = 0
@@ -51,15 +51,8 @@ class UnassignedStaffPoolSeeder(BaseSeeder):
                 ).update(status=UnassignedStaffPool.Status.ASSIGNED)
                 continue
 
-            # Get zone from the latest trip for this staff's company/project
-            zone = None
-            trip_for_staff = latest_trip_per_zone.get(zone) if zone else None
-            if not trip_for_staff:
-                # Get any active trip
-                trip_for_staff = active_instances.first()
-            
-            if trip_for_staff:
-                zone = trip_for_staff.zone
+            assignment_for_staff = active_assignments.first()
+            zone = getattr(getattr(assignment_for_staff, "ward_id", None), "zone_id", None)
             
             if not zone:
                 continue
@@ -72,14 +65,14 @@ class UnassignedStaffPoolSeeder(BaseSeeder):
             if not ward:
                 continue
 
-            trip_instance = latest_trip_per_zone.get(zone.unique_id)
+            daily_trip_assignment = latest_assignment_per_zone.get(zone.unique_id)
             payload = {
                 "zone": zone,
                 "ward": ward,
                 "status": UnassignedStaffPool.Status.AVAILABLE,
-                "trip_instance": trip_instance,
-                "company_id": getattr(staff, "company_id", None) or getattr(trip_instance, "company_id", None),
-                "project_id": getattr(staff, "project_id", None) or getattr(trip_instance, "project_id", None),
+                "daily_trip_assignment": daily_trip_assignment,
+                "company_id": getattr(staff, "company_id", None) or getattr(daily_trip_assignment, "company_id", None),
+                "project_id": getattr(staff, "project_id", None) or getattr(daily_trip_assignment, "project_id", None),
             }
 
             if staff.staffusertype_id and staff.staffusertype_id.name.lower() == "operator":

@@ -107,7 +107,7 @@ class LoginSerializer(serializers.Serializer):
                     "customercreations": ["view"],
                 },
                 "process": {
-                    "route-plans": ["add", "view", "edit", "delete"],
+                    
                 },
                 "user-creations": {
                     "alternative-stafftemplate": ["view"],
@@ -118,7 +118,7 @@ class LoginSerializer(serializers.Serializer):
                     "customercreations": ["view"],
                 },
                 "process": {
-                    "route-plans": ["add", "view", "edit", "delete"],
+                    
                 },
                 "user-creations": {
                     "alternative-stafftemplate": ["view"],

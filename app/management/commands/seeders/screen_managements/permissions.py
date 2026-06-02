@@ -115,7 +115,7 @@ class PermissionSeeder(BaseSeeder):
                 "unassigned-staff-pool",
             ],
             "process": [
-                "route-plans",
+                
                 "zone-property-load-tracker",
             ],
             "customers": [
@@ -137,10 +137,19 @@ class PermissionSeeder(BaseSeeder):
             "transport-masters": [
                 "vehicle-type",
                 "vehicle-creation",
-                "trip-definition",
-                "trip-instance",
                 "trip-attendance",
                 "fuels",
+            ],
+            "schedule-masters": [
+                "staff-templates",
+                "alternative-staff-templates",
+                "collection-points",
+                "trip-plans",
+                "trip-plan-collection-points",
+                "daily-trip-assignments",
+                "daily-trip-collection-points",
+                "bin-collection-events",
+                "daily-trip-logs",
             ],
             "audits": [
                 "stafftemplate-audit-log",
@@ -212,7 +221,7 @@ class PermissionSeeder(BaseSeeder):
         # 4B. MAP MODELS FOR WASTE MANAGEMENT SCREENS
         # --------------------------------------------------
         waste_management_model_map = {
-            "collection monitoring": ("app", "PointCollection"),
+            # "collection monitoring": ("app", "PointCollection"),
             "panchayat base collection": ("app", "PanchayatCollection"),
             "ward base collection": ("app", "WardCollection"),
         }
@@ -454,7 +463,7 @@ class PermissionSeeder(BaseSeeder):
                 },
                 supervisor_role: {
                     "transport-masters": {
-                        "trip-definition": ["add", "view", "edit"],
+                        "trip-plans": ["add", "view", "edit"],
                     }
                 },
             }
@@ -510,7 +519,7 @@ class PermissionSeeder(BaseSeeder):
             if contractor_supervisor_role:
                 contractor_limited_permissions[contractor_supervisor_role] = {
                     "transport-masters": {
-                        "trip-definition": ["add", "view", "edit"],
+                        "trip-plans": ["add", "view", "edit"],
                     }
                 }
 

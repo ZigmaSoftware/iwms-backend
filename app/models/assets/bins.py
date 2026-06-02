@@ -6,7 +6,7 @@ from app.models.superadmin_masters.project import Project
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.city import City
 from app.models.masters.district import District
-from app.models.assets.collection_point import Collection_point
+from app.models.schedule_masters.collection_point import Collection_point
 from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.utils.bin_qr import generate_bin_qr_content
 

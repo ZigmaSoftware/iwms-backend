@@ -3,17 +3,17 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from django.utils import timezone
 from django.conf import settings
 from app.models.transport_masters.trip_attendance import TripAttendance
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 
 
 class TripAttendanceSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    trip_instance_id = serializers.SlugRelatedField(
-        source="trip_instance",
+    daily_trip_assignment_id = serializers.SlugRelatedField(
+        source="daily_trip_assignment",
         slug_field="unique_id",
-        queryset=TripInstance.objects.all()
+        queryset=DailyTripAssignment.objects.all()
     )
 
     staff_id = serializers.SlugRelatedField(
@@ -36,7 +36,7 @@ class TripAttendanceSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
             "company_name",
             "project_id",
             "project_name",
-            "trip_instance_id",
+            "daily_trip_assignment_id",
             "staff_id",
             "vehicle_id",
             "attendance_time",
@@ -50,7 +50,7 @@ class TripAttendanceSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
 
     def validate(self, attrs):
         instance = getattr(self, "instance", None)
-        trip = attrs.get("trip_instance") if "trip_instance" in attrs else getattr(instance, "trip_instance", None)
+        trip = attrs.get("daily_trip_assignment") if "daily_trip_assignment" in attrs else getattr(instance, "daily_trip_assignment", None)
         staff = attrs.get("staff") if "staff" in attrs else getattr(instance, "staff", None)
         vehicle = attrs.get("vehicle") if "vehicle" in attrs else getattr(instance, "vehicle", None)
 
@@ -61,20 +61,20 @@ class TripAttendanceSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
             return attrs
 
         # Trip must be active (create only)
-        if trip.status != "IN_PROGRESS":
+        if trip.status != DailyTripAssignment.STATUS_IN_PROGRESS:
             raise serializers.ValidationError(
                 "Attendance allowed only for in-progress trips"
             )
 
-        if not trip.staff_template:
+        if not trip.staff_template_id:
             raise serializers.ValidationError(
                 "Trip has no staff template assigned"
             )
 
         # Staff must belong to trip
         if staff.staff_unique_id not in [
-            trip.staff_template.operator_id_id,
-            trip.staff_template.driver_id_id,
+            trip.staff_template_id.operator_id_id,
+            trip.staff_template_id.driver_id_id,
         ]:
             raise serializers.ValidationError(
                 "Staff is not assigned to this trip"
@@ -88,15 +88,15 @@ class TripAttendanceSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
                 "Attendance allowed only for operator or driver"
             )
 
-        if vehicle != trip.vehicle:
+        if vehicle != trip.vehicle_id:
             raise serializers.ValidationError(
-                "Vehicle does not match trip instance"
+                "Vehicle does not match daily trip assignment"
             )
 
         # Trip attendance cooldown enforcement (create only)
         last = (
             TripAttendance.objects
-            .filter(trip_instance=trip, staff=staff)
+            .filter(daily_trip_assignment=trip, staff=staff)
             .order_by("-attendance_time")
             .first()
         )

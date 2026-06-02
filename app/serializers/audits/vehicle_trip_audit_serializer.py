@@ -3,16 +3,16 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from django.utils import timezone
 
 from app.models.audits.vehicle_trip_audit import VehicleTripAudit
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 
 
 class VehicleTripAuditSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    trip_instance_id = serializers.SlugRelatedField(
-        source="trip_instance",
+    daily_trip_assignment_id = serializers.SlugRelatedField(
+        source="daily_trip_assignment",
         slug_field="unique_id",
-        queryset=TripInstance.objects.all()
+        queryset=DailyTripAssignment.objects.all()
     )
 
     vehicle_id = serializers.SlugRelatedField(
@@ -29,7 +29,7 @@ class VehicleTripAuditSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "company_name",
             "project_id",
             "project_name",
-            "trip_instance_id",
+            "daily_trip_assignment_id",
             "vehicle_id",
             "gps_lat",
             "gps_lon",
@@ -66,17 +66,17 @@ class VehicleTripAuditSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         except (TypeError, ValueError):
             raise serializers.ValidationError("GPS arrays must be numeric values")
 
-        trip = attrs.get("trip_instance") or (instance.trip_instance if instance else None)
+        trip = attrs.get("daily_trip_assignment") or (instance.daily_trip_assignment if instance else None)
         if not trip:
-            raise serializers.ValidationError("Trip instance is required")
-        if trip.status != "IN_PROGRESS":
+            raise serializers.ValidationError("Daily trip assignment is required")
+        if trip.status != DailyTripAssignment.STATUS_IN_PROGRESS:
             raise serializers.ValidationError(
                 "GPS audit allowed only for in-progress trips"
             )
 
         vehicle = attrs.get("vehicle") or (instance.vehicle if instance else None)
-        if vehicle and vehicle != trip.vehicle:
-            raise serializers.ValidationError("Vehicle does not match trip instance")
+        if vehicle and vehicle != trip.vehicle_id:
+            raise serializers.ValidationError("Vehicle does not match daily trip assignment")
 
         return attrs
 

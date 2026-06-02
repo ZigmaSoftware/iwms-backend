@@ -1,5 +1,5 @@
 from django.db import models
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
@@ -38,8 +38,8 @@ class VehicleTripAudit(models.Model):
         editable=False,
     )
 
-    trip_instance = models.ForeignKey(
-        TripInstance,
+    daily_trip_assignment = models.ForeignKey(
+        DailyTripAssignment,
         on_delete=models.PROTECT,
         related_name="vehicle_audits",
         db_column="trip_instance_id",
@@ -82,9 +82,9 @@ class VehicleTripAudit(models.Model):
     class Meta:
         ordering = ["-captured_at"]
         indexes = [
-            models.Index(fields=["trip_instance", "vehicle"]),
+            models.Index(fields=["daily_trip_assignment", "vehicle"]),
             models.Index(fields=["captured_at"]),
         ]
 
     def __str__(self):
-        return f"{self.trip_instance_id} | {self.vehicle_id} | {self.captured_at}"
+        return f"{self.daily_trip_assignment_id} | {self.vehicle_id} | {self.captured_at}"

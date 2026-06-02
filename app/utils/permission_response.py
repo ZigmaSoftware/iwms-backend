@@ -369,8 +369,8 @@ def infer_app_surfaces(module_access, permissions, role_name=None, user_type=Non
         surface_keys.append("admin")
     elif screen_keys & {
         "customercreations",
-        "route-plans",
-        "routeplan",
+        
+        "trip_plan",
         "attendance-list",
         "alternative-stafftemplate",
     } or module_keys & {"customers", "process", "process-items"}:
