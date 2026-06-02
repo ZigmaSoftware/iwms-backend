@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.transport_masters.trip_attendance import TripAttendance
 
 
@@ -11,16 +11,16 @@ class TripAttendanceSeeder(BaseSeeder):
     name = "trip_attendance"
 
     def run(self):
-        trip = TripInstance.objects.order_by("-created_at").first()
+        trip = DailyTripAssignment.objects.order_by("-created_at").first()
         if not trip:
-            self.log("TripAttendanceSeeder skipped (no trip instances).")
+            self.log("TripAttendanceSeeder skipped (no daily trip assignments).")
             return
 
-        if trip.status != TripInstance.Status.IN_PROGRESS:
-            trip.status = TripInstance.Status.IN_PROGRESS
+        if trip.status != DailyTripAssignment.STATUS_IN_PROGRESS:
+            trip.status = DailyTripAssignment.STATUS_IN_PROGRESS
             trip.save(update_fields=["status"])
 
-        staff_template = trip.staff_template
+        staff_template = trip.staff_template_id
         if not staff_template:
             self.log("TripAttendanceSeeder skipped (missing staff template).")
             return
@@ -37,9 +37,9 @@ class TripAttendanceSeeder(BaseSeeder):
 
             attendance_time = timezone.now() - timedelta(minutes=50 + (idx * 10))
             _, was_created = TripAttendance.objects.get_or_create(
-                trip_instance=trip,
+                daily_trip_assignment=trip,
                 staff=staff,
-                vehicle=trip.vehicle,
+                vehicle=trip.vehicle_id,
                 company_id=trip.company_id,
                 project_id=trip.project_id,
                 attendance_time=attendance_time,

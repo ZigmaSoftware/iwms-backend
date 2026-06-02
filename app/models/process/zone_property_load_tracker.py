@@ -70,73 +70,11 @@ class ZonePropertyLoadTracker(models.Model):
     def __str__(self):
         return f"{self.zone.name} | {self.property.property_name} | {self.current_weight_kg} kg"
 
-    def trigger_trip_instance(self):
+    def trigger_daily_trip_assignment(self):
         """
-        Create a TripInstance if current weight meets a TripDefinition trigger.
-        Returns the created instance or None.
+        Automatic dispatch is handled by the Schedule Masters daily assignment flow.
         """
-        from django.db import transaction
-        from app.models.transport_masters.trip_definition import TripDefinition
-        from app.models.transport_masters.trip_instance import TripInstance
-        from app.models.user_creations.unassigned_staff_pool import UnassignedStaffPool
-
-        if self.current_weight_kg is None:
-            return None
-
-        trip_def = (
-            TripDefinition.objects.select_related("routeplan_id", "staff_template_id")
-            .filter(
-                status=TripDefinition.Status.ACTIVE,
-                approval_status=TripDefinition.ApprovalStatus.APPROVED,
-                property_id=self.property,
-                sub_property_id=self.sub_property,
-                routeplan_id__city_id=self.zone.city_id,
-                routeplan_id__vehicle_id=self.vehicle,
-            )
-            .order_by("-created_at")
-            .first()
-        )
-
-        if not trip_def or self.current_weight_kg < trip_def.trip_trigger_weight_kg:
-            return None
-
-        existing = TripInstance.objects.filter(
-            trip_definition=trip_def,
-            zone=self.zone,
-            vehicle=self.vehicle,
-            property=self.property,
-            sub_property=self.sub_property,
-            status__in=[
-                TripInstance.Status.WAITING_FOR_LOAD,
-                TripInstance.Status.READY,
-                TripInstance.Status.IN_PROGRESS,
-            ],
-        ).exists()
-
-        if existing:
-            return None
-
-        with transaction.atomic():
-            instance = TripInstance.objects.create(
-                trip_definition=trip_def,
-                staff_template=trip_def.staff_template_id,
-                alternative_staff_template=None,
-                zone=self.zone,
-                vehicle=self.vehicle,
-                property=self.property,
-                sub_property=self.sub_property,
-                company_id=trip_def.company_id,
-                project_id=trip_def.project_id,
-                trigger_weight_kg=trip_def.trip_trigger_weight_kg,
-                max_capacity_kg=trip_def.max_vehicle_capacity_kg,
-                current_load_kg=self.current_weight_kg,
-                start_load_kg=self.current_weight_kg,
-                status=TripInstance.Status.READY,
-            )
-
-            UnassignedStaffPool.refresh_for_trip_instance(instance)
-
-        return instance
+        return None
 
     def create_audit_log(self, event_time=None, source_type=None):
         """

@@ -18,7 +18,6 @@ from app.models.transport_masters.trip_definition import TripDefinition
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.models.transport_masters.fuel import Fuel
-from app.models.process.routeplan import RoutePlan
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.user_creations.stafftemplate import StaffTemplate
 from app.models.user_creations.waste_collection_bluetooth import WasteType
@@ -252,56 +251,6 @@ def vehicle(db, company, project):
         fuel_tank_capacity=Decimal("120.00"),
     )
 
-
-@pytest.fixture
-def trip_definition(
-    db, staff_template, vehicle, driver, panchayat,
-    company, project, district, city, zone,
-):
-    prop = Property.objects.create(
-        property_name="Test Prop", company_id=company, project_id=project
-    )
-    sub = SubProperty.objects.create(
-        sub_property_name="Test Sub",
-        property_id=prop,
-        company_id=company,
-        project_id=project,
-    )
-    supervisor = Staffcreation.objects.create(
-        employee_name="supervisor_t",
-        username="supervisor_t",
-        password="x",
-        user_type_id=staff_template.driver_id.user_type_id,
-        staffusertype_id=staff_template.driver_id.staffusertype_id,
-        company_id=company,
-        project_id=project,
-        is_active=True,
-        is_deleted=False,
-    )
-    routeplan = RoutePlan.objects.create(
-        district_id=district,
-        city_id=city,
-        zone_id=zone,
-        panchayat_id=panchayat,
-        staff_template_id=staff_template,
-        driver_id=driver,
-        vehicle_id=vehicle,
-        supervisor_id=supervisor,
-        company_id=company,
-        project_id=project,
-    )
-    return TripDefinition.objects.create(
-        routeplan_id=routeplan,
-        staff_template_id=staff_template,
-        property_id=prop,
-        sub_property_id=sub,
-        company_id=company,
-        project_id=project,
-        trip_trigger_weight_kg=500,
-        max_vehicle_capacity_kg=3000,
-        status=TripDefinition.Status.ACTIVE,
-        approval_status=TripDefinition.ApprovalStatus.APPROVED,
-    )
 
 
 @pytest.fixture

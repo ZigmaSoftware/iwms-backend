@@ -1,15 +1,15 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.audits.trip_exception_log import TripExceptionLog
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 
 
 class TripExceptionLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    trip_instance_id = serializers.SlugRelatedField(
-        source="trip_instance",
+    daily_trip_assignment_id = serializers.SlugRelatedField(
+        source="daily_trip_assignment",
         slug_field="unique_id",
-        queryset=TripInstance.objects.all()
+        queryset=DailyTripAssignment.objects.all()
     )
 
     class Meta:
@@ -20,7 +20,7 @@ class TripExceptionLogSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "company_name",
             "project_id",
             "project_name",
-            "trip_instance_id",
+            "daily_trip_assignment_id",
             "exception_type",
             "remarks",
             "detected_by",
@@ -29,9 +29,9 @@ class TripExceptionLogSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         read_only_fields = ["unique_id", "created_at"]
 
     def validate(self, attrs):
-        trip = attrs["trip_instance"]
+        trip = attrs["daily_trip_assignment"]
 
-        if trip.status in ["COMPLETED", "CANCELLED"]:
+        if trip.status in [DailyTripAssignment.STATUS_COMPLETED, DailyTripAssignment.STATUS_CANCELLED]:
             raise serializers.ValidationError(
                 "Exceptions cannot be logged for completed or cancelled trips"
             )

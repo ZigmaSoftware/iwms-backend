@@ -2,11 +2,11 @@ from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.models.user_creations.waste_collection_bluetooth import WasteType
-from app.models.transport_masters.trip import Trip
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.masters.zone import Zone
-from app.models.transport_masters.trip_definition import TripDefinition
+from app.models.schedule_masters.trip_plan import TripPlan
+from app.models.schedule_masters.collection_point import Collection_point
 
 
 def generate_zone_collection_id():
@@ -46,10 +46,28 @@ class ZoneCollection(BaseMaster):
         default=0
     )
 
+    collection_point_id = models.ForeignKey(
+        Collection_point,
+        on_delete=models.PROTECT,
+        related_name="zone_collections",
+        db_column="collection_point_id",
+        null=True,
+        blank=True,
+    )
+
+    bin_collection_event_id = models.ForeignKey(
+        "app.BinCollectionEvent",
+        on_delete=models.PROTECT,
+        related_name="zone_collections",
+        db_column="bin_collection_event_id",
+        null=True,
+        blank=True,
+    )
+
     collection_date = models.DateField()
 
     trip_id = models.ForeignKey(
-        TripDefinition,
+        TripPlan,
         on_delete=models.PROTECT,
         related_name="zone_collections",
         db_column="trip_id"

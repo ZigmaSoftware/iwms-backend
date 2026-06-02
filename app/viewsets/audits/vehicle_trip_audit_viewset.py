@@ -35,7 +35,7 @@ class VehicleTripAuditViewSet(ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
-        immutable_fields = {"trip_instance_id", "vehicle_id", "captured_at"}
+        immutable_fields = {"daily_trip_assignment_id", "vehicle_id", "captured_at"}
         if immutable_fields.intersection(request.data.keys()):
             return Response(
                 {"detail": "Trip, vehicle, and captured_at cannot be modified."},
