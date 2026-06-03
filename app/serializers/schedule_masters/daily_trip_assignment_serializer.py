@@ -71,6 +71,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     effective_staff = serializers.SerializerMethodField(read_only=True)
     panchayat = serializers.SerializerMethodField(read_only=True)
     ward = serializers.SerializerMethodField(read_only=True)
+    zone = serializers.SerializerMethodField(read_only=True)
     waste_type = serializers.SerializerMethodField(read_only=True)
     vehicle = serializers.SerializerMethodField(read_only=True)
 
@@ -95,6 +96,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "effective_staff",
             "panchayat",
             "ward",
+            "zone",
             "waste_type",
             "vehicle",
             "trip_date",
@@ -123,6 +125,9 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "unique_id": plan.unique_id,
             "display_code": plan.display_code,
             "scheduled_time": plan.scheduled_time,
+            "zone": self._zone_payload(getattr(plan, "zone_id", None)),
+            "panchayat": self._panchayat_payload(getattr(plan, "panchayat_id", None)),
+            "ward": self._ward_payload(getattr(plan, "ward_id", None)),
             "vehicle_no": getattr(getattr(plan, "vehicle_id", None), "vehicle_no", None),
             "waste_type_name": getattr(getattr(plan, "waste_type_id", None), "waste_type_name", None),
         }
@@ -162,16 +167,36 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         }
 
     def get_panchayat(self, obj):
-        panchayat = obj.panchayat_id
+        return self._panchayat_payload(obj.panchayat_id)
+
+    def get_ward(self, obj):
+        return self._ward_payload(obj.ward_id)
+
+    def get_zone(self, obj):
+        plan_zone = getattr(getattr(obj, "trip_plan_id", None), "zone_id", None)
+        ward_zone = getattr(getattr(obj, "ward_id", None), "zone_id", None)
+        return self._zone_payload(plan_zone or ward_zone)
+
+    def _panchayat_payload(self, panchayat):
         if not panchayat:
             return None
         return {"unique_id": panchayat.unique_id, "panchayat_name": panchayat.panchayat_name}
 
-    def get_ward(self, obj):
-        ward = obj.ward_id
+    def _ward_payload(self, ward):
         if not ward:
             return None
-        return {"unique_id": ward.unique_id, "ward_name": ward.ward_name}
+        zone = getattr(ward, "zone_id", None)
+        return {
+            "unique_id": ward.unique_id,
+            "ward_name": ward.ward_name,
+            "zone_id": getattr(zone, "unique_id", None),
+            "zone_name": getattr(zone, "zone_name", None),
+        }
+
+    def _zone_payload(self, zone):
+        if not zone:
+            return None
+        return {"unique_id": zone.unique_id, "zone_name": zone.zone_name}
 
     def get_waste_type(self, obj):
         waste_type = obj.waste_type_id

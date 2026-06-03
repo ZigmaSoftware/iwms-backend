@@ -17,7 +17,7 @@ from rest_framework.viewsets import ViewSet
 
 from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.reports.monthly_weight_report import MonthlyWeightReport
-from app.models.transport_masters.daily_trip_log import DailyTripLog
+from app.models.schedule_masters.daily_trip_log import DailyTripLog
 
 
 ZERO = Decimal("0")

@@ -51,6 +51,11 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
     approved_by = serializers.SerializerMethodField()
     approval_status = serializers.SerializerMethodField()
     display_code = serializers.SerializerMethodField()
+    panchayat_name = serializers.SerializerMethodField()
+    ward_id = serializers.SerializerMethodField()
+    ward_name = serializers.SerializerMethodField()
+    zone_name = serializers.SerializerMethodField()
+    collection_point = serializers.SerializerMethodField()
 
     class Meta:
         model = BinCollectionEvent
@@ -83,6 +88,11 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "driver_latitude",
             "driver_longitude",
             "notes",
+            "panchayat_name",
+            "ward_id",
+            "ward_name",
+            "zone_name",
+            "collection_point",
             "created_by",
             "updated_by",
             "is_active",
@@ -244,3 +254,29 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
     def get_display_code(self, obj):
         alt_template = self._resolve_alternative_staff_template(obj)
         return getattr(alt_template, "display_code", None) if alt_template else None
+
+    def get_panchayat_name(self, obj):
+        panchayat = obj.panchayat_id
+        return getattr(panchayat, "panchayat_name", None)
+
+    def get_ward_id(self, obj):
+        assignment = obj.trip_assignment_id
+        ward = getattr(assignment, "ward_id", None) if assignment else None
+        return getattr(ward, "unique_id", None)
+
+    def get_ward_name(self, obj):
+        assignment = obj.trip_assignment_id
+        ward = getattr(assignment, "ward_id", None) if assignment else None
+        return getattr(ward, "ward_name", None)
+
+    def get_zone_name(self, obj):
+        assignment = obj.trip_assignment_id
+        ward = getattr(assignment, "ward_id", None) if assignment else None
+        zone = getattr(ward, "zone_id", None) if ward else None
+        return getattr(zone, "zone_name", None)
+
+    def get_collection_point(self, obj):
+        cp = obj.collection_point_id
+        if not cp:
+            return None
+        return {"unique_id": getattr(cp, "unique_id", None), "cp_name": getattr(cp, "cp_name", None)}
