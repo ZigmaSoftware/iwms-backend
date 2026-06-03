@@ -19,9 +19,9 @@ class TripPlanCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def get_queryset(self):
         queryset = (
             TripPlanCollectionPoint.objects.select_related(
+                "company_id",
+                "project_id",
                 "trip_plan_id",
-                "trip_plan_id__company_id",
-                "trip_plan_id__project_id",
                 "collection_point_id",
                 "bin_id",
             )
@@ -37,9 +37,9 @@ class TripPlanCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if trip_plan:
             queryset = queryset.filter(trip_plan_id__unique_id=trip_plan)
         if company:
-            queryset = queryset.filter(trip_plan_id__company_id__unique_id=company)
+            queryset = queryset.filter(company_id__unique_id=company)
         if project:
-            queryset = queryset.filter(trip_plan_id__project_id__unique_id=project)
+            queryset = queryset.filter(project_id__unique_id=project)
         if collection_point:
             queryset = queryset.filter(collection_point_id__unique_id=collection_point)
 
