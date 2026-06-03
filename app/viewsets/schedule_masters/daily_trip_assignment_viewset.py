@@ -55,6 +55,7 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         params = self.request.query_params
         trip_date = params.get("date") or params.get("trip_date")
+        today_flag = params.get("today")
         panchayat = params.get("panchayat_id")
         ward = params.get("ward_id")
         trip_plan = params.get("trip_plan_id")
@@ -63,6 +64,9 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         if trip_date:
             qs = qs.filter(trip_date=trip_date)
+
+        if today_flag and str(today_flag).lower() in ("1", "true", "yes"):
+            qs = qs.filter(trip_date=timezone.localdate())
 
         if panchayat:
             qs = qs.filter(panchayat_id=panchayat)
