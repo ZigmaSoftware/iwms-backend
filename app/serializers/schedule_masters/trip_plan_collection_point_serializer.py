@@ -29,10 +29,6 @@ class TripPlanCollectionPointSerializer(
 
     collection_point = serializers.SerializerMethodField()
     bin = serializers.SerializerMethodField()
-    company_id = serializers.SerializerMethodField()
-    company_name = serializers.SerializerMethodField()
-    project_id = serializers.SerializerMethodField()
-    project_name = serializers.SerializerMethodField()
 
     class Meta:
         model = TripPlanCollectionPoint
@@ -63,18 +59,6 @@ class TripPlanCollectionPointSerializer(
             "updated_at",
         ]
         validators = []
-
-    def get_company_id(self, obj):
-        return getattr(getattr(obj.trip_plan_id, "company_id", None), "unique_id", None)
-
-    def get_company_name(self, obj):
-        return getattr(getattr(obj.trip_plan_id, "company_id", None), "name", None)
-
-    def get_project_id(self, obj):
-        return getattr(getattr(obj.trip_plan_id, "project_id", None), "unique_id", None)
-
-    def get_project_name(self, obj):
-        return getattr(getattr(obj.trip_plan_id, "project_id", None), "name", None)
 
     def get_collection_point(self, obj):
         cp = obj.collection_point_id

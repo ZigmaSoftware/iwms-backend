@@ -4,6 +4,8 @@ from django.utils import timezone
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.models.user_creations.staffcreation import Staffcreation
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
@@ -29,6 +31,23 @@ class DailyTripCollectionPoint(BaseMaster):
         primary_key=True,
         default=generate_daily_trip_cp_id,
         editable=False,
+    )
+
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="daily_trip_collection_points",
+        db_column="company_id",
+        null=True,
+        blank=True,
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="daily_trip_collection_points",
+        db_column="project_id",
+        null=True,
+        blank=True,
     )
 
     trip_assignment_id = models.ForeignKey(
@@ -97,6 +116,13 @@ class DailyTripCollectionPoint(BaseMaster):
                 name="uniq_trip_cp_per_assignment",
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.trip_assignment_id_id and not self.company_id_id:
+            assignment = self.trip_assignment_id
+            self.company_id = assignment.company_id
+            self.project_id = assignment.project_id
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.trip_assignment_id_id}:{self.collection_point_id_id}"

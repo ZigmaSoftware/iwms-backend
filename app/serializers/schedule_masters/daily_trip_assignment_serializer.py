@@ -65,6 +65,13 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         required=False,
         allow_null=True,
     )
+    alt_staff_template_id = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=AlternativeStaffTemplate.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
 
     trip_plan = serializers.SerializerMethodField(read_only=True)
     staff_template = serializers.SerializerMethodField(read_only=True)
@@ -91,6 +98,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "ward_id",
             "waste_type_id",
             "vehicle_id",
+            "alt_staff_template_id",
             "trip_plan",
             "staff_template",
             "effective_staff",
@@ -259,7 +267,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "staff_template_id",
             getattr(instance, "staff_template_id", None),
         )
-        if staff_template and trip_date:
+        if staff_template and trip_date and "alt_staff_template_id" not in attrs:
             attrs["alt_staff_template_id"] = AlternativeStaffTemplate.objects.filter(
                 staff_template=staff_template,
                 from_date__lte=trip_date,
