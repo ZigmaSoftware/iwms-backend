@@ -20,18 +20,17 @@ class ZonePropertyLoadTrackerViewSet(ModelViewSet):
     def perform_create(self, serializer):
         instance = serializer.save()
         instance.create_audit_log()
-        instance.trigger_trip_instance()
+        instance.trigger_daily_trip_assignment()
 
     def perform_update(self, serializer):
         previous_weight = serializer.instance.current_weight_kg if serializer.instance else None
         instance = serializer.save()
         if "current_weight_kg" in serializer.validated_data and instance.current_weight_kg != previous_weight:
             instance.create_audit_log()
-            instance.trigger_trip_instance()
+            instance.trigger_daily_trip_assignment()
 
     def destroy(self, request, *args, **kwargs):
         return Response(
             {"detail": "Deletion not allowed. Tracker is system-managed."},
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
-

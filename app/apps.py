@@ -14,6 +14,7 @@ class ApiConfig(AppConfig):
     
     def ready(self):
         import app.signals.permission_signals  # Register signals on app startup
+        import app.signals.trip_plan_signals  # Register transport plan signals
 
         def sync_userscreen_columns_after_migrate(sender, **kwargs):
             if sender.name != self.name:

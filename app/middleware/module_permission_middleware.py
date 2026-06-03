@@ -116,7 +116,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "UnassignedStaffPool",
     },
     "process-items": {
-        "RoutePlan",
+        
         "ZonePropertyLoadTracker",
     },
     "customer-masters": {
@@ -133,10 +133,19 @@ MODULE_RESOURCE_ALLOWLIST = {
     "transport-masters": {
         "VehicleTypeCreation",
         "VehicleCreation",
-        "TripDefinition",
-        "TripInstance",
         "TripAttendance",
         "Fuel",
+    },
+    "schedule-masters": {
+        "StaffTemplate",
+        "AlternativeStaffTemplate",
+        "CollectionPoint",
+        "TripPlan",
+        "TripPlanCollectionPoint",
+        "DailyTripAssignment",
+        "DailyTripCollectionPoint",
+        "BinCollectionEvent",
+        "DailyTripLog",
     },
     "audits": {
         "VehicleTripAudit",

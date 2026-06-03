@@ -1,5 +1,5 @@
 from django.db import models
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.utils.comfun import generate_unique_id
@@ -33,8 +33,8 @@ class TripAttendance(models.Model):
         editable=False,
     )
 
-    trip_instance = models.ForeignKey(
-        TripInstance,
+    daily_trip_assignment = models.ForeignKey(
+        DailyTripAssignment,
         on_delete=models.PROTECT,
         related_name="attendances",
         db_column="trip_instance_id",
@@ -92,9 +92,9 @@ class TripAttendance(models.Model):
         verbose_name = "Trip Attendance"
         verbose_name_plural = "Trip Attendances"
         indexes = [
-            models.Index(fields=["trip_instance", "staff"]),
+            models.Index(fields=["daily_trip_assignment", "staff"]),
             models.Index(fields=["attendance_time"]),
         ]
 
     def __str__(self):
-        return f"{self.trip_instance_id} | {self.staff_id} | {self.attendance_time}"
+        return f"{self.daily_trip_assignment_id} | {self.staff_id} | {self.attendance_time}"

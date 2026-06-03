@@ -5,7 +5,6 @@
 
 # from app.models.assets.weighbridge import WeighbridgeCheck
 # from app.models.transport_masters.trip import Trip
-# from app.models.transport_masters.trip_definition import TripDefinition
 # from app.models.superadmin_masters.company import Company
 # from app.models.superadmin_masters.project import Project
 
@@ -25,7 +24,6 @@
 #         # --------------------------------------------------
 #         # GET TRIP (must exist)
 #         # --------------------------------------------------
-#         trip = TripDefinition.objects.first()
 
 #         if not trip:
 #             self.log("No Trip found. Skipping WeighbridgeCheck.")

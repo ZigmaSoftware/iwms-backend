@@ -5,8 +5,8 @@ from django.db.models import Q
 from django.utils import timezone
 
 from app.models.assets.bins import Bins
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.transport_masters.daily_trip_collection_point import (
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.schedule_masters.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
 from app.models.user_creations.staffcreation import Staffcreation

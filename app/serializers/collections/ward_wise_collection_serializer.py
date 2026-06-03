@@ -32,15 +32,13 @@ class WardCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
     def _collection_point(self, obj):
         if obj.bin_collection_event_id:
             return obj.bin_collection_event_id.collection_point_id
-        if obj.point_collection_id:
-            return obj.point_collection_id.collection_point_id
+        if obj.collection_point_id:
+            return obj.collection_point_id
         return None
 
     def _bin(self, obj):
         if obj.bin_collection_event_id:
             return obj.bin_collection_event_id.bin_id
-        if obj.point_collection_id:
-            return obj.point_collection_id.bin_id
         return None
 
     def get_bin_name(self, obj):
@@ -70,7 +68,7 @@ class WardCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSeri
             "waste_type_id",
             "wastetype_name",
             "ward_total_weight",
-            "point_collection_id",
+            "collection_point_id",
             "bin_collection_event_id",
             "bin_name",
             "collection_point_name",

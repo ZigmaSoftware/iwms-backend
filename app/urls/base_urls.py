@@ -29,9 +29,9 @@ from ..viewsets.masters.hierarchy_viewset import AdministrativeHierarchyViewSet
 from ..viewsets.masters.department_viewset import DepartmentViewSet
 from ..viewsets.masters.designation_viewset import DesignationViewSet
 
-from ..viewsets.assets.collection_point_viewset import CollectionPointViewSet
+from ..viewsets.schedule_masters.collection_point_viewset import CollectionPointViewSet
 from ..viewsets.assets.bins_viewset import BinsViewSet
-from ..viewsets.assets.point_collection_viewset import PointCollectionViewSet
+# from ..viewsets.assets.point_collection_viewset import PointCollectionViewSet
 from ..viewsets.assets.bins_viewset import BinsViewSet
 from ..viewsets.collections.panchayat_wise_collection_viewset import PanchayatWiseCollectionViewSet
 from ..viewsets.assets.weighbridge_viewset import WeighbridgeCheckViewSet
@@ -43,7 +43,6 @@ from ..viewsets.waste_types.property_viewset import PropertyViewSet
 from ..viewsets.waste_types.subproperty_viewset import SubPropertyViewSet
 
 # Processes
-from ..viewsets.process.routeplan_viewset import RoutePlanViewSet
 from ..viewsets.process.zone_property_load_tracker_viewset import ZonePropertyLoadTrackerViewSet
 
 # Customer modules
@@ -60,8 +59,8 @@ from ..viewsets.role_assigns.contractorusertype_viewset import ContractorUserTyp
 # User creations
 from ..viewsets.user_creations.staff_viewset import StaffViewSet
 from ..viewsets.user_creations.staffcreation_viewset import StaffcreationViewset
-from ..viewsets.user_creations.stafftemplate_viewset import StaffTemplateViewSet
-from ..viewsets.user_creations.alternative_stafftemplate_viewset import AlternativeStaffTemplateViewSet
+from ..viewsets.schedule_masters.staff_template_viewset import StaffTemplateViewSet
+from ..viewsets.schedule_masters.alternative_staff_template_viewset import AlternativeStaffTemplateViewSet
 from ..viewsets.user_creations.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
 from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
 
@@ -85,17 +84,16 @@ from ..viewsets.screen_managements.permission_api_views import (
 # Transport masters
 from ..viewsets.transport_masters.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from ..viewsets.transport_masters.vehicleCreation_viewset import VehicleCreationViewSet
-from ..viewsets.transport_masters.trip_definition_viewset import TripDefinitionViewSet
-from ..viewsets.transport_masters.trip_instance_viewset import TripInstanceViewSet
+from ..viewsets.schedule_masters.trip_plan_viewset import TripPlanViewSet
+from ..viewsets.schedule_masters.trip_plan_collection_point_viewset import TripPlanCollectionPointViewSet
 from ..viewsets.transport_masters.fuel_viewset import FuelViewSet
 from ..viewsets.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
-from ..viewsets.transport_masters.trip_viewset import TripViewSet
 
 # Daily Trip Assignment
-from ..viewsets.transport_masters.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
-from ..viewsets.transport_masters.daily_trip_log_viewset import DailyTripLogViewSet
-from ..viewsets.transport_masters.bin_collection_event_viewset import BinCollectionEventViewSet
-from ..viewsets.transport_masters.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
+from ..viewsets.schedule_masters.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
+from ..viewsets.schedule_masters.daily_trip_log_viewset import DailyTripLogViewSet
+from ..viewsets.schedule_masters.bin_collection_event_viewset import BinCollectionEventViewSet
+from ..viewsets.schedule_masters.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
 
 # Operator mobile
 from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet
@@ -178,7 +176,6 @@ router.register_group("waste-types", "subproperties", SubPropertyViewSet)
 # GROUP: Assets
 # ============================================================
 
-router.register_group("assets", "collection-point", CollectionPointViewSet)
 router.register_group("assets","waste-types", WasteTypeViewSet)
 router.register_group("assets", "bins", BinsViewSet)
 
@@ -208,8 +205,6 @@ router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeV
 # ============================================================
 router.register_group("user-creations", "users-creation",  StaffViewSet)
 router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
-router.register_group("user-creations", "stafftemplate-creation",  StaffTemplateViewSet)
-router.register_group("user-creations", "alternative-stafftemplate",  AlternativeStaffTemplateViewSet)
 router.register_group("user-creations", "supervisor-zone-map", SupervisorZoneMapViewSet)
 router.register_group("user-creations", "unassigned-staff-pool", UnassignedStaffPoolViewSet)
 
@@ -218,7 +213,6 @@ router.register_group("user-creations", "unassigned-staff-pool", UnassignedStaff
 # ============================================================
 # GROUP: PROCESS
 # ============================================================
-router.register_group("process-items", "route-plans",    RoutePlanViewSet)
 router.register_group("process-items", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
 
 
@@ -250,39 +244,21 @@ router.register_group("grivences","sub-category", SubCategoryViewSet, basename="
 # ============================================================
 router.register_group("transport-masters", "vehicle-type",     VehicleTypeCreationViewSet)
 router.register_group("transport-masters", "vehicle-creation", VehicleCreationViewSet)
-router.register_group("transport-masters", "trip-definition",  TripDefinitionViewSet)
-router.register_group("transport-masters", "trip-instance",    TripInstanceViewSet)
 router.register_group("transport-masters", "trip-attendance", TripAttendanceViewSet)
 router.register_group("transport-masters", "fuels",         FuelViewSet)
-router.register_group("transport-masters", "daily-trip-assignments",         DailyTripAssignmentViewSet)
-router.register_group("transport-masters", "daily-trip-logs",         DailyTripLogViewSet)
-router.register_group("transport-masters", "daily-trip-collection-points",         DailyTripCollectionPointViewSet)
-router.register_group("transport-masters", "bin-collection-events",         BinCollectionEventViewSet)
-# Alias for frontend and existing clients using singular path
-router.register_group(
-    "transport-masters",
-    "daily-trip-assignment",
-    DailyTripAssignmentViewSet,
-    basename="transport-masters-daily-trip-assignment",
-)
-router.register_group(
-    "transport-masters",
-    "daily-trip-log",
-    DailyTripLogViewSet,
-    basename="transport-masters-daily-trip-log",
-)
-router.register_group(
-    "transport-masters",
-    "daily-trip-collection-point",
-    DailyTripCollectionPointViewSet,
-    basename="transport-masters-daily-trip-collection-point",
-)
-router.register_group(
-    "transport-masters",
-    "bin-collection-event",
-    BinCollectionEventViewSet,
-    basename="transport-masters-bin-collection-event",
-)
+
+# ============================================================
+# GROUP: SCHEDULE MASTERS
+# ============================================================
+router.register_group("schedule-masters", "staff-templates", StaffTemplateViewSet)
+router.register_group("schedule-masters", "alternative-staff-templates", AlternativeStaffTemplateViewSet)
+router.register_group("schedule-masters", "collection-points", CollectionPointViewSet)
+router.register_group("schedule-masters", "trip-plans", TripPlanViewSet)
+router.register_group("schedule-masters", "trip-plan-collection-points", TripPlanCollectionPointViewSet)
+router.register_group("schedule-masters", "daily-trip-assignments", DailyTripAssignmentViewSet)
+router.register_group("schedule-masters", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
+router.register_group("schedule-masters", "bin-collection-events", BinCollectionEventViewSet)
+router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
 
 # ============================================================
 # GROUP: OPERATOR MOBILE
@@ -342,7 +318,7 @@ router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainV
 # ============================================================
 # GROUP: COLLECTIONS
 # ============================================================
-router.register_group("collections", "point-collection", PointCollectionViewSet)
+# router.register_group("collections", "point-collection", PointCollectionViewSet)
 router.register_group("collections", "panchayat-wise", PanchayatWiseCollectionViewSet)
 router.register_group("collections", "ward-wise", WardWiseCollectionViewSet)
 router.register_group("collections", "zone-wise", ZoneWiseCollectionViewSet)

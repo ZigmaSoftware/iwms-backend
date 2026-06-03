@@ -31,21 +31,23 @@ class UnassignedStaffPoolViewSet(ModelViewSet,AuditViewSetMixin):
         return qs.filter(status=UnassignedStaffPool.Status.AVAILABLE)
 
     def perform_create(self, serializer):
-        self._validate_trip_instance_alignment(serializer.validated_data)
+        self._validate_daily_trip_assignment_alignment(serializer.validated_data)
         serializer.save()
 
     def perform_update(self, serializer):
-        self._validate_trip_instance_alignment(serializer.validated_data)
+        self._validate_daily_trip_assignment_alignment(serializer.validated_data)
         serializer.save()
 
-    def _validate_trip_instance_alignment(self, attrs):
-        trip_instance = attrs.get("trip_instance")
+    def _validate_daily_trip_assignment_alignment(self, attrs):
+        daily_trip_assignment = attrs.get("daily_trip_assignment")
         zone = attrs.get("zone")
         ward = attrs.get("ward")
 
-        if trip_instance and zone and trip_instance.zone_id != zone.unique_id:
+        assignment_ward = getattr(daily_trip_assignment, "ward_id", None)
+        assignment_zone = getattr(assignment_ward, "zone_id", None)
+        if daily_trip_assignment and zone and assignment_zone and assignment_zone.unique_id != zone.unique_id:
             raise ValidationError(
-                {"trip_instance_id": "Trip instance zone does not match pool zone."}
+                {"daily_trip_assignment_id": "Daily trip assignment zone does not match pool zone."}
             )
 
         if ward and zone and ward.zone_id_id != zone.unique_id:

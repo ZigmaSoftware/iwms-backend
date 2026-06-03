@@ -1,8 +1,7 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.transport_masters.trip import Trip
-from app.models.transport_masters.trip_definition import TripDefinition
+from app.models.schedule_masters.trip_plan import TripPlan
 from decimal import Decimal
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -43,7 +42,7 @@ class WeighbridgeCheck(BaseMaster):
     )
 
     trip_id = models.ForeignKey(
-        TripDefinition,
+        TripPlan,
         on_delete=models.PROTECT,
         related_name="weighbridge_checks",
         db_column="trip_id"
@@ -79,20 +78,18 @@ class WeighbridgeCheck(BaseMaster):
     # BUSINESS LOGIC
     # -----------------------------------------
 
-
     @property
     def total_collected_weight(self):
         from django.db.models import Sum
+        from app.models.schedule_masters.daily_trip_log import DailyTripLog
 
-        total = self.trip_id.point_collections.aggregate(
-            total=Sum("point_collection_weight")
-        )["total"]
+        total = DailyTripLog.objects.filter(
+            trip_assignment_id__trip_plan_id=self.trip_id,
+        ).aggregate(total=Sum("collected_weight_kg"))["total"]
 
         return total or Decimal("0.00")
 
-
     def save(self, *args, **kwargs):
-
         total_collected = self.total_collected_weight
 
         if self.weighbridge_weight and total_collected > 0:
@@ -112,8 +109,3 @@ class WeighbridgeCheck(BaseMaster):
                 self.status = "Critical"
 
         super().save(*args, **kwargs)
-
-        if not self.trip_id.is_completed:
-            self.trip_id.is_active = False
-            self.trip_id.is_completed = True
-            self.trip_id.save(update_fields=["is_completed","is_active"])

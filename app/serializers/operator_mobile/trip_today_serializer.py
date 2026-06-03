@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.transport_masters.daily_trip_collection_point import (
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.schedule_masters.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
 

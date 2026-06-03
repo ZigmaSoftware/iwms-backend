@@ -3,8 +3,8 @@ from decimal import Decimal
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 
-from app.models.transport_masters.bin_collection_event import BinCollectionEvent
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.permissions.operator_permission import IsOperatorRole
 from app.viewsets.operator_mobile.helpers import (
     OperatorFlowError,

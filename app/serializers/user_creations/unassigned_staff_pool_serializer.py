@@ -4,7 +4,7 @@ from app.models.user_creations.unassigned_staff_pool import UnassignedStaffPool
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 
 
 class UnassignedStaffPoolSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -37,10 +37,10 @@ class UnassignedStaffPoolSerializer(TenancyReadSerializerMixin, serializers.Mode
         queryset=Ward.objects.all()
     )
 
-    trip_instance_id = serializers.SlugRelatedField(
-        source="trip_instance",
+    daily_trip_assignment_id = serializers.SlugRelatedField(
+        source="daily_trip_assignment",
         slug_field="unique_id",
-        queryset=TripInstance.objects.all(),
+        queryset=DailyTripAssignment.objects.all(),
         required=False,
         allow_null=True
     )
@@ -58,7 +58,7 @@ class UnassignedStaffPoolSerializer(TenancyReadSerializerMixin, serializers.Mode
             "zone_id",
             "ward_id",
             "status",
-            "trip_instance_id",
+            "daily_trip_assignment_id",
             "created_at",
         ]
         read_only_fields = ["unique_id", "created_at"]
