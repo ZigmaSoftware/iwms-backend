@@ -38,10 +38,6 @@ class DailyTripCollectionPointSerializer(
     collection_point = serializers.SerializerMethodField()
     bin = serializers.SerializerMethodField()
     collected_by_staff = serializers.SerializerMethodField()
-    company_id = serializers.SerializerMethodField()
-    company_name = serializers.SerializerMethodField()
-    project_id = serializers.SerializerMethodField()
-    project_name = serializers.SerializerMethodField()
 
     class Meta:
         model = DailyTripCollectionPoint
@@ -96,22 +92,6 @@ class DailyTripCollectionPointSerializer(
             "trip_plan_id": getattr(trip_plan, "unique_id", None),
             "trip_plan_display_code": getattr(trip_plan, "display_code", None),
         }
-
-    def get_company_id(self, obj):
-        company = getattr(obj.trip_assignment_id, "company_id", None)
-        return getattr(company, "unique_id", None)
-
-    def get_company_name(self, obj):
-        company = getattr(obj.trip_assignment_id, "company_id", None)
-        return getattr(company, "name", None) or getattr(company, "company_name", None)
-
-    def get_project_id(self, obj):
-        project = getattr(obj.trip_assignment_id, "project_id", None)
-        return getattr(project, "unique_id", None)
-
-    def get_project_name(self, obj):
-        project = getattr(obj.trip_assignment_id, "project_id", None)
-        return getattr(project, "name", None) or getattr(project, "project_name", None)
 
     def get_collection_point(self, obj):
         cp = obj.collection_point_id
