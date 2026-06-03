@@ -3,6 +3,7 @@ from django.db import models
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.masters.panchayat import Panchayat
+from app.models.masters.ward import Ward
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
@@ -78,6 +79,16 @@ class BinCollectionEvent(BaseMaster):
         db_column="panchayat_id",
         to_field="unique_id",
         related_name="bin_collection_events",
+        null=True,
+        blank=True,
+    )
+    ward_id = models.ForeignKey(
+        Ward,
+        on_delete=models.PROTECT,
+        db_column="ward_id",
+        related_name="bin_collection_events",
+        null=True,
+        blank=True,
     )
     waste_type_id = models.ForeignKey(
         WasteType,

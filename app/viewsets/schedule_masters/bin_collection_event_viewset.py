@@ -42,8 +42,8 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "bin_id",
                 "bin_id__wastetype_id",
                 "panchayat_id",
-                "trip_assignment_id__ward_id",
-                "trip_assignment_id__ward_id__zone_id",
+                "ward_id",
+                "ward_id__zone_id",
                 "collection_point_id",
             )
             .filter(is_deleted=False)

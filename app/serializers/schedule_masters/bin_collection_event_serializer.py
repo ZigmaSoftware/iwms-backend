@@ -52,7 +52,6 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
     approval_status = serializers.SerializerMethodField()
     display_code = serializers.SerializerMethodField()
     panchayat_name = serializers.SerializerMethodField()
-    ward_id = serializers.SerializerMethodField()
     ward_name = serializers.SerializerMethodField()
     zone_name = serializers.SerializerMethodField()
     collection_point = serializers.SerializerMethodField()
@@ -89,7 +88,6 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "driver_longitude",
             "notes",
             "panchayat_name",
-            "ward_id",
             "ward_name",
             "zone_name",
             "collection_point",
@@ -107,6 +105,9 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "created_at",
             "updated_at",
         ]
+        # ward_id is a SerializerMethodField on the serializer (returns nested data)
+        # but also a real FK on the model — it is set in validate() from the assignment,
+        # so it must NOT appear in writable fields.
 
     def validate(self, attrs):
         trip_cp = attrs.get(
@@ -138,7 +139,9 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
                 "Trip collection point does not belong to the selected assignment."
             )
 
-        attrs["panchayat_id"] = assignment.panchayat_id
+        # Set location from assignment — one of panchayat OR ward will be non-null.
+        attrs["panchayat_id"] = getattr(assignment, "panchayat_id", None)
+        attrs["ward_id"] = getattr(assignment, "ward_id", None)
 
         # These are intentionally not serializer fields. They are derived only
         # to satisfy the current model while the API exposes nested objects.
@@ -259,19 +262,13 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
         panchayat = obj.panchayat_id
         return getattr(panchayat, "panchayat_name", None)
 
-    def get_ward_id(self, obj):
-        assignment = obj.trip_assignment_id
-        ward = getattr(assignment, "ward_id", None) if assignment else None
-        return getattr(ward, "unique_id", None)
-
     def get_ward_name(self, obj):
-        assignment = obj.trip_assignment_id
-        ward = getattr(assignment, "ward_id", None) if assignment else None
+        # Read from the model's own ward_id FK (set in validate from assignment)
+        ward = obj.ward_id
         return getattr(ward, "ward_name", None)
 
     def get_zone_name(self, obj):
-        assignment = obj.trip_assignment_id
-        ward = getattr(assignment, "ward_id", None) if assignment else None
+        ward = obj.ward_id
         zone = getattr(ward, "zone_id", None) if ward else None
         return getattr(zone, "zone_name", None)
 
