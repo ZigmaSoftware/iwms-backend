@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.masters.panchayat import Panchayat
 from app.models.user_creations.waste_collection_bluetooth import WasteType
-from app.models.reports.monthly_weight_report import MonthlyWeightReport
+from app.models.schedule_masters.monthly_weight_report import MonthlyWeightReport
 from app.models.superadmin_masters.company import Company
 
 

@@ -34,8 +34,6 @@ from app.management.commands.seeders.role_assigns import ROLE_ASSIGN_SEEDERS
 from app.management.commands.seeders.user_creations.auth_user_seeder import AuthUserSeeder
 from app.management.commands.seeders.user_creations.staff_office import StaffOfficeSeeder
 from app.management.commands.seeders.user_creations.staff_personal import StaffPersonalSeeder
-from app.management.commands.seeders.user_creations.supervisor_zone_map import SupervisorZoneMapSeeder
-from app.management.commands.seeders.user_creations.unassigned_staff_pool import UnassignedStaffPoolSeeder
 
 # transport-masters (router: transport-masters/vehicle-type, vehicle-creation, trip-attendance, fuels)
 from app.management.commands.seeders.transport_masters.vehicleTypeCreation import VehicleTypeCreationSeeder
@@ -44,7 +42,7 @@ from app.management.commands.seeders.transport_masters.fuel import FuelSeeder
 from app.management.commands.seeders.transport_masters.trip_attendance import TripAttendanceSeeder
 
 # process-items (router: process-items/zone-property-load-tracker)
-from app.management.commands.seeders.process.zone_property_load_tracker import ZonePropertyLoadTrackerSeeder
+
 
 # schedule-masters (router: schedule-masters/ — all 9 submodules)
 from app.management.commands.seeders.schedule_masters.collection_point import CollectionPointSeeder
@@ -70,8 +68,7 @@ from app.management.commands.seeders.customers import CUSTOMER_SEEDERS
 from app.management.commands.seeders.grivences import GRIEVANCE_SEEDERS
 
 # audits (router: audits/vehicle-trip-audit, trip-exception-log, ...)
-from app.management.commands.seeders.audits.vehicle_trip_audit import VehicleTripAuditSeeder
-from app.management.commands.seeders.audits.trip_exception_log import TripExceptionLogSeeder
+
 
 # reports (router: reports/monthly-waste-comparison)
 from app.management.commands.seeders.reports import REPORT_SEEDERS
@@ -118,7 +115,7 @@ USER_CREATIONS_SEEDERS = [
     AuthUserSeeder,
     StaffOfficeSeeder,
     StaffPersonalSeeder,
-    SupervisorZoneMapSeeder,
+    
 ]
 
 TRANSPORT_MASTERS_SEEDERS = [
@@ -128,7 +125,7 @@ TRANSPORT_MASTERS_SEEDERS = [
 ]
 
 PROCESS_ITEMS_SEEDERS = [
-    ZonePropertyLoadTrackerSeeder,  # process-items/zone-property-load-tracker
+    # ZonePropertyLoadTrackerSeeder,  # process-items/zone-property-load-tracker
 ]
 
 # ============================================================
@@ -166,11 +163,6 @@ GRIVENCES_SEEDERS = [
     *GRIEVANCE_SEEDERS,
 ]
 
-AUDITS_SEEDERS = [
-    VehicleTripAuditSeeder,   # audits/vehicle-trip-audit
-    TripExceptionLogSeeder,   # audits/trip-exception-log
-    UnassignedStaffPoolSeeder,
-]
 
 REPORTS_SEEDERS = [
     *REPORT_SEEDERS,
@@ -193,7 +185,7 @@ ORDERED_GROUPS = [
     "collections",          # panchayat-wise, ward-wise, zone-wise
     "customer-masters",     # customer creations, feedback, charge rules
     "grivences",            # complaints, main/sub categories
-    "audits",               # vehicle-trip-audit, trip-exception-log, ...
+    # "audits",               # vehicle-trip-audit, trip-exception-log, ...
     "reports",              # monthly-waste-comparison
 ]
 
@@ -215,7 +207,6 @@ SEED_GROUPS = {
     "customer-masters":   CUSTOMER_MASTERS_SEEDERS,
     "customers":          CUSTOMER_MASTERS_SEEDERS,  # alias
     "grivences":          GRIVENCES_SEEDERS,
-    "audits":             AUDITS_SEEDERS,
     "reports":            REPORTS_SEEDERS,
     # Legacy aliases
     "staff":              USER_CREATIONS_SEEDERS,

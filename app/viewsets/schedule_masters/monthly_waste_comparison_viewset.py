@@ -3,8 +3,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import Avg, Sum
 from rest_framework.response import Response
 
-from app.models.reports import MonthlyWeightReport
-from app.serializers.reports.monthly_weight_report_serializer import MonthlyWeightReportSerializer
+from app.models.schedule_masters import MonthlyWeightReport
+from app.serializers.schedule_masters.monthly_weight_report_serializer import MonthlyWeightReportSerializer
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
