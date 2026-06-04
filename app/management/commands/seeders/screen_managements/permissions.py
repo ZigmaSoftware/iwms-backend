@@ -72,6 +72,9 @@ class PermissionSeeder(BaseSeeder):
                 "wards",
                 "panchayat",
                 "area type",
+                "department-masters",
+                "designation-masters",
+                "panchayat-leaders",
             ],
             "waste-types": [
                 "properties",
@@ -79,7 +82,7 @@ class PermissionSeeder(BaseSeeder):
             ],
             "assets": [
                 "bins",
-                "collection point",
+                # "collection point",
                 "waste type",
             ],
             "screen-managements": [
@@ -95,27 +98,28 @@ class PermissionSeeder(BaseSeeder):
                 "contractorusertypes",
             ],
             "user-creations": [
-                "users-creation",
+                # "users-creation",
                 "staffcreation",
-                "stafftemplate-creation",
-                "alternative-stafftemplate",
-                "supervisor-zone-map",
-                "unassigned-staff-pool",
+                # "stafftemplate-creation",
+                # "alternative-stafftemplate",
+                # "supervisor-zone-map",
+                # "unassigned-staff-pool",
             ],
             "process": [
                 "zone-property-load-tracker",
             ],
             "customers": [
                 "customercreations",
+                "apartment-list",
                 "wastecollections",
                 "feedbacks",
-                "user-charge-rules",
+                # "user-charge-rules",
             ],
-            "waste-management": [
-                "collection monitoring",
-                "panchayat base collection",
-                "ward base collection",
-            ],
+            # "waste-management": [
+            #     "collection monitoring",
+            #     "panchayat base collection",
+            #     "ward base collection",
+            # ],
             "grivences": [
                 "complaints",
                 "main-category",
@@ -124,7 +128,7 @@ class PermissionSeeder(BaseSeeder):
             "transport-masters": [
                 "vehicle-type",
                 "vehicle-creation",
-                "trip-attendance",
+                # "trip-attendance",
                 "fuels",
             ],
             "schedule-masters": [
@@ -137,19 +141,21 @@ class PermissionSeeder(BaseSeeder):
                 "daily-trip-collection-points",
                 "bin-collection-events",
                 "daily-trip-logs",
+                "monthly-waste-comparison",
             ],
             "audits": [
-                "stafftemplate-audit-log",
-                "supervisor-zone-access-audit",
-                "vehicle-trip-audit",
-                "trip-exception-log",
-                "bin-load-log",
+                # "stafftemplate-audit-log",
+                # "supervisor-zone-access-audit",
+                # "vehicle-trip-audit",
+                # "trip-exception-log",
+                # "bin-load-log",
+                "common-audit"
             ],
             "reports": [
                 "trip-summary",
                 "monthly-distance",
                 "waste-collected-summary",
-                "monthly-waste-comparison",
+                # "monthly-waste-comparison",
             ],
         }
 
