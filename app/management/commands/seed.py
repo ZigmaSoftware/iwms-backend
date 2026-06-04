@@ -221,6 +221,9 @@ SEED_GROUPS = {
     "staff":              USER_CREATIONS_SEEDERS,
     "vehicles":           TRANSPORT_MASTERS_SEEDERS,
     "platform":           SUPERADMIN_SEEDERS,
+    # Single-seeder shortcuts
+    "bin-collection-events": [BinCollectionEventSeeder],
+    "trip-logs":          [DailyTripLogSeeder],
 }
 
 # ============================================================

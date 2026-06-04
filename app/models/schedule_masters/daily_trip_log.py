@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Sum
 from django.utils import timezone
 
 from app.models.assets.bin import Bin
@@ -10,6 +11,8 @@ from app.models.masters.panchayat import Panchayat
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.schedule_masters.staff_template import StaffTemplate
+from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.user_creations.waste_collection_bluetooth import WasteType
@@ -51,6 +54,25 @@ class DailyTripLog(BaseMaster):
         db_column="trip_assignment_id",
         to_field="unique_id",
         related_name="daily_trip_log",
+    )
+
+    staff_template_id = models.ForeignKey(
+        StaffTemplate,
+        on_delete=models.PROTECT,
+        db_column="staff_template_id",
+        to_field="unique_id",
+        related_name="daily_trip_logs",
+        null=True,
+        blank=True,
+    )
+    alt_staff_template_id = models.ForeignKey(
+        AlternativeStaffTemplate,
+        on_delete=models.PROTECT,
+        db_column="alt_staff_template_id",
+        to_field="unique_id",
+        related_name="daily_trip_logs",
+        null=True,
+        blank=True,
     )
 
     company_id = models.ForeignKey(
@@ -113,7 +135,13 @@ class DailyTripLog(BaseMaster):
         related_name="daily_trip_logs_as_extra_operator",
     )
 
-    collected_weight_kg = models.DecimalField(max_digits=10, decimal_places=2)
+    collected_weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Auto-computed as the sum of all BinCollectionEvent weights for this trip.",
+    )
 
     vehicle_id = models.ForeignKey(
         VehicleCreation,
@@ -186,15 +214,32 @@ class DailyTripLog(BaseMaster):
         self.actual_start_time = self.actual_start_time or assignment.actual_start_time
         self.actual_end_time = self.actual_end_time or assignment.actual_end_time
 
-        staff_template = self._resolve_effective_staff_template()
-        if staff_template:
-            self.driver_id = staff_template.driver_id
-            self.operator_id = staff_template.operator_id
+        self.staff_template_id = assignment.staff_template_id
+        self.alt_staff_template_id = assignment.alt_staff_template_id
+
+        effective_template = self._resolve_effective_staff_template()
+        if effective_template:
+            self.driver_id = effective_template.driver_id
+            self.operator_id = effective_template.operator_id
 
         if getattr(assignment, "vehicle_id", None):
             self.vehicle_id = assignment.vehicle_id
         elif getattr(assignment, "trip_plan_id", None):
             self.vehicle_id = assignment.trip_plan_id.vehicle_id
+
+    def sync_from_bin_collection_events(self):
+        """Aggregate total collected weight from all BinCollectionEvent records for this trip."""
+        from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+
+        events = BinCollectionEvent.objects.filter(
+            trip_assignment_id=self.trip_assignment_id_id,
+            is_deleted=False,
+        )
+        total = events.aggregate(total=Sum("collected_weight_kg"))["total"]
+        self.collected_weight_kg = total or Decimal("0")
+        DailyTripLog.objects.filter(pk=self.pk).update(
+            collected_weight_kg=self.collected_weight_kg,
+        )
 
     def clean(self):
         super().clean()
@@ -211,13 +256,16 @@ class DailyTripLog(BaseMaster):
             if previous and previous.log_status == self.LOG_STATUS_VERIFIED:
                 raise ValidationError("Verified trip logs are read-only.")
 
-        if self.collected_weight_kg is not None and self.collected_weight_kg <= 0:
-            raise ValidationError("collected_weight_kg must be greater than 0.")
+        if self.log_status != self.LOG_STATUS_DRAFT:
+            if not self.collected_weight_kg or self.collected_weight_kg <= 0:
+                raise ValidationError(
+                    "collected_weight_kg must be greater than 0 before submitting."
+                )
 
         vehicle_capacity = getattr(self.vehicle_id, "capacity", None)
         trip_capacity = getattr(assignment.trip_plan_id, "max_vehicle_capacity_kg", None)
         capacity = vehicle_capacity or trip_capacity
-        if capacity and self.collected_weight_kg is not None:
+        if capacity and self.collected_weight_kg:
             if Decimal(self.collected_weight_kg) > Decimal(capacity):
                 raise ValidationError("collected_weight_kg cannot exceed vehicle capacity.")
 
@@ -230,6 +278,8 @@ class DailyTripLog(BaseMaster):
 
         self.full_clean()
         super().save(*args, **kwargs)
+
+        self.sync_from_bin_collection_events()
 
         if self.log_status in {self.LOG_STATUS_SUBMITTED, self.LOG_STATUS_VERIFIED}:
             assignment = self.trip_assignment_id

@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
@@ -21,17 +22,34 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "project_id",
             "trip_assignment_id",
             "trip_assignment_id__trip_plan_id",
+            "trip_assignment_id__staff_template_id",
+            "trip_assignment_id__staff_template_id__driver_id",
+            "trip_assignment_id__staff_template_id__operator_id",
+            "trip_assignment_id__alt_staff_template_id",
+            "trip_assignment_id__alt_staff_template_id__driver_id",
+            "trip_assignment_id__alt_staff_template_id__operator_id",
             "panchayat_id",
             "collection_point_id",
             "waste_type_id",
             "driver_id",
             "operator_id",
             "vehicle_id",
+            "staff_template_id",
+            "staff_template_id__driver_id",
+            "staff_template_id__operator_id",
+            "alt_staff_template_id",
+            "alt_staff_template_id__driver_id",
+            "alt_staff_template_id__operator_id",
             "verified_by",
             "verified_by__staff",
             "verified_by__user",
         )
-        .prefetch_related("bin_ids", "extra_operator_ids")
+        .prefetch_related(
+            "bin_ids",
+            "extra_operator_ids",
+            "trip_assignment_id__trip_collection_points",
+            "trip_assignment_id__trip_collection_points__collection_point_id",
+        )
         .filter(is_deleted=False)
     )
     serializer_class = DailyTripLogSerializer
@@ -143,6 +161,61 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         previous_data = self._serialize_instance(instance)
         instance = serializer.save()
+        self.log_audit(
+            request,
+            instance=instance,
+            previous_data=previous_data,
+            new_data=self._serialize_instance(instance),
+        )
+
+        return Response(
+            DailyTripLogSerializer(instance, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @swagger_auto_schema(request_body=DailyTripLogVerifySerializer)
+    @action(detail=True, methods=["patch"], url_path="change-status")
+    def change_status(self, request, unique_id=None):
+        instance = self.get_object()
+        new_status = request.data.get("log_status", "").strip()
+        remarks = request.data.get("remarks", "")
+
+        valid = {
+            DailyTripLog.LOG_STATUS_DRAFT,
+            DailyTripLog.LOG_STATUS_SUBMITTED,
+            DailyTripLog.LOG_STATUS_VERIFIED,
+        }
+        if new_status not in valid:
+            return Response(
+                {"detail": f"Invalid status. Valid options: {', '.join(sorted(valid))}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if new_status == instance.log_status:
+            return Response(
+                {"detail": f"Log is already in '{new_status}' status."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        previous_data = self._serialize_instance(instance)
+        account = self._get_account()
+        now = timezone.now()
+
+        update_fields = {
+            "log_status": new_status,
+            "updated_at": now,
+        }
+        if remarks:
+            update_fields["remarks"] = remarks
+        if new_status == DailyTripLog.LOG_STATUS_VERIFIED:
+            update_fields["verified_by_id"] = account.pk if account else None
+            update_fields["verified_at"] = now
+        elif new_status == DailyTripLog.LOG_STATUS_DRAFT:
+            update_fields["verified_by_id"] = None
+            update_fields["verified_at"] = None
+
+        DailyTripLog.objects.filter(pk=instance.pk).update(**update_fields)
+        instance.refresh_from_db()
+
         self.log_audit(
             request,
             instance=instance,

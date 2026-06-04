@@ -42,8 +42,10 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     )
 
     trip_assignment = serializers.SerializerMethodField(read_only=True)
+    staff_template = serializers.SerializerMethodField(read_only=True)
     panchayat = serializers.SerializerMethodField(read_only=True)
     collection_point = serializers.SerializerMethodField(read_only=True)
+    collection_points = serializers.SerializerMethodField(read_only=True)
     waste_type = serializers.SerializerMethodField(read_only=True)
     driver = serializers.SerializerMethodField(read_only=True)
     operator = serializers.SerializerMethodField(read_only=True)
@@ -58,6 +60,9 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "unique_id",
             "trip_assignment_id",
             "trip_assignment",
+            "staff_template_id",
+            "staff_template",
+            "alt_staff_template_id",
             "company_id",
             "company_name",
             "project_id",
@@ -66,6 +71,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "panchayat",
             "collection_point_id",
             "collection_point",
+            "collection_points",
             "waste_type_id",
             "waste_type",
             "trip_date",
@@ -93,6 +99,8 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         ]
         read_only_fields = [
             "unique_id",
+            "staff_template_id",
+            "alt_staff_template_id",
             "company_id",
             "project_id",
             "panchayat_id",
@@ -102,6 +110,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "driver_id",
             "operator_id",
             "vehicle_id",
+            "collected_weight_kg",
             "verified_by",
             "verified_at",
             "created_by",
@@ -122,6 +131,54 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "scheduled_time": str(assignment.scheduled_time),
             "display_code": getattr(trip_plan, "display_code", assignment.unique_id),
         }
+
+    def get_staff_template(self, obj):
+        # Fall back to trip assignment's templates for records created before the migration
+        assignment = obj.trip_assignment_id
+        template = obj.staff_template_id or getattr(assignment, "staff_template_id", None)
+        alt = obj.alt_staff_template_id or getattr(assignment, "alt_staff_template_id", None)
+        if not template and not alt:
+            return None
+        result = {
+            "is_alt": alt is not None,
+            "effective_display_code": (alt or template).display_code,
+        }
+        if template:
+            result["base"] = {
+                "unique_id": template.unique_id,
+                "display_code": template.display_code,
+                "driver": self._staff_dict(getattr(template, "driver_id", None)),
+                "operator": self._staff_dict(getattr(template, "operator_id", None)),
+            }
+        if alt:
+            result["alt"] = {
+                "unique_id": alt.unique_id,
+                "display_code": alt.display_code,
+                "driver": self._staff_dict(getattr(alt, "driver_id", None)),
+                "operator": self._staff_dict(getattr(alt, "operator_id", None)),
+            }
+        return result
+
+    def get_collection_points(self, obj):
+        assignment = obj.trip_assignment_id
+        if not assignment:
+            return []
+        cps = (
+            assignment.trip_collection_points
+            .filter(is_deleted=False)
+            .select_related("collection_point_id")
+            .order_by("sequence")
+        )
+        return [
+            {
+                "unique_id": tcp.collection_point_id.unique_id,
+                "cp_name": tcp.collection_point_id.cp_name,
+                "sequence": tcp.sequence,
+                "is_collected": tcp.is_collected,
+            }
+            for tcp in cps
+            if tcp.collection_point_id
+        ]
 
     def get_panchayat(self, obj):
         p = obj.panchayat_id
@@ -194,13 +251,6 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         if assignment and not instance:
             if DailyTripLog.objects.filter(trip_assignment_id=assignment, is_deleted=False).exists():
                 raise serializers.ValidationError("A log already exists for this trip assignment.")
-
-        collected_weight = attrs.get(
-            "collected_weight_kg",
-            getattr(instance, "collected_weight_kg", None),
-        )
-        if collected_weight is not None and collected_weight <= 0:
-            raise serializers.ValidationError("collected_weight_kg must be greater than 0.")
 
         start_time = attrs.get("actual_start_time", getattr(instance, "actual_start_time", None))
         end_time = attrs.get("actual_end_time", getattr(instance, "actual_end_time", None))
