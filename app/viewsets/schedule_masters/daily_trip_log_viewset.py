@@ -22,6 +22,8 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "project_id",
             "trip_assignment_id",
             "trip_assignment_id__trip_plan_id",
+            "trip_assignment_id__trip_plan_id__zone_id",
+            "trip_assignment_id__ward_id",
             "trip_assignment_id__staff_template_id",
             "trip_assignment_id__staff_template_id__driver_id",
             "trip_assignment_id__staff_template_id__operator_id",
