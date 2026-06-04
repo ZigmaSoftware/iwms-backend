@@ -51,6 +51,10 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
     approved_by = serializers.SerializerMethodField()
     approval_status = serializers.SerializerMethodField()
     display_code = serializers.SerializerMethodField()
+    panchayat_name = serializers.SerializerMethodField()
+    ward_name = serializers.SerializerMethodField()
+    zone_name = serializers.SerializerMethodField()
+    collection_point = serializers.SerializerMethodField()
 
     class Meta:
         model = BinCollectionEvent
@@ -83,6 +87,10 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "driver_latitude",
             "driver_longitude",
             "notes",
+            "panchayat_name",
+            "ward_name",
+            "zone_name",
+            "collection_point",
             "created_by",
             "updated_by",
             "is_active",
@@ -97,6 +105,9 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "created_at",
             "updated_at",
         ]
+        # ward_id is a SerializerMethodField on the serializer (returns nested data)
+        # but also a real FK on the model — it is set in validate() from the assignment,
+        # so it must NOT appear in writable fields.
 
     def validate(self, attrs):
         trip_cp = attrs.get(
@@ -128,7 +139,9 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
                 "Trip collection point does not belong to the selected assignment."
             )
 
-        attrs["panchayat_id"] = assignment.panchayat_id
+        # Set location from assignment — one of panchayat OR ward will be non-null.
+        attrs["panchayat_id"] = getattr(assignment, "panchayat_id", None)
+        attrs["ward_id"] = getattr(assignment, "ward_id", None)
 
         # These are intentionally not serializer fields. They are derived only
         # to satisfy the current model while the API exposes nested objects.
@@ -244,3 +257,23 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
     def get_display_code(self, obj):
         alt_template = self._resolve_alternative_staff_template(obj)
         return getattr(alt_template, "display_code", None) if alt_template else None
+
+    def get_panchayat_name(self, obj):
+        panchayat = obj.panchayat_id
+        return getattr(panchayat, "panchayat_name", None)
+
+    def get_ward_name(self, obj):
+        # Read from the model's own ward_id FK (set in validate from assignment)
+        ward = obj.ward_id
+        return getattr(ward, "ward_name", None)
+
+    def get_zone_name(self, obj):
+        ward = obj.ward_id
+        zone = getattr(ward, "zone_id", None) if ward else None
+        return getattr(zone, "zone_name", None)
+
+    def get_collection_point(self, obj):
+        cp = obj.collection_point_id
+        if not cp:
+            return None
+        return {"unique_id": getattr(cp, "unique_id", None), "cp_name": getattr(cp, "cp_name", None)}

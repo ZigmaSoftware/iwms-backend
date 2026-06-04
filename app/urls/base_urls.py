@@ -6,10 +6,9 @@ from .custom_router import GroupedRouter
 # IMPORTS
 # ============================================================
 
-# Super admin masters
+# Superadmin masters
 from ..viewsets.superadminmasters.company_management import PlatformCompanyCreateViewSet
 from ..viewsets.superadminmasters.project_management import CompanyProjectCreateViewSet
-
 
 # Common masters
 from ..viewsets.common_masters.continent_viewset import ContinentViewSet
@@ -17,11 +16,10 @@ from ..viewsets.common_masters.country_viewset import CountryViewSet
 from ..viewsets.common_masters.state_viewset import StateViewSet
 
 # Masters
-from ..viewsets.masters.city_viewset import CityViewSet
 from ..viewsets.masters.district_viewset import DistrictViewSet
+from ..viewsets.masters.city_viewset import CityViewSet
 from ..viewsets.masters.zone_viewset import ZoneViewSet
 from ..viewsets.masters.ward_viewset import WardViewSet
-
 from ..viewsets.masters.panchayat_viweset import PanhayatViewSet
 from ..viewsets.masters.panchayat_leader_viewset import PanchayatLeaderLoginViewSet
 from ..viewsets.masters.areatype_viewset import AreaTypeViewSet
@@ -29,44 +27,13 @@ from ..viewsets.masters.hierarchy_viewset import AdministrativeHierarchyViewSet
 from ..viewsets.masters.department_viewset import DepartmentViewSet
 from ..viewsets.masters.designation_viewset import DesignationViewSet
 
-from ..viewsets.schedule_masters.collection_point_viewset import CollectionPointViewSet
-from ..viewsets.assets.bins_viewset import BinsViewSet
-# from ..viewsets.assets.point_collection_viewset import PointCollectionViewSet
-from ..viewsets.assets.bins_viewset import BinsViewSet
-from ..viewsets.collections.panchayat_wise_collection_viewset import PanchayatWiseCollectionViewSet
-from ..viewsets.assets.weighbridge_viewset import WeighbridgeCheckViewSet
-from ..viewsets.collections.ward_wise_collection_viewset import WardWiseCollectionViewSet
-from ..viewsets.collections.zone_wise_collection_viewset import ZoneWiseCollectionViewSet
-
 # Waste types
 from ..viewsets.waste_types.property_viewset import PropertyViewSet
 from ..viewsets.waste_types.subproperty_viewset import SubPropertyViewSet
 
-# Processes
-from ..viewsets.process.zone_property_load_tracker_viewset import ZonePropertyLoadTrackerViewSet
-
-# Customer modules
-from ..viewsets.customers.customercreation_viewset import CustomerCreationViewSet
-from ..viewsets.customers.wastecollection_viewset import WasteCollectionViewSet
-from ..viewsets.customers.feedback_viewset import FeedBackViewSet
-from ..viewsets.customers.userchargerule_viewset import UserChargeRuleViewSet
-
-# Role assignments
-from ..viewsets.role_assigns.usertype_viewset import UserTypeViewSet
-from ..viewsets.role_assigns.staffusertype_viewset import StaffUserTypeViewSet
-from ..viewsets.role_assigns.contractorusertype_viewset import ContractorUserTypeViewSet
-
-# User creations
-from ..viewsets.user_creations.staff_viewset import StaffViewSet
-from ..viewsets.user_creations.staffcreation_viewset import StaffcreationViewset
-from ..viewsets.schedule_masters.staff_template_viewset import StaffTemplateViewSet
-from ..viewsets.schedule_masters.alternative_staff_template_viewset import AlternativeStaffTemplateViewSet
-from ..viewsets.user_creations.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
-from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
-
-# Authentication
-from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
-from ..viewsets.login.permission_viewset import PermissionViewSet
+# Assets
+from ..viewsets.waste_collection_bluetooth.waste_type_viewset import WasteTypeViewSet
+from ..viewsets.assets.bins_viewset import BinsViewSet
 
 # Screen management
 from ..viewsets.screen_managements.mainscreentype_viewset import MainScreenTypeViewSet
@@ -81,19 +48,56 @@ from ..viewsets.screen_managements.permission_api_views import (
     UserScreenColumnsAPIView,
 )
 
+# Role assignments
+from ..viewsets.role_assigns.usertype_viewset import UserTypeViewSet
+from ..viewsets.role_assigns.staffusertype_viewset import StaffUserTypeViewSet
+from ..viewsets.role_assigns.contractorusertype_viewset import ContractorUserTypeViewSet
+
+# User creations
+from ..viewsets.user_creations.staff_viewset import StaffViewSet
+from ..viewsets.user_creations.staffcreation_viewset import StaffcreationViewset
+from ..viewsets.user_creations.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
+from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
+
+# Authentication
+from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
+from ..viewsets.login.permission_viewset import PermissionViewSet
+
+# Customer modules
+from ..viewsets.customers.customercreation_viewset import CustomerCreationViewSet
+from ..viewsets.customers.wastecollection_viewset import WasteCollectionViewSet
+from ..viewsets.customers.feedback_viewset import FeedBackViewSet
+from ..viewsets.customers.userchargerule_viewset import UserChargeRuleViewSet
+
+# Grievances
+from ..viewsets.grivences.complaint_viewset import ComplaintViewSet
+from ..viewsets.grivences.main_category_viewset import MainCategoryViewSet
+from ..viewsets.grivences.sub_category_viewset import SubCategoryViewSet
+
 # Transport masters
 from ..viewsets.transport_masters.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from ..viewsets.transport_masters.vehicleCreation_viewset import VehicleCreationViewSet
+from ..viewsets.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
+from ..viewsets.transport_masters.fuel_viewset import FuelViewSet
+
+# Schedule masters
+from ..viewsets.schedule_masters.staff_template_viewset import StaffTemplateViewSet
+from ..viewsets.schedule_masters.alternative_staff_template_viewset import AlternativeStaffTemplateViewSet
+from ..viewsets.schedule_masters.collection_point_viewset import CollectionPointViewSet
 from ..viewsets.schedule_masters.trip_plan_viewset import TripPlanViewSet
 from ..viewsets.schedule_masters.trip_plan_collection_point_viewset import TripPlanCollectionPointViewSet
-from ..viewsets.transport_masters.fuel_viewset import FuelViewSet
-from ..viewsets.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
-
-# Daily Trip Assignment
 from ..viewsets.schedule_masters.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
-from ..viewsets.schedule_masters.daily_trip_log_viewset import DailyTripLogViewSet
-from ..viewsets.schedule_masters.bin_collection_event_viewset import BinCollectionEventViewSet
 from ..viewsets.schedule_masters.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
+from ..viewsets.schedule_masters.bin_collection_event_viewset import BinCollectionEventViewSet
+from ..viewsets.schedule_masters.daily_trip_log_viewset import DailyTripLogViewSet
+from ..viewsets.reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
+
+# Audits
+from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
+from ..viewsets.audits.common_audit_viewset import CommonAuditViewSet
+
+# Localbody
+from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardViewSet
 
 # Operator mobile
 from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet
@@ -101,39 +105,20 @@ from ..viewsets.operator_mobile.validate_bin_qr_viewset import ValidateBinQrView
 from ..viewsets.operator_mobile.scan_bin_viewset import ScanBinViewSet
 from ..viewsets.operator_mobile.trip_history_viewset import TripHistoryViewSet
 
-# Audits
-from ..viewsets.audits.vehicle_trip_audit_viewset import VehicleTripAuditViewSet
-from ..viewsets.audits.trip_exception_log_viewset import TripExceptionLogViewSet
-from ..viewsets.audits.supervisor_zone_access_audit_viewset import SupervisorZoneAccessAuditViewSet
-from ..viewsets.audits.staff_template_audit_log_viewset import StaffTemplateAuditLogViewSet
-from ..viewsets.audits.audit_log_viewset import AuditLogViewSet
-from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
-
-from ..viewsets.audits.common_audit_viewset import CommonAuditViewSet
-
-# Grivences
-from ..viewsets.grivences.complaint_viewset import ComplaintViewSet
-from ..viewsets.grivences.main_category_viewset import MainCategoryViewSet
-from ..viewsets.grivences.sub_category_viewset import SubCategoryViewSet
-
-# Mobile
+# Waste bluetooth
 from ..viewsets.waste_collection_bluetooth.waste_bluetooth_viewset import WasteCollectionBluetoothViewSet
-from ..viewsets.waste_collection_bluetooth.waste_type_viewset import WasteTypeViewSet
 from ..viewsets.waste_collection_bluetooth.waste_collection_sub_viewset import WasteCollectionSubViewSet
 from ..viewsets.waste_collection_bluetooth.waste_collection_main_viewset import WasteCollectionMainViewSet
+
+# Mobile
 from ..viewsets.attendance_view.register import RegisterViewSet
 from ..viewsets.attendance_view.recognize import RecognizeViewSet
 from ..viewsets.attendance_view.employee_viewset import EmployeeViewSet
 from ..viewsets.attendance_view.staff_profile_viewset import StaffProfileViewSet
 from ..viewsets.attendance_view.attendance_list import AttendanceListViewSet
-from ..viewsets.reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
-from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardViewSet
 
 
 router = GroupedRouter()
-# customer_property_user_count = CustomerCreationViewSet.as_view(
-#     {"get": "property_user_count"}
-# )
 
 # ============================================================
 # GROUP: SUPERADMIN MASTERS
@@ -147,7 +132,6 @@ router.register_group("superadmin","project",CompanyProjectCreateViewSet)
 router.register_group("common-masters", "continents",    ContinentViewSet)
 router.register_group("common-masters", "countries",     CountryViewSet)
 router.register_group("common-masters", "states",        StateViewSet)
-
 
 # ============================================================
 # GROUP: MASTERS
@@ -163,22 +147,17 @@ router.register_group("masters", "hierarchy",         AdministrativeHierarchyVie
 router.register_group("masters", "departments",       DepartmentViewSet)
 router.register_group("masters", "designations",      DesignationViewSet)
 
-
-
 # ============================================================
 # GROUP: Waste-Type
 # ============================================================
 router.register_group("waste-types", "properties",    PropertyViewSet)
 router.register_group("waste-types", "subproperties", SubPropertyViewSet)
 
-
 # ============================================================
 # GROUP: Assets
 # ============================================================
-
 router.register_group("assets","waste-types", WasteTypeViewSet)
 router.register_group("assets", "bins", BinsViewSet)
-
 
 # ============================================================
 # GROUP: SCREEN MANAGEMENT (separate group)
@@ -189,7 +168,6 @@ router.register_group("screen-managements", "userscreens",           UserScreenV
 router.register_group("screen-managements", "userscreen-action",     UserScreenActionViewSet)
 router.register_group("screen-managements", "companywisescreenpermissions", CompanyUserScreenPermissionViewSet)
 router.register_group("screen-managements", "column-permissions", CompanyUserScreenColumnPermissionViewSet)
-
 
 # ============================================================
 # GROUP: USER & ROLE ASSIGNMENT 
@@ -208,20 +186,11 @@ router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
 router.register_group("user-creations", "supervisor-zone-map", SupervisorZoneMapViewSet)
 router.register_group("user-creations", "unassigned-staff-pool", UnassignedStaffPoolViewSet)
 
-
-
-# ============================================================
-# GROUP: PROCESS
-# ============================================================
-router.register_group("process-items", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
-
-
 # ============================================================
 # GROUP: AUTHENTICATION
 # ============================================================
 router.register_group("login", "login-user",      DesktopLoginViewSet)
 router.register_group("login", "my-permissions",     PermissionViewSet, basename="user-permissions")
-
 
 # ============================================================
 # GROUP: CUSTOMER MODULES
@@ -230,7 +199,6 @@ router.register_group("customer-masters", "customercreations", CustomerCreationV
 router.register_group("customer-masters", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
 router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
-
 
 # ============================================================
 # GROUP: GRIEVANCES
@@ -258,7 +226,20 @@ router.register_group("schedule-masters", "trip-plan-collection-points", TripPla
 router.register_group("schedule-masters", "daily-trip-assignments", DailyTripAssignmentViewSet)
 router.register_group("schedule-masters", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
 router.register_group("schedule-masters", "bin-collection-events", BinCollectionEventViewSet)
+router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
 router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
+router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
+
+# ============================================================
+# GROUP: AUDIT
+# ============================================================
+router.register_group("audits", "login-audit", LoginAuditViewSet)
+router.register_group("audits", "common-audit", CommonAuditViewSet)
+
+# ============================================================
+# GROUP: LOCALBODY (panchayat leader portal — auth-only, no module permission check)
+# ============================================================
+router.register_group("localbody", "dashboard", LocalBodyDashboardViewSet, basename="localbody-dashboard")
 
 # ============================================================
 # GROUP: OPERATOR MOBILE
@@ -288,19 +269,6 @@ router.register_group(
     basename="operator-mobile-trip-history",
 )
 
-
-# ============================================================
-# GROUP: AUDIT
-# ============================================================
-router.register_group("audits", "vehicle-trip-audit",    VehicleTripAuditViewSet)
-router.register_group("audits", "trip-exception-log",    TripExceptionLogViewSet)
-router.register_group("audits", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
-router.register_group("audits", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
-router.register_group("audits", "audit-log", AuditLogViewSet)
-router.register_group("audits", "login-audit", LoginAuditViewSet)
-
-router.register_group("audits", "common-audit", CommonAuditViewSet)
-
 # ============================================================
 # GROUP: WASTE BLUETOOTH
 # ============================================================
@@ -308,30 +276,6 @@ router.register_group("waste-bluetooth", "types", WasteTypeViewSet)
 router.register_group("waste-bluetooth", "collection-sub", WasteCollectionSubViewSet)
 router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainViewSet)
 
-
-# ============================================================
-# GROUP: TRIP ASSIGNMENTS
-# ============================================================
-# router.register_group("trip-assignments", "daily", DailyTripAssignmentViewSet)
-
-
-# ============================================================
-# GROUP: COLLECTIONS
-# ============================================================
-# router.register_group("collections", "point-collection", PointCollectionViewSet)
-router.register_group("collections", "panchayat-wise", PanchayatWiseCollectionViewSet)
-router.register_group("collections", "ward-wise", WardWiseCollectionViewSet)
-router.register_group("collections", "zone-wise", ZoneWiseCollectionViewSet)
-
-# ============================================================
-# GROUP: REPORTS
-# ============================================================
-router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
-
-# ============================================================
-# GROUP: LOCALBODY (panchayat leader portal — auth-only, no module permission check)
-# ============================================================
-router.register_group("localbody", "dashboard", LocalBodyDashboardViewSet, basename="localbody-dashboard")
 
 # ============================================================
 # GROUP: MOBILE URLS
@@ -399,8 +343,6 @@ router.register_group(
     basename="mobile-attendance-list",
     include_group_in_prefix=False,
 )
-
-
 
 # ============================================================
 # URLS
