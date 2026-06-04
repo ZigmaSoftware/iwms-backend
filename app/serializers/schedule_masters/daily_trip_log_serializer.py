@@ -175,6 +175,11 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
                 "cp_name": tcp.collection_point_id.cp_name,
                 "sequence": tcp.sequence,
                 "is_collected": tcp.is_collected,
+                "collected_weight_kg": (
+                    str(tcp.collected_weight_kg)
+                    if tcp.collected_weight_kg is not None
+                    else None
+                ),
             }
             for tcp in cps
             if tcp.collection_point_id
@@ -273,10 +278,17 @@ class DailyTripLogVerifySerializer(serializers.Serializer):
         instance = self.context["instance"]
         account = self.context.get("account")
         remarks = self.validated_data.get("remarks")
+        now = timezone.now()
+
+        update_fields = {
+            "log_status": DailyTripLog.LOG_STATUS_VERIFIED,
+            "verified_by_id": account.pk if account else None,
+            "verified_at": now,
+            "updated_at": now,
+        }
         if remarks:
-            instance.remarks = remarks
-        instance.verified_by = account
-        instance.verified_at = timezone.now()
-        instance.log_status = DailyTripLog.LOG_STATUS_VERIFIED
-        instance.save()
+            update_fields["remarks"] = remarks
+
+        DailyTripLog.objects.filter(pk=instance.pk).update(**update_fields)
+        instance.refresh_from_db()
         return instance
