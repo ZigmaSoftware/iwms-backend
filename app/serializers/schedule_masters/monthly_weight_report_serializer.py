@@ -1,7 +1,7 @@
 from decimal import Decimal, ROUND_HALF_UP
 
 from rest_framework import serializers
-from app.models.reports.monthly_weight_report import MonthlyWeightReport
+from app.models.schedule_masters.monthly_weight_report import MonthlyWeightReport
 
 ZERO = Decimal("0")
 TWO = Decimal("0.01")
