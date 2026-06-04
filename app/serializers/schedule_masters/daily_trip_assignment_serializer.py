@@ -121,6 +121,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "unique_id",
             "actual_start_time",
             "actual_end_time",
+            "approval_status",
             "created_at",
             "updated_at",
         ]

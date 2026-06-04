@@ -1,5 +1,3 @@
-from django.utils import timezone
-
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
@@ -8,77 +6,110 @@ from app.models.schedule_masters.daily_trip_collection_point import DailyTripCol
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
+TARGET = 15
+
+# Simulate realistic GPS coordinates (Chennai area)
+GPS_SAMPLES = [
+    (13.083000, 80.271000),
+    (13.090000, 80.265000),
+    (13.077000, 80.280000),
+    (13.085000, 80.258000),
+    (13.095000, 80.273000),
+    (13.070000, 80.290000),
+    (13.100000, 80.261000),
+    (13.080000, 80.275000),
+    (13.088000, 80.268000),
+    (13.075000, 80.285000),
+    (13.093000, 80.262000),
+    (13.082000, 80.278000),
+    (13.097000, 80.256000),
+    (13.073000, 80.287000),
+    (13.086000, 80.270000),
+]
+
 
 class BinCollectionEventSeeder(BaseSeeder):
     name = "bin_collection_event"
 
     def run(self):
         company = Company.objects.filter(name="IWMS").first()
-        project = Project.objects.filter(
-            name=f"{company.name} Main Project"
-        ).first() if company else None
+        project = (
+            Project.objects.filter(name=f"{company.name} Main Project").first()
+            if company else None
+        )
 
         if not company or not project:
             self.log("Company/Project not found — skipping.")
             return
 
-        assignments = (
-            DailyTripAssignment.objects
+        # Fetch DailyTripCollectionPoints that don't yet have a BinCollectionEvent.
+        # Order by assignment date descending so we seed from the most recent trips.
+        trip_cps = (
+            DailyTripCollectionPoint.objects
             .filter(
-                company_id=company,
-                project_id=project,
+                trip_assignment_id__company_id=company,
+                trip_assignment_id__project_id=project,
                 is_deleted=False,
             )
-            .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-            .order_by("-trip_date")[:3]
+            .exclude(
+                # Skip any DTCP that already has a BCE (OneToOneField enforces uniqueness)
+                unique_id__in=BinCollectionEvent.objects.values_list(
+                    "trip_collection_point_id", flat=True
+                )
+            )
+            .exclude(trip_assignment_id__status=DailyTripAssignment.STATUS_CANCELLED)
+            .select_related(
+                "trip_assignment_id",
+                "trip_assignment_id__company_id",
+                "trip_assignment_id__project_id",
+                "trip_assignment_id__panchayat_id",
+                "trip_assignment_id__ward_id",
+                "trip_assignment_id__vehicle_id",
+                "collection_point_id",
+                "bin_id",
+                "bin_id__wastetype_id",
+            )
+            .order_by("-trip_assignment_id__trip_date", "sequence")
         )
 
-        if not assignments.exists():
-            self.log("No DailyTripAssignment found — skipping.")
+        available = list(trip_cps[:TARGET])
+
+        if not available:
+            self.log("No eligible DailyTripCollectionPoints found — skipping.")
             return
 
         created_count = 0
-        for assignment in assignments:
-            trip_cps = (
-                DailyTripCollectionPoint.objects
-                .filter(trip_assignment_id=assignment, is_deleted=False)
-                .select_related("collection_point_id", "bin_id")
-                .order_by("sequence")
-            )
-
-            if not trip_cps.exists():
+        for i, trip_cp in enumerate(available):
+            if not trip_cp.bin_id:
                 continue
 
-            for trip_cp in trip_cps:
-                if not trip_cp.bin_id:
-                    continue
+            assignment = trip_cp.trip_assignment_id
+            bin_obj = trip_cp.bin_id
+            waste_type = getattr(bin_obj, "wastetype_id", None)
+            lat, lng = GPS_SAMPLES[i % len(GPS_SAMPLES)]
 
-                if BinCollectionEvent.objects.filter(
-                    trip_collection_point_id=trip_cp
-                ).exists():
-                    continue
-
-                bin_obj = trip_cp.bin_id
-
-                BinCollectionEvent.objects.create(
-                    company_id=company,
-                    project_id=project,
-                    trip_assignment_id=assignment,
-                    trip_collection_point_id=trip_cp,
-                    collection_point_id=trip_cp.collection_point_id,
-                    bin_id=bin_obj,
-                    waste_type_id=getattr(bin_obj, "wastetype_id", None),
-                    vehicle_id=getattr(assignment, "vehicle_id", None),
-                    panchayat_id=assignment.panchayat_id,
-                    collected_weight_kg=round(
-                        float(bin_obj.bin_capacity or 240) * 0.65, 2
-                    ),
-                    driver_latitude=13.083000,
-                    driver_longitude=80.271000,
-                    notes="Seeded sample scan event",
-                )
-                created_count += 1
+            BinCollectionEvent.objects.create(
+                company_id=company,
+                project_id=project,
+                trip_assignment_id=assignment,
+                trip_collection_point_id=trip_cp,
+                collection_point_id=trip_cp.collection_point_id,
+                bin_id=bin_obj,
+                waste_type_id=waste_type,
+                vehicle_id=getattr(assignment, "vehicle_id", None),
+                # BCE model: panchayat_id uses to_field="unique_id" (FK instance),
+                # ward_id uses default PK (FK instance, no to_field).
+                panchayat_id=assignment.panchayat_id,
+                ward_id=assignment.ward_id,
+                collected_weight_kg=round(
+                    float(bin_obj.bin_capacity or 240) * 0.65, 2
+                ),
+                driver_latitude=lat,
+                driver_longitude=lng,
+                notes=f"Seeded scan event #{i + 1}",
+            )
+            created_count += 1
 
         self.log(
-            f"---BinCollectionEvent seeded | created={created_count}---"
+            f"---BinCollectionEvent seeded | target={TARGET} | created={created_count}---"
         )

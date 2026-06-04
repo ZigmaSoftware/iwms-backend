@@ -3,21 +3,21 @@ Panchayat Leader Dashboard API
 Authenticated-only endpoint — no module permission check (see AUTH_ONLY_SUFFIXES).
 Returns:
   • Monthly waste comparison data  (from MonthlyWeightReport)
-  • Day-wise waste collection       (from DailyTripLog)
-  • Waste-type breakdown per trip   (from DailyTripLog)
-  • Individual trip log rows        (for the table)
+  • Day-wise waste collection       (from DailyWasteComparison)
+  • Waste-type breakdown            (from DailyWasteComparison)
+  • Individual daily rows           (for the table)
 All data is locked to the authenticated leader's panchayat.
 """
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Sum
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.reports.monthly_weight_report import MonthlyWeightReport
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
+from app.models.schedule_masters.daily_waste_comparison import DailyWasteComparison
 
 
 ZERO = Decimal("0")
@@ -76,7 +76,7 @@ class LocalBodyDashboardViewSet(ViewSet):
         sort  = request.query_params.get("sort", "absolute").lower()
 
         monthly_data  = self._monthly_report(panchayat_uid, month, sort)
-        daily_data    = self._daily_trips(panchayat_uid, month)
+        daily_data    = self._daily_data(panchayat_uid, month)
 
         leader = self._get_leader(request)
         panchayat_name = getattr(getattr(leader, "panchayat_id", None), "panchayat_name", "") or ""
@@ -90,11 +90,12 @@ class LocalBodyDashboardViewSet(ViewSet):
             "waste_type_breakdown": monthly_data["waste_type_breakdown"],
             "kpis":                 monthly_data["kpis"],
 
-            # ── daily trip logs ─────────────────────────────────────────
+            # ── daily waste data ─────────────────────────────────────────
             "day_wise_collection":  daily_data["day_wise"],
             "trip_waste_types":     daily_data["waste_types"],
-            "trip_logs":            daily_data["logs"],
-            "trip_kpis":            daily_data["trip_kpis"],
+            "day_wise_breakdown":   daily_data["day_wise_breakdown"],
+            "daily_rows":           daily_data["daily_rows"],
+            "daily_kpis":           daily_data["daily_kpis"],
         })
 
     # ── monthly report (from MonthlyWeightReport) ───────────────────────
@@ -207,105 +208,123 @@ class LocalBodyDashboardViewSet(ViewSet):
             "report_status":                 _status(actual, agreed),
         }
 
-    # ── daily trip data (from DailyTripLog) ─────────────────────────────
+    # ── daily waste data (from DailyWasteComparison) ────────────────────
 
-    def _daily_trips(self, panchayat_uid, month):
-        qs = DailyTripLog.objects.select_related(
-            "waste_type_id", "collection_point_id", "driver_id"
+    def _daily_data(self, panchayat_uid, month):
+        qs = DailyWasteComparison.objects.select_related(
+            "waste_type_id", "panchayat_id", "company_id", "project_id"
         ).filter(
             panchayat_id=panchayat_uid,
-            is_deleted=False,
         )
 
         if month:
             try:
                 year, mon = month.split("-")
-                qs = qs.filter(trip_date__year=int(year), trip_date__month=int(mon))
+                qs = qs.filter(
+                    collection_date__year=int(year),
+                    collection_date__month=int(mon),
+                )
             except ValueError:
                 pass
 
-        # ── day-wise aggregation ─────────────────────────────────────────
-        day_wise_raw = (
-            qs.values("trip_date")
+        # ── per-date × per-waste-type breakdown ─────────────────────────
+        # This drives all three daily charts (weight, trips, points per date).
+        breakdown_raw = (
+            qs.values("collection_date", "waste_type_id__waste_type_name")
             .annotate(
-                collected_weight_kg = Sum("collected_weight_kg"),
-                trip_count          = Count("unique_id"),
-                verified_count      = Count("unique_id", filter=__import__("django.db.models", fromlist=["Q"]).Q(log_status="Verified")),
+                actual_weight_kg = Sum("actual_weight_kg"),
+                agreed_weight_kg = Sum("agreed_weight_kg"),
+                trip_count       = Sum("total_trips"),
+                points_covered   = Sum("collection_points_covered"),
             )
-            .order_by("trip_date")
+            .order_by("collection_date", "waste_type_id__waste_type_name")
         )
-        day_wise = [
+        day_wise_breakdown = [
             {
-                "date":                 str(r["trip_date"]),
-                "collected_weight_kg":  float(_r(r["collected_weight_kg"])),
-                "trip_count":           r["trip_count"],
-                "verified_count":       r["verified_count"],
+                "date":              str(r["collection_date"]),
+                "waste_type":        r["waste_type_id__waste_type_name"] or "Unknown",
+                "actual_weight_kg":  float(_r(r["actual_weight_kg"])),
+                "agreed_weight_kg":  float(_r(r["agreed_weight_kg"])),
+                "trip_count":        int(r["trip_count"] or 0),
+                "points_covered":    int(r["points_covered"] or 0),
             }
-            for r in day_wise_raw
+            for r in breakdown_raw
         ]
 
-        # ── waste-type aggregation ───────────────────────────────────────
-        waste_raw = (
-            qs.values("waste_type_id__waste_type_name")
-            .annotate(
-                collected_weight_kg = Sum("collected_weight_kg"),
-                trip_count          = Count("unique_id"),
-            )
-            .order_by("-collected_weight_kg")
-        )
-        waste_types = [
-            {
-                "waste_type":           r["waste_type_id__waste_type_name"] or "Unknown",
-                "collected_weight_kg":  float(_r(r["collected_weight_kg"])),
-                "trip_count":           r["trip_count"],
-            }
-            for r in waste_raw
-        ]
+        # ── day-wise totals (for summary / line chart) ───────────────────
+        day_totals: dict = {}
+        for r in day_wise_breakdown:
+            d = r["date"]
+            if d not in day_totals:
+                day_totals[d] = {"date": d, "collected_weight_kg": 0.0, "trip_count": 0, "points_covered": 0}
+            day_totals[d]["collected_weight_kg"] += r["actual_weight_kg"]
+            day_totals[d]["trip_count"]          += r["trip_count"]
+            day_totals[d]["points_covered"]      += r["points_covered"]
+        day_wise = sorted(day_totals.values(), key=lambda x: x["date"])
 
-        # ── individual log rows (for table) ─────────────────────────────
-        logs_raw = (
+        # ── waste-type overall totals (pie chart) ───────────────────────
+        wt_totals: dict = {}
+        for r in day_wise_breakdown:
+            wt = r["waste_type"]
+            if wt not in wt_totals:
+                wt_totals[wt] = {"waste_type": wt, "collected_weight_kg": 0.0, "trip_count": 0}
+            wt_totals[wt]["collected_weight_kg"] += r["actual_weight_kg"]
+            wt_totals[wt]["trip_count"]          += r["trip_count"]
+        waste_types = sorted(wt_totals.values(), key=lambda x: x["collected_weight_kg"], reverse=True)
+
+        # ── individual DWC rows (for table) ──────────────────────────────
+        rows_raw = (
             qs.values(
                 "unique_id",
-                "trip_date",
+                "collection_date",
                 "waste_type_id__waste_type_name",
-                "collected_weight_kg",
-                "log_status",
-                "collection_point_id__cp_name",
-                "driver_id__employee_name",
-                "actual_start_time",
-                "actual_end_time",
+                "agreed_weight_kg",
+                "actual_weight_kg",
+                "variance_kg",
+                "variance_percent",
+                "report_status",
+                "total_trips",
+                "collection_points_covered",
             )
-            .order_by("-trip_date")[:300]
+            .order_by("-collection_date")[:300]
         )
-        logs = [
+        daily_rows = [
             {
-                "unique_id":            r["unique_id"],
-                "trip_date":            str(r["trip_date"]),
-                "waste_type":           r["waste_type_id__waste_type_name"] or "—",
-                "collected_weight_kg":  float(_r(r["collected_weight_kg"])),
-                "log_status":           r["log_status"],
-                "collection_point":     r["collection_point_id__cp_name"] or "—",
-                "driver":               r["driver_id__employee_name"] or "—",
-                "actual_start_time":    str(r["actual_start_time"]) if r["actual_start_time"] else None,
-                "actual_end_time":      str(r["actual_end_time"])   if r["actual_end_time"]   else None,
+                "unique_id":                   r["unique_id"],
+                "date":                        str(r["collection_date"]),
+                "waste_type":                  r["waste_type_id__waste_type_name"] or "—",
+                "agreed_weight_kg":            float(_r(r["agreed_weight_kg"])),
+                "actual_weight_kg":            float(_r(r["actual_weight_kg"])),
+                "variance_kg":                 float(_r(r["variance_kg"])),
+                "variance_percent":            float(_r(r["variance_percent"])),
+                "report_status":               r["report_status"] or "—",
+                "total_trips":                 int(r["total_trips"] or 0),
+                "collection_points_covered":   int(r["collection_points_covered"] or 0),
             }
-            for r in logs_raw
+            for r in rows_raw
         ]
 
-        # ── trip-level KPIs ──────────────────────────────────────────────
-        total_weight = sum(Decimal(str(r["collected_weight_kg"])) for r in logs)
-        total_trips  = len(logs)
-        verified     = sum(1 for r in logs if r["log_status"] == "Verified")
-        submitted    = sum(1 for r in logs if r["log_status"] == "Submitted")
-        draft        = sum(1 for r in logs if r["log_status"] == "Draft")
+        # ── daily KPIs ───────────────────────────────────────────────────
+        total_actual  = sum(Decimal(str(r["actual_weight_kg"])) for r in daily_rows)
+        total_agreed  = sum(Decimal(str(r["agreed_weight_kg"])) for r in daily_rows)
+        total_trips   = sum(r["total_trips"] for r in daily_rows)
+        total_points  = sum(r["collection_points_covered"] for r in daily_rows)
+        efficiency    = float(_pct(total_actual, total_agreed)) if total_agreed else 0.0
 
-        trip_kpis = {
-            "total_collected_kg":   float(_r(total_weight)),
-            "total_trips":          total_trips,
-            "verified_trips":       verified,
-            "submitted_trips":      submitted,
-            "draft_trips":          draft,
-            "avg_weight_per_trip":  float(_r(total_weight / Decimal(total_trips)) if total_trips else ZERO),
+        daily_kpis = {
+            "total_actual_kg":              float(_r(total_actual)),
+            "total_agreed_kg":              float(_r(total_agreed)),
+            "variance_kg":                  float(_r(total_actual - total_agreed)),
+            "total_trips":                  total_trips,
+            "collection_points_covered":    total_points,
+            "collection_efficiency_percent": efficiency,
+            "avg_weight_per_trip":          float(_r(total_actual / Decimal(total_trips)) if total_trips else ZERO),
         }
 
-        return {"day_wise": day_wise, "waste_types": waste_types, "logs": logs, "trip_kpis": trip_kpis}
+        return {
+            "day_wise": day_wise,
+            "waste_types": waste_types,
+            "day_wise_breakdown": day_wise_breakdown,
+            "daily_rows": daily_rows,
+            "daily_kpis": daily_kpis,
+        }

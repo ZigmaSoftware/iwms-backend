@@ -127,6 +127,7 @@ from ..viewsets.attendance_view.employee_viewset import EmployeeViewSet
 from ..viewsets.attendance_view.staff_profile_viewset import StaffProfileViewSet
 from ..viewsets.attendance_view.attendance_list import AttendanceListViewSet
 from ..viewsets.reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
+from ..viewsets.schedule_masters.daily_waste_comparison_viewset import DailyWasteComparisonViewSet
 from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardViewSet
 
 
@@ -258,6 +259,7 @@ router.register_group("schedule-masters", "trip-plan-collection-points", TripPla
 router.register_group("schedule-masters", "daily-trip-assignments", DailyTripAssignmentViewSet)
 router.register_group("schedule-masters", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
 router.register_group("schedule-masters", "bin-collection-events", BinCollectionEventViewSet)
+router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
 router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
 
 # ============================================================
