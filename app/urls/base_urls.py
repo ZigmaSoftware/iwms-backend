@@ -209,13 +209,6 @@ router.register_group("user-creations", "supervisor-zone-map", SupervisorZoneMap
 router.register_group("user-creations", "unassigned-staff-pool", UnassignedStaffPoolViewSet)
 
 
-
-# ============================================================
-# GROUP: PROCESS
-# ============================================================
-router.register_group("process-items", "zone-property-load-tracker", ZonePropertyLoadTrackerViewSet)
-
-
 # ============================================================
 # GROUP: AUTHENTICATION
 # ============================================================
@@ -259,6 +252,7 @@ router.register_group("schedule-masters", "daily-trip-assignments", DailyTripAss
 router.register_group("schedule-masters", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
 router.register_group("schedule-masters", "bin-collection-events", BinCollectionEventViewSet)
 router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
+router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
 
 # ============================================================
 # GROUP: OPERATOR MOBILE
@@ -292,13 +286,7 @@ router.register_group(
 # ============================================================
 # GROUP: AUDIT
 # ============================================================
-router.register_group("audits", "vehicle-trip-audit",    VehicleTripAuditViewSet)
-router.register_group("audits", "trip-exception-log",    TripExceptionLogViewSet)
-router.register_group("audits", "supervisor-zone-access-audit", SupervisorZoneAccessAuditViewSet)
-router.register_group("audits", "stafftemplate-audit-log", StaffTemplateAuditLogViewSet)
-router.register_group("audits", "audit-log", AuditLogViewSet)
 router.register_group("audits", "login-audit", LoginAuditViewSet)
-
 router.register_group("audits", "common-audit", CommonAuditViewSet)
 
 # ============================================================
@@ -307,26 +295,6 @@ router.register_group("audits", "common-audit", CommonAuditViewSet)
 router.register_group("waste-bluetooth", "types", WasteTypeViewSet)
 router.register_group("waste-bluetooth", "collection-sub", WasteCollectionSubViewSet)
 router.register_group("waste-bluetooth", "collection-main", WasteCollectionMainViewSet)
-
-
-# ============================================================
-# GROUP: TRIP ASSIGNMENTS
-# ============================================================
-# router.register_group("trip-assignments", "daily", DailyTripAssignmentViewSet)
-
-
-# ============================================================
-# GROUP: COLLECTIONS
-# ============================================================
-# router.register_group("collections", "point-collection", PointCollectionViewSet)
-router.register_group("collections", "panchayat-wise", PanchayatWiseCollectionViewSet)
-router.register_group("collections", "ward-wise", WardWiseCollectionViewSet)
-router.register_group("collections", "zone-wise", ZoneWiseCollectionViewSet)
-
-# ============================================================
-# GROUP: REPORTS
-# ============================================================
-router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
 
 # ============================================================
 # GROUP: LOCALBODY (panchayat leader portal — auth-only, no module permission check)
@@ -399,7 +367,6 @@ router.register_group(
     basename="mobile-attendance-list",
     include_group_in_prefix=False,
 )
-
 
 
 # ============================================================
