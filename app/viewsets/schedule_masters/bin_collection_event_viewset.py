@@ -1,8 +1,8 @@
 from django.db import transaction
-from django.db.models import Count, Sum
 from django.utils import timezone
 
 from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
 from app.serializers.schedule_masters.bin_collection_event_serializer import (
     BinCollectionEventSerializer,
 )
@@ -41,7 +41,6 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "panchayat_id",
                 "ward_id",
                 "ward_id__zone_id",
-                "collection_point_id",
             )
             .filter(is_deleted=False)
         )
@@ -64,70 +63,49 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         return queryset
 
     # -------------------------------------------------
-    # COLLECTION SYNC HELPERS
+    # DAILY TRIP COLLECTION POINT SYNC
     # -------------------------------------------------
 
-    def _account(self):
-        return self._get_account()
+    def _sync_trip_cp_from_event(self, event):
+        """
+        Sync the linked DailyTripCollectionPoint whenever a BinCollectionEvent is saved.
 
-    def _event_context(self, instance):
-        collection_point = getattr(instance, "collection_point_id", None)
-        assignment = getattr(instance, "trip_assignment_id", None)
-        bin_obj = getattr(instance, "bin_id", None)
-        ward = getattr(collection_point, "ward_id", None)
-        return {
-            "company": getattr(instance, "company_id", None),
-            "project": getattr(instance, "project_id", None),
-            "panchayat": getattr(instance, "panchayat_id", None)
-            or getattr(collection_point, "panchayat_id", None),
-            "ward": ward,
-            "zone": getattr(ward, "zone_id", None),
-            "waste_type": getattr(bin_obj, "wastetype_id", None),
-            "trip": getattr(assignment, "trip_plan_id", None),
-            "event": instance,
-            "weight": getattr(instance, "collected_weight_kg", 0) or 0,
-            "collection_date": (
-                instance.created_at.date()
-                if getattr(instance, "created_at", None)
-                else timezone.localdate()
-            ),
-        }
+        Always overwrites weight and marks Collected so the DTCP reflects the latest BCE data.
+        Falls back to get_or_create by (assignment, collection_point) if the direct FK isn't
+        resolved (defensive — trip_collection_point_id is NOT NULL in the model).
+        """
+        trip_cp = getattr(event, "trip_collection_point_id", None)
 
-    def _same_sync_context(self, left, right):
-        if not left or not right:
-            return False
-        keys = ("panchayat", "ward", "waste_type", "trip", "collection_date")
-        return all(left.get(key) == right.get(key) for key in keys)
+        if not trip_cp:
+            assignment = getattr(event, "trip_assignment_id", None)
+            collection_point = getattr(event, "collection_point_id", None)
+            if not assignment or not collection_point:
+                return
+            trip_cp, _ = DailyTripCollectionPoint.objects.get_or_create(
+                trip_assignment_id=assignment,
+                collection_point_id=collection_point,
+                defaults={
+                    "bin_id": getattr(event, "bin_id", None),
+                    "company_id": getattr(event, "company_id", None),
+                    "project_id": getattr(event, "project_id", None),
+                },
+            )
 
-    def _upsert_first_or_create(self, queryset, defaults, create_kwargs):
-        account = self._account()
-        defaults = dict(defaults)
-        create_kwargs = dict(create_kwargs)
-        if account:
-            defaults["updated_by"] = account
-
-        instance = queryset.first()
-        if instance:
-            queryset.exclude(pk=instance.pk).delete()
-            for field, value in defaults.items():
-                setattr(instance, field, value)
-            instance.save(update_fields=[*defaults.keys(), "updated_at"])
-            return instance
-
-        if account:
-            create_kwargs["created_by"] = account
-            create_kwargs["updated_by"] = account
-        create_values = {**defaults, **create_kwargs}
-        return queryset.model.objects.create(**create_values)
-
-
-    def _sync_collections(self, ctx):
-        if not ctx:
+        if not trip_cp:
             return
-        self._sync_panchayat_collection(ctx)
-        self._sync_ward_collection(ctx)
-        self._sync_zone_collection(ctx)
 
+        trip_cp.collected_weight_kg = event.collected_weight_kg or 0
+        trip_cp.collected_at = getattr(event, "created_at", None) or timezone.now()
+        trip_cp.is_collected = True
+        trip_cp.status = DailyTripCollectionPoint.STATUS_COLLECTED
+        trip_cp.save(update_fields=[
+            "collected_weight_kg",
+            "collected_at",
+            "is_collected",
+            "status",
+            "updated_at",
+        ])
+        trip_cp.trip_assignment_id.mark_completed_if_all_cps_collected()
 
     # -------------------------------------------------
     # CREATE / UPDATE / DELETE
@@ -136,31 +114,22 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     @transaction.atomic
     def perform_create(self, serializer):
         super().perform_create(serializer)
-        self._sync_collections(self._event_context(serializer.instance))
+        self._sync_trip_cp_from_event(serializer.instance)
 
     @transaction.atomic
     def perform_update(self, serializer):
-        previous_ctx = self._event_context(serializer.instance)
         super().perform_update(serializer)
-        instance = serializer.instance
-        current_ctx = self._event_context(instance)
-
-        if not self._same_sync_context(previous_ctx, current_ctx):
-            self._sync_zone_collection(previous_ctx)
-        self._sync_collections(current_ctx)
+        self._sync_trip_cp_from_event(serializer.instance)
 
     @transaction.atomic
     def perform_destroy(self, instance):
-        ctx = self._event_context(instance)
         previous_data = self._serialize_instance(instance)
         instance.is_deleted = True
         instance.is_active = False
         instance.save(update_fields=["is_deleted", "is_active", "updated_at"])
-        self._soft_delete_collection_rows(instance)
         self.log_audit(
             self.request,
             instance=instance,
             previous_data=previous_data,
             new_data=self._serialize_instance(instance),
         )
-        self._sync_zone_collection(ctx)

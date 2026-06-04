@@ -51,7 +51,7 @@ class BinCollectionEvent(BaseMaster):
         to_field="unique_id",
         related_name="bin_collection_events",
     )
-    trip_collection_point_id = models.OneToOneField(
+    trip_collection_point_id = models.ForeignKey(
         DailyTripCollectionPoint,
         on_delete=models.PROTECT,
         db_column="trip_collection_point_id",

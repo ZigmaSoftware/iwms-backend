@@ -103,49 +103,35 @@ class BinCollectionEventSeeder(BaseSeeder):
                 )
                 backfilled_count += 1
 
-        for assignment in assignments:
-            trip_cps = (
-                DailyTripCollectionPoint.objects
-                .filter(trip_assignment_id=assignment, is_deleted=False)
-                .select_related("collection_point_id", "bin_id")
-                .order_by("sequence")
-            )
-
-            if not trip_cps.exists():
+        for i, trip_cp in enumerate(available):
+            if not trip_cp.bin_id:
                 continue
 
-            for trip_cp in trip_cps:
-                if not trip_cp.bin_id:
-                    continue
+            assignment = trip_cp.trip_assignment_id
+            bin_obj = trip_cp.bin_id
+            weight_kg = round(float(bin_obj.bin_capacity or 240) * 0.65, 2)
+            lat, lng = GPS_SAMPLES[i % len(GPS_SAMPLES)]
 
-                if BinCollectionEvent.objects.filter(
-                    trip_collection_point_id=trip_cp
-                ).exists():
-                    continue
+            BinCollectionEvent.objects.create(
+                company_id=company,
+                project_id=project,
+                trip_assignment_id=assignment,
+                trip_collection_point_id=trip_cp,
+                collection_point_id=trip_cp.collection_point_id,
+                bin_id=bin_obj,
+                waste_type_id=getattr(bin_obj, "wastetype_id", None),
+                vehicle_id=getattr(assignment, "vehicle_id", None),
+                panchayat_id=assignment.panchayat_id,
+                collected_weight_kg=weight_kg,
+                driver_latitude=lat,
+                driver_longitude=lng,
+                notes="Seeded sample scan event",
+            )
 
-                bin_obj = trip_cp.bin_id
-                weight_kg = round(float(bin_obj.bin_capacity or 240) * 0.65, 2)
+            if not trip_cp.is_collected:
+                trip_cp.mark_collected(weight_kg=weight_kg, collected_by=None)
 
-                BinCollectionEvent.objects.create(
-                    company_id=company,
-                    project_id=project,
-                    trip_assignment_id=assignment,
-                    trip_collection_point_id=trip_cp,
-                    collection_point_id=trip_cp.collection_point_id,
-                    bin_id=bin_obj,
-                    waste_type_id=getattr(bin_obj, "wastetype_id", None),
-                    vehicle_id=getattr(assignment, "vehicle_id", None),
-                    panchayat_id=assignment.panchayat_id,
-                    collected_weight_kg=weight_kg,
-                    driver_latitude=13.083000,
-                    driver_longitude=80.271000,
-                    notes="Seeded sample scan event",
-                )
-
-                if not trip_cp.is_collected:
-                    trip_cp.mark_collected(weight_kg=weight_kg, collected_by=None)
-
-                created_count += 1
+            created_count += 1
 
         self.log(
             f"---BinCollectionEvent seeded | created={created_count} | backfilled={backfilled_count}---"

@@ -152,6 +152,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "TripExceptionLog",
         "SupervisorZoneAccessAudit",
         "StaffTemplateAuditLog",
+        "LoginAudit",
     },
 }
 

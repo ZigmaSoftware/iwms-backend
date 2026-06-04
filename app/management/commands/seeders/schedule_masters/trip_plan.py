@@ -18,87 +18,74 @@ from app.models.waste_types.subproperty import SubProperty
 class TripPlanSeeder(BaseSeeder):
     name = "trip_plan"
 
-    def _resolve_staff_template(self, driver_username, operator_username):
-        return (
-            StaffTemplate.objects.filter(
-                driver_id__username__iexact=driver_username,
-                operator_id__username__iexact=operator_username,
-                is_deleted=False,
-            )
-            .order_by("created_at")
-            .first()
-        )
-
     def run(self):
         company = Company.objects.filter(name="IWMS").first()
         project = (
             Project.objects.filter(name=f"{company.name} Main Project").first()
-            if company
-            else None
+            if company else None
         )
+        if not company or not project:
+            self.log("TripPlanSeeder skipped (missing company/project).")
+            return
+
         district = District.objects.filter(company_id=company, project_id=project).first()
         city = City.objects.filter(company_id=company, project_id=project).first()
-        panchayat = Panchayat.objects.filter(
-            panchayat_name="Panchayat 1",
-            company_id=company,
-            project_id=project,
-        ).first()
         property_obj = Property.objects.filter(is_deleted=False).first()
         sub_property_obj = SubProperty.objects.filter(is_deleted=False).first()
         supervisor = Staffcreation.objects.filter(is_deleted=False).order_by("created_at").first()
 
-        if not all([company, project, district, city, panchayat, property_obj, sub_property_obj, supervisor]):
-            self.log("TripPlanSeeder skipped (missing dependencies)")
+        if not all([district, city, property_obj, sub_property_obj, supervisor]):
+            self.log("TripPlanSeeder skipped (missing dependencies).")
             return
 
-        plans = [
-            {
-                "driver": "driver_user",
-                "operator": "operator_user",
-                "waste_type_name": "Wet Waste",
-                "vehicle_no": "WET-VEHICLE-01",
-                "scheduled_time": time(7, 0),
-            },
-            {
-                "driver": "driver2_user",
-                "operator": "operator2_user",
-                "waste_type_name": "Dry Waste",
-                "vehicle_no": "DRY-VEHICLE-01",
-                "scheduled_time": time(7, 30),
-            },
-        ]
+        panchayats = list(Panchayat.objects.filter(
+            company_id=company, project_id=project, is_deleted=False
+        ).order_by("panchayat_name")[:15])
+
+        if not panchayats:
+            self.log("TripPlanSeeder skipped (no panchayats found).")
+            return
+
+        staff_templates = list(StaffTemplate.objects.filter(
+            is_deleted=False, status="ACTIVE", approval_status="APPROVED"
+        ).order_by("created_at"))
+
+        vehicles = list(VehicleCreation.objects.filter(
+            company_id=company, project_id=project, is_deleted=False
+        ).order_by("created_at"))
+
+        if not staff_templates or not vehicles:
+            self.log("TripPlanSeeder skipped (no staff templates or vehicles).")
+            return
+
+        waste_types = {
+            "wet": WasteType.objects.filter(waste_type_name__iexact="Wet Waste", is_deleted=False).first(),
+            "dry": WasteType.objects.filter(waste_type_name__iexact="Dry Waste", is_deleted=False).first(),
+        }
+        fallback_waste = WasteType.objects.filter(is_deleted=False).first()
+
+        # Approve any active plans first
+        TripPlan.objects.filter(
+            company_id=company, project_id=project, status=TripPlan.Status.ACTIVE,
+        ).update(approval_status=TripPlan.ApprovalStatus.APPROVED)
 
         created_count = 0
         skipped = 0
-        TripPlan.objects.filter(
-            company_id=company,
-            project_id=project,
-            status=TripPlan.Status.ACTIVE,
-        ).update(approval_status=TripPlan.ApprovalStatus.APPROVED)
-        for plan in plans:
-            staff_template = self._resolve_staff_template(plan["driver"], plan["operator"])
-            waste_type = WasteType.objects.filter(
-                waste_type_name__iexact=plan["waste_type_name"],
-                is_deleted=False,
-            ).first()
-            vehicle = VehicleCreation.objects.filter(
-                vehicle_no=plan["vehicle_no"],
-                is_deleted=False,
-            ).first()
-            if not vehicle:
-                vehicle = VehicleCreation.objects.filter(
-                    company_id=company,
-                    project_id=project,
-                    is_deleted=False,
-                ).order_by("created_at").first()
 
-            if not all([staff_template, waste_type, vehicle]):
-                self.log(
-                    f"TripPlan skipped: template={staff_template} "
-                    f"waste={waste_type} vehicle={vehicle}"
-                )
+        base_times = [time(6, 0), time(6, 30), time(7, 0), time(7, 30), time(8, 0),
+                      time(8, 30), time(9, 0), time(9, 30), time(10, 0), time(10, 30),
+                      time(11, 0), time(11, 30), time(12, 0), time(12, 30), time(13, 0)]
+
+        for idx, panchayat in enumerate(panchayats):
+            waste_key = "wet" if idx % 2 == 0 else "dry"
+            waste_type = waste_types.get(waste_key) or fallback_waste
+            if not waste_type:
                 skipped += 1
                 continue
+
+            staff_template = staff_templates[idx % len(staff_templates)]
+            vehicle = vehicles[idx % len(vehicles)]
+            scheduled_time = base_times[idx % len(base_times)]
 
             _, created = TripPlan.objects.get_or_create(
                 company_id=company,
@@ -106,16 +93,16 @@ class TripPlanSeeder(BaseSeeder):
                 staff_template_id=staff_template,
                 vehicle_id=vehicle,
                 waste_type_id=waste_type,
+                panchayat_id=panchayat,
                 defaults={
                     "district_id": district,
                     "city_id": city,
-                    "panchayat_id": panchayat,
                     "supervisor_id": supervisor,
                     "property_id": property_obj,
                     "sub_property_id": sub_property_obj,
                     "trip_trigger_weight_kg": 800,
                     "max_vehicle_capacity_kg": 3000,
-                    "scheduled_time": plan["scheduled_time"],
+                    "scheduled_time": scheduled_time,
                     "approval_status": TripPlan.ApprovalStatus.APPROVED,
                     "status": TripPlan.Status.ACTIVE,
                 },
@@ -123,6 +110,4 @@ class TripPlanSeeder(BaseSeeder):
             if created:
                 created_count += 1
 
-        self.log(
-            f"---TripPlan seeded | created={created_count} | skipped={skipped}---"
-        )
+        self.log(f"---TripPlan seeded | created={created_count} | skipped={skipped} | total={len(panchayats)}---")

@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.assets.bin import Bin
+from app.models.assets.bins import Bins
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.models.user_creations.staffcreation import Staffcreation
@@ -89,7 +89,7 @@ class DailyTripLogSeeder(BaseSeeder):
                 ),
             )
 
-            bin_qs = Bin.objects.filter(
+            bin_qs = Bins.objects.filter(
                 company_id=assignment.company_id,
                 project_id=assignment.project_id,
                 is_deleted=False,

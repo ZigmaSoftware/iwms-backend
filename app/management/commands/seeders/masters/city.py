@@ -7,8 +7,29 @@ from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+
+
 class CitySeeder(BaseSeeder):
     name = "city"
+
+    # (city_name, district_name)
+    CITIES = [
+        ("Chennai City",         "Chennai"),
+        ("Coimbatore City",      "Coimbatore"),
+        ("Madurai City",         "Madurai"),
+        ("Tiruchirappalli City", "Tiruchirappalli"),
+        ("Salem City",           "Salem"),
+        ("Tirunelveli City",     "Tirunelveli"),
+        ("Erode City",           "Erode"),
+        ("Vellore City",         "Vellore"),
+        ("Thoothukudi City",     "Thoothukudi"),
+        ("Dindigul City",        "Dindigul"),
+        ("Thanjavur City",       "Thanjavur"),
+        ("Ranipet City",         "Ranipet"),
+        ("Kancheepuram City",    "Kancheepuram"),
+        ("Chengalpattu City",    "Chengalpattu"),
+        ("Tiruvannamalai City",  "Tiruvannamalai"),
+    ]
 
     def run(self):
         company, _ = Company.objects.get_or_create(
@@ -19,10 +40,8 @@ class CitySeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-
-        project_name = f"{company.name} Main Project"
         project, _ = Project.objects.get_or_create(
-            name=project_name,
+            name=f"{company.name} Main Project",
             company_id=company,
             defaults={
                 "description": f"Default project for {company.name}",
@@ -34,16 +53,21 @@ class CitySeeder(BaseSeeder):
         asia = Continent.objects.get(name="Asia")
         india = Country.objects.get(name="India")
         tamil_nadu = State.objects.get(name="Tamil Nadu")
-        chennai_dist = District.objects.get(name="Chennai")
+        district_cache = {}
 
-        City.objects.get_or_create(
-            name="Chennai City",
-            continent_id=asia,
-            country_id=india,
-            state_id=tamil_nadu,
-            district_id=chennai_dist,
-            company_id=company,
-            project_id=project,
-        )
+        for city_name, district_name in self.CITIES:
+            if district_name not in district_cache:
+                district_cache[district_name] = District.objects.get(
+                    name=district_name, state_id=tamil_nadu
+                )
+            City.objects.get_or_create(
+                name=city_name,
+                continent_id=asia,
+                country_id=india,
+                state_id=tamil_nadu,
+                district_id=district_cache[district_name],
+                company_id=company,
+                project_id=project,
+            )
 
-        self.log("---Cities seeded---")
+        self.log(f"---Cities seeded ({len(self.CITIES)} records)---")

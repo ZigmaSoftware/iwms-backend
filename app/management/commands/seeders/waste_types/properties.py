@@ -6,27 +6,36 @@ from app.models.waste_types.property import Property
 class PropertySeeder(BaseSeeder):
     name = "property"
 
-    def run(self):
-        properties = [
-            "Residential",
-            "Commercial",
-            "Industrial",
-            "Institutional",
-        ]
+    PROPERTIES = [
+        "Residential",
+        "Commercial",
+        "Industrial",
+        "Institutional",
+        "Agricultural",
+        "Educational",
+        "Healthcare",
+        "Hospitality",
+        "Retail",
+        "Office",
+        "Mixed Use",
+        "Government",
+        "Religious",
+        "Recreational",
+        "Transportation",
+    ]
 
-        for prop in properties:
+    def run(self):
+        for prop in self.PROPERTIES:
             obj, created = Property.objects.get_or_create(
                 property_name=prop,
                 defaults={
                     "is_active": True,
                     "is_deleted": False,
-                }
+                },
             )
-
-            # Reactivate if soft-deleted
             if not created and obj.is_deleted:
                 obj.is_deleted = False
                 obj.is_active = True
                 obj.save(update_fields=["is_deleted", "is_active"])
 
-        self.log("---Properties seeded---")
+        self.log(f"---Properties seeded ({len(self.PROPERTIES)} records)---")
