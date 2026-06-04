@@ -91,6 +91,7 @@ from ..viewsets.schedule_masters.daily_trip_collection_point_viewset import Dail
 from ..viewsets.schedule_masters.bin_collection_event_viewset import BinCollectionEventViewSet
 from ..viewsets.schedule_masters.daily_trip_log_viewset import DailyTripLogViewSet
 from ..viewsets.reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
+from ..viewsets.schedule_masters.daily_waste_comparison_viewset import DailyWasteComparisonViewSet
 
 # Audits
 from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
