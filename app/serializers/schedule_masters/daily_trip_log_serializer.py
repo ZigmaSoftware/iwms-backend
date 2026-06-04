@@ -30,7 +30,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     )
     bin_ids = serializers.SlugRelatedField(
         slug_field="unique_id",
-        queryset=Bin.objects.filter(is_deleted=False),
+        queryset=Bin.objects.all(),  # allow historical refs to soft-deleted bins
         many=True,
         required=False,
     )

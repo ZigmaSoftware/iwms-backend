@@ -226,6 +226,7 @@ router.register_group("schedule-masters", "trip-plan-collection-points", TripPla
 router.register_group("schedule-masters", "daily-trip-assignments", DailyTripAssignmentViewSet)
 router.register_group("schedule-masters", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
 router.register_group("schedule-masters", "bin-collection-events", BinCollectionEventViewSet)
+router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
 router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
 router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
 

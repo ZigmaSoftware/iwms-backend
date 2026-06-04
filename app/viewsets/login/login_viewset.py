@@ -131,6 +131,16 @@ class LoginViewSet(ViewSet):
         else:
             company_name = None
 
+        # Resolve company logo relative URL (e.g. /media/company_logos/xxx.jpg)
+        company_logo_url = None
+        if company:
+            logo_field = getattr(company, "company_logo", None)
+            if logo_field and getattr(logo_field, "name", None):
+                try:
+                    company_logo_url = logo_field.url
+                except Exception:
+                    company_logo_url = None
+
         profile_payload = {
             "user_type": user_type,
             "unique_id": user_unique_id,
@@ -139,6 +149,7 @@ class LoginViewSet(ViewSet):
             "email": email,
             "company_unique_id": company_unique_id,
             "company_name": company_name,
+            "company_logo": company_logo_url,
         }
 
         if user_type == "staff":
