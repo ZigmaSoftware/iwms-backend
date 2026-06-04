@@ -79,37 +79,74 @@ class BinCollectionEventSeeder(BaseSeeder):
             return
 
         created_count = 0
-        for i, trip_cp in enumerate(available):
-            if not trip_cp.bin_id:
-                continue
+        backfilled_count = 0
 
-            assignment = trip_cp.trip_assignment_id
-            bin_obj = trip_cp.bin_id
-            waste_type = getattr(bin_obj, "wastetype_id", None)
-            lat, lng = GPS_SAMPLES[i % len(GPS_SAMPLES)]
-
-            BinCollectionEvent.objects.create(
+        # Backfill: mark any DTCP as collected if a BCE already exists for it
+        orphan_tcps = (
+            DailyTripCollectionPoint.objects
+            .filter(
                 company_id=company,
                 project_id=project,
-                trip_assignment_id=assignment,
-                trip_collection_point_id=trip_cp,
-                collection_point_id=trip_cp.collection_point_id,
-                bin_id=bin_obj,
-                waste_type_id=waste_type,
-                vehicle_id=getattr(assignment, "vehicle_id", None),
-                # BCE model: panchayat_id uses to_field="unique_id" (FK instance),
-                # ward_id uses default PK (FK instance, no to_field).
-                panchayat_id=assignment.panchayat_id,
-                ward_id=assignment.ward_id,
-                collected_weight_kg=round(
-                    float(bin_obj.bin_capacity or 240) * 0.65, 2
-                ),
-                driver_latitude=lat,
-                driver_longitude=lng,
-                notes=f"Seeded scan event #{i + 1}",
+                is_collected=False,
+                is_deleted=False,
             )
-            created_count += 1
+            .select_related("bin_id")
+        )
+        for tcp in orphan_tcps:
+            bce = BinCollectionEvent.objects.filter(
+                trip_collection_point_id=tcp
+            ).first()
+            if bce:
+                tcp.mark_collected(
+                    weight_kg=float(bce.collected_weight_kg),
+                    collected_by=None,
+                )
+                backfilled_count += 1
+
+        for assignment in assignments:
+            trip_cps = (
+                DailyTripCollectionPoint.objects
+                .filter(trip_assignment_id=assignment, is_deleted=False)
+                .select_related("collection_point_id", "bin_id")
+                .order_by("sequence")
+            )
+
+            if not trip_cps.exists():
+                continue
+
+            for trip_cp in trip_cps:
+                if not trip_cp.bin_id:
+                    continue
+
+                if BinCollectionEvent.objects.filter(
+                    trip_collection_point_id=trip_cp
+                ).exists():
+                    continue
+
+                bin_obj = trip_cp.bin_id
+                weight_kg = round(float(bin_obj.bin_capacity or 240) * 0.65, 2)
+
+                BinCollectionEvent.objects.create(
+                    company_id=company,
+                    project_id=project,
+                    trip_assignment_id=assignment,
+                    trip_collection_point_id=trip_cp,
+                    collection_point_id=trip_cp.collection_point_id,
+                    bin_id=bin_obj,
+                    waste_type_id=getattr(bin_obj, "wastetype_id", None),
+                    vehicle_id=getattr(assignment, "vehicle_id", None),
+                    panchayat_id=assignment.panchayat_id,
+                    collected_weight_kg=weight_kg,
+                    driver_latitude=13.083000,
+                    driver_longitude=80.271000,
+                    notes="Seeded sample scan event",
+                )
+
+                if not trip_cp.is_collected:
+                    trip_cp.mark_collected(weight_kg=weight_kg, collected_by=None)
+
+                created_count += 1
 
         self.log(
-            f"---BinCollectionEvent seeded | target={TARGET} | created={created_count}---"
+            f"---BinCollectionEvent seeded | created={created_count} | backfilled={backfilled_count}---"
         )
