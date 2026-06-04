@@ -38,6 +38,30 @@ class BinCollectionEventSeeder(BaseSeeder):
             return
 
         created_count = 0
+        backfilled_count = 0
+
+        # Backfill: mark any DTCP as collected if a BCE already exists for it
+        orphan_tcps = (
+            DailyTripCollectionPoint.objects
+            .filter(
+                company_id=company,
+                project_id=project,
+                is_collected=False,
+                is_deleted=False,
+            )
+            .select_related("bin_id")
+        )
+        for tcp in orphan_tcps:
+            bce = BinCollectionEvent.objects.filter(
+                trip_collection_point_id=tcp
+            ).first()
+            if bce:
+                tcp.mark_collected(
+                    weight_kg=float(bce.collected_weight_kg),
+                    collected_by=None,
+                )
+                backfilled_count += 1
+
         for assignment in assignments:
             trip_cps = (
                 DailyTripCollectionPoint.objects
@@ -59,6 +83,7 @@ class BinCollectionEventSeeder(BaseSeeder):
                     continue
 
                 bin_obj = trip_cp.bin_id
+                weight_kg = round(float(bin_obj.bin_capacity or 240) * 0.65, 2)
 
                 BinCollectionEvent.objects.create(
                     company_id=company,
@@ -70,15 +95,17 @@ class BinCollectionEventSeeder(BaseSeeder):
                     waste_type_id=getattr(bin_obj, "wastetype_id", None),
                     vehicle_id=getattr(assignment, "vehicle_id", None),
                     panchayat_id=assignment.panchayat_id,
-                    collected_weight_kg=round(
-                        float(bin_obj.bin_capacity or 240) * 0.65, 2
-                    ),
+                    collected_weight_kg=weight_kg,
                     driver_latitude=13.083000,
                     driver_longitude=80.271000,
                     notes="Seeded sample scan event",
                 )
+
+                if not trip_cp.is_collected:
+                    trip_cp.mark_collected(weight_kg=weight_kg, collected_by=None)
+
                 created_count += 1
 
         self.log(
-            f"---BinCollectionEvent seeded | created={created_count}---"
+            f"---BinCollectionEvent seeded | created={created_count} | backfilled={backfilled_count}---"
         )
