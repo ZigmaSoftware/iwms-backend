@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models import Sum
 from django.utils import timezone
 
-from app.models.assets.bin import Bin
+from app.models.assets.bins import Bins
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.masters.panchayat import Panchayat
 from app.models.superadmin_masters.company import Company
@@ -151,7 +151,7 @@ class DailyTripLog(BaseMaster):
         related_name="daily_trip_logs",
     )
     bin_ids = models.ManyToManyField(
-        Bin,
+        Bins,
         blank=True,
         related_name="daily_trip_logs",
     )

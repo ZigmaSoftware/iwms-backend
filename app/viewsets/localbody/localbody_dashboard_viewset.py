@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
-from app.models.reports.monthly_weight_report import MonthlyWeightReport
+from app.models.schedule_masters.monthly_weight_report import MonthlyWeightReport
 from app.models.schedule_masters.daily_waste_comparison import DailyWasteComparison
 
 

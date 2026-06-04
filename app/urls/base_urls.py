@@ -56,7 +56,6 @@ from ..viewsets.role_assigns.contractorusertype_viewset import ContractorUserTyp
 # User creations
 from ..viewsets.user_creations.staff_viewset import StaffViewSet
 from ..viewsets.user_creations.staffcreation_viewset import StaffcreationViewset
-from ..viewsets.user_creations.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
 from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
 
 # Authentication
@@ -90,7 +89,8 @@ from ..viewsets.schedule_masters.daily_trip_assignment_viewset import DailyTripA
 from ..viewsets.schedule_masters.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
 from ..viewsets.schedule_masters.bin_collection_event_viewset import BinCollectionEventViewSet
 from ..viewsets.schedule_masters.daily_trip_log_viewset import DailyTripLogViewSet
-from ..viewsets.reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
+from ..viewsets.schedule_masters.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
+from ..viewsets.schedule_masters.daily_waste_comparison_viewset import DailyWasteComparisonViewSet
 
 # Audits
 from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
@@ -183,8 +183,6 @@ router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeV
 # ============================================================
 router.register_group("user-creations", "users-creation",  StaffViewSet)
 router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
-router.register_group("user-creations", "supervisor-zone-map", SupervisorZoneMapViewSet)
-router.register_group("user-creations", "unassigned-staff-pool", UnassignedStaffPoolViewSet)
 
 # ============================================================
 # GROUP: AUTHENTICATION

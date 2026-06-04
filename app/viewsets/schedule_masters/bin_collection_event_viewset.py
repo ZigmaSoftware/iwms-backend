@@ -2,9 +2,6 @@ from django.db import transaction
 from django.db.models import Count, Sum
 from django.utils import timezone
 
-from app.models.collections.panchayat_wise_collection import PanchayatCollection
-from app.models.collections.zone_wise_collection import ZoneCollection
-from app.models.collections.ward_wise_collection import WardCollection
 from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
 from app.serializers.schedule_masters.bin_collection_event_serializer import (
     BinCollectionEventSerializer,
@@ -123,100 +120,6 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         create_values = {**defaults, **create_kwargs}
         return queryset.model.objects.create(**create_values)
 
-    def _sync_panchayat_collection(self, ctx):
-        if not all([ctx["event"], ctx["panchayat"], ctx["waste_type"], ctx["trip"]]):
-            return
-
-        queryset = PanchayatCollection.objects.filter(
-            bin_collection_event_id=ctx["event"]
-        )
-
-        self._upsert_first_or_create(
-            queryset,
-            defaults={
-                "panchayat_id": ctx["panchayat"],
-                "waste_type_id": ctx["waste_type"],
-                "panchayat_total_weight": ctx["weight"],
-                "collection_date": ctx["collection_date"],
-                "trip_id": ctx["trip"],
-                "company_id": ctx["company"],
-                "project_id": ctx["project"],
-                "is_active": True,
-                "is_deleted": False,
-            },
-            create_kwargs={
-                "collection_point_id": ctx["event"].collection_point_id,
-                "bin_collection_event_id": ctx["event"],
-            },
-        )
-
-    def _sync_ward_collection(self, ctx):
-        if not all([ctx["event"], ctx["ward"], ctx["waste_type"], ctx["trip"]]):
-            return
-
-        queryset = WardCollection.objects.filter(
-            bin_collection_event_id=ctx["event"]
-        )
-
-        self._upsert_first_or_create(
-            queryset,
-            defaults={
-                "ward_id": ctx["ward"],
-                "waste_type_id": ctx["waste_type"],
-                "ward_total_weight": ctx["weight"],
-                "collection_date": ctx["collection_date"],
-                "trip_id": ctx["trip"],
-                "company_id": ctx["company"],
-                "project_id": ctx["project"],
-                "is_active": True,
-                "is_deleted": False,
-            },
-            create_kwargs={
-                "collection_point_id": ctx["event"].collection_point_id,
-                "bin_collection_event_id": ctx["event"],
-            },
-        )
-
-    def _sync_zone_collection(self, ctx):
-        zone = ctx.get("zone")
-        if not all([zone, ctx["waste_type"], ctx["trip"]]):
-            return
-
-        aggregated = WardCollection.objects.filter(
-            ward_id__zone_id=zone,
-            collection_date=ctx["collection_date"],
-            waste_type_id=ctx["waste_type"],
-            trip_id=ctx["trip"],
-            is_deleted=False,
-        ).aggregate(
-            total_weight=Sum("ward_total_weight"),
-            ward_count=Count("unique_id"),
-        )
-
-        total_weight = aggregated["total_weight"] or 0
-        ward_count = aggregated["ward_count"] or 0
-        zone_lookup = {
-            "zone_id": zone,
-            "collection_date": ctx["collection_date"],
-            "waste_type_id": ctx["waste_type"],
-            "trip_id": ctx["trip"],
-        }
-
-        if total_weight == 0:
-            ZoneCollection.objects.filter(**zone_lookup).delete()
-            return
-
-        ZoneCollection.objects.update_or_create(
-            **zone_lookup,
-            defaults={
-                "zone_total_weight": total_weight,
-                "ward_count": ward_count,
-                "company_id": ctx["company"],
-                "project_id": ctx["project"],
-                "is_active": True,
-                "is_deleted": False,
-            },
-        )
 
     def _sync_collections(self, ctx):
         if not ctx:
@@ -225,13 +128,6 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         self._sync_ward_collection(ctx)
         self._sync_zone_collection(ctx)
 
-    def _soft_delete_collection_rows(self, instance):
-        PanchayatCollection.objects.filter(
-            bin_collection_event_id=instance
-        ).update(is_deleted=True, is_active=False)
-        WardCollection.objects.filter(
-            bin_collection_event_id=instance
-        ).update(is_deleted=True, is_active=False)
 
     # -------------------------------------------------
     # CREATE / UPDATE / DELETE
