@@ -133,8 +133,8 @@ class DailyWasteComparisonViewSet(CompanyScopedViewSet):
                     "panchayat_name": row["panchayat_id__panchayat_name"] or row["panchayat_id"],
                     "waste_type_id": row["waste_type_id"],
                     "waste_type": row["waste_type_id__waste_type_name"] or row["waste_type_id"],
-                    "total_agreed_weight": float(rounded(total_agreed)),
-                    "total_actual_weight": float(rounded(total_actual)),
+                    "agreed_weight_kg": float(rounded(total_agreed)),
+                    "actual_weight_kg": float(rounded(total_actual)),
                     "variance_kg": float(rounded(variance)),
                     "variance_percent": float(rounded(row["average_variance_percent"])),
                     "report_status": performance_status(total_actual, total_agreed),
@@ -177,28 +177,28 @@ class DailyWasteComparisonViewSet(CompanyScopedViewSet):
                 date,
                 {
                     "collection_date": date,
-                    "total_agreed_weight": 0,
-                    "total_actual_weight": 0,
+                    "agreed_weight_kg": 0,
+                    "actual_weight_kg": 0,
                     "variance_kg": 0,
                     "total_trips": 0,
                     "collection_points_covered": 0,
                 },
             )
-            trends[date]["total_agreed_weight"] += row["total_agreed_weight"]
-            trends[date]["total_actual_weight"] += row["total_actual_weight"]
-            trends[date]["variance_kg"] += row["variance_kg"]
-            trends[date]["total_trips"] += row["total_trips"]
+            trends[date]["agreed_weight_kg"]          += row["agreed_weight_kg"]
+            trends[date]["actual_weight_kg"]          += row["actual_weight_kg"]
+            trends[date]["variance_kg"]               += row["variance_kg"]
+            trends[date]["total_trips"]               += row["total_trips"]
             trends[date]["collection_points_covered"] += row["collection_points_covered"]
 
         return [
             {
                 **item,
                 "collection_efficiency_percent": float(
-                    percent(item["total_actual_weight"], item["total_agreed_weight"])
+                    percent(item["actual_weight_kg"], item["agreed_weight_kg"])
                 ),
                 "average_weight_per_trip": float(
                     rounded(
-                        Decimal(str(item["total_actual_weight"])) / Decimal(item["total_trips"])
+                        Decimal(str(item["actual_weight_kg"])) / Decimal(item["total_trips"])
                     )
                     if item["total_trips"]
                     else ZERO
@@ -216,25 +216,25 @@ class DailyWasteComparisonViewSet(CompanyScopedViewSet):
                 {
                     "panchayat_id": panchayat_id,
                     "panchayat_name": row["panchayat_name"],
-                    "total_agreed_weight": 0,
-                    "total_actual_weight": 0,
+                    "agreed_weight_kg": 0,
+                    "actual_weight_kg": 0,
                     "variance_kg": 0,
                 },
             )
-            panchayats[panchayat_id]["total_agreed_weight"] += row["total_agreed_weight"]
-            panchayats[panchayat_id]["total_actual_weight"] += row["total_actual_weight"]
-            panchayats[panchayat_id]["variance_kg"] += row["variance_kg"]
+            panchayats[panchayat_id]["agreed_weight_kg"] += row["agreed_weight_kg"]
+            panchayats[panchayat_id]["actual_weight_kg"] += row["actual_weight_kg"]
+            panchayats[panchayat_id]["variance_kg"]      += row["variance_kg"]
 
         return sorted(
             (
                 {
                     **item,
                     "collection_efficiency_percent": float(
-                        percent(item["total_actual_weight"], item["total_agreed_weight"])
+                        percent(item["actual_weight_kg"], item["agreed_weight_kg"])
                     ),
                     "report_status": performance_status(
-                        item["total_actual_weight"],
-                        item["total_agreed_weight"],
+                        item["actual_weight_kg"],
+                        item["agreed_weight_kg"],
                     ),
                 }
                 for item in panchayats.values()
@@ -244,21 +244,21 @@ class DailyWasteComparisonViewSet(CompanyScopedViewSet):
         )
 
     def _build_totals(self, rows):
-        total_agreed = sum(Decimal(str(row["total_agreed_weight"])) for row in rows)
-        total_actual = sum(Decimal(str(row["total_actual_weight"])) for row in rows)
-        total_trips = sum(row["total_trips"] for row in rows)
+        total_agreed = sum(Decimal(str(row["agreed_weight_kg"])) for row in rows)
+        total_actual = sum(Decimal(str(row["actual_weight_kg"])) for row in rows)
+        total_trips  = sum(row["total_trips"] for row in rows)
         total_points = sum(row["collection_points_covered"] for row in rows)
 
         return {
-            "total_agreed_weight": float(rounded(total_agreed)),
-            "total_actual_weight": float(rounded(total_actual)),
-            "variance_kg": float(rounded(total_actual - total_agreed)),
+            "total_agreed_weight_kg": float(rounded(total_agreed)),
+            "total_actual_weight_kg": float(rounded(total_actual)),
+            "variance_kg":                   float(rounded(total_actual - total_agreed)),
             "collection_efficiency_percent": float(percent(total_actual, total_agreed)),
-            "average_weight_per_trip": float(
+            "average_weight_per_trip":       float(
                 rounded(total_actual / Decimal(total_trips)) if total_trips else ZERO
             ),
-            "coverage_efficiency_percent": float(percent(total_points, total_trips)),
-            "total_trips": total_trips,
-            "collection_points_covered": total_points,
-            "report_status": performance_status(total_actual, total_agreed),
+            "coverage_efficiency_percent":   float(percent(total_points, total_trips)),
+            "total_trips":                   total_trips,
+            "collection_points_covered":     total_points,
+            "report_status":                 performance_status(total_actual, total_agreed),
         }
