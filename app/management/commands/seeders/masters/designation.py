@@ -8,72 +8,24 @@ from app.models.superadmin_masters.project import Project
 class DesignationSeeder(BaseSeeder):
     name = "designation"
 
-    # (designation_name, department_code)
-    designations = [
-        # Management
-        ("General Manager",          "MGMT"),
-        ("Deputy General Manager",   "MGMT"),
-        ("Assistant General Manager","MGMT"),
-
-        # Human Resources
-        ("HR Manager",               "HR"),
-        ("HR Executive",             "HR"),
-        ("Recruitment Officer",      "HR"),
-        ("Payroll Officer",          "HR"),
-
-        # Administration
-        ("Admin Manager",            "ADMIN"),
-        ("Admin Executive",          "ADMIN"),
-        ("Office Assistant",         "ADMIN"),
-
-        # Finance
-        ("Finance Manager",          "FIN"),
-        ("Finance Executive",        "FIN"),
-        ("Financial Analyst",        "FIN"),
-
-        # Accounts
-        ("Accounts Manager",         "ACC"),
-        ("Senior Accountant",        "ACC"),
-        ("Junior Accountant",        "ACC"),
-        ("Billing Officer",          "ACC"),
-
-        # Information Technology
-        ("IT Manager",               "IT"),
-        ("Software Engineer",        "IT"),
-        ("System Administrator",     "IT"),
-        ("IT Support",               "IT"),
-
-        # Operations
-        ("Operations Manager",       "OPS"),
-        ("Operations Supervisor",    "OPS"),
-        ("Senior Operator",          "OPS"),
-        ("Operator",                 "OPS"),
-        ("Helper",                   "OPS"),
-
-        # Transport
-        ("Transport Manager",        "TRANS"),
-        ("Fleet Supervisor",         "TRANS"),
-        ("Senior Driver",            "TRANS"),
-        ("Driver",                   "TRANS"),
-
-        # Field Operations
-        ("Field Manager",            "FIELD"),
-        ("Field Supervisor",         "FIELD"),
-        ("Field Operator",           "FIELD"),
-        ("Sanitation Worker",        "FIELD"),
-
-        # Customer Service
-        ("Customer Service Manager", "CS"),
-        ("Customer Service Executive","CS"),
-
-        # Health & Safety
-        ("Safety Manager",           "HS"),
-        ("Safety Officer",           "HS"),
-        ("Health & Safety Inspector","HS"),
-
-        # Procurement
-        ("Procurement Manager",      "PROC"),
-        ("Procurement Officer",      "PROC"),
+    # (designation_name, department_code) — exactly 15 records
+    # Includes all designations referenced by staff_office.py seeder
+    DESIGNATIONS = [
+        ("General Manager",        "MGMT"),
+        ("HR Manager",             "HR"),
+        ("Admin Manager",          "ADMIN"),
+        ("Finance Manager",        "FIN"),
+        ("Accounts Manager",       "ACC"),
+        ("IT Manager",             "IT"),
+        ("System Administrator",   "IT"),    # required by staff_office seeder
+        ("Operations Manager",     "OPS"),
+        ("Operations Supervisor",  "OPS"),   # required by staff_office seeder
+        ("Operator",               "OPS"),   # required by staff_office seeder
+        ("Transport Manager",      "TRANS"),
+        ("Driver",                 "TRANS"), # required by staff_office seeder
+        ("Field Supervisor",       "FIELD"),
+        ("Customer Service Manager","CS"),
+        ("Safety Officer",         "HS"),
     ]
 
     def run(self):
@@ -82,7 +34,7 @@ class DesignationSeeder(BaseSeeder):
 
         dept_cache: dict[str, Department] = {}
 
-        for designation_name, dept_code in self.designations:
+        for designation_name, dept_code in self.DESIGNATIONS:
             if dept_code not in dept_cache:
                 dept = Department.objects.filter(
                     company_id=company,
@@ -96,7 +48,6 @@ class DesignationSeeder(BaseSeeder):
                 dept_cache[dept_code] = dept
 
             department = dept_cache[dept_code]
-
             designation, created = Designation.objects.update_or_create(
                 company_id=company,
                 project_id=project,
@@ -110,3 +61,5 @@ class DesignationSeeder(BaseSeeder):
             )
             action = "Created" if created else "Updated"
             self.log(f"{designation.designation_name} [{dept_code}] ({action})")
+
+        self.log(f"---Designations seeded ({len(self.DESIGNATIONS)} records)---")

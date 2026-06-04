@@ -10,20 +10,21 @@ class ZonePropertyLoadTrackerSeeder(BaseSeeder):
     name = "zone_property_load_tracker"
 
     def run(self):
-        zones = list(Zone.objects.filter(is_active=True, is_deleted=False)[:2])
-        vehicles = list(
-            VehicleCreation.objects.filter(is_active=True, is_deleted=False)[:2]
-        )
-        property_obj = Property.objects.filter(is_deleted=False).first()
-        sub_property_obj = SubProperty.objects.filter(is_deleted=False).first()
+        zones = list(Zone.objects.filter(is_active=True, is_deleted=False).order_by("zone_name")[:15])
+        vehicles = list(VehicleCreation.objects.filter(is_active=True, is_deleted=False).order_by("created_at"))
+        properties = list(Property.objects.filter(is_deleted=False))
+        sub_properties = list(SubProperty.objects.filter(is_deleted=False))
 
-        if not zones or not vehicles or not property_obj or not sub_property_obj:
+        if not zones or not vehicles or not properties or not sub_properties:
             self.log("ZonePropertyLoadTrackerSeeder skipped (missing dependencies).")
             return
 
         created = 0
         for idx, zone in enumerate(zones):
             vehicle = vehicles[idx % len(vehicles)]
+            property_obj = properties[idx % len(properties)]
+            sub_property_obj = sub_properties[idx % len(sub_properties)]
+
             _, was_created = ZonePropertyLoadTracker.objects.get_or_create(
                 zone=zone,
                 vehicle=vehicle,
@@ -36,4 +37,4 @@ class ZonePropertyLoadTrackerSeeder(BaseSeeder):
             if was_created:
                 created += 1
 
-        self.log(f"---Zone property load trackers seeded | Created: {created}---")
+        self.log(f"---Zone property load trackers seeded | created={created} | total={len(zones)}---")

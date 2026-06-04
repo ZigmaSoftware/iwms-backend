@@ -6,29 +6,48 @@ from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignmen
 class TripExceptionLogSeeder(BaseSeeder):
     name = "trip_exception_log"
 
+    # Cycle through available exception types
+    EXCEPTION_TYPES = [
+        TripExceptionLog.ExceptionType.MISSED_ATTENDANCE,
+        TripExceptionLog.ExceptionType.MISSED_ATTENDANCE,
+        TripExceptionLog.ExceptionType.MISSED_ATTENDANCE,
+        TripExceptionLog.ExceptionType.MISSED_ATTENDANCE,
+        TripExceptionLog.ExceptionType.MISSED_ATTENDANCE,
+    ]
+
     def run(self):
-        trip = DailyTripAssignment.objects.order_by("-created_at").first()
-        if not trip:
-            self.log("TripExceptionLogSeeder skipped (no daily trip assignments).")
-            return
-
-        if trip.status in [DailyTripAssignment.STATUS_COMPLETED, DailyTripAssignment.STATUS_CANCELLED]:
-            self.log("TripExceptionLogSeeder skipped (trip is inactive).")
-            return
-
-        existing = TripExceptionLog.objects.filter(
-            daily_trip_assignment=trip,
-            exception_type=TripExceptionLog.ExceptionType.MISSED_ATTENDANCE,
-        )
-        if existing.exists():
-            self.log("Trip exception log already exists; skipping create.")
-            return
-
-        TripExceptionLog.objects.create(
-            daily_trip_assignment=trip,
-            exception_type=TripExceptionLog.ExceptionType.MISSED_ATTENDANCE,
-            remarks="Seeder: missed attendance in last window",
-            detected_by=TripExceptionLog.DetectedBy.SYSTEM,
+        trips = list(
+            DailyTripAssignment.objects.exclude(
+                status__in=[
+                    DailyTripAssignment.STATUS_COMPLETED,
+                    DailyTripAssignment.STATUS_CANCELLED,
+                ]
+            ).order_by("-created_at")[:15]
         )
 
-        self.log("---Trip exception log seeded---")
+        if not trips:
+            self.log("TripExceptionLogSeeder skipped (no active daily trip assignments).")
+            return
+
+        exception_types = list(TripExceptionLog.ExceptionType)
+        created = 0
+
+        for idx, trip in enumerate(trips):
+            exception_type = exception_types[idx % len(exception_types)]
+
+            existing = TripExceptionLog.objects.filter(
+                daily_trip_assignment=trip,
+                exception_type=exception_type,
+            ).exists()
+            if existing:
+                continue
+
+            TripExceptionLog.objects.create(
+                daily_trip_assignment=trip,
+                exception_type=exception_type,
+                remarks=f"Seeder log #{idx + 1}: {exception_type}",
+                detected_by=TripExceptionLog.DetectedBy.SYSTEM,
+            )
+            created += 1
+
+        self.log(f"---Trip exception logs seeded | created={created} | total_trips={len(trips)}---")

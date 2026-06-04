@@ -11,6 +11,24 @@ from app.models.superadmin_masters.project import Project
 class DistrictSeeder(BaseSeeder):
     name = "district"
 
+    DISTRICTS = [
+        "Chennai",
+        "Coimbatore",
+        "Madurai",
+        "Tiruchirappalli",
+        "Salem",
+        "Tirunelveli",
+        "Erode",
+        "Vellore",
+        "Thoothukudi",
+        "Dindigul",
+        "Thanjavur",
+        "Ranipet",
+        "Kancheepuram",
+        "Chengalpattu",
+        "Tiruvannamalai",
+    ]
+
     def run(self):
         company, _ = Company.objects.get_or_create(
             name="IWMS",
@@ -20,10 +38,8 @@ class DistrictSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-
-        project_name = f"{company.name} Main Project"
         project, _ = Project.objects.get_or_create(
-            name=project_name,
+            name=f"{company.name} Main Project",
             company_id=company,
             defaults={
                 "description": f"Default project for {company.name}",
@@ -36,13 +52,14 @@ class DistrictSeeder(BaseSeeder):
         india = Country.objects.get(name="India")
         tamil_nadu = State.objects.get(name="Tamil Nadu")
 
-        District.objects.get_or_create(
-            name="Chennai",
-            state_id=tamil_nadu,
-            country_id=india,
-            continent_id=asia,
-            company_id=company,
-            project_id=project,
-        )
+        for name in self.DISTRICTS:
+            District.objects.get_or_create(
+                name=name,
+                state_id=tamil_nadu,
+                country_id=india,
+                continent_id=asia,
+                company_id=company,
+                project_id=project,
+            )
 
-        self.log("---Districts seeded---")
+        self.log(f"---Districts seeded ({len(self.DISTRICTS)} records)---")

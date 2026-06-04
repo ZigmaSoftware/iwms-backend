@@ -7,20 +7,30 @@ from app.models.superadmin_masters.project import Project
 class WasteTypeSeeder(BaseSeeder):
     name = "waste_type"
 
-    def run(self):
+    WASTE_TYPES = [
+        "Organic Waste",
+        "Plastic Waste",
+        "Dry Waste",
+        "Wet Waste",
+        "Electronic Waste",
+        "Hazardous Waste",
+        "Medical Waste",
+        "Construction Waste",
+        "Green Waste",
+        "Metal Waste",
+        "Glass Waste",
+        "Paper Waste",
+        "Textile Waste",
+        "Food Waste",
+        "Chemical Waste",
+    ]
 
+    def run(self):
         company = Company.objects.get(name="IWMS")
         project = Project.objects.get(name=f"{company.name} Main Project")
 
-        waste_types = [
-            "Organic Waste",
-            "Plastic Waste",
-            "Dry Waste",
-            "Wet Waste",
-        ]
-
-        for wt in waste_types:
-            obj, created = WasteType.objects.update_or_create(
+        for wt in self.WASTE_TYPES:
+            _, created = WasteType.objects.update_or_create(
                 waste_type_name=wt,
                 defaults={
                     "company_id": company,
@@ -29,6 +39,7 @@ class WasteTypeSeeder(BaseSeeder):
                     "is_deleted": False,
                 },
             )
-
             action = "Created" if created else "Exists"
-            self.log(f"---WasteType seeded: {wt} ({action})---")
+            self.log(f"WasteType seeded: {wt} ({action})")
+
+        self.log(f"---WasteTypes seeded ({len(self.WASTE_TYPES)} records)---")

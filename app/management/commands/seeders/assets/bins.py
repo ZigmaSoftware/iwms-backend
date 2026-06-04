@@ -18,31 +18,30 @@ class BinSeeder(BaseSeeder):
         ).first()
 
     def run(self):
-
-        # --------------------------------------------------
-        # COMPANY
-        # --------------------------------------------------
         company = Company.objects.get(name="IWMS")
         project = Project.objects.get(name=f"{company.name} Main Project")
 
-        # --------------------------------------------------
-        # LEGACY WARD-BASED BIN (kept for back-compat)
-        # --------------------------------------------------
-        ward_collection_point = Collection_point.objects.filter(
+        wet_waste = self._get_waste_type("Wet Waste")
+        dry_waste = self._get_waste_type("Dry Waste")
+        any_waste = wet_waste or WasteType.objects.filter(is_deleted=False).first()
+
+        # Ward CP bin (1 record)
+        ward_cp = Collection_point.objects.filter(
             cp_name="CP 1",
             company_id=company,
             project_id=project,
         ).first()
-        any_waste_type = WasteType.objects.first()
 
-        if ward_collection_point and any_waste_type:
-            Bins.objects.get_or_create(
+        created_count = 0
+
+        if ward_cp and any_waste:
+            _, created = Bins.objects.get_or_create(
                 bin_name="Bin 1",
                 company_id=company,
                 project_id=project,
                 defaults={
-                    "collection_point_id": ward_collection_point,
-                    "wastetype_id": any_waste_type,
+                    "collection_point_id": ward_cp,
+                    "wastetype_id": any_waste,
                     "bin_capacity": 240,
                     "bin_type": BinType.MEDIUM,
                     "bin_image": "default.png",
@@ -51,40 +50,27 @@ class BinSeeder(BaseSeeder):
                     "is_deleted": False,
                 },
             )
+            if created:
+                created_count += 1
 
-        # --------------------------------------------------
-        # OPERATOR-FLOW BINS: wet + dry per panchayat CP
-        # --------------------------------------------------
-        wet_waste = self._get_waste_type("Wet Waste")
-        dry_waste = self._get_waste_type("Dry Waste")
         if not wet_waste or not dry_waste:
             self.log("Wet/Dry WasteType not found — skipping panchayat bins.")
             return
 
-        panchayat_1 = Panchayat.objects.filter(
-            panchayat_name="Panchayat 1",
+        # Panchayat CPs — wet + dry bin each (up to 14 bins across panchayat CPs)
+        panchayat_cps = Collection_point.objects.filter(
             company_id=company,
             project_id=project,
-        ).first()
-
-        if not panchayat_1:
-            self.log("Panchayat 1 not found — skipping panchayat bins.")
-            return
-
-        cp_qs = Collection_point.objects.filter(
-            panchayat_id=panchayat_1,
-            company_id=company,
-            project_id=project,
+            ward_id__isnull=True,
             is_deleted=False,
-        ).order_by("cp_name")
+        ).order_by("panchayat_id", "cp_name")[:7]  # 7 CPs × 2 bins = 14 bins
 
-        created_count = 0
-        for cp in cp_qs:
-            # extract numeric index from cp_name like "CP-PNY-01"
+        for cp in panchayat_cps:
             try:
                 idx = int(cp.cp_name.split("-")[-1])
             except (ValueError, IndexError):
                 idx = 0
+
             for label, waste_type in (("WET", wet_waste), ("DRY", dry_waste)):
                 qr = f"QR-CP{idx:02d}-{label}"
                 bin_name = f"{cp.cp_name} {label.capitalize()} Bin"
@@ -106,4 +92,4 @@ class BinSeeder(BaseSeeder):
                 if created:
                     created_count += 1
 
-        self.log(f"---Operator-flow Bins seeded | created={created_count}---")
+        self.log(f"---Bins seeded | created={created_count} (1 ward + up to 14 panchayat bins)---")

@@ -6,7 +6,6 @@ from app.models.masters.panchayat import Panchayat
 from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.models.reports.monthly_weight_report import MonthlyWeightReport
 from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 TWO_PLACES = Decimal("0.01")
@@ -32,37 +31,23 @@ def _status(actual, agreed):
     return "On Target"
 
 
-# (panchayat_name, waste_type_name, month, agreed_kg, actual_kg, trips, points_covered)
+# Exactly 15 records across 5 panchayats + 2 waste types
 SAMPLE_RECORDS = [
-    # Panchayat 1 – Dry Waste
-    ("Panchayat 1", "Dry Waste", "2026-01", 500, 480, 60, 55),
-    ("Panchayat 1", "Dry Waste", "2026-02", 500, 515, 62, 57),
-    ("Panchayat 1", "Dry Waste", "2026-03", 500, 490, 58, 52),
-    ("Panchayat 1", "Wet Waste", "2026-01", 300, 290, 40, 38),
-    ("Panchayat 1", "Wet Waste", "2026-02", 300, 310, 42, 40),
-
-    # Panchayat 2 – Dry & Wet
-    ("Panchayat 2", "Dry Waste", "2026-01", 750, 700, 80, 75),
-    ("Panchayat 2", "Dry Waste", "2026-02", 750, 780, 82, 78),
-    ("Panchayat 2", "Dry Waste", "2026-03", 750, 720, 78, 72),
-    ("Panchayat 2", "Wet Waste", "2026-01", 400, 360, 50, 45),
-    ("Panchayat 2", "Wet Waste", "2026-02", 400, 420, 52, 48),
-
-    # Panchayat 3 – Dry Waste only
-    ("Panchayat 3", "Dry Waste", "2026-01", 600, 550, 70, 65),
-    ("Panchayat 3", "Dry Waste", "2026-02", 600, 610, 72, 68),
-    ("Panchayat 3", "Dry Waste", "2026-03", 600, 580, 68, 62),
-
-    # Panchayat 4 – Mixed Waste
-    ("Panchayat 4", "Dry Waste", "2026-01", 450, 430, 55, 50),
-    ("Panchayat 4", "Wet Waste", "2026-01", 250, 270, 35, 33),
-    ("Panchayat 4", "Dry Waste", "2026-02", 450, 440, 56, 51),
-
-    # Panchayat 5 – High volume
-    ("Panchayat 5", "Dry Waste", "2026-01", 820, 810, 90, 85),
-    ("Panchayat 5", "Dry Waste", "2026-02", 820, 850, 92, 88),
-    ("Panchayat 5", "Wet Waste", "2026-01", 500, 480, 65, 60),
-    ("Panchayat 5", "Wet Waste", "2026-02", 500, 520, 67, 63),
+    ("Panchayat 1",  "Dry Waste", "2026-01", 500, 480,  60, 55),
+    ("Panchayat 1",  "Dry Waste", "2026-02", 500, 515,  62, 57),
+    ("Panchayat 1",  "Wet Waste", "2026-01", 300, 290,  40, 38),
+    ("Panchayat 2",  "Dry Waste", "2026-01", 750, 700,  80, 75),
+    ("Panchayat 2",  "Dry Waste", "2026-02", 750, 780,  82, 78),
+    ("Panchayat 2",  "Wet Waste", "2026-01", 400, 360,  50, 45),
+    ("Panchayat 3",  "Dry Waste", "2026-01", 600, 550,  70, 65),
+    ("Panchayat 3",  "Dry Waste", "2026-02", 600, 610,  72, 68),
+    ("Panchayat 3",  "Wet Waste", "2026-01", 350, 330,  45, 42),
+    ("Panchayat 4",  "Dry Waste", "2026-01", 450, 430,  55, 50),
+    ("Panchayat 4",  "Wet Waste", "2026-01", 250, 270,  35, 33),
+    ("Panchayat 4",  "Dry Waste", "2026-02", 450, 440,  56, 51),
+    ("Panchayat 5",  "Dry Waste", "2026-01", 820, 810,  90, 85),
+    ("Panchayat 5",  "Wet Waste", "2026-01", 500, 480,  65, 60),
+    ("Panchayat 5",  "Dry Waste", "2026-02", 820, 850,  92, 88),
 ]
 
 
@@ -84,7 +69,7 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
                 is_deleted=False,
             ).first()
             if not panchayat:
-                self.log(f"Panchayat '{panchayat_name}' not found – skipping")
+                self.log(f"Panchayat '{panchayat_name}' not found — skipping")
                 skipped_count += 1
                 continue
 
@@ -93,7 +78,7 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
                 is_deleted=False,
             ).first()
             if not waste_type:
-                self.log(f"WasteType '{waste_type_name}' not found – skipping")
+                self.log(f"WasteType '{waste_type_name}' not found — skipping")
                 skipped_count += 1
                 continue
 
@@ -117,13 +102,10 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
                 },
             )
             action = "Created" if created else "Updated"
-            self.log(
-                f"{panchayat_name} | {waste_type_name} | {month} "
-                f"→ agreed={agreed_kg}, actual={actual_kg}, status={report_status} ({action})"
-            )
+            self.log(f"{panchayat_name} | {waste_type_name} | {month} → {report_status} ({action})")
             created_count += 1
 
         self.log(
-            f"Monthly waste comparison seeding done: "
-            f"{created_count} processed, {skipped_count} skipped."
+            f"---Monthly waste comparison seeded: "
+            f"{created_count} processed, {skipped_count} skipped---"
         )

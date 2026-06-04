@@ -11,57 +11,48 @@ class VehicleTripAuditSeeder(BaseSeeder):
     name = "vehicle_trip_audit"
 
     def run(self):
-        trip = DailyTripAssignment.objects.order_by("-created_at").first()
-        if not trip:
+        trips = list(
+            DailyTripAssignment.objects.exclude(
+                status=DailyTripAssignment.STATUS_CANCELLED
+            ).order_by("-created_at")[:15]
+        )
+
+        if not trips:
             self.log("VehicleTripAuditSeeder skipped (no daily trip assignments).")
             return
 
-        if trip.status != DailyTripAssignment.STATUS_IN_PROGRESS:
-            trip.status = DailyTripAssignment.STATUS_IN_PROGRESS
-            trip.save(update_fields=["status"])
+        # Mark trips in-progress so the audit is valid
+        for trip in trips:
+            if trip.status != DailyTripAssignment.STATUS_IN_PROGRESS:
+                trip.status = DailyTripAssignment.STATUS_IN_PROGRESS
+                trip.save(update_fields=["status"])
 
-        captured_at = timezone.now() - timedelta(minutes=1)
-        gps_lat = [
-            "13.0826800",
-            "13.0826810",
-            "13.0826820",
-            "13.0826830",
-            "13.0826840",
-            "13.0826850",
-            "13.0826860",
-            "13.0826870",
-            "13.0826880",
-            "13.0826890",
-            "13.0826900",
-            "13.0826910",
-        ]
-        gps_lon = [
-            "80.2707180",
-            "80.2707190",
-            "80.2707200",
-            "80.2707210",
-            "80.2707220",
-            "80.2707230",
-            "80.2707240",
-            "80.2707250",
-            "80.2707260",
-            "80.2707270",
-            "80.2707280",
-            "80.2707290",
-        ]
+        created = 0
+        now = timezone.now()
 
-        _, created = VehicleTripAudit.objects.get_or_create(
-            daily_trip_assignment=trip,
-            vehicle=trip.vehicle_id,
-            captured_at=captured_at,
-            defaults={
-                "gps_lat": gps_lat,
-                "gps_lon": gps_lon,
-                "avg_speed": "2.50",
-            },
-        )
+        for idx, trip in enumerate(trips):
+            if not trip.vehicle_id:
+                continue
 
-        if created:
-            self.log("---Vehicle trip audit seeded---")
-        else:
-            self.log("---VehicleTripAuditSeeder skipped (already seeded)---")
+            captured_at = now - timedelta(minutes=1 + idx * 5)
+
+            # Slight lat/lon variation per trip
+            base_lat = 13.0826800 + (idx * 0.0001)
+            base_lon = 80.2707180 + (idx * 0.0001)
+            gps_lat = [f"{base_lat + j * 0.00001:.7f}" for j in range(12)]
+            gps_lon = [f"{base_lon + j * 0.00001:.7f}" for j in range(12)]
+
+            _, was_created = VehicleTripAudit.objects.get_or_create(
+                daily_trip_assignment=trip,
+                vehicle=trip.vehicle_id,
+                captured_at=captured_at,
+                defaults={
+                    "gps_lat": gps_lat,
+                    "gps_lon": gps_lon,
+                    "avg_speed": f"{2.50 + idx * 0.10:.2f}",
+                },
+            )
+            if was_created:
+                created += 1
+
+        self.log(f"---Vehicle trip audits seeded | created={created} | total_trips={len(trips)}---")
