@@ -229,6 +229,11 @@ router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet
 router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
 
 # ============================================================
+# GROUP: REPORTS (aliases used by the admin frontend)
+# ============================================================
+router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="reports-monthly-waste-comparison")
+
+# ============================================================
 # GROUP: AUDIT
 # ============================================================
 router.register_group("audits", "login-audit", LoginAuditViewSet)

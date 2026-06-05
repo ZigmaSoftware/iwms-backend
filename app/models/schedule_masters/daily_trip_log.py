@@ -228,13 +228,23 @@ class DailyTripLog(BaseMaster):
             self.vehicle_id = assignment.trip_plan_id.vehicle_id
 
     def sync_from_bin_collection_events(self):
-        """Aggregate total collected weight from all BinCollectionEvent records for this trip."""
+        """Aggregate total collected weight from BinCollectionEvent records for this trip.
+
+        Only overrides collected_weight_kg when bin-scan events actually exist.
+        When no events are present the manually-entered value is preserved so that
+        operators who enter weight directly (without bin scanning) are not silently
+        zeroed out.
+        """
         from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
 
         events = BinCollectionEvent.objects.filter(
             trip_assignment_id=self.trip_assignment_id_id,
             is_deleted=False,
         )
+        if not events.exists():
+            # No bin-scan events — keep whatever was manually entered.
+            return
+
         total = events.aggregate(total=Sum("collected_weight_kg"))["total"]
         self.collected_weight_kg = total or Decimal("0")
         DailyTripLog.objects.filter(pk=self.pk).update(
