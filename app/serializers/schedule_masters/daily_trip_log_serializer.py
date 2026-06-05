@@ -54,6 +54,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     vehicle = serializers.SerializerMethodField(read_only=True)
     bins = serializers.SerializerMethodField(read_only=True)
     verified_by_name = serializers.SerializerMethodField(read_only=True)
+    collection_status = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = DailyTripLog
@@ -95,6 +96,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "verified_by",
             "verified_by_name",
             "verified_at",
+            "collection_status",
             "created_by",
             "created_at",
             "updated_at",
@@ -191,6 +193,23 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             for tcp in cps
             if tcp.collection_point_id
         ]
+
+    def get_collection_status(self, obj):
+        assignment = obj.trip_assignment_id
+        if not assignment:
+            return "Not Started"
+        cps = [
+            cp for cp in assignment.trip_collection_points.all()
+            if not cp.is_deleted
+        ]
+        if not cps:
+            return "Not Started"
+        collected = sum(1 for cp in cps if cp.is_collected)
+        if collected == 0:
+            return "Not Started"
+        if collected == len(cps):
+            return "Completed"
+        return "In Progress"
 
     def get_panchayat(self, obj):
         p = obj.panchayat_id
