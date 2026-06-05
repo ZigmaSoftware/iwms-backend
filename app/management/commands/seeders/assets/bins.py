@@ -1,7 +1,5 @@
 from app.management.commands.seeders.base import BaseSeeder
 
-from app.models.masters.ward import Ward
-from app.models.masters.panchayat import Panchayat
 from app.models.assets.bins import Bins, BinType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -18,75 +16,68 @@ class BinSeeder(BaseSeeder):
         ).first()
 
     def run(self):
-
-        # --------------------------------------------------
-        # COMPANY
-        # --------------------------------------------------
         company = Company.objects.get(name="IWMS")
         project = Project.objects.get(name=f"{company.name} Main Project")
 
-        # --------------------------------------------------
-        # LEGACY WARD-BASED BIN (kept for back-compat)
-        # --------------------------------------------------
-        ward_collection_point = Collection_point.objects.filter(
-            cp_name="CP 1",
+        wet_waste = self._get_waste_type("Wet Waste")
+        dry_waste = self._get_waste_type("Dry Waste")
+        any_waste = wet_waste or WasteType.objects.filter(is_deleted=False).first()
+
+        if not any_waste:
+            self.log("No WasteType found — aborting BinSeeder.")
+            return
+
+        created_count = 0
+
+        # --- Ward CPs: 1 bin (any waste type) per ward CP ---
+        ward_cps = Collection_point.objects.filter(
             company_id=company,
             project_id=project,
-        ).first()
-        any_waste_type = WasteType.objects.first()
+            ward_id__isnull=False,
+            is_deleted=False,
+        ).order_by("cp_name")
 
-        if ward_collection_point and any_waste_type:
-            Bins.objects.get_or_create(
-                bin_name="Bin 1",
+        for cp in ward_cps:
+            cp_key = cp.unique_id[-6:]   # last 6 chars of PK for a compact unique suffix
+            bin_name = f"{cp.cp_name} Bin"
+            qr = f"QR-{cp_key}-ANY"
+            waste_type = wet_waste or any_waste
+            _, created = Bins.objects.get_or_create(
+                bin_qr=qr,
                 company_id=company,
                 project_id=project,
                 defaults={
-                    "collection_point_id": ward_collection_point,
-                    "wastetype_id": any_waste_type,
+                    "collection_point_id": cp,
+                    "wastetype_id": waste_type,
+                    "bin_name": bin_name,
                     "bin_capacity": 240,
                     "bin_type": BinType.MEDIUM,
                     "bin_image": "default.png",
-                    "bin_qr": "QR-BIN-001",
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
+            if created:
+                created_count += 1
 
-        # --------------------------------------------------
-        # OPERATOR-FLOW BINS: wet + dry per panchayat CP
-        # --------------------------------------------------
-        wet_waste = self._get_waste_type("Wet Waste")
-        dry_waste = self._get_waste_type("Dry Waste")
+        # --- Panchayat CPs: wet + dry bin per panchayat CP ---
         if not wet_waste or not dry_waste:
             self.log("Wet/Dry WasteType not found — skipping panchayat bins.")
+            self.log(f"---Bins seeded | created={created_count} (ward bins only)---")
             return
 
-        panchayat_1 = Panchayat.objects.filter(
-            panchayat_name="Panchayat 1",
+        panchayat_cps = Collection_point.objects.filter(
             company_id=company,
             project_id=project,
-        ).first()
-
-        if not panchayat_1:
-            self.log("Panchayat 1 not found — skipping panchayat bins.")
-            return
-
-        cp_qs = Collection_point.objects.filter(
-            panchayat_id=panchayat_1,
-            company_id=company,
-            project_id=project,
+            ward_id__isnull=True,
+            panchayat_id__isnull=False,
             is_deleted=False,
-        ).order_by("cp_name")
+        ).order_by("panchayat_id", "cp_name")
 
-        created_count = 0
-        for cp in cp_qs:
-            # extract numeric index from cp_name like "CP-PNY-01"
-            try:
-                idx = int(cp.cp_name.split("-")[-1])
-            except (ValueError, IndexError):
-                idx = 0
+        for cp in panchayat_cps:
+            cp_key = cp.unique_id[-6:]
             for label, waste_type in (("WET", wet_waste), ("DRY", dry_waste)):
-                qr = f"QR-CP{idx:02d}-{label}"
+                qr = f"QR-{cp_key}-{label}"
                 bin_name = f"{cp.cp_name} {label.capitalize()} Bin"
                 _, created = Bins.objects.get_or_create(
                     bin_qr=qr,
@@ -106,4 +97,7 @@ class BinSeeder(BaseSeeder):
                 if created:
                     created_count += 1
 
-        self.log(f"---Operator-flow Bins seeded | created={created_count}---")
+        self.log(
+            f"---Bins seeded | created={created_count} "
+            f"| ward CPs={ward_cps.count()} | panchayat CPs={panchayat_cps.count()}---"
+        )

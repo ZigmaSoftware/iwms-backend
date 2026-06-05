@@ -1,7 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from app.models.assets.bin import Bin
+from app.models.assets.bins import Bins
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.models.user_creations.staffcreation import Staffcreation
@@ -30,7 +30,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     )
     bin_ids = serializers.SlugRelatedField(
         slug_field="unique_id",
-        queryset=Bin.objects.all(),  # allow historical refs to soft-deleted bins
+        queryset=Bins.objects.all(),  # allow historical refs to soft-deleted bins
         many=True,
         required=False,
     )
@@ -54,6 +54,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     vehicle = serializers.SerializerMethodField(read_only=True)
     bins = serializers.SerializerMethodField(read_only=True)
     verified_by_name = serializers.SerializerMethodField(read_only=True)
+    collection_status = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = DailyTripLog
@@ -95,6 +96,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "verified_by",
             "verified_by_name",
             "verified_at",
+            "collection_status",
             "created_by",
             "created_at",
             "updated_at",
@@ -192,6 +194,23 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             if tcp.collection_point_id
         ]
 
+    def get_collection_status(self, obj):
+        assignment = obj.trip_assignment_id
+        if not assignment:
+            return "Not Started"
+        cps = [
+            cp for cp in assignment.trip_collection_points.all()
+            if not cp.is_deleted
+        ]
+        if not cps:
+            return "Not Started"
+        collected = sum(1 for cp in cps if cp.is_collected)
+        if collected == 0:
+            return "Not Started"
+        if collected == len(cps):
+            return "Completed"
+        return "In Progress"
+
     def get_panchayat(self, obj):
         p = obj.panchayat_id
         return None if not p else {"unique_id": p.unique_id, "panchayat_name": p.panchayat_name}
@@ -244,7 +263,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             {
                 "unique_id": bin_obj.unique_id,
                 "bin_name": bin_obj.bin_name,
-                "bin_status": bin_obj.bin_status,
+                "bin_status": getattr(bin_obj, "bin_status", None),
             }
             for bin_obj in obj.bin_ids.all()
         ]

@@ -5,22 +5,32 @@ from app.models.grivences.main_category_citizenGrievance import MainCategory
 class MainCategorySeeder(BaseSeeder):
     name = "main_category"
 
-    def run(self):
-        main_categories = [
-            "Report issue",
-            "Schedule pickup",
-            "Pickup status",
-            "Waste tips",
-            "Collector info",
-        ]
+    MAIN_CATEGORIES = [
+        "Report issue",
+        "Schedule pickup",
+        "Pickup status",
+        "Waste tips",
+        "Collector info",
+        "Billing inquiry",
+        "Recycling info",
+        "Complaint tracking",
+        "Feedback",
+        "Emergency pickup",
+        "New service request",
+        "Service cancellation",
+        "Service modification",
+        "Location update",
+        "App support",
+    ]
 
-        for category in main_categories:
+    def run(self):
+        for category in self.MAIN_CATEGORIES:
             MainCategory.objects.get_or_create(
-                main_categoryName=category,  
+                main_categoryName=category,
                 defaults={
                     "is_active": True,
                     "is_deleted": False,
-                }
+                },
             )
 
-        self.log("---Main categories seeded---")
+        self.log(f"---Main categories seeded ({len(self.MAIN_CATEGORIES)} records)---")

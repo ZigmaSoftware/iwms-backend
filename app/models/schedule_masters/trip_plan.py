@@ -159,6 +159,18 @@ class TripPlan(BaseMaster):
     scheduled_time = models.TimeField(
         help_text="Default departure time for trips generated from this plan.",
     )
+    # ---- AUTO-ASSIGN ------------------------------------------------
+    is_auto_assign = models.BooleanField(
+        default=False,
+        help_text="If true, DailyTripAssignment will be auto-generated from this plan.",
+        db_index=True,
+    )
+    # repeat_days: list of integers 0-6 where Monday=0. If null or empty, no repeats.
+    repeat_days = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="JSON list of weekdays (0=Monday..6=Sunday) when auto-assign runs.",
+    )
 
     # ---- workflow --------------------------------------------------
     approval_status = models.CharField(
