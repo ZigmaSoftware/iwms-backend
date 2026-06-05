@@ -10,31 +10,6 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
 
-# 14 panchayat CPs spread across 3 panchayats + 1 ward CP = 15 total
-PANCHAYAT_CP_COORDS = {
-    "Panchayat 1": [
-        (13.151000, 80.201000),
-        (13.152200, 80.202500),
-        (13.153400, 80.203800),
-        (13.154600, 80.205100),
-        (13.155800, 80.206400),
-    ],
-    "Panchayat 2": [
-        (13.161000, 80.211000),
-        (13.162200, 80.212500),
-        (13.163400, 80.213800),
-        (13.164600, 80.215100),
-        (13.165800, 80.216400),
-    ],
-    "Panchayat 3": [
-        (13.171000, 80.221000),
-        (13.172200, 80.222500),
-        (13.173400, 80.223800),
-        (13.174600, 80.225100),
-    ],
-}
-
-
 class CollectionPointSeeder(BaseSeeder):
     name = "collection_point"
 
@@ -46,66 +21,69 @@ class CollectionPointSeeder(BaseSeeder):
         chennai_dist = District.objects.get(name="Chennai")
         chennai_city = City.objects.get(name="Chennai City")
 
-        ward_1 = Ward.objects.get(
-            ward_name="Ward 1",
-            city_id=chennai_city,
-            company_id=company,
-            project_id=project,
+        # --- Ward-based CPs (1 per ward, 15 total) ---
+        wards = list(
+            Ward.objects.filter(
+                company_id=company, project_id=project, is_deleted=False
+            ).order_by("ward_name")
         )
-
-        # Ward-based CP (1 record)
-        ward_cp, ward_created = Collection_point.objects.update_or_create(
-            cp_name="CP 1",
-            ward_id=ward_1,
-            company_id=company,
-            project_id=project,
-            defaults={
-                "state_id": tamil_nadu,
-                "district_id": chennai_dist,
-                "city_id": chennai_city,
-                "latitude": 13.083000,
-                "longitude": 80.271000,
-                "is_active": True,
-                "is_deleted": False,
-            },
-        )
-
-        # Panchayat-based CPs (14 records across 3 panchayats)
-        panchayat_created = 0
-        for panchayat_name, coords in PANCHAYAT_CP_COORDS.items():
-            panchayat = Panchayat.objects.filter(
-                panchayat_name=panchayat_name,
+        ward_created = 0
+        for idx, ward in enumerate(wards, start=1):
+            cp_name = f"CP-WARD-{idx:02d}"
+            lat = float(ward.latitude) + 0.0005 if ward.latitude else 13.0840
+            lon = float(ward.longitude) + 0.0005 if ward.longitude else 80.2720
+            _, created = Collection_point.objects.update_or_create(
+                cp_name=cp_name,
+                ward_id=ward,
                 company_id=company,
                 project_id=project,
-            ).first()
-            if not panchayat:
-                self.log(f"{panchayat_name} not found — skipping.")
-                continue
+                defaults={
+                    "state_id": tamil_nadu,
+                    "district_id": chennai_dist,
+                    "city_id": chennai_city,
+                    "panchayat_id": None,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            if created:
+                ward_created += 1
 
-            panchayat_prefix = panchayat_name.replace(" ", "").upper()[:3]
-            for idx, (lat, lng) in enumerate(coords, start=1):
-                cp_name = f"CP-{panchayat_prefix}-{idx:02d}"
-                _, created = Collection_point.objects.update_or_create(
-                    cp_name=cp_name,
-                    panchayat_id=panchayat,
-                    company_id=company,
-                    project_id=project,
-                    defaults={
-                        "state_id": tamil_nadu,
-                        "district_id": chennai_dist,
-                        "city_id": chennai_city,
-                        "ward_id": None,
-                        "latitude": lat,
-                        "longitude": lng,
-                        "is_active": True,
-                        "is_deleted": False,
-                    },
-                )
-                if created:
-                    panchayat_created += 1
+        # --- Panchayat-based CPs (1 per panchayat, 15 total) ---
+        panchayats = list(
+            Panchayat.objects.filter(
+                company_id=company, project_id=project, is_deleted=False
+            ).order_by("panchayat_name")
+        )
+        pan_created = 0
+        for panchayat in panchayats:
+            pan_num = "".join(filter(str.isdigit, panchayat.panchayat_name)) or "0"
+            cp_name = f"CP-PAN{pan_num}-01"
+            lat = float(panchayat.latitude) + 0.0005 if panchayat.latitude else 13.1500
+            lon = float(panchayat.longitude) + 0.0005 if panchayat.longitude else 80.2000
+            _, created = Collection_point.objects.update_or_create(
+                cp_name=cp_name,
+                panchayat_id=panchayat,
+                company_id=company,
+                project_id=project,
+                defaults={
+                    "state_id": tamil_nadu,
+                    "district_id": chennai_dist,
+                    "city_id": chennai_city,
+                    "ward_id": None,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            if created:
+                pan_created += 1
 
-        action = "Created" if ward_created else "Updated"
+        total = ward_created + pan_created
         self.log(
-            f"---Collection Points seeded | ward CP {action} | "
-            f"panchayat CPs created={panchayat_created} | total=15---"
+            f"---Collection Points seeded | ward CPs created={ward_created}/{len(wards)} "
+            f"| panchayat CPs created={pan_created}/{len(panchayats)} | new total={total}---"
         )

@@ -9,7 +9,7 @@ from app.models.common_masters.state import State
 from app.models.masters.hierarchy import AdministrativeHierarchy
 from app.models.masters.areatype import AreaType
 
-def geneate_panchayat_id():
+def generate_panchayat_id():
     return f"PANCHAYAT-{generate_unique_id()}"
 
 class GeoFencingType(models.TextChoices):
@@ -29,7 +29,7 @@ class Panchayat(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
-        default=geneate_panchayat_id,
+        default=generate_panchayat_id,
         editable=False
     )
 
