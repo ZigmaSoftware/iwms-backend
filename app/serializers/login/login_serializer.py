@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import check_password, identify_hasher
-from django.db.models import Q
+from django.db.models import F, Q
 
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
@@ -141,6 +141,20 @@ class LoginSerializer(serializers.Serializer):
 
     def _build_staff_payload(self, staff_record, login_user=None):
         login_user = login_user or staff_record
+
+        if not staff_record.login_enabled:
+            Staffcreation.objects.filter(pk=staff_record.pk).update(
+                failed_login_attempts=F("failed_login_attempts") + 1
+            )
+            raise serializers.ValidationError("Login is disabled for this user")
+
+        if staff_record.approval_status != Staffcreation.APPROVAL_APPROVED:
+            Staffcreation.objects.filter(pk=staff_record.pk).update(
+                failed_login_attempts=F("failed_login_attempts") + 1
+            )
+            raise serializers.ValidationError(
+                f"User approval status is {staff_record.approval_status}"
+            )
 
         user_type = staff_record.user_type_id or getattr(login_user, "user_type_id", None)
         if not user_type:
@@ -312,11 +326,28 @@ class LoginSerializer(serializers.Serializer):
 
         for candidate in queryset:
             if not self._password_matches(password, candidate.password):
+                Staffcreation.objects.filter(pk=candidate.pk).update(
+                    failed_login_attempts=F("failed_login_attempts") + 1
+                )
                 continue
 
             if candidate.is_superuser and not candidate.company_id:
                 # Platform super admins live in a different table/path.
                 return None
+
+            if not candidate.login_enabled:
+                Staffcreation.objects.filter(pk=candidate.pk).update(
+                    failed_login_attempts=F("failed_login_attempts") + 1
+                )
+                raise serializers.ValidationError("Login is disabled for this user")
+
+            if candidate.approval_status != Staffcreation.APPROVAL_APPROVED:
+                Staffcreation.objects.filter(pk=candidate.pk).update(
+                    failed_login_attempts=F("failed_login_attempts") + 1
+                )
+                raise serializers.ValidationError(
+                    f"User approval status is {candidate.approval_status}"
+                )
 
             return self._build_staff_payload(candidate)
 
