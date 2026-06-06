@@ -61,6 +61,11 @@ from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedSt
 # Authentication
 from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
 from ..viewsets.login.permission_viewset import PermissionViewSet
+from ..viewsets.auth.forgot_password_viewset import (
+    ForgotPasswordView,
+    VerifyOTPView,
+    ResetPasswordView,
+)
 
 # Customer modules
 from ..viewsets.customers.customercreation_viewset import CustomerCreationViewSet
@@ -351,6 +356,11 @@ router.register_group(
 # URLS
 # ============================================================
 urlpatterns = [
+    # Password reset flow (public — no authentication required)
+    path("auth/forgot-password/", ForgotPasswordView.as_view(), name="auth-forgot-password"),
+    path("auth/verify-otp/", VerifyOTPView.as_view(), name="auth-verify-otp"),
+    path("auth/reset-password/", ResetPasswordView.as_view(), name="auth-reset-password"),
+
     path(
         "permissions/userscreen/<str:userscreen_id>/columns/",
         UserScreenColumnsAPIView.as_view(),
