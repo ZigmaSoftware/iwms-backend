@@ -1,7 +1,38 @@
 """API tests for UserType endpoint — CRUD operations."""
+import jwt
 import pytest
+from django.conf import settings
 
 BASE = "/api/v1/role-assigns/user-type/"
+
+
+def _staff_auth_client(api_client, company, project, user_type):
+    from app.models.user_creations.staffcreation import Staffcreation
+
+    staff = Staffcreation.objects.create(
+        employee_name="Company Admin",
+        username="company_admin",
+        password="x",
+        user_type_id=user_type,
+        company_id=company,
+        project_id=project,
+        approval_status=Staffcreation.APPROVAL_APPROVED,
+        login_enabled=True,
+    )
+    token = jwt.encode(
+        {
+            "unique_id": staff.staff_unique_id,
+            "permissions": {
+                "role-assigns": {
+                    "user-type": ["view"],
+                },
+            },
+        },
+        settings.SECRET_KEY,
+        algorithm="HS256",
+    )
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    return api_client
 
 
 @pytest.mark.django_db
@@ -13,6 +44,20 @@ class TestUserTypeAPIList:
     def test_list_authenticated_returns_200(self, auth_client, user_type):
         resp = auth_client.get(BASE)
         assert resp.status_code == 200
+
+    def test_company_staff_can_list_global_user_types(
+        self,
+        api_client,
+        company,
+        project,
+        user_type,
+    ):
+        client = _staff_auth_client(api_client, company, project, user_type)
+
+        resp = client.get(BASE)
+
+        assert resp.status_code == 200
+        assert any(item["unique_id"] == user_type.unique_id for item in resp.data)
 
 
 @pytest.mark.django_db

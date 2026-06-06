@@ -108,6 +108,7 @@ MODULE_RESOURCE_ALLOWLIST = {
     "role-assigns": {
         "UserType",
         "StaffUserType",
+        "ContractorUserType",
     },
     "user-creations": {
         "UsersCreation",
