@@ -92,6 +92,7 @@ from .customers.customercreation import CustomerCreation
 from .customers.wastecollection import WasteCollection
 from .customers.feedback import FeedBack
 from .customers.userchargerule import UserChargeRule
+from .customers.password_reset_otp import PasswordResetOTP
 
 
 # ============================================================
@@ -192,6 +193,7 @@ __all__ = [
     "WasteCollection",
     "FeedBack",
     "UserChargeRule",
+    "PasswordResetOTP",
 
     # Grievances
     "Complaint",

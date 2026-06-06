@@ -7,7 +7,7 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
 
-from django.contrib.auth.hashers import make_password
+from app.utils.password_encryption import encrypt_password, decrypt_password
 
 
 class StaffApprovalActionSerializer(serializers.Serializer):
@@ -30,7 +30,6 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     allow_null=True
 )
     password = serializers.CharField(
-    write_only=True,
     required=False,
     allow_blank=True,
     allow_null=True,
@@ -265,13 +264,8 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         ]
 
     def to_representation(self, instance):
-        """
-        Override to return empty password field during read operations (edit/retrieve).
-        This ensures hashed password is never exposed in API responses.
-        """
         data = super().to_representation(instance)
-        # Always return empty string for password in responses
-        data['password'] = instance.password
+        data['password'] = decrypt_password(instance.password or "")
         return data
 
     # --------------------------------------------------
@@ -296,7 +290,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
         password = validated_data.get("password")
         if password:
-            validated_data["password"] = make_password(password)
+            validated_data["password"] = encrypt_password(password)
 
 
         validated_data["is_active"] = True
@@ -329,7 +323,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
         password = validated_data.get("password")
         if password:
-            validated_data["password"] = make_password(password)
+            validated_data["password"] = encrypt_password(password)
 
         staffusertype = validated_data.get("staffusertype_id")
         if staffusertype and staffusertype.usertype_id:
