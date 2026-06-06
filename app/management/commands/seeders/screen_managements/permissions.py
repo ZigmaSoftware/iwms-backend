@@ -208,6 +208,19 @@ class PermissionSeeder(BaseSeeder):
                 screen.is_deleted = False
                 screen.save(update_fields=["order_no", "is_active", "is_deleted"])
 
+                # Persist model mapping for known screens so schema resolver can find models
+                mapping = {
+                    "department-masters": ("app", "Department"),
+                    "designation-masters": ("app", "Designation"),
+                    "panchayat-leaders": ("app", "PanchayatLeaderLogin"),
+                }
+                if screen.userscreen_name in mapping:
+                    app_label, model_name = mapping[screen.userscreen_name]
+                    if screen.model_app_label != app_label or screen.model_name != model_name:
+                        screen.model_app_label = app_label
+                        screen.model_name = model_name
+                        screen.save(update_fields=["model_app_label", "model_name", "updated_at"])
+
     
 
      

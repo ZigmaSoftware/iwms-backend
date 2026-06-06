@@ -126,6 +126,8 @@ class StaffOfficeSeeder:
                 "ward_id": ward,
                 "user_type_id": staff_type,
                 "staffusertype_id": role,
+                "approval_status": Staffcreation.APPROVAL_APPROVED,
+                "login_enabled": True,
                 "password": staff_passwords.get(name, DEFAULT_STAFF_PASSWORD),
             }
 

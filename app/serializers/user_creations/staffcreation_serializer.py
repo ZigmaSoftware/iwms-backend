@@ -10,6 +10,14 @@ from app.models.user_creations.staffcreation import Staffcreation, StaffPersonal
 from django.contrib.auth.hashers import make_password
 
 
+class StaffApprovalActionSerializer(serializers.Serializer):
+    rejected_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+
 class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     # --------------------------------------------------
     # Core identifiers
@@ -22,9 +30,10 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     allow_null=True
 )
     password = serializers.CharField(
+    write_only=True,
     required=False,
     allow_blank=True,
-    # write_only=True
+    allow_null=True,
 )
 
     staffusertype_name = serializers.CharField(
@@ -226,6 +235,14 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "staffusertype_name",
             "contractorusertype_id",
             "contractorusertype_name",
+            "approval_status",
+            "login_enabled",
+            "approved_by",
+            "approved_at",
+            "rejected_reason",
+            "failed_login_attempts",
+            "last_login_at",
+            "last_login_ip",
 
             "created_at",
             "updated_at",
@@ -233,7 +250,29 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "is_deleted",
         ]
 
-        read_only_fields = ["unique_id", "qr_code", "created_at", "updated_at"]
+        read_only_fields = [
+            "unique_id",
+            "qr_code",
+            "approval_status",
+            "approved_by",
+            "approved_at",
+            "rejected_reason",
+            "failed_login_attempts",
+            "last_login_at",
+            "last_login_ip",
+            "created_at",
+            "updated_at",
+        ]
+
+    def to_representation(self, instance):
+        """
+        Override to return empty password field during read operations (edit/retrieve).
+        This ensures hashed password is never exposed in API responses.
+        """
+        data = super().to_representation(instance)
+        # Always return empty string for password in responses
+        data['password'] = instance.password
+        return data
 
     # --------------------------------------------------
     # Helpers

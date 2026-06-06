@@ -83,6 +83,8 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Panchayat",
         "AreaType",
         "AdministrativeHierarchy",
+        "Department",
+        "Designation",
     },
     "waste-types": {
         "Property",
@@ -169,6 +171,8 @@ MODULE_PERMISSION_ALIASES = {
 
 RESOURCE_PERMISSION_ALIASES = {
     "Bin": ("bins",),
+    "Department": ("departments", "department-masters"),
+    "Designation": ("designations", "designation-masters"),
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),
     "column-permissions": ("CompanyUserScreenPermission",),
 }

@@ -85,6 +85,8 @@ class AuthUserSeeder(BaseSeeder):
                 "ward_id": ward,
                 "is_active": True,
                 "is_deleted": False,
+                "approval_status": Staffcreation.APPROVAL_APPROVED,
+                "login_enabled": True,
             }
 
             staff = Staffcreation.objects.filter(username=username).first()
