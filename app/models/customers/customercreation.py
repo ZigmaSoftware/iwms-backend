@@ -207,6 +207,22 @@ class CustomerCreation(BaseMaster):
         help_text="Django auth password field"
     )
 
+    password_crt_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of last password change"
+    )
+
+    previous_password = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        help_text="Previous hashed password for reuse prevention"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+
     is_staff = models.BooleanField(
         default=False,
         help_text="Django admin-site access flag.",

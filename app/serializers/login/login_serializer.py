@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import check_password, identify_hasher
 from django.db.models import F, Q
+from django.utils import timezone
 
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
@@ -10,6 +11,16 @@ from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 
 from app.models.superadmin_masters.project import Project
 from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
+
+PASSWORD_EXPIRY_DAYS = 90
+
+
+def _is_password_expired(password_crt_date):
+    """Return True if the password is older than PASSWORD_EXPIRY_DAYS days."""
+    if not password_crt_date:
+        return False
+    age = timezone.now() - password_crt_date
+    return age.days >= PASSWORD_EXPIRY_DAYS
 
 
 class LoginSerializer(serializers.Serializer):
@@ -203,6 +214,8 @@ class LoginSerializer(serializers.Serializer):
                 user_type="contractor" if contractor_usertype else "staff",
             )
 
+        password_expired = _is_password_expired(getattr(staff_record, "password_crt_date", None))
+
         return {
             "user": login_user,
             "permissions": permissions,
@@ -217,9 +230,9 @@ class LoginSerializer(serializers.Serializer):
             "staffusertype_id": staff_usertype.unique_id if staff_usertype else None,
             "contractorusertype_id": contractor_usertype.unique_id if contractor_usertype else None,
             "company_unique_id": company.unique_id,
-            "projects": projects,        
+            "projects": projects,
             "profile_object": staff_record,
-            
+            "password_expired": password_expired,
         }
 
     def _build_customer_payload(self, customer_record, login_user=None):
@@ -244,6 +257,8 @@ class LoginSerializer(serializers.Serializer):
         )
         permissions = permission_payload["permissions"]
 
+        password_expired = _is_password_expired(getattr(customer_record, "password_crt_date", None))
+
         return {
             "user": login_user,
             "permissions": permissions,
@@ -258,6 +273,7 @@ class LoginSerializer(serializers.Serializer):
             "staffusertype_id": None,
             "company_unique_id": company.unique_id,
             "profile_object": customer_record,
+            "password_expired": password_expired,
         }
 
     def _build_platform_payload(self, user):
