@@ -192,70 +192,95 @@ class DailyWasteComparisonViewSet(CompanyScopedViewSet):
     # ── analytics helpers ────────────────────────────────────────────────
 
     def _build_date_trends(self, rows):
+        # Panchayat.agreed_weight_kg is the TOTAL daily target for ALL waste types.
+        # Count it once per (date, panchayat) pair — not once per waste-type row.
         trends = {}
+        seen_agreed = set()  # (collection_date, panchayat_id) pairs already counted
         for row in rows:
             date = row["collection_date"]
             trends.setdefault(date, {
                 "collection_date": date,
-                "agreed_weight_kg": 0, "actual_weight_kg": 0,
-                "variance_kg": 0, "total_trips": 0, "collection_points_covered": 0,
+                "agreed_weight_kg": 0.0, "actual_weight_kg": 0.0,
+                "total_trips": 0, "collection_points_covered": 0,
             })
-            trends[date]["agreed_weight_kg"]          += row["agreed_weight_kg"]
             trends[date]["actual_weight_kg"]          += row["actual_weight_kg"]
-            trends[date]["variance_kg"]               += row["variance_kg"]
             trends[date]["total_trips"]               += row["total_trips"]
             trends[date]["collection_points_covered"] += row["collection_points_covered"]
 
-        return [
-            {
+            key = (date, row["panchayat_id"])
+            if key not in seen_agreed:
+                seen_agreed.add(key)
+                trends[date]["agreed_weight_kg"] += row["agreed_weight_kg"]
+
+        result = []
+        for item in sorted(trends.values(), key=lambda x: str(x["collection_date"])):
+            agreed = Decimal(str(item["agreed_weight_kg"]))
+            actual = Decimal(str(item["actual_weight_kg"]))
+            trips  = item["total_trips"]
+            result.append({
                 **item,
-                "collection_efficiency_percent": float(
-                    percent(item["actual_weight_kg"], item["agreed_weight_kg"])
-                ),
+                "variance_kg": float(rounded(actual - agreed)),
+                "collection_efficiency_percent": float(percent(actual, agreed)),
                 "average_weight_per_trip": float(
-                    rounded(
-                        Decimal(str(item["actual_weight_kg"])) / Decimal(item["total_trips"])
-                    ) if item["total_trips"] else ZERO
+                    rounded(actual / Decimal(trips)) if trips else ZERO
                 ),
-            }
-            for item in sorted(trends.values(), key=lambda x: str(x["collection_date"]))
-        ]
+            })
+        return result
 
     def _build_panchayat_comparison(self, rows):
+        # agreed_weight_kg is the panchayat's daily total target — count once per
+        # (date, panchayat) pair, summing actual across all waste types and dates.
         panchayats = {}
+        seen_agreed = set()
         for row in rows:
             pid = row["panchayat_id"]
-            panchayats.setdefault(pid, {
-                "panchayat_id": pid,
-                "panchayat_name": row["panchayat_name"],
-                "agreed_weight_kg": 0, "actual_weight_kg": 0, "variance_kg": 0,
-            })
-            panchayats[pid]["agreed_weight_kg"] += row["agreed_weight_kg"]
-            panchayats[pid]["actual_weight_kg"] += row["actual_weight_kg"]
-            panchayats[pid]["variance_kg"]      += row["variance_kg"]
-
-        return sorted(
-            (
-                {
-                    **item,
-                    "collection_efficiency_percent": float(
-                        percent(item["actual_weight_kg"], item["agreed_weight_kg"])
-                    ),
-                    "report_status": performance_status(
-                        item["actual_weight_kg"], item["agreed_weight_kg"],
-                    ),
+            if pid not in panchayats:
+                panchayats[pid] = {
+                    "panchayat_id": pid,
+                    "panchayat_name": row["panchayat_name"],
+                    "agreed_weight_kg": ZERO,
+                    "actual_weight_kg": ZERO,
                 }
-                for item in panchayats.values()
-            ),
-            key=lambda r: abs(r["variance_kg"]),
-            reverse=True,
-        )
+            panchayats[pid]["actual_weight_kg"] += decimal_value(row["actual_weight_kg"])
+
+            key = (row["collection_date"], pid)
+            if key not in seen_agreed:
+                seen_agreed.add(key)
+                panchayats[pid]["agreed_weight_kg"] += decimal_value(row["agreed_weight_kg"])
+
+        result = []
+        for item in panchayats.values():
+            agreed = item["agreed_weight_kg"]
+            actual = item["actual_weight_kg"]
+            variance = actual - agreed
+            result.append({
+                "panchayat_id": item["panchayat_id"],
+                "panchayat_name": item["panchayat_name"],
+                "agreed_weight_kg": float(rounded(agreed)),
+                "actual_weight_kg": float(rounded(actual)),
+                "variance_kg": float(rounded(variance)),
+                "collection_efficiency_percent": float(percent(actual, agreed)),
+                "report_status": performance_status(actual, agreed),
+            })
+        return sorted(result, key=lambda r: abs(r["variance_kg"]), reverse=True)
 
     def _build_totals(self, rows):
-        total_agreed = sum(Decimal(str(r["agreed_weight_kg"])) for r in rows)
-        total_actual = sum(Decimal(str(r["actual_weight_kg"])) for r in rows)
-        total_trips  = sum(r["total_trips"] for r in rows)
-        total_points = sum(r["collection_points_covered"] for r in rows)
+        # Sum actual across all rows; sum agreed once per (date, panchayat) pair.
+        seen_agreed = set()
+        total_agreed = ZERO
+        total_actual = ZERO
+        total_trips  = 0
+        total_points = 0
+
+        for r in rows:
+            total_actual += decimal_value(r["actual_weight_kg"])
+            total_trips  += r["total_trips"]
+            total_points += r["collection_points_covered"]
+
+            key = (r["collection_date"], r["panchayat_id"])
+            if key not in seen_agreed:
+                seen_agreed.add(key)
+                total_agreed += decimal_value(r["agreed_weight_kg"])
 
         return {
             "total_agreed_weight_kg":          float(rounded(total_agreed)),

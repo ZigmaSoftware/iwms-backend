@@ -58,6 +58,7 @@ class LoginViewSet(ViewSet):
         user_type = serializer.validated_data.get("user_type", "staff")
         profile_object = serializer.validated_data.get("profile_object")
         company_unique_id = serializer.validated_data.get("company_unique_id")
+        password_expired = serializer.validated_data.get("password_expired", False)
         staffusertype_unique_id = serializer.validated_data.get("staffusertype_id")
         contractorusertype_unique_id = serializer.validated_data.get("contractorusertype_id")
         projects = serializer.validated_data.get("projects", [])
@@ -288,6 +289,7 @@ class LoginViewSet(ViewSet):
                 "company_name": company_name,
                 "projects": projects,
                 "profile": profile_payload,
+                "password_expired": password_expired,
             },
             status=status.HTTP_200_OK
         )

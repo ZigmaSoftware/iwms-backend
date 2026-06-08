@@ -243,6 +243,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "last_login_at",
             "last_login_ip",
 
+            "password_crt_date",
             "created_at",
             "updated_at",
             "is_active",
@@ -259,6 +260,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "failed_login_attempts",
             "last_login_at",
             "last_login_ip",
+            "password_crt_date",
             "created_at",
             "updated_at",
         ]

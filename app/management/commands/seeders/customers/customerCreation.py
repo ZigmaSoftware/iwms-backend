@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
+from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
 
@@ -19,7 +20,8 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
 
-DEFAULT_CUSTOMER_PASSWORD = "Customer@123"
+# min 6 chars, 1 uppercase + 1 lowercase + 1 digit
+DEFAULT_CUSTOMER_PASSWORD = "Customer1"
 
 CUSTOMER_DATA = [
     {"customer_name": "Sameer",    "contact_no": "7890123456", "building_no": "12A", "street": "Gamma Road",    "area": "Gamma 1",  "pincode": "600017", "latitude": "13.0826", "longitude": "80.2707", "id_no": "AADHAAR-7890-01"},
@@ -72,6 +74,7 @@ class CustomerCreationSeeder(BaseSeeder):
 
         UserModel = get_user_model()
 
+        now = timezone.now()
         for entry in CUSTOMER_DATA:
             hashed_password = make_password(DEFAULT_CUSTOMER_PASSWORD)
             customer, created = CustomerCreation.objects.get_or_create(
@@ -80,6 +83,7 @@ class CustomerCreationSeeder(BaseSeeder):
                 defaults={
                     "username": entry["contact_no"],
                     "password": hashed_password,
+                    "password_crt_date": now,
                     "building_no": entry["building_no"],
                     "street": entry["street"],
                     "area": entry["area"],

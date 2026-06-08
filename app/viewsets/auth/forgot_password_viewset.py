@@ -1,6 +1,7 @@
+import re
 import uuid
 from django.conf import settings
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -10,6 +11,19 @@ from rest_framework.views import APIView
 from app.models.customers.customercreation import CustomerCreation
 from app.models.customers.password_reset_otp import PasswordResetOTP
 from app.utils.email_utils import send_otp_email
+
+
+def _validate_password_complexity(password: str):
+    """Return an error message string if the password fails complexity rules, else None."""
+    if len(password) < 6:
+        return "Password must be at least 6 characters."
+    if not re.search(r"[A-Z]", password):
+        return "Password must contain at least one uppercase letter."
+    if not re.search(r"[a-z]", password):
+        return "Password must contain at least one lowercase letter."
+    if not re.search(r"[0-9]", password):
+        return "Password must contain at least one numeric digit."
+    return None
 
 
 def _generic_ok(msg: str, data: dict = None):
@@ -173,8 +187,9 @@ class ResetPasswordView(APIView):
         if new_password != confirm_password:
             return _err("Passwords do not match.")
 
-        if len(new_password) < 6:
-            return _err("Password must be at least 6 characters.")
+        complexity_error = _validate_password_complexity(new_password)
+        if complexity_error:
+            return _err(complexity_error)
 
         try:
             otp_record = PasswordResetOTP.objects.select_related("customer").get(
@@ -190,8 +205,17 @@ class ResetPasswordView(APIView):
             return _err("Reset token has expired. Please start over.")
 
         customer = otp_record.customer
+
+        # Prevent reuse of the current password
+        if customer.password and check_password(new_password, customer.password):
+            return _err("New password must be different from the current password.")
+
+        # Store previous password before updating
+        previous_password = customer.password
+        customer.previous_password = previous_password
         customer.password = make_password(new_password)
-        customer.save(update_fields=["password"])
+        customer.password_crt_date = timezone.now()
+        customer.save(update_fields=["password", "previous_password", "password_crt_date"])
 
         # Invalidate the OTP so it cannot be reused
         otp_record.is_used = True

@@ -66,6 +66,10 @@ from ..viewsets.auth.forgot_password_viewset import (
     VerifyOTPView,
     ResetPasswordView,
 )
+from ..viewsets.auth.change_password_viewset import (
+    ChangePasswordView,
+    AdminChangePasswordView,
+)
 
 # Customer modules
 from ..viewsets.customers.customercreation_viewset import CustomerCreationViewSet
@@ -360,6 +364,9 @@ urlpatterns = [
     path("auth/forgot-password/", ForgotPasswordView.as_view(), name="auth-forgot-password"),
     path("auth/verify-otp/", VerifyOTPView.as_view(), name="auth-verify-otp"),
     path("auth/reset-password/", ResetPasswordView.as_view(), name="auth-reset-password"),
+    # Authenticated password change (self-service and admin)
+    path("auth/change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
+    path("auth/admin-change-password/", AdminChangePasswordView.as_view(), name="auth-admin-change-password"),
 
     path(
         "permissions/userscreen/<str:userscreen_id>/columns/",

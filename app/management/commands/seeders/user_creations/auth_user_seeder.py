@@ -51,22 +51,23 @@ class AuthUserSeeder(BaseSeeder):
         )
 
         # 7 driver-operator pairs + 1 approver = 15 entries
+        # Passwords: min 6 chars, uppercase + lowercase + digit
         seed_staff = [
-            ("driver_user",   "driver1@demo.local",   "driver123",   driver_role),
-            ("operator_user", "operator1@demo.local",  "operator123", operator_role),
-            ("driver2_user",  "driver2@demo.local",   "driver123",   driver_role),
-            ("operator2_user","operator2@demo.local",  "operator123", operator_role),
-            ("driver3_user",  "driver3@demo.local",   "driver123",   driver_role),
-            ("operator3_user","operator3@demo.local",  "operator123", operator_role),
-            ("driver4_user",  "driver4@demo.local",   "driver123",   driver_role),
-            ("operator4_user","operator4@demo.local",  "operator123", operator_role),
-            ("driver5_user",  "driver5@demo.local",   "driver123",   driver_role),
-            ("operator5_user","operator5@demo.local",  "operator123", operator_role),
-            ("driver6_user",  "driver6@demo.local",   "driver123",   driver_role),
-            ("operator6_user","operator6@demo.local",  "operator123", operator_role),
-            ("driver7_user",  "driver7@demo.local",   "driver123",   driver_role),
-            ("operator7_user","operator7@demo.local",  "operator123", operator_role),
-            ("approver_user", "approver@demo.local",  "approver123", approver_role),
+            ("driver_user",   "driver1@demo.local",   "Driver123",   driver_role),
+            ("operator_user", "operator1@demo.local",  "Operator123", operator_role),
+            ("driver2_user",  "driver2@demo.local",   "Driver123",   driver_role),
+            ("operator2_user","operator2@demo.local",  "Operator123", operator_role),
+            ("driver3_user",  "driver3@demo.local",   "Driver123",   driver_role),
+            ("operator3_user","operator3@demo.local",  "Operator123", operator_role),
+            ("driver4_user",  "driver4@demo.local",   "Driver123",   driver_role),
+            ("operator4_user","operator4@demo.local",  "Operator123", operator_role),
+            ("driver5_user",  "driver5@demo.local",   "Driver123",   driver_role),
+            ("operator5_user","operator5@demo.local",  "Operator123", operator_role),
+            ("driver6_user",  "driver6@demo.local",   "Driver123",   driver_role),
+            ("operator6_user","operator6@demo.local",  "Operator123", operator_role),
+            ("driver7_user",  "driver7@demo.local",   "Driver123",   driver_role),
+            ("operator7_user","operator7@demo.local",  "Operator123", operator_role),
+            ("approver_user", "approver@demo.local",  "Approver123", approver_role),
         ]
 
         for username, email, password, role in seed_staff:
