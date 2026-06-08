@@ -83,6 +83,7 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "approved_by",
             "approval_status",
             "display_code",
+            "collection_date",
             "collected_weight_kg",
             "driver_latitude",
             "driver_longitude",
@@ -142,6 +143,10 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
         # Set location from assignment — one of panchayat OR ward will be non-null.
         attrs["panchayat_id"] = getattr(assignment, "panchayat_id", None)
         attrs["ward_id"] = getattr(assignment, "ward_id", None)
+        attrs["collection_date"] = (
+            attrs.get("collection_date")
+            or getattr(assignment, "trip_date", None)
+        )
 
         # These are intentionally not serializer fields. They are derived only
         # to satisfy the current model while the API exposes nested objects.

@@ -1,8 +1,12 @@
+from decimal import Decimal
+
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
 from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.serializers.schedule_masters.bin_collection_event_serializer import (
     BinCollectionEventSerializer,
 )
@@ -50,6 +54,9 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         trip_collection_point = params.get("trip_collection_point_id")
         bin_id = params.get("bin_id")
         panchayat = params.get("panchayat_id")
+        collection_date = params.get("collection_date") or params.get("date")
+        date_from = params.get("date_from")
+        date_to = params.get("date_to")
 
         if trip_assignment:
             queryset = queryset.filter(trip_assignment_id=trip_assignment)
@@ -59,12 +66,70 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             queryset = queryset.filter(bin_id=bin_id)
         if panchayat:
             queryset = queryset.filter(panchayat_id=panchayat)
+        if collection_date:
+            queryset = queryset.filter(collection_date=collection_date)
+        if date_from:
+            queryset = queryset.filter(collection_date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(collection_date__lte=date_to)
 
         return queryset
 
     # -------------------------------------------------
     # DAILY TRIP COLLECTION POINT SYNC
     # -------------------------------------------------
+
+    def _upsert_trip_log_for_assignment(self, assignment):
+        """
+        Keep admin BinCollectionEvent flow aligned with operator-mobile scans.
+
+        DailyTripLog is created as soon as DailyTripCollectionPoint data exists
+        for the trip, then submitted after every collection point is collected.
+        """
+        if not assignment:
+            return
+
+        children = assignment.trip_collection_points.filter(is_deleted=False)
+        if not children.exists():
+            return
+
+        all_collected = not children.filter(is_collected=False).exists()
+        total_weight = children.aggregate(total=Sum("collected_weight_kg"))["total"] or 0
+        vehicle_capacity = getattr(getattr(assignment, "vehicle_id", None), "capacity", None)
+        trip_capacity = getattr(getattr(assignment, "trip_plan_id", None), "max_vehicle_capacity_kg", None)
+        capacity = vehicle_capacity or trip_capacity
+        exceeds_capacity = (
+            bool(capacity)
+            and total_weight
+            and Decimal(str(total_weight)) > Decimal(str(capacity))
+        )
+        stored_weight = None if exceeds_capacity else total_weight
+        log_status = (
+            DailyTripLog.LOG_STATUS_SUBMITTED
+            if all_collected and stored_weight
+            else DailyTripLog.LOG_STATUS_DRAFT
+        )
+        remarks = (
+            "Auto-generated from daily trip collection points; total weight exceeds capacity."
+            if exceeds_capacity
+            else "Auto-generated from daily trip collection points."
+        )
+
+        log, created = DailyTripLog.objects.get_or_create(
+            trip_assignment_id=assignment,
+            defaults={
+                "collected_weight_kg": stored_weight,
+                "log_status": log_status,
+                "remarks": remarks,
+            },
+        )
+        if created or log.log_status == DailyTripLog.LOG_STATUS_VERIFIED:
+            return
+
+        log.collected_weight_kg = stored_weight
+        log.log_status = log_status
+        log.remarks = log.remarks or remarks
+        log.save()
 
     def _sync_trip_cp_from_event(self, event):
         """
@@ -105,7 +170,9 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "status",
             "updated_at",
         ])
-        trip_cp.trip_assignment_id.mark_completed_if_all_cps_collected()
+        assignment = trip_cp.trip_assignment_id
+        assignment.mark_completed_if_all_cps_collected()
+        self._upsert_trip_log_for_assignment(assignment)
 
     # -------------------------------------------------
     # CREATE / UPDATE / DELETE

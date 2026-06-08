@@ -1,9 +1,13 @@
+from decimal import Decimal
+
+from django.db.models import Sum
 from rest_framework import status
 from rest_framework.response import Response
 
 from app.models.schedule_masters.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
+from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.serializers.schedule_masters.daily_trip_collection_point_serializer import (
     DailyTripCollectionPointSerializer,
 )
@@ -18,6 +22,60 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "daily-trip-collection-point"
+
+    def _upsert_trip_log_for_assignment(self, assignment):
+        if not assignment:
+            return
+
+        children = assignment.trip_collection_points.filter(is_deleted=False)
+        if not children.exists():
+            return
+
+        all_collected = not children.filter(is_collected=False).exists()
+        total_weight = children.aggregate(total=Sum("collected_weight_kg"))["total"] or 0
+        vehicle_capacity = getattr(getattr(assignment, "vehicle_id", None), "capacity", None)
+        trip_capacity = getattr(getattr(assignment, "trip_plan_id", None), "max_vehicle_capacity_kg", None)
+        capacity = vehicle_capacity or trip_capacity
+        exceeds_capacity = (
+            bool(capacity)
+            and total_weight
+            and Decimal(str(total_weight)) > Decimal(str(capacity))
+        )
+        stored_weight = None if exceeds_capacity else total_weight
+        log_status = (
+            DailyTripLog.LOG_STATUS_SUBMITTED
+            if all_collected and stored_weight
+            else DailyTripLog.LOG_STATUS_DRAFT
+        )
+        remarks = (
+            "Auto-generated from daily trip collection points; total weight exceeds capacity."
+            if exceeds_capacity
+            else "Auto-generated from daily trip collection points."
+        )
+
+        log, created = DailyTripLog.objects.get_or_create(
+            trip_assignment_id=assignment,
+            defaults={
+                "collected_weight_kg": stored_weight,
+                "log_status": log_status,
+                "remarks": remarks,
+            },
+        )
+        if created or log.log_status == DailyTripLog.LOG_STATUS_VERIFIED:
+            return
+
+        log.collected_weight_kg = stored_weight
+        log.log_status = log_status
+        log.remarks = log.remarks or remarks
+        log.save()
+
+    def _sync_assignment_and_log(self, instance):
+        if not instance:
+            return
+        assignment = instance.trip_assignment_id
+        if instance.is_collected:
+            assignment.mark_completed_if_all_cps_collected()
+        self._upsert_trip_log_for_assignment(assignment)
 
     def get_queryset(self):
         queryset = (
@@ -72,6 +130,14 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().update(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        self._sync_assignment_and_log(serializer.instance)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._sync_assignment_and_log(serializer.instance)
 
     def perform_destroy(self, instance):
         previous_data = self._serialize_instance(instance)
