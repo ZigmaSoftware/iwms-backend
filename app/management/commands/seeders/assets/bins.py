@@ -5,7 +5,7 @@ from app.models.masters.panchayat import Panchayat
 from app.models.assets.bins import Bins, BinType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.assets.collection_point import Collection_point
+from app.models.schedule_masters.collection_point import Collection_point
 from app.models.user_creations.waste_collection_bluetooth import WasteType
 
 

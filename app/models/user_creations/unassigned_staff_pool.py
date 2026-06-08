@@ -4,7 +4,7 @@ from app.models.user_creations.staffcreation import Staffcreation
 from app.utils.comfun import generate_unique_id
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -18,7 +18,7 @@ class UnassignedStaffPool(models.Model):
     Holds operators & drivers who are NOT currently assigned to any trip
     within a specific zone/ward.
 
-    Used by system while creating TripInstance to ensure
+    Used by the daily trip assignment flow to ensure
     no cross-zone staff allocation.
     """
 
@@ -109,15 +109,15 @@ class UnassignedStaffPool(models.Model):
         default=Status.AVAILABLE
     )
 
-    trip_instance = models.ForeignKey(
-        TripInstance,
+    daily_trip_assignment = models.ForeignKey(
+        DailyTripAssignment,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="unassigned_staff_pool",
         db_column="trip_instance_id",
         to_field="unique_id",
-        help_text="Trip instance that triggered this pool snapshot"
+        help_text="Daily trip assignment that triggered this pool snapshot"
     )
 
     # -----------------------------
@@ -160,24 +160,22 @@ class UnassignedStaffPool(models.Model):
     # POOL REFRESH LOGIC
     # ---------------------------------------------------
     @classmethod
-    def refresh_for_trip_instance(cls, trip_instance):
+    def refresh_for_daily_trip_assignment(cls, daily_trip_assignment):
         """
-        Keep a live pool of staff not assigned to active trip instances.
+        Keep a live pool of staff not assigned to active daily trip assignments.
         """
-        from app.models.transport_masters.trip_instance import TripInstance
         from app.models.masters.ward import Ward
 
-        active_instances = TripInstance.objects.filter(
+        active_assignments = DailyTripAssignment.objects.filter(
             status__in=[
-                TripInstance.Status.WAITING_FOR_LOAD,
-                TripInstance.Status.READY,
-                TripInstance.Status.IN_PROGRESS,
+                DailyTripAssignment.STATUS_SCHEDULED,
+                DailyTripAssignment.STATUS_IN_PROGRESS,
             ]
-        ).select_related("staff_template")
+        ).select_related("staff_template_id")
 
         assigned_ids = set()
-        for instance in active_instances:
-            staff_template = instance.staff_template
+        for assignment in active_assignments:
+            staff_template = assignment.staff_template_id
             if not staff_template:
                 continue
 
@@ -207,13 +205,13 @@ class UnassignedStaffPool(models.Model):
 
             defaults = {
                 "status": cls.Status.AVAILABLE,
-                "trip_instance": trip_instance,
-                "company_id": getattr(staff, "company_id", None) or getattr(trip_instance, "company_id", None),
-                "project_id": getattr(staff, "project_id", None) or getattr(trip_instance, "project_id", None),
+                "daily_trip_assignment": daily_trip_assignment,
+                "company_id": getattr(staff, "company_id", None) or getattr(daily_trip_assignment, "company_id", None),
+                "project_id": getattr(staff, "project_id", None) or getattr(daily_trip_assignment, "project_id", None),
             }
 
-            zone = getattr(staff, "zone_id", None) or getattr(trip_instance, "zone", None)
-            ward = getattr(staff, "ward_id", None)
+            ward = getattr(staff, "ward_id", None) or getattr(daily_trip_assignment, "ward_id", None)
+            zone = getattr(staff, "zone_id", None) or getattr(ward, "zone_id", None)
 
             if not ward and zone:
                 ward = Ward.objects.filter(

@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.conf import settings
 
 from app.models.transport_masters.trip_attendance import TripAttendance
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.user_creations.attendance import Employee
 from app.serializers.user_creations.trip_attendance_serializer import (
     TripAttendanceSerializer
@@ -109,41 +109,47 @@ class TripAttendanceViewSet(ModelViewSet):
             data["photo"] = request.FILES.get("photo")
         data["attendance_time"] = timezone.now()
 
-        if data.get("trip_instance_id") and not data.get("vehicle_id"):
-            trip = TripInstance.objects.filter(
-                unique_id=data["trip_instance_id"]
-            ).select_related("vehicle").first()
-            if trip and trip.vehicle:
-                data["vehicle_id"] = trip.vehicle.unique_id
-        if not data.get("trip_instance_id"):
+        if data.get("daily_trip_assignment_id") and not data.get("vehicle_id"):
+            trip = DailyTripAssignment.objects.filter(
+                unique_id=data["daily_trip_assignment_id"]
+            ).select_related("vehicle_id").first()
+            if trip and trip.vehicle_id:
+                data["vehicle_id"] = trip.vehicle_id.unique_id
+        if not data.get("daily_trip_assignment_id"):
             trip = (
-                TripInstance.objects
+                DailyTripAssignment.objects
                 .filter(
-                    staff_template__operator_id_id=user.unique_id,
-                    status__in=["IN_PROGRESS", "READY"],
+                    staff_template_id__operator_id_id=user.unique_id,
+                    status__in=[
+                        DailyTripAssignment.STATUS_IN_PROGRESS,
+                        DailyTripAssignment.STATUS_SCHEDULED,
+                    ],
                 )
                 .order_by("-created_at")
-                .select_related("vehicle")
+                .select_related("vehicle_id")
                 .first()
             )
             if not trip:
                 trip = (
-                    TripInstance.objects
+                    DailyTripAssignment.objects
                     .filter(
-                        staff_template__driver_id_id=user.unique_id,
-                        status__in=["IN_PROGRESS", "READY"],
+                        staff_template_id__driver_id_id=user.unique_id,
+                        status__in=[
+                            DailyTripAssignment.STATUS_IN_PROGRESS,
+                            DailyTripAssignment.STATUS_SCHEDULED,
+                        ],
                     )
                     .order_by("-created_at")
-                    .select_related("vehicle")
+                    .select_related("vehicle_id")
                     .first()
                 )
             if not trip:
                 return Response(
-                    {"detail": "No active trip instance found."},
+                    {"detail": "No active daily trip assignment found."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            data["trip_instance_id"] = trip.unique_id
-            data["vehicle_id"] = trip.vehicle.unique_id if trip.vehicle else None
+            data["daily_trip_assignment_id"] = trip.unique_id
+            data["vehicle_id"] = trip.vehicle_id.unique_id if trip.vehicle_id else None
 
         if role in {"operator", "driver"}:
             if data.get("staff_id") and data.get("staff_id") != user.unique_id:
@@ -173,7 +179,7 @@ class TripAttendanceViewSet(ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
-        immutable_fields = {"trip_instance_id", "staff_id", "vehicle_id", "attendance_time"}
+        immutable_fields = {"daily_trip_assignment_id", "staff_id", "vehicle_id", "attendance_time"}
         if immutable_fields.intersection(request.data.keys()):
             return Response(
                 {"detail": "Trip, staff, vehicle, and attendance_time cannot be modified."},

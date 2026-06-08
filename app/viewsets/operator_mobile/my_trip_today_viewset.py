@@ -27,5 +27,5 @@ class MyTripTodayViewSet(viewsets.ViewSet):
                 status=exc.http_status,
             )
 
-        data = MyTripTodaySerializer(assignment).data
+        data = MyTripTodaySerializer(assignment, context={"request": request}).data
         return Response(data, status=status.HTTP_200_OK)

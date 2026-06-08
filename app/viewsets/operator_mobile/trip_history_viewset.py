@@ -3,13 +3,30 @@ from decimal import Decimal
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 
-from app.models.transport_masters.bin_collection_event import BinCollectionEvent
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.permissions.operator_permission import IsOperatorRole
 from app.viewsets.operator_mobile.helpers import (
     OperatorFlowError,
     resolve_operator_staff,
 )
+
+
+def _area_payload(assignment: DailyTripAssignment) -> tuple:
+    """Return (panchayat_dict_or_none, ward_dict_or_none)."""
+    panchayat = assignment.panchayat_id
+    ward = assignment.ward_id
+    panchayat_dict = (
+        {"unique_id": panchayat.unique_id, "name": panchayat.panchayat_name}
+        if panchayat
+        else None
+    )
+    ward_dict = (
+        {"unique_id": ward.unique_id, "name": ward.ward_name}
+        if ward
+        else None
+    )
+    return panchayat_dict, ward_dict
 
 
 def _serialize_summary(assignment: DailyTripAssignment) -> dict:
@@ -19,16 +36,14 @@ def _serialize_summary(assignment: DailyTripAssignment) -> dict:
     total_weight = sum(
         (c.collected_weight_kg or Decimal("0")) for c in children
     )
-    panchayat = assignment.panchayat_id
     waste_type = assignment.waste_type_id
+    panchayat_dict, ward_dict = _area_payload(assignment)
     return {
         "assignment_unique_id": assignment.unique_id,
         "trip_date": assignment.trip_date.isoformat(),
         "status": assignment.status,
-        "panchayat": {
-            "unique_id": panchayat.unique_id,
-            "name": panchayat.panchayat_name,
-        },
+        "panchayat": panchayat_dict,
+        "ward": ward_dict,
         "waste_type": {
             "unique_id": waste_type.unique_id,
             "name": waste_type.waste_type_name,
@@ -43,11 +58,14 @@ def _serialize_summary(assignment: DailyTripAssignment) -> dict:
 
 
 def _serialize_event(event: BinCollectionEvent) -> dict:
+    # The new BinCollectionEvent has no scanned_qr / event_at / latitude /
+    # longitude columns. We surface created_at as event_at for backwards
+    # compatibility with the mobile model.
     return {
         "unique_id": event.unique_id,
-        "event_at": event.event_at.isoformat(),
+        "event_at": event.created_at.isoformat(),
         "collected_weight_kg": str(event.collected_weight_kg),
-        "scanned_qr": event.scanned_qr,
+        "scanned_qr": event.bin_id_id,
         "bin": {
             "unique_id": event.bin_id_id,
             "bin_name": getattr(event.bin_id, "bin_name", None),
@@ -56,8 +74,12 @@ def _serialize_event(event: BinCollectionEvent) -> dict:
             "unique_id": event.collection_point_id_id,
             "name": getattr(event.collection_point_id, "cp_name", None),
         },
-        "latitude": str(event.latitude) if event.latitude is not None else None,
-        "longitude": str(event.longitude) if event.longitude is not None else None,
+        "latitude": (
+            str(event.driver_latitude) if event.driver_latitude is not None else None
+        ),
+        "longitude": (
+            str(event.driver_longitude) if event.driver_longitude is not None else None
+        ),
         "notes": event.notes,
     }
 
@@ -72,16 +94,21 @@ class TripHistoryViewSet(viewsets.ViewSet):
     lookup_field = "unique_id"
 
     def _base_queryset(self, operator):
-        # Primary path: assignments where the operator is the template's main operator.
-        # We omit the extra_operator_id JSON membership query here because it isn't
-        # supported on SQLite (used in tests); extras are uncommon and can be added
-        # later as a Python-side filter when needed.
+        # Match either the primary staff template's operator or the alternative
+        # (substitute) template's operator. We omit the extra_operator_id JSON
+        # membership query here because it isn't supported on SQLite (used in
+        # tests); extras are uncommon and can be filtered in Python if needed.
+        from django.db.models import Q
         return (
             DailyTripAssignment.objects
             .filter(is_deleted=False)
-            .filter(staff_template_id__operator_id=operator)
+            .filter(
+                Q(staff_template_id__operator_id=operator)
+                | Q(alt_staff_template_id__operator_id=operator)
+            )
             .select_related(
                 "panchayat_id",
+                "ward_id",
                 "waste_type_id",
                 "vehicle_id",
             )
@@ -134,7 +161,7 @@ class TripHistoryViewSet(viewsets.ViewSet):
             BinCollectionEvent.objects
             .filter(trip_assignment_id=assignment, is_deleted=False)
             .select_related("bin_id", "collection_point_id")
-            .order_by("event_at")
+            .order_by("created_at")
         )
         summary["events"] = [_serialize_event(e) for e in events_qs]
 
@@ -144,6 +171,12 @@ class TripHistoryViewSet(viewsets.ViewSet):
             .select_related("collection_point_id", "bin_id")
             .order_by("sequence")
         )
+        def _bin_qr_url(bin_obj):
+            try:
+                return bin_obj.bin_qr.url if bin_obj.bin_qr else None
+            except (ValueError, AttributeError):
+                return None
+
         summary["collection_points"] = [
             {
                 "unique_id": cp.unique_id,
@@ -161,7 +194,13 @@ class TripHistoryViewSet(viewsets.ViewSet):
                 "bin": {
                     "unique_id": cp.bin_id.unique_id,
                     "bin_name": cp.bin_id.bin_name,
-                    "bin_qr": cp.bin_id.bin_qr,
+                    # Match the new contract: bin_qr = bin.unique_id; image is separate.
+                    "bin_qr": cp.bin_id.unique_id,
+                    "bin_qr_image_url": (
+                        request.build_absolute_uri(_bin_qr_url(cp.bin_id))
+                        if _bin_qr_url(cp.bin_id)
+                        else None
+                    ),
                 },
             }
             for cp in cps

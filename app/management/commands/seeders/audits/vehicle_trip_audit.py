@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.audits.vehicle_trip_audit import VehicleTripAudit
 
 
@@ -11,13 +11,13 @@ class VehicleTripAuditSeeder(BaseSeeder):
     name = "vehicle_trip_audit"
 
     def run(self):
-        trip = TripInstance.objects.order_by("-created_at").first()
+        trip = DailyTripAssignment.objects.order_by("-created_at").first()
         if not trip:
-            self.log("VehicleTripAuditSeeder skipped (no trip instances).")
+            self.log("VehicleTripAuditSeeder skipped (no daily trip assignments).")
             return
 
-        if trip.status != TripInstance.Status.IN_PROGRESS:
-            trip.status = TripInstance.Status.IN_PROGRESS
+        if trip.status != DailyTripAssignment.STATUS_IN_PROGRESS:
+            trip.status = DailyTripAssignment.STATUS_IN_PROGRESS
             trip.save(update_fields=["status"])
 
         captured_at = timezone.now() - timedelta(minutes=1)
@@ -51,8 +51,8 @@ class VehicleTripAuditSeeder(BaseSeeder):
         ]
 
         _, created = VehicleTripAudit.objects.get_or_create(
-            trip_instance=trip,
-            vehicle=trip.vehicle,
+            daily_trip_assignment=trip,
+            vehicle=trip.vehicle_id,
             captured_at=captured_at,
             defaults={
                 "gps_lat": gps_lat,

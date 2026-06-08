@@ -1,12 +1,21 @@
-from dataclasses import dataclass
-from typing import Optional
+"""Helpers used by every operator-mobile viewset.
 
-from django.db.models import Q
+The backend team replaced the textual `bin_qr` column with an `ImageField`
+holding the printed QR PNG; the QR payload encodes `{"id": "<bin.unique_id>"}`.
+So bin lookup is now keyed off the bin's `unique_id`, not the file path. We
+also support panchayat XOR ward trips and the new `BinCollectionEvent` shape
+(no operator_id / driver_id / scanned_qr / event_at — uses created_at and
+driver_latitude / driver_longitude).
+"""
+
+import json
+from dataclasses import dataclass
+
 from django.utils import timezone
 
 from app.models.assets.bins import Bins
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.transport_masters.daily_trip_collection_point import (
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.schedule_masters.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
 from app.models.user_creations.staffcreation import Staffcreation
@@ -29,6 +38,10 @@ class ScanContext:
     trip_cp: DailyTripCollectionPoint
 
 
+# ---------------------------------------------------------------------------
+# Auth resolution
+# ---------------------------------------------------------------------------
+
 def resolve_operator_staff(user) -> Staffcreation:
     if not isinstance(user, Staffcreation):
         raise OperatorFlowError(
@@ -48,20 +61,32 @@ def find_active_assignment_for_operator(staff: Staffcreation) -> DailyTripAssign
         .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
         .select_related(
             "panchayat_id",
+            "ward_id",
             "waste_type_id",
             "vehicle_id",
             "staff_template_id",
             "staff_template_id__driver_id",
             "staff_template_id__operator_id",
+            "alt_staff_template_id",
+            "alt_staff_template_id__driver_id",
+            "alt_staff_template_id__operator_id",
         )
     )
 
+    # Primary: operator listed on the active staff template
     assignment = base.filter(staff_template_id__operator_id=staff).first()
+
+    # Alternative staff template (substitution active today)
     if assignment is None:
-        # Extra-operator fallback: walk staff_templates and check JSON membership in Python
-        # (avoids SQLite-incompatible JSON __contains lookups).
+        assignment = base.filter(alt_staff_template_id__operator_id=staff).first()
+
+    # Extra-operator fallback — JSON list checked in Python so this works on
+    # both MySQL (prod) and SQLite (tests).
+    if assignment is None:
         for candidate in base:
-            extras = getattr(candidate.staff_template_id, "extra_operator_id", None) or []
+            extras = (
+                getattr(candidate.staff_template_id, "extra_operator_id", None) or []
+            )
             if staff.staff_unique_id in extras:
                 assignment = candidate
                 break
@@ -74,21 +99,69 @@ def find_active_assignment_for_operator(staff: Staffcreation) -> DailyTripAssign
     return assignment
 
 
+# ---------------------------------------------------------------------------
+# Bin QR resolution
+# ---------------------------------------------------------------------------
+
+def parse_bin_qr_payload(raw: str) -> str:
+    """Extract the bin unique_id from a scanned QR value.
+
+    Bins generate their QR via ``app.utils.bin_qr.generate_bin_qr_content`` which
+    encodes ``{"id": "<bin.unique_id>"}``. Mobile scanners hand us back that raw
+    string. We also accept the bare unique_id for manual entry / testing.
+    """
+    if not raw:
+        raise OperatorFlowError(
+            "BIN_NOT_FOUND",
+            "QR payload is empty.",
+            http_status=404,
+        )
+    value = raw.strip()
+    if value.startswith("{"):
+        try:
+            decoded = json.loads(value)
+        except ValueError:
+            raise OperatorFlowError(
+                "BIN_NOT_FOUND",
+                "QR payload is not valid JSON.",
+                http_status=404,
+            )
+        bin_id = decoded.get("id") or decoded.get("unique_id") or decoded.get("bin_id")
+        if not bin_id:
+            raise OperatorFlowError(
+                "BIN_NOT_FOUND",
+                "QR payload missing bin id field.",
+                http_status=404,
+            )
+        return str(bin_id).strip()
+    return value
+
+
 def resolve_bin_from_qr(bin_qr: str) -> Bins:
+    bin_id = parse_bin_qr_payload(bin_qr)
     bin_obj = (
         Bins.objects
-        .filter(bin_qr=bin_qr, is_deleted=False)
-        .select_related("collection_point_id", "collection_point_id__panchayat_id", "wastetype_id")
+        .filter(unique_id=bin_id, is_deleted=False)
+        .select_related(
+            "collection_point_id",
+            "collection_point_id__panchayat_id",
+            "collection_point_id__ward_id",
+            "wastetype_id",
+        )
         .first()
     )
     if not bin_obj:
         raise OperatorFlowError(
             "BIN_NOT_FOUND",
-            f"No bin found for QR '{bin_qr}'.",
+            f"No bin found for QR id '{bin_id}'.",
             http_status=404,
         )
     return bin_obj
 
+
+# ---------------------------------------------------------------------------
+# Cross-validation between bin and active assignment
+# ---------------------------------------------------------------------------
 
 def validate_bin_against_assignment(
     bin_obj: Bins, assignment: DailyTripAssignment
@@ -102,12 +175,27 @@ def validate_bin_against_assignment(
         )
 
     cp = bin_obj.collection_point_id
-    cp_panchayat_id = getattr(cp, "panchayat_id_id", None)
-    if not cp_panchayat_id or str(cp_panchayat_id) != str(assignment.panchayat_id_id):
-        raise OperatorFlowError(
-            "WRONG_PANCHAYAT",
-            "This bin is outside your assigned panchayat.",
-        )
+
+    # panchayat XOR ward — either dimension must match
+    bin_panchayat = getattr(cp, "panchayat_id_id", None)
+    bin_ward = getattr(cp, "ward_id_id", None)
+    trip_panchayat = assignment.panchayat_id_id
+    trip_ward = assignment.ward_id_id
+
+    panchayat_match = bool(
+        trip_panchayat and bin_panchayat and str(bin_panchayat) == str(trip_panchayat)
+    )
+    ward_match = bool(
+        trip_ward and bin_ward and str(bin_ward) == str(trip_ward)
+    )
+    if not (panchayat_match or ward_match):
+        if trip_panchayat:
+            msg = "This bin is outside your assigned panchayat."
+        elif trip_ward:
+            msg = "This bin is outside your assigned ward."
+        else:
+            msg = "This bin is outside your assigned service area."
+        raise OperatorFlowError("WRONG_PANCHAYAT", msg)
 
     trip_cp = (
         DailyTripCollectionPoint.objects
@@ -142,6 +230,10 @@ def build_scan_context(bin_qr: str, operator: Staffcreation) -> ScanContext:
     return ScanContext(bin=bin_obj, assignment=assignment, trip_cp=trip_cp)
 
 
+# ---------------------------------------------------------------------------
+# Progress + serializers
+# ---------------------------------------------------------------------------
+
 def progress_payload(assignment: DailyTripAssignment) -> dict:
     children = list(assignment.trip_collection_points.filter(is_deleted=False))
     total = len(children)
@@ -153,11 +245,27 @@ def progress_payload(assignment: DailyTripAssignment) -> dict:
     }
 
 
-def serialize_bin_brief(bin_obj: Bins) -> dict:
+def _bin_qr_url(bin_obj: Bins, request=None) -> str | None:
+    """Returns an absolute URL to the bin's printed QR PNG (or None)."""
+    qr = getattr(bin_obj, "bin_qr", None)
+    try:
+        url = qr.url if qr else None
+    except (ValueError, AttributeError):
+        url = None
+    if not url:
+        return None
+    if request is not None:
+        return request.build_absolute_uri(url)
+    return url
+
+
+def serialize_bin_brief(bin_obj: Bins, request=None) -> dict:
     return {
         "unique_id": bin_obj.unique_id,
         "bin_name": bin_obj.bin_name,
-        "bin_qr": bin_obj.bin_qr,
+        # Operators scan this string to identify the bin; it matches the QR payload `id`.
+        "bin_qr": bin_obj.unique_id,
+        "bin_qr_image_url": _bin_qr_url(bin_obj, request=request),
         "bin_capacity": bin_obj.bin_capacity,
         "waste_type": {
             "unique_id": bin_obj.wastetype_id_id,
@@ -190,18 +298,47 @@ def serialize_trip_cp_brief(trip_cp: DailyTripCollectionPoint) -> dict:
     }
 
 
-def serialize_assignment_brief(assignment: DailyTripAssignment) -> dict:
+def serialize_area_brief(assignment: DailyTripAssignment) -> dict:
+    """Always one and only one of panchayat / ward is set on an assignment."""
     panchayat = assignment.panchayat_id
+    ward = assignment.ward_id
+    if panchayat:
+        return {
+            "kind": "panchayat",
+            "unique_id": panchayat.unique_id,
+            "name": panchayat.panchayat_name,
+        }
+    if ward:
+        return {
+            "kind": "ward",
+            "unique_id": ward.unique_id,
+            "name": ward.ward_name,
+        }
+    return {"kind": None, "unique_id": None, "name": None}
+
+
+def serialize_assignment_brief(assignment: DailyTripAssignment) -> dict:
     waste_type = assignment.waste_type_id
     vehicle = assignment.vehicle_id
+    area = serialize_area_brief(assignment)
+    panchayat = assignment.panchayat_id
+    ward = assignment.ward_id
     return {
         "unique_id": assignment.unique_id,
         "status": assignment.status,
         "trip_date": assignment.trip_date.isoformat(),
-        "panchayat": {
-            "unique_id": panchayat.unique_id,
-            "name": panchayat.panchayat_name,
-        },
+        # Convenience copies for clients that key off one or the other.
+        "panchayat": (
+            {"unique_id": panchayat.unique_id, "name": panchayat.panchayat_name}
+            if panchayat
+            else None
+        ),
+        "ward": (
+            {"unique_id": ward.unique_id, "name": ward.ward_name}
+            if ward
+            else None
+        ),
+        "area": area,
         "waste_type": {
             "unique_id": waste_type.unique_id,
             "name": waste_type.waste_type_name,
@@ -218,6 +355,10 @@ def serialize_assignment_brief(assignment: DailyTripAssignment) -> dict:
     }
 
 
-def maybe_resolve_driver(assignment: DailyTripAssignment) -> Optional[Staffcreation]:
-    template = assignment.staff_template_id
-    return getattr(template, "driver_id", None)
+def maybe_resolve_driver(assignment: DailyTripAssignment):
+    """Resolve the driver Staffcreation, honouring alternative-template overrides."""
+    template = (
+        getattr(assignment, "alt_staff_template_id", None)
+        or assignment.staff_template_id
+    )
+    return getattr(template, "driver_id", None) if template else None

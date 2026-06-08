@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app.models.assets.weighbridge import WeighbridgeCheck
-from app.models.transport_masters.trip import Trip
+from app.models.schedule_masters.trip_plan import TripPlan
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 
@@ -8,7 +8,7 @@ class WeighbridgeCheckSerializer(TenancyReadSerializerMixin,serializers.ModelSer
 
     trip_id = serializers.SlugRelatedField(
         slug_field="unique_id",
-        queryset=Trip.objects.all()
+        queryset=TripPlan.objects.all()
     )
 
     vehicle_no = serializers.CharField(source = "trip_id.vehicle_id.vehicle_no", read_only = True)

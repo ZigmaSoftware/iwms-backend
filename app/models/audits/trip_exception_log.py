@@ -1,5 +1,5 @@
 from django.db import models
-from app.models.transport_masters.trip_instance import TripInstance
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -47,8 +47,8 @@ class TripExceptionLog(models.Model):
         editable=False,
     )
 
-    trip_instance = models.ForeignKey(
-        TripInstance,
+    daily_trip_assignment = models.ForeignKey(
+        DailyTripAssignment,
         on_delete=models.PROTECT,
         related_name="exception_logs",
         db_column="trip_instance_id",
@@ -77,11 +77,11 @@ class TripExceptionLog(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["trip_instance"]),
+            models.Index(fields=["daily_trip_assignment"]),
             models.Index(fields=["exception_type"]),
             models.Index(fields=["detected_by"]),
             models.Index(fields=["created_at"]),
         ]
 
     def __str__(self):
-        return f"{self.trip_instance_id} | {self.exception_type}"
+        return f"{self.daily_trip_assignment_id} | {self.exception_type}"
