@@ -1,109 +1,64 @@
-from django.core.exceptions import ValidationError
 from django.db import models
 
-from ..user_creations.staffcreation import Staffcreation
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+from app.models.user_creations.staffcreation import Staffcreation
 
 
 def generate_staff_template_audit_id():
-    return f"STFAUD-{generate_unique_id()}"
+    return f"STAUDIT-{generate_unique_id()}"
 
 
 class StaffTemplateAuditLog(models.Model):
-    class EntityType(models.TextChoices):
-        STAFF_TEMPLATE = "STAFF_TEMPLATE", "Staff Template"
-        ALTERNATIVE_TEMPLATE = "ALTERNATIVE_TEMPLATE", "Alternative Template"
-
     class Action(models.TextChoices):
         CREATE = "CREATE", "Create"
-        APPROVE = "APPROVE", "Approve"
         MODIFY = "MODIFY", "Modify"
         DELETE = "DELETE", "Delete"
 
     class PerformedRole(models.TextChoices):
-        SUPERVISOR = "SUPERVISOR", "Supervisor"
         ADMIN = "ADMIN", "Admin"
-        SYSTEM = "SYSTEM", "System"
+        SUPERVISOR = "SUPERVISOR", "Supervisor"
+
+    class EntityType(models.TextChoices):
+        STAFF_TEMPLATE = "STAFF_TEMPLATE", "Staff Template"
+        ALT_STAFF_TEMPLATE = "ALT_STAFF_TEMPLATE", "Alternative Staff Template"
 
     unique_id = models.CharField(
-        max_length=40,
+        max_length=60,
         primary_key=True,
         default=generate_staff_template_audit_id,
         editable=False,
     )
-
-    entity_type = models.CharField(
-        max_length=30,
-        choices=EntityType.choices,
-        help_text="STAFF_TEMPLATE or ALTERNATIVE_TEMPLATE",
-    )
-    entity_id = models.CharField(
-        max_length=100,
-        db_index=True,
-        help_text="StaffTemplate.unique_id or AlternativeStaffTemplate.unique_id",
-    )
-
-    action = models.CharField(
-        max_length=20,
-        choices=Action.choices,
-    )
-    performed_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        related_name="staff_template_audit_logs",
-        db_column="performed_by",
-        to_field="staff_unique_id",
-    )
     company_id = models.ForeignKey(
         Company,
-        on_delete=models.PROTECT,
-        related_name="staff_template_audit_logs",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         db_column="company_id",
     )
     project_id = models.ForeignKey(
         Project,
-        on_delete=models.PROTECT,
-        related_name="staff_template_audit_logs",
-        db_column="project_id",
-    )
-    performed_role = models.CharField(
-        max_length=20,
-        choices=PerformedRole.choices,
-    )
-
-    change_remarks = models.TextField(
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        db_column="project_id",
     )
+    entity_type = models.CharField(max_length=30, choices=EntityType.choices)
+    entity_id = models.CharField(max_length=60)
+    action = models.CharField(max_length=10, choices=Action.choices)
+    performed_by = models.ForeignKey(
+        Staffcreation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        to_field="staff_unique_id",
+        related_name="staff_template_audit_logs",
+    )
+    performed_role = models.CharField(max_length=15, choices=PerformedRole.choices)
+    change_remarks = models.TextField(null=True, blank=True)
     performed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = "staff_template_audit_logs"
         ordering = ["-performed_at"]
-        indexes = [
-            models.Index(fields=["entity_type", "entity_id"]),
-            models.Index(fields=["performed_by"]),
-            models.Index(fields=["performed_at"]),
-        ]
-
-    def __str__(self):
-        return f"{self.entity_type} | {self.entity_id} | {self.action}"
-
-    def clean(self):
-        if self.action == self.Action.APPROVE:
-            allowed_roles = {self.PerformedRole.ADMIN}
-        else:
-            allowed_roles = {
-                self.PerformedRole.SUPERVISOR,
-                self.PerformedRole.ADMIN,
-            }
-
-        if self.performed_role not in allowed_roles:
-            raise ValidationError(
-                {"performed_role": "Invalid role for this action."}
-            )
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        return super().save(*args, **kwargs)

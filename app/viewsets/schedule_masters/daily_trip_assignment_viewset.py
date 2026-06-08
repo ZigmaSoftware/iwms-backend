@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.db.models import Q
 
 from rest_framework import status
 from rest_framework.decorators import action
@@ -25,6 +26,10 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     queryset = DailyTripAssignment.objects.select_related(
         "trip_plan_id",
+        "trip_plan_id__zone_id",
+        "trip_plan_id__panchayat_id",
+        "trip_plan_id__ward_id",
+        "trip_plan_id__ward_id__zone_id",
         "trip_plan_id__vehicle_id",
         "trip_plan_id__waste_type_id",
         "staff_template_id",
@@ -35,6 +40,7 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         "alt_staff_template_id__operator_id",
         "panchayat_id",
         "ward_id",
+        "ward_id__zone_id",
         "waste_type_id",
         "vehicle_id",
     ).filter(is_deleted=False)
@@ -55,8 +61,10 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         params = self.request.query_params
         trip_date = params.get("date") or params.get("trip_date")
+        today_flag = params.get("today")
         panchayat = params.get("panchayat_id")
         ward = params.get("ward_id")
+        zone = params.get("zone_id")
         trip_plan = params.get("trip_plan_id")
         trip_status = params.get("status")
         waste_type = params.get("waste_type_id")
@@ -64,11 +72,20 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if trip_date:
             qs = qs.filter(trip_date=trip_date)
 
+        if today_flag and str(today_flag).lower() in ("1", "true", "yes"):
+            qs = qs.filter(trip_date=timezone.localdate())
+
         if panchayat:
             qs = qs.filter(panchayat_id=panchayat)
 
         if ward:
             qs = qs.filter(ward_id=ward)
+
+        if zone:
+            qs = qs.filter(
+                Q(ward_id__zone_id__unique_id=zone) |
+                Q(trip_plan_id__zone_id__unique_id=zone)
+            )
 
         if trip_plan:
             qs = qs.filter(trip_plan_id=trip_plan)

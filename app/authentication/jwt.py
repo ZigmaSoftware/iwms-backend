@@ -48,6 +48,10 @@ class JWTUserAuthentication(BaseAuthentication):
         # Try to find user in Staffcreation first (uses staff_unique_id)
         staff = Staffcreation.objects.filter(staff_unique_id=unique_id).first()
         if staff:
+            if not staff.login_enabled:
+                raise AuthenticationFailed("Login is disabled for this user")
+            if staff.approval_status != Staffcreation.APPROVAL_APPROVED:
+                raise AuthenticationFailed(f"User approval status is {staff.approval_status}")
             request.jwt_payload = payload
             return (staff, None)
         

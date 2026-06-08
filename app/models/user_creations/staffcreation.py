@@ -1,4 +1,5 @@
 import hashlib
+from django.conf import settings
 from django.db import models
 from app.utils.base_models import Account, BaseMaster
 from app.utils.comfun import generate_unique_id
@@ -22,6 +23,18 @@ def generate_staff_unique_id():
 
 
 class StaffcreationOfficeDetails(BaseMaster):
+    APPROVAL_PENDING = "PENDING"
+    APPROVAL_APPROVED = "APPROVED"
+    APPROVAL_REJECTED = "REJECTED"
+    APPROVAL_SUSPENDED = "SUSPENDED"
+
+    APPROVAL_STATUS_CHOICES = [
+        (APPROVAL_PENDING, "Pending"),
+        (APPROVAL_APPROVED, "Approved"),
+        (APPROVAL_REJECTED, "Rejected"),
+        (APPROVAL_SUSPENDED, "Suspended"),
+    ]
+
     staff_unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -106,12 +119,46 @@ class StaffcreationOfficeDetails(BaseMaster):
         help_text="Django auth password field"
     )
 
+    password_crt_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of last password change"
+    )
+
+    previous_password = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        help_text="Previous encrypted password for reuse prevention"
+    )
+
     is_staff = models.BooleanField(
         default=False,
         help_text="Django admin-site access flag (not a business role).",
     )
 
     is_superuser = models.BooleanField(default=False)
+
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default=APPROVAL_PENDING,
+        db_index=True,
+    )
+    login_enabled = models.BooleanField(default=False, db_index=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_staff_users",
+        db_column="approved_by",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_reason = models.TextField(null=True, blank=True)
+    failed_login_attempts = models.PositiveIntegerField(default=0)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+    last_login_ip = models.GenericIPAddressField(null=True, blank=True)
 
     # Type Links
     user_type_id = models.ForeignKey(

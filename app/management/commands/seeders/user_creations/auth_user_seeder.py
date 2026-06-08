@@ -19,18 +19,9 @@ class AuthUserSeeder(BaseSeeder):
         if not getattr(settings, "ENABLE_AUTH_USER_SEEDING", True):
             self.log("Auth user seeding skipped (ENABLE_AUTH_USER_SEEDING=False).")
             return
-        """
-        Ensure operator/driver auth users exist for the operator-mobile flow.
 
-        Seeds two driver-operator pairs so the seeder can create two staff
-        templates (wet trip + dry trip) without colliding on uniqueness.
-        Each Staffcreation row has username + password fields populated so the
-        mobile login endpoint resolves them by username, employee_name or emp_id.
-        """
         company = Company.objects.filter(is_deleted=False).first()
-        project = None
-        if company:
-            project = Project.objects.filter(company_id=company, is_deleted=False).first()
+        project = Project.objects.filter(company_id=company, is_deleted=False).first() if company else None
 
         district = District.objects.filter(is_deleted=False).first()
         city = City.objects.filter(is_deleted=False).first()
@@ -46,24 +37,37 @@ class AuthUserSeeder(BaseSeeder):
         driver_role, _ = StaffUserType.objects.get_or_create(
             name="Company Driver",
             usertype_id=staff_type,
-            defaults={"display_name": "Driver"},
+            defaults={"is_active": True, "is_deleted": False},
         )
         operator_role, _ = StaffUserType.objects.get_or_create(
             name="Company Operator",
             usertype_id=staff_type,
-            defaults={"display_name": "Operator"},
+            defaults={"is_active": True, "is_deleted": False},
         )
         approver_role, _ = StaffUserType.objects.get_or_create(
             name="Admin",
             usertype_id=staff_type,
+            defaults={"is_active": True, "is_deleted": False},
         )
 
+        # 7 driver-operator pairs + 1 approver = 15 entries
+        # Passwords: min 6 chars, uppercase + lowercase + digit
         seed_staff = [
-            ("driver_user", "driver@demo.local", "driver123", driver_role),
-            ("operator_user", "operator@demo.local", "operator123", operator_role),
-            ("driver2_user", "driver2@demo.local", "driver123", driver_role),
-            ("operator2_user", "operator2@demo.local", "operator123", operator_role),
-            ("approver_user", "approver@demo.local", "approver123", approver_role),
+            ("driver_user",   "driver1@demo.local",   "Driver123",   driver_role),
+            ("operator_user", "operator1@demo.local",  "Operator123", operator_role),
+            ("driver2_user",  "driver2@demo.local",   "Driver123",   driver_role),
+            ("operator2_user","operator2@demo.local",  "Operator123", operator_role),
+            ("driver3_user",  "driver3@demo.local",   "Driver123",   driver_role),
+            ("operator3_user","operator3@demo.local",  "Operator123", operator_role),
+            ("driver4_user",  "driver4@demo.local",   "Driver123",   driver_role),
+            ("operator4_user","operator4@demo.local",  "Operator123", operator_role),
+            ("driver5_user",  "driver5@demo.local",   "Driver123",   driver_role),
+            ("operator5_user","operator5@demo.local",  "Operator123", operator_role),
+            ("driver6_user",  "driver6@demo.local",   "Driver123",   driver_role),
+            ("operator6_user","operator6@demo.local",  "Operator123", operator_role),
+            ("driver7_user",  "driver7@demo.local",   "Driver123",   driver_role),
+            ("operator7_user","operator7@demo.local",  "Operator123", operator_role),
+            ("approver_user", "approver@demo.local",  "Approver123", approver_role),
         ]
 
         for username, email, password, role in seed_staff:
@@ -82,6 +86,8 @@ class AuthUserSeeder(BaseSeeder):
                 "ward_id": ward,
                 "is_active": True,
                 "is_deleted": False,
+                "approval_status": Staffcreation.APPROVAL_APPROVED,
+                "login_enabled": True,
             }
 
             staff = Staffcreation.objects.filter(username=username).first()
@@ -96,4 +102,4 @@ class AuthUserSeeder(BaseSeeder):
                 setattr(staff, field, value)
             staff.save()
 
-        self.log("---Auth staff users seeded (driver/operator/driver2/operator2/approver).---")
+        self.log(f"---Auth staff users seeded ({len(seed_staff)} records)---")

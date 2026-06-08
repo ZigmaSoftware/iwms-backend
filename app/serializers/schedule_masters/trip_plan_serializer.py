@@ -110,6 +110,13 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         required=False,
     )
 
+    is_auto_assign = serializers.BooleanField(required=False)
+    repeat_days = serializers.ListField(
+        child=serializers.IntegerField(min_value=0, max_value=6),
+        required=False,
+        allow_null=True,
+    )
+
     district = serializers.SerializerMethodField()
     city = serializers.SerializerMethodField()
     zone = serializers.SerializerMethodField()
@@ -159,6 +166,8 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             "trip_trigger_weight_kg",
             "max_vehicle_capacity_kg",
             "scheduled_time",
+                "is_auto_assign",
+                "repeat_days",
             "approval_status",
             "status",
             "collection_points",

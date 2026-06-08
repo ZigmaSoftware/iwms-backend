@@ -23,24 +23,10 @@ class VehicleCreationSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-
-        if not created:
-            update_fields = []
-            if obj.is_deleted:
-                obj.is_deleted = False
-                update_fields.append("is_deleted")
-            if not obj.is_active:
-                obj.is_active = True
-                update_fields.append("is_active")
-            if obj.company_id_id != company.unique_id:
-                obj.company_id = company
-                update_fields.append("company_id")
-            if obj.project_id_id != project.unique_id:
-                obj.project_id = project
-                update_fields.append("project_id")
-            if update_fields:
-                obj.save(update_fields=update_fields)
-
+        if not created and obj.is_deleted:
+            obj.is_deleted = False
+            obj.is_active = True
+            obj.save(update_fields=["is_deleted", "is_active"])
         return obj
 
     def _get_or_create_fuel(self, fuel_type):
@@ -52,12 +38,10 @@ class VehicleCreationSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-
         if not created and obj.is_deleted:
             obj.is_deleted = False
             obj.is_active = True
             obj.save(update_fields=["is_deleted", "is_active"])
-
         return obj
 
     def run(self):
@@ -69,9 +53,8 @@ class VehicleCreationSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-        project_name = f"{company.name} Main Project"
         project, _ = Project.objects.get_or_create(
-            name=project_name,
+            name=f"{company.name} Main Project",
             company_id=company,
             defaults={
                 "description": f"Default project for {company.name}",
@@ -80,90 +63,58 @@ class VehicleCreationSeeder(BaseSeeder):
             },
         )
 
-        vehicle_types = {
-            "Compactor": self._get_or_create_vehicle_type("Compactor", company, project),
-            "Tipping Truck": self._get_or_create_vehicle_type("Tipping Truck", company, project),
+        vt = {
+            t: self._get_or_create_vehicle_type(t, company, project)
+            for t in ["Compactor", "Tipping Truck", "Mini Truck", "Auto Rickshaw",
+                      "Electric Vehicle", "Garbage Van", "Hook Lift Truck",
+                      "Skip Loader", "Rear Loader"]
         }
-
-        fuels = {
-            "Diesel": self._get_or_create_fuel("Diesel"),
-            "CNG": self._get_or_create_fuel("CNG"),
+        ft = {
+            f: self._get_or_create_fuel(f)
+            for f in ["Diesel", "CNG", "Petrol", "Electric"]
         }
 
         vehicles = [
-            {
-                "vehicle_no": "TN09AB1234",
-                "vehicle_type": vehicle_types["Compactor"],
-                "fuel_type": fuels["Diesel"],
-                "capacity": "10.00",
-                "mileage_per_liter": "6.50",
-                "service_record": "Quarterly maintenance",
-                "vehicle_insurance": "ICICI Lombard",
-                "insurance_expiry_date": date(2026, 12, 31),
-                "vehicle_condition": VehicleCreation.ConditionChoices.NEW,
-                "fuel_tank_capacity": "150.00",
-            },
-            {
-                "vehicle_no": "TN10CD5678",
-                "vehicle_type": vehicle_types["Tipping Truck"],
-                "fuel_type": fuels["CNG"],
-                "capacity": "8.50",
-                "mileage_per_liter": "7.25",
-                "service_record": "Bi-annual maintenance",
-                "vehicle_insurance": "Bajaj Allianz",
-                "insurance_expiry_date": date(2026, 10, 15),
-                "vehicle_condition": VehicleCreation.ConditionChoices.SECOND_HAND,
-                "fuel_tank_capacity": "120.00",
-            },
-            {
-                "vehicle_no": "WET-VEHICLE-01",
-                "vehicle_type": vehicle_types["Compactor"],
-                "fuel_type": fuels["Diesel"],
-                "capacity": "1000.00",
-                "mileage_per_liter": "6.00",
-                "service_record": "Wet waste collection vehicle",
-                "vehicle_insurance": "ICICI Lombard",
-                "insurance_expiry_date": date(2026, 12, 31),
-                "vehicle_condition": VehicleCreation.ConditionChoices.NEW,
-                "fuel_tank_capacity": "120.00",
-            },
-            {
-                "vehicle_no": "DRY-VEHICLE-01",
-                "vehicle_type": vehicle_types["Tipping Truck"],
-                "fuel_type": fuels["Diesel"],
-                "capacity": "1000.00",
-                "mileage_per_liter": "6.20",
-                "service_record": "Dry waste collection vehicle",
-                "vehicle_insurance": "ICICI Lombard",
-                "insurance_expiry_date": date(2026, 12, 31),
-                "vehicle_condition": VehicleCreation.ConditionChoices.NEW,
-                "fuel_tank_capacity": "120.00",
-            },
+            # (vehicle_no, vtype, fuel, capacity, mileage, service, insurance, expiry, condition, tank)
+            ("TN09AB1234",     "Compactor",       "Diesel",   "10.00", "6.50",  "Quarterly maintenance",    "ICICI Lombard",  date(2026,12,31), VehicleCreation.ConditionChoices.NEW,         "150.00"),
+            ("TN10CD5678",     "Tipping Truck",   "CNG",      "8.50",  "7.25",  "Bi-annual maintenance",    "Bajaj Allianz",  date(2026,10,15), VehicleCreation.ConditionChoices.SECOND_HAND, "120.00"),
+            ("WET-VEHICLE-01", "Compactor",       "Diesel",   "1000.00","6.00", "Wet waste vehicle",        "ICICI Lombard",  date(2026,12,31), VehicleCreation.ConditionChoices.NEW,         "120.00"),
+            ("DRY-VEHICLE-01", "Tipping Truck",   "Diesel",   "1000.00","6.20", "Dry waste vehicle",        "ICICI Lombard",  date(2026,12,31), VehicleCreation.ConditionChoices.NEW,         "120.00"),
+            ("TN11EF9012",     "Mini Truck",      "Petrol",   "5.00",  "12.00", "Monthly check",            "New India",      date(2026,8,31),  VehicleCreation.ConditionChoices.NEW,         "60.00"),
+            ("TN12GH3456",     "Auto Rickshaw",   "CNG",      "1.50",  "20.00", "Weekly inspection",        "Star Health",    date(2026,6,30),  VehicleCreation.ConditionChoices.NEW,         "30.00"),
+            ("TN13IJ7890",     "Electric Vehicle","Electric", "4.00",  "0.00",  "Monthly battery check",    "HDFC Ergo",      date(2027,1,31),  VehicleCreation.ConditionChoices.NEW,         "0.00"),
+            ("TN14KL2345",     "Garbage Van",     "Diesel",   "6.00",  "8.00",  "Quarterly service",        "Oriental Ins",   date(2026,9,30),  VehicleCreation.ConditionChoices.SECOND_HAND, "80.00"),
+            ("TN15MN6789",     "Hook Lift Truck", "Diesel",   "12.00", "5.50",  "Semi-annual service",      "United India",   date(2026,11,30), VehicleCreation.ConditionChoices.NEW,         "180.00"),
+            ("TN16OP1234",     "Skip Loader",     "Diesel",   "9.00",  "6.00",  "Quarterly maintenance",    "ICICI Lombard",  date(2026,12,31), VehicleCreation.ConditionChoices.NEW,         "140.00"),
+            ("TN17QR5678",     "Rear Loader",     "CNG",      "7.00",  "7.00",  "Monthly service",          "Bajaj Allianz",  date(2026,10,31), VehicleCreation.ConditionChoices.NEW,         "110.00"),
+            ("TN18ST9012",     "Compactor",       "Diesel",   "11.00", "6.20",  "Quarterly maintenance",    "New India",      date(2026,7,31),  VehicleCreation.ConditionChoices.SECOND_HAND, "160.00"),
+            ("TN19UV3456",     "Tipping Truck",   "Diesel",   "9.50",  "6.80",  "Bi-annual maintenance",    "Star Health",    date(2026,9,30),  VehicleCreation.ConditionChoices.NEW,         "130.00"),
+            ("TN20WX7890",     "Garbage Van",     "CNG",      "5.50",  "9.00",  "Monthly check",            "HDFC Ergo",      date(2027,3,31),  VehicleCreation.ConditionChoices.NEW,         "90.00"),
+            ("TN21YZ2345",     "Mini Truck",      "Diesel",   "4.50",  "10.00", "Quarterly service",        "Oriental Ins",   date(2026,5,31),  VehicleCreation.ConditionChoices.SECOND_HAND, "70.00"),
         ]
 
-        for entry in vehicles:
+        for (vno, vtype, fuel, cap, mil, svc, ins, expiry, cond, tank) in vehicles:
             obj, created = VehicleCreation.objects.get_or_create(
-                vehicle_no=entry["vehicle_no"],
+                vehicle_no=vno,
                 defaults={
-                    "vehicle_type": entry["vehicle_type"],
-                    "fuel_type": entry["fuel_type"],
+                    "vehicle_type": vt[vtype],
+                    "fuel_type": ft[fuel],
                     "company_id": company,
                     "project_id": project,
-                    "capacity": entry["capacity"],
-                    "mileage_per_liter": entry["mileage_per_liter"],
-                    "service_record": entry["service_record"],
-                    "vehicle_insurance": entry["vehicle_insurance"],
-                    "insurance_expiry_date": entry["insurance_expiry_date"],
-                    "vehicle_condition": entry["vehicle_condition"],
-                    "fuel_tank_capacity": entry["fuel_tank_capacity"],
+                    "capacity": cap,
+                    "mileage_per_liter": mil,
+                    "service_record": svc,
+                    "vehicle_insurance": ins,
+                    "insurance_expiry_date": expiry,
+                    "vehicle_condition": cond,
+                    "fuel_tank_capacity": tank,
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
-
             if not created and obj.is_deleted:
                 obj.is_deleted = False
                 obj.is_active = True
                 obj.save(update_fields=["is_deleted", "is_active"])
 
-        self.log("---Vehicle creation seeded---")
+        self.log(f"---Vehicle creation seeded ({len(vehicles)} records)---")

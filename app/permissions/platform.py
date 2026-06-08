@@ -16,6 +16,12 @@ class PlatformSuperAdminOnly(BasePermission):
         )
 
 
+class SuperAdminApprovalPermission(PlatformSuperAdminOnly):
+    """Allow only platform super admins to change user login approval state."""
+
+    message = "Only Super Admin can change user approval status"
+
+
 class CompanyAdminOnly(BasePermission):
     """Allow only company staff users with staff_usertype=admin."""
 

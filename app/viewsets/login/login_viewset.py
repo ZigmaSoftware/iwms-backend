@@ -5,10 +5,18 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import AccessToken
+from django.utils import timezone
 
 from app.models.user_creations.loginAudit import LoginAudit
 from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.login.login_serializer import LoginSerializer
+
+
+def _client_ip(request):
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
 
 
 class LoginViewSet(ViewSet):
@@ -17,6 +25,7 @@ class LoginViewSet(ViewSet):
     def create(self, request):
         login_identifier = request.data.get("username", "").strip()
         login_password = request.data.get("password", "").strip()
+        ip_address = getattr(request, "ip_address", None) or _client_ip(request)
 
         serializer = LoginSerializer(data=request.data)
 
@@ -30,7 +39,7 @@ class LoginViewSet(ViewSet):
                 user_unique_id=None,
                 username=login_identifier,
                 password=login_password,
-                ip_address=getattr(request, "ip_address", ""),
+                ip_address=ip_address or "",
                 user_agent=getattr(request, "user_agent", ""),
                 success=False,
                 reason="Invalid credentials"
@@ -49,6 +58,7 @@ class LoginViewSet(ViewSet):
         user_type = serializer.validated_data.get("user_type", "staff")
         profile_object = serializer.validated_data.get("profile_object")
         company_unique_id = serializer.validated_data.get("company_unique_id")
+        password_expired = serializer.validated_data.get("password_expired", False)
         staffusertype_unique_id = serializer.validated_data.get("staffusertype_id")
         contractorusertype_unique_id = serializer.validated_data.get("contractorusertype_id")
         projects = serializer.validated_data.get("projects", [])
@@ -131,6 +141,16 @@ class LoginViewSet(ViewSet):
         else:
             company_name = None
 
+        # Resolve company logo relative URL (e.g. /media/company_logos/xxx.jpg)
+        company_logo_url = None
+        if company:
+            logo_field = getattr(company, "company_logo", None)
+            if logo_field and getattr(logo_field, "name", None):
+                try:
+                    company_logo_url = logo_field.url
+                except Exception:
+                    company_logo_url = None
+
         profile_payload = {
             "user_type": user_type,
             "unique_id": user_unique_id,
@@ -139,6 +159,7 @@ class LoginViewSet(ViewSet):
             "email": email,
             "company_unique_id": company_unique_id,
             "company_name": company_name,
+            "company_logo": company_logo_url,
         }
 
         if user_type == "staff":
@@ -216,6 +237,21 @@ class LoginViewSet(ViewSet):
 
         token = str(access)
 
+        if user_type in ["staff", "contractor"]:
+            staff_for_login = profile_object or user
+            if isinstance(staff_for_login, Staffcreation):
+                staff_for_login.failed_login_attempts = 0
+                staff_for_login.last_login_at = timezone.now()
+                staff_for_login.last_login_ip = ip_address
+                staff_for_login.save(
+                    update_fields=[
+                        "failed_login_attempts",
+                        "last_login_at",
+                        "last_login_ip",
+                        "updated_at",
+                    ]
+                )
+
         # -------------------------
         # LOGIN SUCCESS AUDIT 
         # -------------------------
@@ -223,7 +259,7 @@ class LoginViewSet(ViewSet):
             user_unique_id=user_unique_id,
             username=login_identifier,  
             password=login_password,
-            ip_address=getattr(request, "ip_address", ""),
+            ip_address=ip_address or "",
             user_agent=getattr(request, "user_agent", ""),
             success=True,
             reason=None
@@ -253,6 +289,7 @@ class LoginViewSet(ViewSet):
                 "company_name": company_name,
                 "projects": projects,
                 "profile": profile_payload,
+                "password_expired": password_expired,
             },
             status=status.HTTP_200_OK
         )

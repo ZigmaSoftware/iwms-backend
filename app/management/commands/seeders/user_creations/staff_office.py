@@ -1,4 +1,4 @@
-from django.contrib.auth.hashers import make_password
+from django.utils import timezone
 
 from app.models.masters.department import Department
 from app.models.masters.designation import Designation
@@ -11,9 +11,10 @@ from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.user_creations.staffcreation import Staffcreation
+from app.utils.password_encryption import encrypt_password
 
 
-DEFAULT_STAFF_PASSWORD = "Staff@123"
+DEFAULT_STAFF_PASSWORD = "Staff123"
 
 
 def _get_dept(company, project, code):
@@ -88,23 +89,24 @@ class StaffOfficeSeeder:
         desg_operator    = _get_desg(company, project, "Operator", dept_ops)
         desg_supervisor  = _get_desg(company, project, "Operations Supervisor", dept_ops)
 
+        # Passwords: min 6 chars, at least 1 uppercase + 1 lowercase + 1 digit
         staff_passwords = {
-            "Sathya":   "Sathya@123",
-            "Gokul":    "Gokul@123",
-            "Arjun":    "Arjun@123",
-            "Vikram":   "Vikram@123",
-            "Karan":    "Karan@123",
-            "Suresh":   "Suresh@123",
-            "Mani":     "Mani@123",
-            "Rahul":    "Rahul@123",
-            "Prakash":  "Prakash@123",
-            "Deepak":   "Deepak@123",
-            "Naveen":   "Naveen@123",
-            "Santhosh": "Santhosh@123",
-            "Ajay":     "Ajay@123",
-            "Anita":    "Anita@123",
-            "Kumar":    "Kumar@123",
-            "Priya":    "Priya@123",
+            "Sathya":   "Sathya1",
+            "Gokul":    "Gokul12",
+            "Arjun":    "Arjun12",
+            "Vikram":   "Vikram1",
+            "Karan":    "Karan12",
+            "Suresh":   "Suresh1",
+            "Mani":     "Mani123",
+            "Rahul":    "Rahul12",
+            "Prakash":  "Prakash1",
+            "Deepak":   "Deepak1",
+            "Naveen":   "Naveen1",
+            "Santhosh": "Santhosh1",
+            "Ajay":     "Ajay123",
+            "Anita":    "Anita12",
+            "Kumar":    "Kumar12",
+            "Priya":    "Priya12",
         }
 
         def make_entry(name, dept_obj, desg_obj, dept_name_txt, desg_name_txt, role, grade, site, salary="Monthly"):
@@ -126,6 +128,8 @@ class StaffOfficeSeeder:
                 "ward_id": ward,
                 "user_type_id": staff_type,
                 "staffusertype_id": role,
+                "approval_status": Staffcreation.APPROVAL_APPROVED,
+                "login_enabled": True,
                 "password": staff_passwords.get(name, DEFAULT_STAFF_PASSWORD),
             }
 
@@ -148,9 +152,10 @@ class StaffOfficeSeeder:
             make_entry("Priya",  dept_field, desg_supervisor, "Field Operations",       "Operations Supervisor",role_supervisor, "A", "Depot-3"),
         ]
 
+        now = timezone.now()
         for staff_data in staff_list:
             raw_password = staff_data.pop("password", None) or DEFAULT_STAFF_PASSWORD
-            hashed_password = make_password(raw_password)
+            encrypted_password = encrypt_password(raw_password)
 
             staff = Staffcreation.objects.filter(employee_name=staff_data["employee_name"]).first()
 
@@ -161,14 +166,15 @@ class StaffOfficeSeeder:
                 created = False
             else:
                 staff = Staffcreation(**staff_data)
-                if hashed_password:
-                    staff.password = hashed_password
+                staff.password = encrypted_password
+                staff.password_crt_date = now
                 staff.save()
                 created = True
 
-            if hashed_password and (created or not staff.password):
-                staff.password = hashed_password
-                staff.save(update_fields=["password"])
+            if not staff.password or created:
+                staff.password = encrypted_password
+                staff.password_crt_date = now
+                staff.save(update_fields=["password", "password_crt_date"])
 
             action = "Created" if created else "Updated"
             print(f"  Staff '{staff.employee_name}' ({action})")

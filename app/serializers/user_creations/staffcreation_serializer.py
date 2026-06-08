@@ -7,7 +7,15 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
 
-from django.contrib.auth.hashers import make_password
+from app.utils.password_encryption import encrypt_password, decrypt_password
+
+
+class StaffApprovalActionSerializer(serializers.Serializer):
+    rejected_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
 
 
 class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -24,7 +32,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     password = serializers.CharField(
     required=False,
     allow_blank=True,
-    # write_only=True
+    allow_null=True,
 )
 
     staffusertype_name = serializers.CharField(
@@ -226,14 +234,41 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "staffusertype_name",
             "contractorusertype_id",
             "contractorusertype_name",
+            "approval_status",
+            "login_enabled",
+            "approved_by",
+            "approved_at",
+            "rejected_reason",
+            "failed_login_attempts",
+            "last_login_at",
+            "last_login_ip",
 
+            "password_crt_date",
             "created_at",
             "updated_at",
             "is_active",
             "is_deleted",
         ]
 
-        read_only_fields = ["unique_id", "qr_code", "created_at", "updated_at"]
+        read_only_fields = [
+            "unique_id",
+            "qr_code",
+            "approval_status",
+            "approved_by",
+            "approved_at",
+            "rejected_reason",
+            "failed_login_attempts",
+            "last_login_at",
+            "last_login_ip",
+            "password_crt_date",
+            "created_at",
+            "updated_at",
+        ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['password'] = decrypt_password(instance.password or "")
+        return data
 
     # --------------------------------------------------
     # Helpers
@@ -257,7 +292,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
         password = validated_data.get("password")
         if password:
-            validated_data["password"] = make_password(password)
+            validated_data["password"] = encrypt_password(password)
 
 
         validated_data["is_active"] = True
@@ -290,7 +325,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
         password = validated_data.get("password")
         if password:
-            validated_data["password"] = make_password(password)
+            validated_data["password"] = encrypt_password(password)
 
         staffusertype = validated_data.get("staffusertype_id")
         if staffusertype and staffusertype.usertype_id:
