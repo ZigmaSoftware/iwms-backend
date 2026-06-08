@@ -47,3 +47,35 @@ def test_designation_master_permission_matches_designations_route():
         "Designation",
         "designations",
     ) == ["add", "delete", "edit", "show", "view"]
+
+
+def test_contractor_usertype_permission_matches_contractorusertypes_route():
+    middleware = ModulePermissionMiddleware(lambda request: None)
+    permissions = {
+        "contractorusertypes": ["view", "add", "edit", "delete"],
+    }
+
+    assert _resource_is_allowed("role-assigns", "ContractorUserType", "contractorusertypes")
+    assert middleware._resolve_allowed_actions(
+        permissions,
+        "ContractorUserType",
+        "contractorusertypes",
+    ) == ["view", "add", "edit", "delete"]
+
+
+def test_staff_template_creation_permission_matches_staff_templates_route():
+    middleware = ModulePermissionMiddleware(lambda request: None)
+    permissions = {
+        "staff-templates": ["view", "add", "edit", "delete"],
+    }
+
+    assert _resource_is_allowed(
+        "schedule-masters",
+        "StaffTemplateCreation",
+        "staff-templates",
+    )
+    assert middleware._resolve_allowed_actions(
+        permissions,
+        "StaffTemplateCreation",
+        "staff-templates",
+    ) == ["view", "add", "edit", "delete"]

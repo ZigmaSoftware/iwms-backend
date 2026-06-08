@@ -108,6 +108,7 @@ MODULE_RESOURCE_ALLOWLIST = {
     "role-assigns": {
         "UserType",
         "StaffUserType",
+        "ContractorUserType",
     },
     "user-creations": {
         "UsersCreation",
@@ -139,7 +140,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Fuel",
     },
     "schedule-masters": {
-        "StaffTemplate",
+        "StaffTemplateCreation",
         "AlternativeStaffTemplate",
         "CollectionPoint",
         "TripPlan",
@@ -148,6 +149,8 @@ MODULE_RESOURCE_ALLOWLIST = {
         "DailyTripCollectionPoint",
         "BinCollectionEvent",
         "DailyTripLog",
+        "DailyWasteComparison",
+        "MonthlyWasteComparisonReport",
     },
     "audits": {
         "VehicleTripAudit",
@@ -173,6 +176,7 @@ RESOURCE_PERMISSION_ALIASES = {
     "Bin": ("bins",),
     "Department": ("departments", "department-masters"),
     "Designation": ("designations", "designation-masters"),
+    "StaffTemplateCreation": ("StaffTemplate", "staff-templates"),
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),
     "column-permissions": ("CompanyUserScreenPermission",),
 }

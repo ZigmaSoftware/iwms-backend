@@ -31,6 +31,11 @@ class ContractorUserTypeSerializer(TenancyReadSerializerMixin, serializers.Model
 
         return usertype_obj
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["name"] = instance.get_name_display()
+        return data
+
     def validate(self, attrs):
         if self.instance and "name" not in attrs:
             return attrs

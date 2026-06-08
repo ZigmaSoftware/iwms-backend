@@ -11,6 +11,7 @@ from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 
 from app.models.superadmin_masters.project import Project
 from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
+from app.utils.password_encryption import decrypt_password
 
 PASSWORD_EXPIRY_DAYS = 90
 
@@ -39,6 +40,9 @@ class LoginSerializer(serializers.Serializer):
         try:
             identify_hasher(stored_password)
         except ValueError:
+            decrypted_password = decrypt_password(stored_password)
+            if decrypted_password:
+                return raw_password == decrypted_password
             return raw_password == stored_password
         return check_password(raw_password, stored_password)
 

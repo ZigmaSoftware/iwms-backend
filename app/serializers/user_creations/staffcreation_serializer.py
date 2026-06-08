@@ -352,7 +352,9 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             personal_instance.save()
         else:
             if hasattr(staff, "personal_details"):
-                staff.personal_details.staff_unique_id = staff.staff_unique_id
-                staff.personal_details.save(update_fields=["staff_unique_id"])
+                personal_details = staff.personal_details
+                if personal_details.staff_unique_id != staff.staff_unique_id:
+                    personal_details.staff_unique_id = staff.staff_unique_id
+                    personal_details.save()
 
         return staff
