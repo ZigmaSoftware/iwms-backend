@@ -118,6 +118,8 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
     qr_code = serializers.ImageField(read_only=True)
 
     password = serializers.CharField(write_only=True, required=False)
+    password_crt_date = serializers.DateTimeField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = CustomerCreation
@@ -157,6 +159,8 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "username",
             "email",
             "password",
+            "password_crt_date",
+            "created_at",
             "is_deleted",
             "is_active",
             "ward_name",
@@ -171,7 +175,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "is_bulkwaste_generator",
             "qr_code",
         ]
-        read_only_fields = ["unique_id"]
+        read_only_fields = ["unique_id", "password_crt_date", "created_at"]
         validators = []
 
 
