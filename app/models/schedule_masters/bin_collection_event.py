@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.collection_point import Collection_point
@@ -110,6 +111,11 @@ class BinCollectionEvent(BaseMaster):
 
 
     collected_weight_kg = models.DecimalField(max_digits=10, decimal_places=2)
+    collection_date = models.DateField(
+        default=timezone.localdate,
+        db_index=True,
+        help_text="Date on which this bin collection was performed.",
+    )
     
     driver_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     driver_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -119,9 +125,10 @@ class BinCollectionEvent(BaseMaster):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-collection_date", "-created_at"]
         indexes = [
             models.Index(fields=["trip_assignment_id", "created_at"]),
+            models.Index(fields=["collection_date"]),
             # models.Index(fields=["operator_id", "created_at"]),
             # models.Index(fields=["panchayat_id", "created_at"]),
         ]

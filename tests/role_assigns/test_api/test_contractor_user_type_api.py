@@ -21,6 +21,23 @@ class TestContractorUserTypeAPIList:
         resp = auth_client.get(BASE)
         assert resp.status_code == 200
 
+    def test_list_returns_display_name_for_contractor_roles(
+        self,
+        auth_client,
+        contractor_user_type,
+    ):
+        ContractorUserType.objects.create(
+            name="contractor_admin",
+            usertype_id=contractor_user_type,
+        )
+        resp = auth_client.get(BASE)
+
+        assert resp.status_code == 200
+        assert any(
+            item["name"] == "Contractor Admin"
+            for item in resp.data
+        )
+
 
 @pytest.mark.django_db
 class TestContractorUserTypeAPICreate:
@@ -39,6 +56,7 @@ class TestContractorUserTypeAPIRetrieve:
         cut = ContractorUserType.objects.create(name="contractor_supervisor", usertype_id=contractor_user_type)
         resp = auth_client.get(f"{BASE}{cut.unique_id}/")
         assert resp.status_code == 200
+        assert resp.data["name"] == "Contractor Supervisor"
 
 
 @pytest.mark.django_db
