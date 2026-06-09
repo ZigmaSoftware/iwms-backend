@@ -99,8 +99,20 @@ class MyTripTodaySerializer(serializers.Serializer):
     area = serializers.SerializerMethodField()
     waste_type = _WasteTypeBriefSerializer(source="waste_type_id")
     vehicle = _VehicleBriefSerializer(source="vehicle_id", allow_null=True)
+    trip_plan = serializers.SerializerMethodField()
     progress = serializers.SerializerMethodField()
     collection_points = serializers.SerializerMethodField()
+
+    def get_trip_plan(self, obj):
+        # Lets the driver app link its generated route plan back to the trip
+        # plan (parent_route_plan_id), matching the trip-history detail payload.
+        plan = obj.trip_plan_id
+        if not plan:
+            return None
+        return {
+            "unique_id": plan.unique_id,
+            "display_code": plan.display_code,
+        }
 
     def get_panchayat(self, obj):
         p = obj.panchayat_id

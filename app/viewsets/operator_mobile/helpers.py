@@ -52,10 +52,9 @@ def resolve_operator_staff(user) -> Staffcreation:
     return user
 
 
-def find_active_assignment_for_operator(staff: Staffcreation) -> DailyTripAssignment:
+def _today_assignment_base():
     today = timezone.localdate()
-
-    base = (
+    return (
         DailyTripAssignment.objects
         .filter(trip_date=today, is_deleted=False)
         .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
@@ -71,7 +70,17 @@ def find_active_assignment_for_operator(staff: Staffcreation) -> DailyTripAssign
             "alt_staff_template_id__driver_id",
             "alt_staff_template_id__operator_id",
         )
+        # Deterministic ordering is what keeps the operator and the driver on
+        # the SAME trip when a template has more than one assignment today.
+        # Both resolvers query this identical base, so a stable order means
+        # `.first()` returns the same row for both roles. Earliest scheduled
+        # trip first; unique_id breaks ties so the choice never flip-flops.
+        .order_by("scheduled_time", "unique_id")
     )
+
+
+def find_active_assignment_for_operator(staff: Staffcreation) -> DailyTripAssignment:
+    base = _today_assignment_base()
 
     # Primary: operator listed on the active staff template
     assignment = base.filter(staff_template_id__operator_id=staff).first()
@@ -97,6 +106,37 @@ def find_active_assignment_for_operator(staff: Staffcreation) -> DailyTripAssign
             "No trip is assigned to you for today.",
         )
     return assignment
+
+
+def find_active_assignment_for_driver(staff: Staffcreation) -> DailyTripAssignment:
+    base = _today_assignment_base()
+
+    # Primary: driver listed on the active staff template
+    assignment = base.filter(staff_template_id__driver_id=staff).first()
+
+    # Alternative staff template (substitution active today)
+    if assignment is None:
+        assignment = base.filter(alt_staff_template_id__driver_id=staff).first()
+
+    if not assignment:
+        raise OperatorFlowError(
+            "NO_ACTIVE_TRIP",
+            "No trip is assigned to you for today.",
+        )
+    return assignment
+
+
+def _is_driver_role(staff: Staffcreation) -> bool:
+    role_obj = getattr(staff, "staffusertype_id", None)
+    role_name = (getattr(role_obj, "name", "") or "").lower()
+    return "driver" in role_name
+
+
+def find_active_assignment_for_staff(staff: Staffcreation) -> DailyTripAssignment:
+    """Resolve today's active trip for either a driver or an operator."""
+    if _is_driver_role(staff):
+        return find_active_assignment_for_driver(staff)
+    return find_active_assignment_for_operator(staff)
 
 
 # ---------------------------------------------------------------------------

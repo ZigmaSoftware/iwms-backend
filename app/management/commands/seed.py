@@ -54,6 +54,7 @@ from app.management.commands.seeders.schedule_masters.daily_trip_assignment impo
 from app.management.commands.seeders.schedule_masters.daily_trip_collection_point import DailyTripCollectionPointSeeder
 from app.management.commands.seeders.schedule_masters.daily_trip_log import DailyTripLogSeeder
 from app.management.commands.seeders.schedule_masters.bin_collection_event import BinCollectionEventSeeder
+from app.management.commands.seeders.schedule_masters.shared_demo_trip import SharedDemoTripSeeder
 
 # screen-managements (router: screen-managements/...)
 from app.management.commands.seeders.screen_managements import PERMISSION_SEEDERS
@@ -145,6 +146,9 @@ SCHEDULE_MASTERS_SEEDERS = [
     DailyTripLogSeeder,             # 8. daily-trip-logs
     TripAttendanceSeeder,
     BinCollectionEventSeeder,       # 9. bin-collection-events
+    # Canonical shared trip for driver_user + operator_user. Runs LAST so its
+    # CP reset is the final word and the demo trip starts clean & uncollected.
+    SharedDemoTripSeeder,
 ]
 
 SCREEN_MANAGEMENTS_SEEDERS = [
@@ -215,6 +219,7 @@ SEED_GROUPS = {
     # Single-seeder shortcuts
     "bin-collection-events": [BinCollectionEventSeeder],
     "trip-logs":          [DailyTripLogSeeder],
+    "shared-demo-trip":   [SharedDemoTripSeeder],
 }
 
 # ============================================================

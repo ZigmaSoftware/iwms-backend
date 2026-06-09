@@ -1,4 +1,5 @@
 from app.management.commands.seeders.base import BaseSeeder
+from django.utils import timezone
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
@@ -32,6 +33,7 @@ class BinCollectionEventSeeder(BaseSeeder):
     name = "bin_collection_event"
 
     def run(self):
+        today = timezone.localdate()
         company = Company.objects.filter(name="IWMS").first()
         project = (
             Project.objects.filter(name=f"{company.name} Main Project").first()
@@ -51,6 +53,7 @@ class BinCollectionEventSeeder(BaseSeeder):
                 trip_assignment_id__project_id=project,
                 is_deleted=False,
             )
+            .exclude(trip_assignment_id__trip_date=today)
             .exclude(
                 # Skip any DTCP that already has a BCE (OneToOneField enforces uniqueness)
                 unique_id__in=BinCollectionEvent.objects.values_list(
@@ -90,6 +93,7 @@ class BinCollectionEventSeeder(BaseSeeder):
                 is_collected=False,
                 is_deleted=False,
             )
+            .exclude(trip_assignment_id__trip_date=today)
             .select_related("bin_id")
         )
         for tcp in orphan_tcps:
