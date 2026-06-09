@@ -259,6 +259,15 @@ CACHES = {
 AUTH_USER_MODEL = "app.User"
 
 MY_API_KEY = os.getenv("MY_API_KEY", "abc123")
+ORS_API_KEY = os.getenv("ORS_API_KEY", "")
+ORS_OPTIMIZATION_URL = os.getenv(
+    "ORS_OPTIMIZATION_URL",
+    "https://api.openrouteservice.org/optimization",
+)
+ORS_DIRECTIONS_URL = os.getenv(
+    "ORS_DIRECTIONS_URL",
+    "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+)
 
 # -------------------------------------------------------
 # Email / SMTP
