@@ -4,6 +4,9 @@ from django.utils import timezone
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.ward import Ward
+from app.models.masters.zone import Zone
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.user_creations.staffcreation import Staffcreation
@@ -17,13 +20,17 @@ def generate_daily_trip_cp_id():
 
 class DailyTripCollectionPoint(BaseMaster):
     STATUS_PENDING = "Pending"
+    STATUS_IN_PROGRESS = "In Progress"
     STATUS_COLLECTED = "Collected"
     STATUS_SKIPPED = "Skipped"
+    STATUS_MISSED = "Missed"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
+        (STATUS_IN_PROGRESS, "In Progress"),
         (STATUS_COLLECTED, "Collected"),
         (STATUS_SKIPPED, "Skipped"),
+        (STATUS_MISSED, "Missed"),
     ]
 
     unique_id = models.CharField(
@@ -64,6 +71,30 @@ class DailyTripCollectionPoint(BaseMaster):
         db_column="collection_point_id",
         to_field="unique_id",
         related_name="daily_trip_cps",
+    )
+    zone_id = models.ForeignKey(
+        Zone,
+        on_delete=models.PROTECT,
+        related_name="daily_trip_collection_points",
+        db_column="zone_id",
+        null=True,
+        blank=True,
+    )
+    ward_id = models.ForeignKey(
+        Ward,
+        on_delete=models.PROTECT,
+        related_name="daily_trip_collection_points",
+        db_column="ward_id",
+        null=True,
+        blank=True,
+    )
+    panchayat_id = models.ForeignKey(
+        Panchayat,
+        on_delete=models.PROTECT,
+        related_name="daily_trip_collection_points",
+        db_column="panchayat_id",
+        null=True,
+        blank=True,
     )
 
     bin_id = models.ForeignKey(
@@ -122,6 +153,15 @@ class DailyTripCollectionPoint(BaseMaster):
             assignment = self.trip_assignment_id
             self.company_id = assignment.company_id
             self.project_id = assignment.project_id
+        if self.collection_point_id_id:
+            collection_point = self.collection_point_id
+            self.panchayat_id = collection_point.panchayat_id
+            self.ward_id = collection_point.ward_id
+            self.zone_id = (
+                collection_point.ward_id.zone_id
+                if collection_point.ward_id_id
+                else None
+            )
         super().save(*args, **kwargs)
 
     def __str__(self):

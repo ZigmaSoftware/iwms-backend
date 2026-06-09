@@ -41,6 +41,9 @@ class TripPlanCollectionPointSerializer(
             "trip_plan_id",
             "collection_point_id",
             "collection_point",
+            "zone_id",
+            "ward_id",
+            "panchayat_id",
             "bin_id",
             "bin",
             "sequence",
@@ -55,6 +58,9 @@ class TripPlanCollectionPointSerializer(
             "company_name",
             "project_id",
             "project_name",
+            "zone_id",
+            "ward_id",
+            "panchayat_id",
             "created_at",
             "updated_at",
         ]
@@ -70,7 +76,11 @@ class TripPlanCollectionPointSerializer(
             "latitude": cp.latitude,
             "longitude": cp.longitude,
             "panchayat_id": getattr(cp.panchayat_id, "unique_id", None),
+            "panchayat_name": getattr(cp.panchayat_id, "panchayat_name", None),
             "ward_id": getattr(cp.ward_id, "unique_id", None),
+            "ward_name": getattr(cp.ward_id, "ward_name", None),
+            "zone_id": getattr(getattr(cp.ward_id, "zone_id", None), "unique_id", None),
+            "zone_name": getattr(getattr(cp.ward_id, "zone_id", None), "zone_name", None),
         }
 
     def get_bin(self, obj):
