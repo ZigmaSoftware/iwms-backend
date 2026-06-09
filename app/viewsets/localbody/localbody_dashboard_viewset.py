@@ -82,14 +82,10 @@ class LocalBodyDashboardViewSet(ViewSet):
         month          = request.query_params.get("month", "")
         sort           = request.query_params.get("sort", "absolute").lower()
 
-        # Base queryset: this panchayat, confirmed logs only
+        # Base queryset: this panchayat, all non-deleted logs
         base_qs = DailyTripLog.objects.filter(
             panchayat_id=panchayat_uid,
             is_deleted=False,
-            log_status__in=[
-                DailyTripLog.LOG_STATUS_SUBMITTED,
-                DailyTripLog.LOG_STATUS_VERIFIED,
-            ],
         ).select_related("waste_type_id", "collection_point_id")
 
         monthly_data = self._monthly_report(base_qs, panchayat, month, sort)
@@ -299,7 +295,6 @@ class LocalBodyDashboardViewSet(ViewSet):
                 "collected_weight_kg",
                 "panchayat_id__agreed_weight_kg",
                 "log_status",
-                "total_trips",
                 "collection_point_id",
             )
             .order_by("-trip_date")[:300]
@@ -319,7 +314,7 @@ class LocalBodyDashboardViewSet(ViewSet):
                 "variance_kg":                 float(_r(var)),
                 "variance_percent":            float(_var_pct(actual_kg, agreed_kg)),
                 "report_status":               _status(actual_kg, agreed_kg),
-                "total_trips":                 int(r["total_trips"] or 1),
+                "total_trips":                 1,
                 "collection_points_covered":   1 if r["collection_point_id"] else 0,
             })
 
