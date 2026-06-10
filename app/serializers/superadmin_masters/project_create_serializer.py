@@ -31,6 +31,8 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
             "company_unique_id",
             "name",
             "description",
+            "gps_api_url",
+            "weighment_api_url",
             "admin_username",
             "admin_password",
             "admin_employee_name",
@@ -154,6 +156,8 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
             company_id=company,
             name=validated_data["name"],
             description=validated_data.get("description"),
+            gps_api_url=validated_data.get("gps_api_url"),
+            weighment_api_url=validated_data.get("weighment_api_url"),
             is_active=True,
             is_deleted=False,
         )
@@ -204,6 +208,8 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
             "company_name",
             "name",
             "description",
+            "gps_api_url",
+            "weighment_api_url",
             "is_active",
         ]
         read_only_fields = ["unique_id", "company_unique_id", "company_name"]
@@ -227,6 +233,8 @@ class ProjectSerializer(serializers.ModelSerializer):
             "company_name",
             "name",
             "description",
+            "gps_api_url",
+            "weighment_api_url",
             "is_active",
         ]
         read_only_fields = ["unique_id", "company_unique_id", "company_name", "is_active"]

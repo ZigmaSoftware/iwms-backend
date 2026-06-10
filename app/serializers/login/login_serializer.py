@@ -192,10 +192,10 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Staff record has no company assigned")
         
         projects_queryset = Project.objects.filter(
-        company_id=company,
-        is_active=True,
-        is_deleted=False
-    ).values("unique_id", "name")
+            company_id=company,
+            is_active=True,
+            is_deleted=False,
+        ).values("unique_id", "name", "gps_api_url", "weighment_api_url")
 
         projects = list(projects_queryset)
 
