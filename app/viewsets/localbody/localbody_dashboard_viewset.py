@@ -82,14 +82,10 @@ class LocalBodyDashboardViewSet(ViewSet):
         month          = request.query_params.get("month", "")
         sort           = request.query_params.get("sort", "absolute").lower()
 
-        # Base queryset: this panchayat, confirmed logs only
+        # Base queryset: this panchayat, all non-deleted logs
         base_qs = DailyTripLog.objects.filter(
             panchayat_id=panchayat_uid,
             is_deleted=False,
-            log_status__in=[
-                DailyTripLog.LOG_STATUS_SUBMITTED,
-                DailyTripLog.LOG_STATUS_VERIFIED,
-            ],
         ).select_related("waste_type_id", "collection_point_id")
 
         monthly_data = self._monthly_report(base_qs, panchayat, month, sort)
