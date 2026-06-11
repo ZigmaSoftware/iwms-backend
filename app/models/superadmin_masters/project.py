@@ -27,6 +27,8 @@ class Project(BaseMaster):
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
+    gps_api_url = models.URLField(max_length=500, blank=True, null=True)
+    weighment_api_url = models.URLField(max_length=500, blank=True, null=True)
 
     class Meta:
         ordering = ["name"]
