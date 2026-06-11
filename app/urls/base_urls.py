@@ -26,6 +26,9 @@ from ..viewsets.masters.areatype_viewset import AreaTypeViewSet
 from ..viewsets.masters.hierarchy_viewset import AdministrativeHierarchyViewSet
 from ..viewsets.masters.department_viewset import DepartmentViewSet
 from ..viewsets.masters.designation_viewset import DesignationViewSet
+from ..viewsets.masters.municipality_viewset import MunicipalityViewSet
+from ..viewsets.masters.town_panchayat_viewset import TownPanchayatViewSet
+from ..viewsets.masters.block_panchayat_union_viewset import BlockPanchayatUnionViewSet
 
 # Waste types
 from ..viewsets.waste_types.property_viewset import PropertyViewSet
@@ -155,6 +158,9 @@ router.register_group("masters", "areatypes",         AreaTypeViewSet)
 router.register_group("masters", "hierarchy",         AdministrativeHierarchyViewSet)
 router.register_group("masters", "departments",       DepartmentViewSet)
 router.register_group("masters", "designations",      DesignationViewSet)
+router.register_group("masters", "municipalities",          MunicipalityViewSet)
+router.register_group("masters", "town-panchayats",         TownPanchayatViewSet)
+router.register_group("masters", "block-panchayat-unions",  BlockPanchayatUnionViewSet)
 
 # ============================================================
 # GROUP: Waste-Type
