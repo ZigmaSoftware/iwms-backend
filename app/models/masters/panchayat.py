@@ -8,6 +8,7 @@ from app.models.masters.district import District
 from app.models.common_masters.state import State
 from app.models.masters.hierarchy import AdministrativeHierarchy
 from app.models.masters.areatype import AreaType
+from app.models.masters.block_panchayat_union import BlockPanchayatUnion
 
 def generate_panchayat_id():
     return f"PANCHAYAT-{generate_unique_id()}"
@@ -111,6 +112,15 @@ class Panchayat(BaseMaster):
     )
     latitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
+
+    block_id = models.ForeignKey(
+        BlockPanchayatUnion,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="panchayats",
+        db_column="block_id",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
