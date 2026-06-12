@@ -2,6 +2,7 @@ from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.customers.wastecollection import WasteCollection
 from app.models.customers.customercreation import CustomerCreation
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 
 
 class CustomerField(serializers.SlugRelatedField):
@@ -41,6 +42,17 @@ class WasteCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     state_name = serializers.CharField(source="customer.state.name", read_only=True)
     country_name = serializers.CharField(source="customer.country.name", read_only=True)
     customer_name = serializers.CharField(source="customer.customer_name", read_only=True)
+    panchayat_name = serializers.CharField(source="customer.panchayat_id.panchayat_name", read_only=True, default=None)
+
+    trip_assignment_id = serializers.SlugRelatedField(
+        slug_field="unique_id",
+        queryset=DailyTripAssignment.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    trip_assignment_display = serializers.CharField(
+        source="trip_assignment_id.unique_id", read_only=True, default=None
+    )
 
     class Meta:
         model = WasteCollection

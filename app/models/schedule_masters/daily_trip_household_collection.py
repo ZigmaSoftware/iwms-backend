@@ -1,33 +1,37 @@
 from django.db import models
 from django.utils import timezone
 
-from app.models.assets.bins import Bins
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.customers.customercreation import CustomerCreation
+from app.models.customers.wastecollection import WasteCollection
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.user_creations.staffcreation import Staffcreation
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
 
-def generate_daily_trip_cp_id():
-    return f"DTCP-{generate_unique_id(length=10)}"
+def generate_dthc_id():
+    return f"DTHC-{generate_unique_id(length=10)}"
 
 
-class DailyTripCollectionPoint(BaseMaster):
+class DailyTripHouseholdCollection(BaseMaster):
+    """One row per household stop within a daily trip assignment.
+
+    Created automatically (via signal) when a DailyTripAssignment is saved,
+    mirroring every household_collection stop from the linked TripPlan.
+    Marked collected when the corresponding WasteCollection record is saved.
+    """
+
     STATUS_PENDING = "Pending"
-    STATUS_IN_PROGRESS = "In Progress"
     STATUS_COLLECTED = "Collected"
     STATUS_SKIPPED = "Skipped"
     STATUS_MISSED = "Missed"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
-        (STATUS_IN_PROGRESS, "In Progress"),
         (STATUS_COLLECTED, "Collected"),
         (STATUS_SKIPPED, "Skipped"),
         (STATUS_MISSED, "Missed"),
@@ -36,14 +40,14 @@ class DailyTripCollectionPoint(BaseMaster):
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
-        default=generate_daily_trip_cp_id,
+        default=generate_dthc_id,
         editable=False,
     )
 
     company_id = models.ForeignKey(
         Company,
         on_delete=models.PROTECT,
-        related_name="daily_trip_collection_points",
+        related_name="daily_trip_household_collections",
         db_column="company_id",
         null=True,
         blank=True,
@@ -51,7 +55,7 @@ class DailyTripCollectionPoint(BaseMaster):
     project_id = models.ForeignKey(
         Project,
         on_delete=models.PROTECT,
-        related_name="daily_trip_collection_points",
+        related_name="daily_trip_household_collections",
         db_column="project_id",
         null=True,
         blank=True,
@@ -62,20 +66,31 @@ class DailyTripCollectionPoint(BaseMaster):
         on_delete=models.CASCADE,
         db_column="trip_assignment_id",
         to_field="unique_id",
-        related_name="trip_collection_points",
+        related_name="trip_household_collections",
     )
 
-    collection_point_id = models.ForeignKey(
-        Collection_point,
+    customer_id = models.ForeignKey(
+        CustomerCreation,
         on_delete=models.PROTECT,
-        db_column="collection_point_id",
+        db_column="customer_id",
         to_field="unique_id",
-        related_name="daily_trip_cps",
+        related_name="daily_trip_household_collections",
     )
+
+    # Filled when the WasteCollection record is saved for this customer + trip
+    waste_collection_id = models.ForeignKey(
+        WasteCollection,
+        on_delete=models.SET_NULL,
+        db_column="waste_collection_id",
+        related_name="daily_trip_household_collections",
+        null=True,
+        blank=True,
+    )
+
     zone_id = models.ForeignKey(
         Zone,
         on_delete=models.PROTECT,
-        related_name="daily_trip_collection_points",
+        related_name="daily_trip_household_collections",
         db_column="zone_id",
         null=True,
         blank=True,
@@ -83,7 +98,7 @@ class DailyTripCollectionPoint(BaseMaster):
     ward_id = models.ForeignKey(
         Ward,
         on_delete=models.PROTECT,
-        related_name="daily_trip_collection_points",
+        related_name="daily_trip_household_collections",
         db_column="ward_id",
         null=True,
         blank=True,
@@ -91,38 +106,22 @@ class DailyTripCollectionPoint(BaseMaster):
     panchayat_id = models.ForeignKey(
         Panchayat,
         on_delete=models.PROTECT,
-        related_name="daily_trip_collection_points",
+        related_name="daily_trip_household_collections",
         db_column="panchayat_id",
         null=True,
         blank=True,
     )
 
-    bin_id = models.ForeignKey(
-        Bins,
-        on_delete=models.PROTECT,
-        db_column="bin_id",
-        to_field="unique_id",
-        related_name="daily_trip_cps",
-    )
-
     sequence = models.PositiveIntegerField(default=1)
-    
+
     is_collected = models.BooleanField(default=False, db_index=True)
     collected_at = models.DateTimeField(null=True, blank=True)
-    collected_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        db_column="collected_by",
-        to_field="staff_unique_id",
-        related_name="collected_trip_cps",
-        null=True,
-        blank=True,
-    )
     collected_weight_kg = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         null=True,
         blank=True,
+        help_text="Copied from WasteCollection.total_quantity when marked collected.",
     )
 
     status = models.CharField(
@@ -143,8 +142,8 @@ class DailyTripCollectionPoint(BaseMaster):
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=["trip_assignment_id", "collection_point_id"],
-                name="uniq_trip_cp_per_assignment",
+                fields=["trip_assignment_id", "customer_id"],
+                name="uniq_household_per_trip_assignment",
             ),
         ]
 
@@ -153,32 +152,29 @@ class DailyTripCollectionPoint(BaseMaster):
             assignment = self.trip_assignment_id
             self.company_id = assignment.company_id
             self.project_id = assignment.project_id
-        if self.collection_point_id_id:
-            collection_point = self.collection_point_id
-            self.panchayat_id = collection_point.panchayat_id
-            self.ward_id = collection_point.ward_id
-            self.zone_id = (
-                collection_point.ward_id.zone_id
-                if collection_point.ward_id_id
-                else None
-            )
+        # Denormalise location from customer
+        if self.customer_id_id and not self.panchayat_id_id:
+            customer = self.customer_id
+            self.panchayat_id = getattr(customer, "panchayat_id", None)
+            self.ward_id = getattr(customer, "ward_id", None)
+            self.zone_id = getattr(customer, "zone_id", None)
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.trip_assignment_id_id}:{self.collection_point_id_id}"
+        return f"{self.trip_assignment_id_id}:customer:{self.customer_id_id}"
 
-    def mark_collected(self, weight_kg, collected_by, collected_at=None):
-        self.collected_weight_kg = weight_kg
-        self.collected_by = collected_by
+    def mark_collected(self, waste_collection, collected_at=None):
+        from decimal import Decimal
+        self.waste_collection_id = waste_collection
+        self.collected_weight_kg = Decimal(str(waste_collection.total_quantity or 0))
         self.collected_at = collected_at or timezone.now()
         self.is_collected = True
         self.status = self.STATUS_COLLECTED
         self.save(update_fields=[
+            "waste_collection_id",
             "collected_weight_kg",
-            "collected_by",
             "collected_at",
             "is_collected",
             "status",
             "updated_at",
         ])
-        self.trip_assignment_id.mark_completed_if_all_cps_collected()

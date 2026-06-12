@@ -142,6 +142,13 @@ class DailyTripLog(BaseMaster):
         blank=True,
         help_text="Auto-computed as the sum of all BinCollectionEvent weights for this trip.",
     )
+    household_collected_weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Auto-computed as the sum of all WasteCollection totals linked to this trip.",
+    )
 
     vehicle_id = models.ForeignKey(
         VehicleCreation,
@@ -227,6 +234,27 @@ class DailyTripLog(BaseMaster):
         elif getattr(assignment, "trip_plan_id", None):
             self.vehicle_id = assignment.trip_plan_id.vehicle_id
 
+    def sync_from_household_collections(self):
+        """Aggregate household waste weight from WasteCollection records for this trip.
+
+        Mirrors sync_from_bin_collection_events() — only overrides when records exist
+        so that manually-entered values are preserved when no WasteCollections are linked.
+        """
+        from app.models.customers.wastecollection import WasteCollection
+
+        records = WasteCollection.objects.filter(
+            trip_assignment_id=self.trip_assignment_id_id,
+            is_deleted=False,
+        )
+        if not records.exists():
+            return
+
+        total = records.aggregate(total=Sum("total_quantity"))["total"]
+        self.household_collected_weight_kg = Decimal(str(total or 0))
+        DailyTripLog.objects.filter(pk=self.pk).update(
+            household_collected_weight_kg=self.household_collected_weight_kg,
+        )
+
     def sync_from_bin_collection_events(self):
         """Aggregate total collected weight from BinCollectionEvent records for this trip.
 
@@ -267,9 +295,12 @@ class DailyTripLog(BaseMaster):
                 raise ValidationError("Verified trip logs are read-only.")
 
         if self.log_status != self.LOG_STATUS_DRAFT:
-            if not self.collected_weight_kg or self.collected_weight_kg <= 0:
+            bin_weight = self.collected_weight_kg or Decimal("0")
+            household_weight = self.household_collected_weight_kg or Decimal("0")
+            if bin_weight <= 0 and household_weight <= 0:
                 raise ValidationError(
-                    "collected_weight_kg must be greater than 0 before submitting."
+                    "Either collected_weight_kg or household_collected_weight_kg must be "
+                    "greater than 0 before submitting."
                 )
 
         vehicle_capacity = getattr(self.vehicle_id, "capacity", None)
@@ -290,6 +321,7 @@ class DailyTripLog(BaseMaster):
         super().save(*args, **kwargs)
 
         self.sync_from_bin_collection_events()
+        self.sync_from_household_collections()
 
         if self.log_status in {self.LOG_STATUS_SUBMITTED, self.LOG_STATUS_VERIFIED}:
             assignment = self.trip_assignment_id

@@ -139,6 +139,7 @@ class PermissionSeeder(BaseSeeder):
                 "trip-plan-collection-points",
                 "daily-trip-assignments",
                 "daily-trip-collection-points",
+                "daily-trip-household-collections",
                 "bin-collection-events",
                 "daily-trip-logs",
                 "monthly-waste-comparison",

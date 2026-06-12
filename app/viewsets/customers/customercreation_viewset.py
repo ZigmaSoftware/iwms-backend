@@ -137,12 +137,20 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         company_id = self.request.query_params.get("company_id")
         project_id = self.request.query_params.get("project_id")
+        zone_id = self.request.query_params.get("zone_id")
+        ward_id = self.request.query_params.get("ward_id")
+        panchayat_id = self.request.query_params.get("panchayat_id")
 
         if company_id:
             queryset = queryset.filter(company_id__unique_id=company_id)
-
         if project_id:
             queryset = queryset.filter(project_id__unique_id=project_id)
+        if panchayat_id:
+            queryset = queryset.filter(panchayat_id__unique_id=panchayat_id)
+        elif ward_id:
+            queryset = queryset.filter(ward__unique_id=ward_id)
+        elif zone_id:
+            queryset = queryset.filter(zone__unique_id=zone_id)
 
         return queryset
     

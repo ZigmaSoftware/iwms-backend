@@ -8,6 +8,10 @@ __pycache__/
 # === Django Migrations ===
 **/migrations/
 !**/migrations/__init__.py
+!app/migrations/
+app/migrations/*
+app/migrations/__init__.py
+!app/migrations/0007_dailytripcollectionpoint_panchayat_id_and_more.py
 
 # Specifically ignore your API app migrations
 api/migrations/

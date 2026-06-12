@@ -6,13 +6,13 @@ from app.validators.unique_name_validator import unique_name_validator
 
 class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    state_name = serializers.CharField(source="state_id.name", read_only = True)
-    city_name = serializers.CharField(source="city_id.name", read_only = True)
-    district_name = serializers.CharField(source="district_id.name", read_only = True)
-    area_type_name = serializers.CharField(source = "area_type_id.name", read_only = True)
-    hierarchy_order = serializers.IntegerField(source = "hierarchy_id.hierarchy_order", read_only = True)
-    hierarchy_name = serializers.CharField(source = "hierarchy_id.level_name", read_only = True)
-    
+    state_name = serializers.CharField(source="state_id.name", read_only=True)
+    city_name = serializers.CharField(source="city_id.name", read_only=True)
+    district_name = serializers.CharField(source="district_id.name", read_only=True)
+    area_type_name = serializers.CharField(source="area_type_id.name", read_only=True)
+    hierarchy_order = serializers.IntegerField(source="hierarchy_id.hierarchy_order", read_only=True)
+    hierarchy_name = serializers.CharField(source="hierarchy_id.level_name", read_only=True)
+    block_name = serializers.CharField(source="block_id.block_name", read_only=True)
 
     class Meta:
         model = Panchayat
@@ -28,6 +28,8 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
             "city_name",
             "district_id",
             "district_name",
+            "block_id",
+            "block_name",
             "area_type_id",
             "area_type_name",
             "hierarchy_id",
@@ -45,7 +47,7 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
             "updated_at",
             "created_by",
             "updated_by",
-            "is_deleted"
+            "is_deleted",
         ]
         read_only_fields = [
             "unique_id",

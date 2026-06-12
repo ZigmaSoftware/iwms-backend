@@ -55,6 +55,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     bins = serializers.SerializerMethodField(read_only=True)
     verified_by_name = serializers.SerializerMethodField(read_only=True)
     collection_status = serializers.SerializerMethodField(read_only=True)
+    household_collections = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = DailyTripLog
@@ -87,6 +88,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "extra_operator_ids",
             "extra_operators",
             "collected_weight_kg",
+            "household_collected_weight_kg",
             "vehicle_id",
             "vehicle",
             "bin_ids",
@@ -97,6 +99,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "verified_by_name",
             "verified_at",
             "collection_status",
+            "household_collections",
             "created_by",
             "created_at",
             "updated_at",
@@ -195,21 +198,60 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         ]
 
     def get_collection_status(self, obj):
+        from app.models.schedule_masters.daily_trip_household_collection import (
+            DailyTripHouseholdCollection,
+        )
         assignment = obj.trip_assignment_id
         if not assignment:
             return "Not Started"
-        cps = [
-            cp for cp in assignment.trip_collection_points.all()
-            if not cp.is_deleted
-        ]
-        if not cps:
+        bin_stops = [cp for cp in assignment.trip_collection_points.all() if not cp.is_deleted]
+        hh_stops = list(
+            DailyTripHouseholdCollection.objects.filter(
+                trip_assignment_id=assignment, is_deleted=False
+            )
+        )
+        total = len(bin_stops) + len(hh_stops)
+        if total == 0:
             return "Not Started"
-        collected = sum(1 for cp in cps if cp.is_collected)
+        collected = (
+            sum(1 for cp in bin_stops if cp.is_collected)
+            + sum(1 for hh in hh_stops if hh.is_collected)
+        )
         if collected == 0:
             return "Not Started"
-        if collected == len(cps):
+        if collected == total:
             return "Completed"
         return "In Progress"
+
+    def get_household_collections(self, obj):
+        from app.models.schedule_masters.daily_trip_household_collection import (
+            DailyTripHouseholdCollection,
+        )
+        assignment = obj.trip_assignment_id
+        if not assignment:
+            return []
+        hh_list = (
+            DailyTripHouseholdCollection.objects
+            .filter(trip_assignment_id=assignment, is_deleted=False)
+            .select_related("customer_id")
+            .order_by("sequence")
+        )
+        result = []
+        for hh in hh_list:
+            customer = hh.customer_id
+            result.append({
+                "unique_id": hh.unique_id,
+                "sequence": hh.sequence,
+                "customer_name": getattr(customer, "customer_name", None) if customer else None,
+                "customer_unique_id": getattr(customer, "unique_id", None) if customer else None,
+                "is_collected": hh.is_collected,
+                "collected_weight_kg": (
+                    str(hh.collected_weight_kg) if hh.collected_weight_kg is not None else None
+                ),
+                "collected_at": hh.collected_at.isoformat() if hh.collected_at else None,
+                "status": hh.status,
+            })
+        return result
 
     def get_panchayat(self, obj):
         p = obj.panchayat_id

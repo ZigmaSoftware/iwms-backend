@@ -23,7 +23,13 @@ class TripPlanCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "project_id",
                 "trip_plan_id",
                 "collection_point_id",
+                "zone_id",
+                "ward_id",
+                "panchayat_id",
                 "bin_id",
+                "customer_id",
+                "customer_id__ward",
+                "customer_id__zone",
             )
             .filter(is_deleted=False)
         )
@@ -33,6 +39,10 @@ class TripPlanCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         company = params.get("company_id")
         project = params.get("project_id")
         collection_point = params.get("collection_point_id")
+        zone = params.get("zone_id")
+        ward = params.get("ward_id")
+        panchayat = params.get("panchayat_id")
+        collection_type = params.get("collection_type")
 
         if trip_plan:
             queryset = queryset.filter(trip_plan_id__unique_id=trip_plan)
@@ -42,5 +52,13 @@ class TripPlanCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             queryset = queryset.filter(project_id__unique_id=project)
         if collection_point:
             queryset = queryset.filter(collection_point_id__unique_id=collection_point)
+        if zone:
+            queryset = queryset.filter(zone_id__unique_id=zone)
+        if ward:
+            queryset = queryset.filter(ward_id__unique_id=ward)
+        if panchayat:
+            queryset = queryset.filter(panchayat_id__unique_id=panchayat)
+        if collection_type:
+            queryset = queryset.filter(collection_type=collection_type)
 
         return queryset

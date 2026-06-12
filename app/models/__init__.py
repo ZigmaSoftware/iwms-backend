@@ -21,6 +21,9 @@ from .masters.ward import Ward
 from .masters.department import Department
 from .masters.designation import Designation
 from .masters.panchayat_leader_login import PanchayatLeaderLogin
+from .masters.municipality import Municipality
+from .masters.town_panchayat import TownPanchayat
+from .masters.block_panchayat_union import BlockPanchayatUnion
 
 
 # ============================================================
@@ -130,6 +133,7 @@ from .transport_masters.trip_attendance import TripAttendance
 from .schedule_masters.daily_trip_assignment import DailyTripAssignment
 from .schedule_masters.daily_trip_log import DailyTripLog
 from .schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+from .schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
 from .schedule_masters.bin_collection_event import BinCollectionEvent
 
 
@@ -150,6 +154,9 @@ __all__ = [
     "Department",
     "Designation",
     "PanchayatLeaderLogin",
+    "Municipality",
+    "TownPanchayat",
+    "BlockPanchayatUnion",
 
     # Assets
     "Fuel",
@@ -224,5 +231,6 @@ __all__ = [
     "DailyTripAssignment",
     "DailyTripLog",
     "DailyTripCollectionPoint",
+    "DailyTripHouseholdCollection",
     "BinCollectionEvent",
 ]
