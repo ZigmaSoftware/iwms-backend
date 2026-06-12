@@ -249,25 +249,35 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         stops = obj.plan_collection_points.filter(is_deleted=False).select_related(
             "collection_point_id",
             "bin_id",
+            "customer_id",
         )
-        return [
-            {
+        result = []
+        for stop in stops:
+            cp = stop.collection_point_id
+            bin_obj = stop.bin_id
+            customer = stop.customer_id
+            result.append({
                 "unique_id": stop.unique_id,
+                "collection_type": stop.collection_type,
                 "collection_point_id": stop.collection_point_id_id,
                 "collection_point": {
-                    "unique_id": stop.collection_point_id.unique_id,
-                    "cp_name": stop.collection_point_id.cp_name,
-                },
+                    "unique_id": cp.unique_id,
+                    "cp_name": cp.cp_name,
+                } if cp else None,
                 "bin_id": stop.bin_id_id,
                 "bin": {
-                    "unique_id": stop.bin_id.unique_id,
-                    "bin_name": stop.bin_id.bin_name,
-                },
+                    "unique_id": bin_obj.unique_id,
+                    "bin_name": bin_obj.bin_name,
+                } if bin_obj else None,
+                "customer_id": stop.customer_id_id,
+                "customer": {
+                    "unique_id": customer.unique_id,
+                    "customer_name": customer.customer_name,
+                } if customer else None,
                 "sequence": stop.sequence,
                 "is_active": stop.is_active,
-            }
-            for stop in stops
-        ]
+            })
+        return result
 
     def validate(self, attrs):
         attrs.pop("company_id_input", None)

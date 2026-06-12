@@ -147,6 +147,13 @@ class DailyTripAssignment(BaseMaster):
         related_name="daily_trip_assignments",
     )
 
+    # Multiple waste types for household collection stops on this trip
+    household_waste_type_ids = models.ManyToManyField(
+        WasteType,
+        related_name="household_trip_assignments",
+        blank=True,
+    )
+
     # ------------------------------------------------------------------
     # VEHICLE (explicit for operator-mobile flow)
     # ------------------------------------------------------------------

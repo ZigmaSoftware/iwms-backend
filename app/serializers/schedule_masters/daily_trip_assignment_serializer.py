@@ -58,6 +58,13 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         required=False,
         allow_null=True,
     )
+    household_waste_type_ids = serializers.SlugRelatedField(
+        slug_field="unique_id",
+        queryset=WasteType.objects.filter(is_deleted=False),
+        many=True,
+        required=False,
+    )
+    household_waste_types = serializers.SerializerMethodField(read_only=True)
     vehicle_id = UniqueIdOrPkField(
         slug_field="unique_id",
         queryset=VehicleCreation.objects.filter(is_deleted=False),
@@ -81,6 +88,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     zone = serializers.SerializerMethodField(read_only=True)
     waste_type = serializers.SerializerMethodField(read_only=True)
     vehicle = serializers.SerializerMethodField(read_only=True)
+    collection_types = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = DailyTripAssignment
@@ -97,6 +105,8 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "panchayat_id",
             "ward_id",
             "waste_type_id",
+            "household_waste_type_ids",
+            "household_waste_types",
             "vehicle_id",
             "alt_staff_template_id",
             "trip_plan",
@@ -107,6 +117,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "zone",
             "waste_type",
             "vehicle",
+            "collection_types",
             "trip_date",
             "scheduled_time",
             "actual_start_time",
@@ -127,9 +138,13 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         ]
 
     def get_trip_plan(self, obj):
+        from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
         plan = obj.trip_plan_id
         if not plan:
             return None
+        stop_types = list(
+            plan.plan_collection_points.filter(is_deleted=False).values_list("collection_type", flat=True)
+        )
         return {
             "unique_id": plan.unique_id,
             "display_code": plan.display_code,
@@ -139,6 +154,8 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "ward": self._ward_payload(getattr(plan, "ward_id", None)),
             "vehicle_no": getattr(getattr(plan, "vehicle_id", None), "vehicle_no", None),
             "waste_type_name": getattr(getattr(plan, "waste_type_id", None), "waste_type_name", None),
+            "has_bin": TripPlanCollectionPoint.COLLECTION_TYPE_BIN in stop_types,
+            "has_household": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD in stop_types,
         }
 
     def get_staff_template(self, obj):
@@ -221,6 +238,23 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         if not vehicle:
             return None
         return {"unique_id": vehicle.unique_id, "vehicle_no": vehicle.vehicle_no}
+
+    def get_household_waste_types(self, obj):
+        return [
+            {"unique_id": wt.unique_id, "waste_type_name": getattr(wt, "waste_type_name", None)}
+            for wt in obj.household_waste_type_ids.all()
+        ]
+
+    def get_collection_types(self, obj):
+        from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
+        plan = obj.trip_plan_id
+        if not plan:
+            return {"has_bin": False, "has_household": False}
+        stops = plan.plan_collection_points.filter(is_deleted=False).values_list("collection_type", flat=True)
+        return {
+            "has_bin": TripPlanCollectionPoint.COLLECTION_TYPE_BIN in stops,
+            "has_household": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD in stops,
+        }
 
     def validate(self, attrs):
         attrs.pop("company_id_input", None)
