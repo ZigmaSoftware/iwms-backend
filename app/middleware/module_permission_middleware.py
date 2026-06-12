@@ -47,6 +47,10 @@ AUTH_ONLY_SUFFIXES = (
     "waste/",
     "attendance-list/",
     "localbody/",        # panchayat leader portal — auth only, no module permission check
+    # Supervisor mobile reads — self-scoped / company-scoped at the viewset
+    # level. The zone-map me/ action and assignment list power the supervisor
+    # app; write/approval actions remain role-gated inside the viewsets.
+    "user-creations/supervisor-zone-map/",
 )
 
 AUTH_ONLY_PREFIXES = tuple(
@@ -58,6 +62,20 @@ AUTH_ONLY_PREFIXES = tuple(
 PLATFORM_PREFIXES = (
     "/api/platform/",
 )
+
+# Resources a supervisor may VIEW from the mobile app without an explicit
+# per-screen permission grant (read-only oversight). Keyed by ViewSet
+# permission_resource.
+SUPERVISOR_READONLY_RESOURCES = {
+    "DailyTripAssignment",
+    "SupervisorZoneMap",
+}
+
+
+def _is_supervisor_user(user):
+    role_obj = getattr(user, "staffusertype_id", None)
+    role_name = (getattr(role_obj, "name", "") or "").lower()
+    return "supervisor" in role_name
 
 PUBLIC_PREFIXES = (
     "/media/",
@@ -412,6 +430,14 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         action = HTTP_ACTION_MAP.get(request.method)
         if not action:
             return JsonResponse({"detail": "Invalid HTTP method"}, status=405)
+
+        # Supervisor mobile app is read-only this phase: allow supervisors to
+        # VIEW the resources that power their dashboard/trips/review screens
+        # without requiring an explicit per-screen permission grant. Writes and
+        # the approval action remain role-gated inside the viewsets.
+        if action == "view" and _is_supervisor_user(request.user):
+            if permission_resource in SUPERVISOR_READONLY_RESOURCES:
+                return None
 
         permissions = _resolve_permissions_for_request(request)
         permission_module = MODULE_PERMISSION_ALIASES.get(module, module)

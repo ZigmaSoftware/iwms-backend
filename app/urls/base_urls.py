@@ -57,6 +57,7 @@ from ..viewsets.role_assigns.contractorusertype_viewset import ContractorUserTyp
 from ..viewsets.user_creations.staff_viewset import StaffViewSet
 from ..viewsets.user_creations.staffcreation_viewset import StaffcreationViewset
 from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
+from ..viewsets.user_creations.supervisor_zone_map_viewset import SupervisorZoneMapViewSet
 
 # Authentication
 from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
@@ -192,6 +193,7 @@ router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeV
 # ============================================================
 router.register_group("user-creations", "users-creation",  StaffViewSet)
 router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
+router.register_group("user-creations", "supervisor-zone-map", SupervisorZoneMapViewSet)
 
 # ============================================================
 # GROUP: AUTHENTICATION
