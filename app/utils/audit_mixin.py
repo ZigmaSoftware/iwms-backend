@@ -55,6 +55,14 @@ class AuditViewSetMixin:
             else:
                 data[field.name] = value
 
+        # M2M fields — convert to list of unique_ids (or PKs as fallback)
+        for field in instance._meta.many_to_many:
+            related_qs = getattr(instance, field.name).all()
+            data[field.name] = [
+                getattr(obj, "unique_id", None) or str(obj.pk)
+                for obj in related_qs
+            ]
+
         return data
 
     def log_audit(self, request, instance=None, previous_data=None, new_data=None):

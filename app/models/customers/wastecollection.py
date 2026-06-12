@@ -1,6 +1,7 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.models.customers.customercreation import CustomerCreation
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -41,6 +42,17 @@ class WasteCollection(BaseMaster):
         related_name="waste_collections"
     )
 
+    # Optional link to the trip assignment that triggered this collection
+    trip_assignment_id = models.ForeignKey(
+        DailyTripAssignment,
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        related_name="waste_collections",
+        db_column="trip_assignment_id",
+        null=True,
+        blank=True,
+    )
+
     #  Waste details
     wet_waste = models.FloatField(default=0.0)
     dry_waste = models.FloatField(default=0.0)
@@ -62,7 +74,8 @@ class WasteCollection(BaseMaster):
         ward = self.customer.ward.ward_name if self.customer and self.customer.ward else ""
         zone = self.customer.zone.zone_name if self.customer and self.customer.zone else ""
         city = self.customer.city.city_name if self.customer and self.customer.city else ""
-        return f"{customer_name} - {ward or zone or city}"
+        panchayat = self.customer.panchayat.panchayat_name if self.customer and self.customer.panchayat else ""
+        return f"{customer_name} - {ward or zone or city} - {panchayat}"
 
     def save(self, *args, **kwargs):
         """Auto-calculate total before save."""

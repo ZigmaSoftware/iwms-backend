@@ -3,13 +3,19 @@ Daily Waste Comparison — computed live from DailyTripLog.
 
 Data source: DailyTripLog (Submitted + Verified logs only)
   actual_weight_kg  = Sum(collected_weight_kg) per (date, panchayat, waste_type)
+                      OR household_collected_weight_kg when source=household
+                      OR both combined when source=all
   agreed_weight_kg  = Panchayat.agreed_weight_kg (daily contract target)
   total_trips       = Count of trip logs in the group
   points_covered    = Count of distinct collection_point_id in the group
+
+Query params:
+  source  bin (default) | household | all
 """
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, F, ExpressionWrapper, DecimalField, Value
+from django.db.models.functions import Coalesce
 from rest_framework.response import Response
 
 from app.models.schedule_masters.daily_trip_log import DailyTripLog
@@ -115,7 +121,32 @@ class DailyWasteComparisonViewSet(CompanyScopedViewSet):
         if waste_type_param:
             queryset = queryset.filter(waste_type_id=waste_type_param)
 
+        # ── choose weight source ─────────────────────────────────────────
+        source = request.query_params.get("source", "bin").lower()
+        if source == "household":
+            weight_field = "household_collected_weight_kg"
+        elif source == "all":
+            weight_field = None  # handled below with combined expression
+        else:
+            weight_field = "collected_weight_kg"
+
         # ── aggregate by (trip_date, panchayat, waste_type) ─────────────
+        annotation_kwargs = {
+            "total_trips": Count("unique_id"),
+            "collection_points_covered": Count("collection_point_id", distinct=True),
+        }
+        if weight_field:
+            annotation_kwargs["total_actual_weight"] = Sum(weight_field)
+        else:
+            # source=all: sum both bin and household weight
+            annotation_kwargs["total_actual_weight"] = Sum(
+                ExpressionWrapper(
+                    Coalesce(F("collected_weight_kg"), Value(0, output_field=DecimalField()))
+                    + Coalesce(F("household_collected_weight_kg"), Value(0, output_field=DecimalField())),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            )
+
         grouped_qs = queryset.values(
             "trip_date",
             "panchayat_id",
@@ -127,11 +158,7 @@ class DailyWasteComparisonViewSet(CompanyScopedViewSet):
             "company_id__name",
             "project_id",
             "project_id__name",
-        ).annotate(
-            total_actual_weight=Sum("collected_weight_kg"),
-            total_trips=Count("unique_id"),
-            collection_points_covered=Count("collection_point_id", distinct=True),
-        )
+        ).annotate(**annotation_kwargs)
 
         rows = []
         for row in grouped_qs:
@@ -183,6 +210,7 @@ class DailyWasteComparisonViewSet(CompanyScopedViewSet):
             rows.sort(key=lambda r: abs(r["variance_kg"]), reverse=True)
 
         return Response({
+            "source": source,
             "results": rows,
             "date_trends": self._build_date_trends(rows),
             "panchayat_comparison": self._build_panchayat_comparison(rows),

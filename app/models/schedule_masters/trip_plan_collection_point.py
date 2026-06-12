@@ -1,6 +1,8 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from app.models.assets.bins import Bins
+from app.models.customers.customercreation import CustomerCreation
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.schedule_masters.trip_plan import TripPlan
 from app.models.masters.panchayat import Panchayat
@@ -18,6 +20,14 @@ def generate_tpcp_id():
 
 class TripPlanCollectionPoint(BaseMaster):
     """Master stop list for a TripPlan."""
+
+    COLLECTION_TYPE_BIN = "bin_collection"
+    COLLECTION_TYPE_HOUSEHOLD = "household_collection"
+
+    COLLECTION_TYPE_CHOICES = [
+        (COLLECTION_TYPE_BIN, "Bin Collection"),
+        (COLLECTION_TYPE_HOUSEHOLD, "Household Collection"),
+    ]
 
     unique_id = models.CharField(
         max_length=30,
@@ -49,13 +59,45 @@ class TripPlanCollectionPoint(BaseMaster):
         related_name="plan_collection_points",
         db_column="trip_plan_id",
     )
+
+    collection_type = models.CharField(
+        max_length=30,
+        choices=COLLECTION_TYPE_CHOICES,
+        default=COLLECTION_TYPE_BIN,
+        db_index=True,
+    )
+
+    # --- Bin Collection fields (required when collection_type == bin_collection) ---
     collection_point_id = models.ForeignKey(
         Collection_point,
         on_delete=models.PROTECT,
         to_field="unique_id",
         related_name="trip_plan_cps",
         db_column="collection_point_id",
+        null=True,
+        blank=True,
     )
+    bin_id = models.ForeignKey(
+        Bins,
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        related_name="trip_plan_cps",
+        db_column="bin_id",
+        null=True,
+        blank=True,
+    )
+
+    # --- Household Collection fields (required when collection_type == household_collection) ---
+    customer_id = models.ForeignKey(
+        CustomerCreation,
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        related_name="trip_plan_cps",
+        db_column="customer_id",
+        null=True,
+        blank=True,
+    )
+
     zone_id = models.ForeignKey(
         Zone,
         on_delete=models.PROTECT,
@@ -80,13 +122,6 @@ class TripPlanCollectionPoint(BaseMaster):
         null=True,
         blank=True,
     )
-    bin_id = models.ForeignKey(
-        Bins,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plan_cps",
-        db_column="bin_id",
-    )
     sequence = models.PositiveIntegerField(
         help_text="Visit order within the route.",
     )
@@ -101,17 +136,24 @@ class TripPlanCollectionPoint(BaseMaster):
         ordering = ["trip_plan_id", "sequence"]
         indexes = [
             models.Index(fields=["trip_plan_id", "is_active"]),
+            models.Index(fields=["trip_plan_id", "collection_type"]),
         ]
         constraints = [
-            models.UniqueConstraint(
-                fields=["trip_plan_id", "collection_point_id"],
-                name="uniq_cp_per_trip_plan",
-            ),
             models.UniqueConstraint(
                 fields=["trip_plan_id", "sequence"],
                 name="uniq_sequence_per_trip_plan",
             ),
         ]
+
+    def clean(self):
+        if self.collection_type == self.COLLECTION_TYPE_BIN:
+            if not self.collection_point_id_id:
+                raise ValidationError({"collection_point_id": "Collection point is required for bin collection."})
+            if not self.bin_id_id:
+                raise ValidationError({"bin_id": "Bin is required for bin collection."})
+        elif self.collection_type == self.COLLECTION_TYPE_HOUSEHOLD:
+            if not self.customer_id_id:
+                raise ValidationError({"customer_id": "Customer is required for household collection."})
 
     def save(self, *args, **kwargs):
         if self.trip_plan_id_id and not self.company_id_id:
@@ -130,6 +172,8 @@ class TripPlanCollectionPoint(BaseMaster):
         super().save(*args, **kwargs)
 
     def __str__(self):
+        if self.collection_type == self.COLLECTION_TYPE_HOUSEHOLD and self.customer_id_id:
+            return f"{self.trip_plan_id_id} -> customer:{self.customer_id_id} (seq {self.sequence})"
         return (
             f"{self.trip_plan_id_id} -> "
             f"{self.collection_point_id_id} (seq {self.sequence})"
