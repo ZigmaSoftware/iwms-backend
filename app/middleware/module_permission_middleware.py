@@ -63,6 +63,11 @@ PUBLIC_PREFIXES = (
     "/media/",
 )
 
+COMMON_AUDIT_CREATE_PATHS = tuple(
+    prefix + "audits/common-audit/"
+    for prefix in API_AUTH_PREFIXES
+)
+
 
 # ============================================================
 # MODULE → RESOURCE ALLOWLIST
@@ -158,6 +163,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "SupervisorZoneAccessAudit",
         "StaffTemplateAuditLog",
         "LoginAudit",
+        "CommonAudit",
     },
 }
 
@@ -356,6 +362,13 @@ class ModulePermissionMiddleware(MiddlewareMixin):
 
         if any(request.path.startswith(p) for p in PLATFORM_PREFIXES):
             return None
+
+        if (
+            request.method == "POST"
+            and f"{request.path.rstrip('/')}/" in COMMON_AUDIT_CREATE_PATHS
+        ):
+            auth_error = _authenticate_request(request)
+            return auth_error
 
         if any(request.path.startswith(p) for p in AUTH_ONLY_PREFIXES):
             auth_error = _authenticate_request(request)
