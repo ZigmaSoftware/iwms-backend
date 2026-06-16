@@ -129,6 +129,7 @@ from ..viewsets.attendance_view.recognize import RecognizeViewSet
 from ..viewsets.attendance_view.employee_viewset import EmployeeViewSet
 from ..viewsets.attendance_view.staff_profile_viewset import StaffProfileViewSet
 from ..viewsets.attendance_view.attendance_list import AttendanceListViewSet
+from ..viewsets.attendance_view.external_attendance import ExternalAttendanceViewSet
 
 
 router = GroupedRouter()
@@ -255,6 +256,16 @@ router.register_group("reports", "monthly-waste-comparison", MonthlyWasteCompari
 # ============================================================
 router.register_group("audits", "login-audit", LoginAuditViewSet)
 router.register_group("audits", "common-audit", CommonAuditViewSet)
+
+# ============================================================
+# GROUP: EXTERNAL ATTENDANCE
+# ============================================================
+router.register_group(
+    "attendance",
+    "external-records",
+    ExternalAttendanceViewSet,
+    basename="external-attendance",
+)
 
 # ============================================================
 # GROUP: LOCALBODY (panchayat leader portal — auth-only, no module permission check)

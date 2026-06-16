@@ -11,6 +11,7 @@ class AuditViewSetMixin:
 
     AUDIT_MODULE = None
     AUDIT_ENDPOINT = None
+    AUDIT_REDACT_FIELDS = set()
 
     def get_audit_object_id(self, instance):
 
@@ -54,6 +55,10 @@ class AuditViewSetMixin:
 
             else:
                 data[field.name] = value
+
+        for field_name in self.AUDIT_REDACT_FIELDS:
+            if field_name in data and data[field_name]:
+                data[field_name] = "[REDACTED]"
 
         # M2M fields — convert to list of unique_ids (or PKs as fallback)
         for field in instance._meta.many_to_many:
