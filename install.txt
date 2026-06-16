@@ -63,3 +63,8 @@ python -m pytest tests/ --cov=app --cov-report=xml -q
 
 https://api.qrserver.com/v1/create-qr-code/?data=QR-CP01-WET
 
+
+Connecting ssh
+--------------
+ssh admin@192.168.1.128
+ZgesIwms@26
