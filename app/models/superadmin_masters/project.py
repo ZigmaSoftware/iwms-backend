@@ -29,6 +29,8 @@ class Project(BaseMaster):
     description = models.TextField(blank=True, null=True)
     gps_api_url = models.URLField(max_length=500, blank=True, null=True)
     weighment_api_url = models.URLField(max_length=500, blank=True, null=True)
+    attendance_api_url = models.URLField(max_length=500, blank=True, null=True)
+    attendance_api_key = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         ordering = ["name"]
@@ -40,4 +42,3 @@ class Project(BaseMaster):
         self.is_deleted = True
         self.is_active = False
         self.save(update_fields=["is_deleted", "is_active"])
-

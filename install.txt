@@ -63,3 +63,12 @@ python -m pytest tests/ --cov=app --cov-report=xml -q
 
 https://api.qrserver.com/v1/create-qr-code/?data=QR-CP01-WET
 
+
+
+
+$apiUrl = "http://zigfly.in/attendance-api/api/sync/recognized?from_date=$today&to_date=$today";
+    $API_KEY = 'ZIGFLY_SYNC_2025';
+
+
+
+python manage.py seed --group blue-planet
