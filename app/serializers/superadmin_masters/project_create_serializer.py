@@ -24,6 +24,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
     admin_password = serializers.CharField(write_only=True, min_length=8, required=False)
     admin_employee_name = serializers.CharField(max_length=200, required=False, write_only=True)
     admin_email = serializers.EmailField(required=False, allow_null=True, allow_blank=True, write_only=True)
+    attendance_api_configured = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Project
@@ -33,11 +34,24 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
             "description",
             "gps_api_url",
             "weighment_api_url",
+            "attendance_api_url",
+            "attendance_api_key",
+            "attendance_api_configured",
             "admin_username",
             "admin_password",
             "admin_employee_name",
             "admin_email",
         ]
+        extra_kwargs = {
+            "attendance_api_key": {
+                "write_only": True,
+                "required": False,
+                "allow_blank": True,
+            },
+        }
+
+    def get_attendance_api_configured(self, obj):
+        return bool(obj.attendance_api_url and obj.attendance_api_key)
 
     def _resolve_company(self, user, company_unique_id, is_platform_super_admin):
         user_company = getattr(user, "company_id", None)
@@ -158,6 +172,8 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
             description=validated_data.get("description"),
             gps_api_url=validated_data.get("gps_api_url"),
             weighment_api_url=validated_data.get("weighment_api_url"),
+            attendance_api_url=validated_data.get("attendance_api_url"),
+            attendance_api_key=validated_data.get("attendance_api_key"),
             is_active=True,
             is_deleted=False,
         )
@@ -199,6 +215,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
 class ProjectUpdateSerializer(serializers.ModelSerializer):
     company_unique_id = serializers.CharField(source="company_id.unique_id", read_only=True)
     company_name = serializers.CharField(source="company_id.name", read_only=True)
+    attendance_api_configured = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -210,9 +227,22 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
             "description",
             "gps_api_url",
             "weighment_api_url",
+            "attendance_api_url",
+            "attendance_api_key",
+            "attendance_api_configured",
             "is_active",
         ]
         read_only_fields = ["unique_id", "company_unique_id", "company_name"]
+        extra_kwargs = {
+            "attendance_api_key": {
+                "write_only": True,
+                "required": False,
+                "allow_blank": True,
+            },
+        }
+
+    def get_attendance_api_configured(self, obj):
+        return bool(obj.attendance_api_url and obj.attendance_api_key)
 
     def update(self, instance, validated_data):
         # Keep legacy behavior: PUT without description clears description.
@@ -224,6 +254,7 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
 class ProjectSerializer(serializers.ModelSerializer):
     company_unique_id = serializers.CharField(source="company_id.unique_id", read_only=True)
     company_name = serializers.CharField(source="company_id.name", read_only=True)
+    attendance_api_configured = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -235,6 +266,11 @@ class ProjectSerializer(serializers.ModelSerializer):
             "description",
             "gps_api_url",
             "weighment_api_url",
+            "attendance_api_url",
+            "attendance_api_configured",
             "is_active",
         ]
         read_only_fields = ["unique_id", "company_unique_id", "company_name", "is_active"]
+
+    def get_attendance_api_configured(self, obj):
+        return bool(obj.attendance_api_url and obj.attendance_api_key)

@@ -58,3 +58,4 @@ class MonthlyWeightReport(models.Model):
     class Meta:
         managed = True
         db_table = "monthly_weight_report"
+        unique_together = ("panchayat_id", "waste_type_id", "month")

@@ -20,6 +20,7 @@ class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
 
     AUDIT_MODULE = "superadmin-masters"
     AUDIT_ENDPOINT = "projects"
+    AUDIT_REDACT_FIELDS = {"attendance_api_key"}
     
 
     def get_queryset(self):
@@ -60,5 +61,4 @@ class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
             and getattr(user, "is_superuser", False)
             and getattr(user, "company_id", None) is None
         )
-
 

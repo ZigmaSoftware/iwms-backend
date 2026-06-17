@@ -10,6 +10,7 @@ from django.utils.deprecation import MiddlewareMixin
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
 from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
+from app.models.masters.district_leader_login import DistrictLeaderLogin
 from app.utils.permission_response import resolve_permission_payload
 
 
@@ -47,6 +48,7 @@ AUTH_ONLY_SUFFIXES = (
     "waste/",
     "attendance-list/",
     "localbody/",        # panchayat leader portal — auth only, no module permission check
+    "district/",         # district portal — auth only, no module permission check
 )
 
 AUTH_ONLY_PREFIXES = tuple(
@@ -61,6 +63,11 @@ PLATFORM_PREFIXES = (
 
 PUBLIC_PREFIXES = (
     "/media/",
+)
+
+COMMON_AUDIT_CREATE_PATHS = tuple(
+    prefix + "audits/common-audit/"
+    for prefix in API_AUTH_PREFIXES
 )
 
 
@@ -85,6 +92,8 @@ MODULE_RESOURCE_ALLOWLIST = {
         "AdministrativeHierarchy",
         "Department",
         "Designation",
+        "PanchayatLeaderLogin",
+        "DistrictLeaderLogin",
     },
     "waste-types": {
         "Property",
@@ -158,6 +167,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "SupervisorZoneAccessAudit",
         "StaffTemplateAuditLog",
         "LoginAudit",
+        "CommonAudit",
     },
 }
 
@@ -273,6 +283,15 @@ def _authenticate_request(request):
         request.jwt_payload = payload
         return None
 
+    # District leader (district portal)
+    district_leader = DistrictLeaderLogin.objects.select_related(
+        "district_id", "company_id", "project_id"
+    ).filter(unique_id=unique_id).first()
+    if district_leader:
+        request.user = district_leader
+        request.jwt_payload = payload
+        return None
+
     # Platform user
     UserModel = get_user_model()
     user = UserModel.objects.filter(unique_id=unique_id).first()
@@ -356,6 +375,13 @@ class ModulePermissionMiddleware(MiddlewareMixin):
 
         if any(request.path.startswith(p) for p in PLATFORM_PREFIXES):
             return None
+
+        if (
+            request.method == "POST"
+            and f"{request.path.rstrip('/')}/" in COMMON_AUDIT_CREATE_PATHS
+        ):
+            auth_error = _authenticate_request(request)
+            return auth_error
 
         if any(request.path.startswith(p) for p in AUTH_ONLY_PREFIXES):
             auth_error = _authenticate_request(request)
