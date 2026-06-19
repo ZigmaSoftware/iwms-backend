@@ -6,6 +6,8 @@ from app.models.superadmin_masters.project import Project
 class BluePlanetSeeder(BaseSeeder):
     name = "blue_planet"
 
+    COMPANY_NAME = "Blue Planet"
+
     ATTENDANCE_API_URL = "http://zigfly.in/attendance-api/api/sync/recognized"
     ATTENDANCE_API_KEY = "ZIGFLY_SYNC_2025"
     GPS_API_URL = "https://api.vamosys.com/getVehicleHistory"
@@ -16,7 +18,7 @@ class BluePlanetSeeder(BaseSeeder):
 
     def run(self):
         company, company_created = Company.objects.update_or_create(
-            name="Blue Planet",
+            name=self.COMPANY_NAME,
             defaults={
                 "description": "Blue Planet waste management operations",
                 "is_active": True,
@@ -28,6 +30,11 @@ class BluePlanetSeeder(BaseSeeder):
             "Noida BP": {
                 "description": "Blue Planet Noida operations",
                 "gps_api_url": self.GPS_API_URL,
+                "gps_user_id": "BLUEPLANET",
+                "gps_group_name": "BLUEPLANET:VAM",
+                "gps_provider_name": "BLUEPLANET",
+                "gps_fcode": "VAM",
+                "gps_trip_user_id": "NMCP2DISPOSAL",
                 "weighment_api_url": self.WEIGHMENT_API_URL,
                 "attendance_api_url": self.ATTENDANCE_API_URL,
                 "attendance_api_key": self.ATTENDANCE_API_KEY,

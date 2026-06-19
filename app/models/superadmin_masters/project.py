@@ -27,8 +27,24 @@ class Project(BaseMaster):
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
-    gps_api_url = models.URLField(max_length=500, blank=True, null=True)
-    weighment_api_url = models.URLField(max_length=500, blank=True, null=True)
+    
+    # GPS API URLs (Vamosys)
+    gps_api_url = models.URLField(max_length=500, blank=True, null=True)  # Legacy - kept for backward compatibility
+    gps_vehicle_history_api = models.URLField(max_length=500, blank=True, null=True)
+    gps_vehicle_tracking_api = models.URLField(max_length=500, blank=True, null=True)
+    gps_trip_summary_api = models.URLField(max_length=500, blank=True, null=True)
+    
+    # GPS API Parameters
+    gps_user_id = models.CharField(max_length=255, default="BLUEPLANET", blank=True)
+    gps_group_name = models.CharField(max_length=255, default="BLUEPLANET:VAM", blank=True)
+    gps_provider_name = models.CharField(max_length=255, default="BLUEPLANET", blank=True)
+    gps_fcode = models.CharField(max_length=50, default="VAM", blank=True)
+    gps_trip_user_id = models.CharField(max_length=255, default="NMCP2DISPOSAL", blank=True)
+    
+    # Other APIs
+    weighment_api_url = models.URLField(max_length=500, blank=True, null=True)  # Date‑wise
+    # NEW: Day‑wise weighment API URL
+    day_wise_weighment_api_url = models.URLField(max_length=500, blank=True, null=True)
     attendance_api_url = models.URLField(max_length=500, blank=True, null=True)
     attendance_api_key = models.CharField(max_length=255, blank=True, null=True)
 
@@ -41,4 +57,4 @@ class Project(BaseMaster):
     def delete(self, *args, **kwargs):
         self.is_deleted = True
         self.is_active = False
-        self.save(update_fields=["is_deleted", "is_active"])
+        self.save(update_fields=["is_deleted", "is_active"]) 
