@@ -7,7 +7,7 @@ class ProjectSeeder(BaseSeeder):
     name = "project"
 
     def run(self):
-        companies = Company.objects.filter(is_deleted=False)
+        companies = Company.objects.filter(is_deleted=False).exclude(name__iexact="Blue Planet")
         if not companies.exists():
             self.log("No companies found. Skipping project seeding.")
             return

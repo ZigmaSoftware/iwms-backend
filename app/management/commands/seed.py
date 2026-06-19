@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand
 
 # superadmin (router: superadmin/company, superadmin/project)
 from app.management.commands.seeders.superadmin_masters import (
+    BluePlanetSeeder,
     COMPANY_SEEDERS,
     PLATFORM_SEEDERS,
 )
@@ -219,7 +220,7 @@ SEED_GROUPS = {
     # Single-seeder shortcuts
     "bin-collection-events": [BinCollectionEventSeeder],
     "trip-logs":          [DailyTripLogSeeder],
-    "shared-demo-trip":   [SharedDemoTripSeeder],
+    "blue-planet":        [BluePlanetSeeder],
 }
 
 # ============================================================

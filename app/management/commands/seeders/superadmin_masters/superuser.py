@@ -13,7 +13,7 @@ class PlatformSuperUserSeeder(BaseSeeder):
     def run(self):
         UserModel = get_user_model()
         username = "super_admin"
-        password = "Admin@123"
+        password = "admin@123"
 
         platform_type = (
             UserType.objects.filter(name__iexact="platform").first()

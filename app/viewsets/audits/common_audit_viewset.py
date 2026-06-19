@@ -7,16 +7,18 @@ from app.serializers.audits.common_audit_serializer import (
     CommonAuditSerializer,
 )
 
-from app.utils.audit_mixin import AuditViewSetMixin
 from rest_framework import viewsets
 
 
-class CommonAuditViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
+class CommonAuditViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticated]
 
     queryset = CommonAudit.objects.all().order_by("-createdAt")
     serializer_class = CommonAuditSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(createdBy=str(self.request.user))
 
     def list(self, request, *args, **kwargs):
 

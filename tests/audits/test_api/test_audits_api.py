@@ -1,4 +1,4 @@
-"""API tests for Audit log endpoints — read-only CRUD."""
+"""API tests for audit log endpoints."""
 import pytest
 
 AUDIT_BASE = "/api/v1/audits/common-audit/"
@@ -14,6 +14,23 @@ class TestCommonAuditAPIList:
     def test_list_authenticated_returns_200(self, auth_client):
         resp = auth_client.get(AUDIT_BASE)
         assert resp.status_code == 200
+
+    def test_create_uses_authenticated_user(self, auth_client):
+        resp = auth_client.post(
+            AUDIT_BASE,
+            {
+                "module_name": "masters",
+                "endpoint_name": "wards",
+                "method": "DOWNLOAD",
+                "createdBy": "spoofed-user",
+                "new_data": {"action": "download_template"},
+            },
+            format="json",
+        )
+
+        assert resp.status_code == 201
+        assert resp.data["createdBy"] != "spoofed-user"
+        assert resp.data["new_data"]["action"] == "download_template"
 
 
 @pytest.mark.django_db
