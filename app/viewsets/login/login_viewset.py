@@ -120,6 +120,23 @@ class LoginViewSet(ViewSet):
             )
             role = "panchayat_leader"
             email = getattr(target, "email", None)
+        elif user_type == "district_member":
+            target = profile_object or user
+            name = (
+                getattr(target, "leader_name", None)
+                or getattr(target, "employee_name", None)
+                or getattr(target, "username", None)
+            )
+            role = "district_member"
+            email = (
+                getattr(target, "email", None)
+                or getattr(getattr(target, "personal_details", None), "contact_email", None)
+                or getattr(user, "email", None)
+            )
+            emp_id = getattr(target, "staff_unique_id", None)
+            employee_id = getattr(target, "emp_id", None) or getattr(user, "emp_id", None)
+            if not employee_id and emp_id:
+                employee_id = Staffcreation._derive_emp_id(emp_id)
 
         # -------------------------
         # JWT CREATION
@@ -171,6 +188,8 @@ class LoginViewSet(ViewSet):
                     "employee_name": getattr(staff_source, "employee_name", None) or name,
                     "emp_id": emp_id,
                     "staffusertype_unique_id": staffusertype_unique_id,
+                    "district_unique_id": getattr(getattr(staff_source, "district_id", None), "unique_id", None),
+                    "district_name": getattr(getattr(staff_source, "district_id", None), "name", None),
                 }
             )
         elif user_type == "customer":
@@ -209,6 +228,25 @@ class LoginViewSet(ViewSet):
                     "leader_name": getattr(leader_source, "leader_name", None) or name,
                     "panchayat_unique_id": getattr(panchayat, "unique_id", None) if panchayat else None,
                     "panchayat_name": getattr(panchayat, "panchayat_name", None) if panchayat else None,
+                }
+            )
+        elif user_type == "district_member":
+            district_source = profile_object or user
+            district = getattr(district_source, "district_id", None)
+            profile_payload.update(
+                {
+                    "staff_unique_id": emp_id,
+                    "employee_id": employee_id,
+                    "employee_name": (
+                        getattr(district_source, "employee_name", None)
+                        or getattr(district_source, "leader_name", None)
+                        or name
+                    ),
+                    "district_leader_unique_id": getattr(district_source, "unique_id", None),
+                    "leader_name": getattr(district_source, "leader_name", None) or name,
+                    "emp_id": emp_id,
+                    "district_unique_id": getattr(district, "unique_id", None),
+                    "district_name": getattr(district, "name", None),
                 }
             )
 
