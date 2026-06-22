@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from app.utils.base_models import BaseMaster
@@ -15,17 +15,28 @@ from app.models.user_creations.waste_collection_bluetooth import WasteType
 
 def _generate_trip_assignment_unique_id(company_id, project_id):
     """
-    Generates TRIP-YYYY-MM-NNN, where NNN is sequential per company+project+month.
-    Inline import avoids circular-import at module load time.
+    Generates TRIP-YYYY-MM-NNN with a globally unique sequence for the month.
+    The unique_id column has no per-company constraint, so the NNN counter must
+    be global (not scoped per company+project) to avoid cross-tenant collisions.
+    Uses select_for_update() to serialize concurrent inserts.
     """
     today = timezone.localdate()
     prefix = f"TRIP-{today.year}-{today.month:02d}"
-    count = DailyTripAssignment.objects.filter(
-        company_id=company_id,
-        project_id=project_id,
-        unique_id__startswith=f"{prefix}-",
-    ).count()
-    return f"{prefix}-{count + 1:03d}"
+    with transaction.atomic():
+        existing = (
+            DailyTripAssignment.objects.select_for_update()
+            .filter(unique_id__startswith=f"{prefix}-")
+            .values_list("unique_id", flat=True)
+        )
+        max_seq = 0
+        for uid in existing:
+            try:
+                seq = int(uid.rsplit("-", 1)[-1])
+                if seq > max_seq:
+                    max_seq = seq
+            except (ValueError, IndexError):
+                pass
+        return f"{prefix}-{max_seq + 1:03d}"
 
 
 class DailyTripAssignment(BaseMaster):
@@ -239,9 +250,12 @@ class DailyTripAssignment(BaseMaster):
             self.ward_id = self.ward_id or self.trip_plan_id.ward_id
             self.scheduled_time = self.scheduled_time or self.trip_plan_id.scheduled_time
         if not self.unique_id:
-            self.unique_id = _generate_trip_assignment_unique_id(
-                self.company_id, self.project_id
-            )
+            with transaction.atomic():
+                self.unique_id = _generate_trip_assignment_unique_id(
+                    self.company_id, self.project_id
+                )
+                super().save(*args, **kwargs)
+            return
         super().save(*args, **kwargs)
 
     def __str__(self):
