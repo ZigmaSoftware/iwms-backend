@@ -198,7 +198,12 @@ class LoginSerializer(serializers.Serializer):
             company_id=company,
             is_active=True,
             is_deleted=False,
-        ).values("unique_id", "name", "gps_api_url", "weighment_api_url", "day_wise_weighment_api_url")
+        ).values(
+            "unique_id", "name",
+            "gps_api_url",
+            "gps_user_id", "gps_group_name", "gps_provider_name", "gps_fcode", "gps_trip_user_id",
+            "weighment_api_url", "day_wise_weighment_api_url",
+        )
 
         projects = list(projects_queryset)
 
