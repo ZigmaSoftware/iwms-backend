@@ -22,6 +22,7 @@ from ..viewsets.masters.zone_viewset import ZoneViewSet
 from ..viewsets.masters.ward_viewset import WardViewSet
 from ..viewsets.masters.panchayat_viweset import PanhayatViewSet
 from ..viewsets.masters.panchayat_leader_viewset import PanchayatLeaderLoginViewSet
+from ..viewsets.masters.district_leader_viewset import DistrictLeaderLoginViewSet
 from ..viewsets.masters.areatype_viewset import AreaTypeViewSet
 from ..viewsets.masters.hierarchy_viewset import AdministrativeHierarchyViewSet
 from ..viewsets.masters.department_viewset import DepartmentViewSet
@@ -111,6 +112,8 @@ from ..viewsets.audits.common_audit_viewset import CommonAuditViewSet
 
 # Localbody
 from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardViewSet
+# District dashboard
+from ..viewsets.district.district_dashboard_viewset import DistrictDashboardViewSet
 
 # Operator mobile
 from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet
@@ -156,6 +159,7 @@ router.register_group("masters", "zones",         ZoneViewSet)
 router.register_group("masters", "wards",         WardViewSet)
 router.register_group("masters", "panchayat",         PanhayatViewSet)
 router.register_group("masters", "panchayat-leaders", PanchayatLeaderLoginViewSet)
+router.register_group("masters", "district-leaders", DistrictLeaderLoginViewSet)
 router.register_group("masters", "areatypes",         AreaTypeViewSet)
 router.register_group("masters", "hierarchy",         AdministrativeHierarchyViewSet)
 router.register_group("masters", "departments",       DepartmentViewSet)
@@ -271,6 +275,10 @@ router.register_group(
 # GROUP: LOCALBODY (panchayat leader portal — auth-only, no module permission check)
 # ============================================================
 router.register_group("localbody", "dashboard", LocalBodyDashboardViewSet, basename="localbody-dashboard")
+# ============================================================
+# GROUP: DISTRICT (district member portal)
+# ============================================================
+router.register_group("district", "dashboard", DistrictDashboardViewSet, basename="district-dashboard")
 
 # ============================================================
 # GROUP: OPERATOR MOBILE

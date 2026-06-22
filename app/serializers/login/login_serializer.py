@@ -8,6 +8,7 @@ from app.models.customers.customercreation import CustomerCreation
 from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.auth_user import User
 from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
+from app.models.masters.district_leader_login import DistrictLeaderLogin
 
 from app.models.superadmin_masters.project import Project
 from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
@@ -28,7 +29,7 @@ class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
     login_type = serializers.ChoiceField(
-        choices=["auto", "staff", "customer", "platform", "contractor", "panchayat_leader"],
+        choices=["auto", "staff", "customer", "platform", "contractor", "panchayat_leader", "district_member"],
         default="auto",
         required=False
     )
@@ -57,6 +58,8 @@ class LoginSerializer(serializers.Serializer):
             return ["contractor", "staff", "customer", "platform"]
         if login_type == "panchayat_leader":
             return ["panchayat_leader"]
+        if login_type == "district_member":
+            return ["district_member"]
         return ["customer", "staff", "platform", "contractor"]
 
     def _format_permissions(self, queryset):
@@ -195,7 +198,12 @@ class LoginSerializer(serializers.Serializer):
             company_id=company,
             is_active=True,
             is_deleted=False,
-        ).values("unique_id", "name", "gps_api_url", "weighment_api_url", "day_wise_weighment_api_url")
+        ).values(
+            "unique_id", "name",
+            "gps_api_url",
+            "gps_user_id", "gps_group_name", "gps_provider_name", "gps_fcode", "gps_trip_user_id",
+            "weighment_api_url", "day_wise_weighment_api_url",
+        )
 
         projects = list(projects_queryset)
 
@@ -220,6 +228,13 @@ class LoginSerializer(serializers.Serializer):
 
         password_expired = _is_password_expired(getattr(staff_record, "password_crt_date", None))
 
+        profile_payload = {
+            "staff_unique_id": getattr(staff_record, "staff_unique_id", None),
+            "employee_name": getattr(staff_record, "employee_name", None),
+            "district_unique_id": getattr(getattr(staff_record, "district_id", None), "unique_id", None),
+            "district_name": getattr(getattr(staff_record, "district_id", None), "name", None),
+        }
+
         return {
             "user": login_user,
             "permissions": permissions,
@@ -236,8 +251,14 @@ class LoginSerializer(serializers.Serializer):
             "company_unique_id": company.unique_id,
             "projects": projects,
             "profile_object": staff_record,
+            "profile": profile_payload,
             "password_expired": password_expired,
         }
+
+    def _build_district_payload(self, staff_record, login_user=None):
+        payload = self._build_staff_payload(staff_record, login_user=login_user)
+        payload["user_type"] = "district_member"
+        return payload
 
     def _build_customer_payload(self, customer_record, login_user=None):
         login_user = login_user or customer_record
@@ -372,6 +393,89 @@ class LoginSerializer(serializers.Serializer):
             return self._build_staff_payload(candidate)
 
         return None
+
+    def _authenticate_district_member(self, username, password):
+        leader = (
+            DistrictLeaderLogin.objects
+            .select_related("district_id", "company_id", "project_id")
+            .filter(is_active=True, is_deleted=False)
+            .filter(Q(username__iexact=username) | Q(email__iexact=username))
+            .first()
+        )
+
+        if leader:
+            if not self._password_matches(password, leader.password):
+                return None
+            return self._build_district_leader_payload(leader)
+
+        lookup_filters = (
+            Q(employee_name__iexact=username) |
+            Q(username__iexact=username) |
+            Q(emp_id__iexact=username)
+        )
+
+        queryset = (
+            Staffcreation.objects
+            .select_related("user_type_id", "staffusertype_id", "contractorusertype_id", "personal_details", "company_id", "district_id")
+            .filter(is_active=True, is_deleted=False)
+            .filter(district_id__isnull=False)
+            .filter(lookup_filters)
+        )
+
+        for candidate in queryset:
+            if not self._password_matches(password, candidate.password):
+                Staffcreation.objects.filter(pk=candidate.pk).update(
+                    failed_login_attempts=F("failed_login_attempts") + 1
+                )
+                continue
+
+            if candidate.is_superuser and not candidate.company_id:
+                return None
+
+            return self._build_district_payload(candidate)
+
+        return None
+
+    def _build_district_leader_payload(self, leader):
+        district = leader.district_id
+        company = leader.company_id or (district.company_id if district else None)
+        project = leader.project_id or (district.project_id if district else None)
+
+        projects = []
+        if project:
+            projects = [{
+                "unique_id": project.unique_id,
+                "name": project.name,
+                "gps_api_url": getattr(project, "gps_api_url", None),
+                "weighment_api_url": getattr(project, "weighment_api_url", None),
+            }]
+        elif company:
+            projects = list(
+                Project.objects.filter(
+                    company_id=company,
+                    is_active=True,
+                    is_deleted=False,
+                ).values("unique_id", "name", "gps_api_url", "weighment_api_url")
+            )
+
+        return {
+            "user": leader,
+            "permissions": {},
+            "permission_details": {},
+            "column_permissions": {},
+            "module_access": [],
+            "app_surfaces": [],
+            "landing": None,
+            "permission_version": None,
+            "generated_at": None,
+            "user_type": "district_member",
+            "staffusertype_id": None,
+            "contractorusertype_id": None,
+            "company_unique_id": company.unique_id if company else None,
+            "projects": projects,
+            "profile_object": leader,
+            "password_expired": False,
+        }
 
     def _authenticate_platform(self, username, password):
         user = (

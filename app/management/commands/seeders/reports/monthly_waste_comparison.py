@@ -86,21 +86,40 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
             variance_pct = _variance_percent(actual_kg, agreed_kg)
             report_status = _status(actual_kg, agreed_kg)
 
-            _, created = MonthlyWeightReport.objects.update_or_create(
+            report_qs = MonthlyWeightReport.objects.filter(
                 panchayat_id=panchayat,
                 waste_type_id=waste_type,
                 month=month,
-                defaults={
-                    "unique_id": f"MWR-{uuid.uuid4().hex[:16].upper()}",
-                    "agreed_weight_kg": agreed_kg,
-                    "actual_weight_kg": actual_kg,
-                    "variance_kg": variance_kg,
-                    "variance_percent": variance_pct,
-                    "report_status": report_status,
-                    "total_trips": trips,
-                    "collection_points_covered": points,
-                },
             )
+            if report_qs.exists():
+                report = report_qs.first()
+                duplicates = report_qs.exclude(pk=report.pk)
+                if duplicates.exists():
+                    duplicates.delete()
+                report.agreed_weight_kg = agreed_kg
+                report.actual_weight_kg = actual_kg
+                report.variance_kg = variance_kg
+                report.variance_percent = variance_pct
+                report.report_status = report_status
+                report.total_trips = trips
+                report.collection_points_covered = points
+                report.save()
+                created = False
+            else:
+                report = MonthlyWeightReport.objects.create(
+                    unique_id=f"MWR-{uuid.uuid4().hex[:16].upper()}",
+                    panchayat_id=panchayat,
+                    waste_type_id=waste_type,
+                    month=month,
+                    agreed_weight_kg=agreed_kg,
+                    actual_weight_kg=actual_kg,
+                    variance_kg=variance_kg,
+                    variance_percent=variance_pct,
+                    report_status=report_status,
+                    total_trips=trips,
+                    collection_points_covered=points,
+                )
+                created = True
             action = "Created" if created else "Updated"
             self.log(f"{panchayat_name} | {waste_type_name} | {month} → {report_status} ({action})")
             created_count += 1
