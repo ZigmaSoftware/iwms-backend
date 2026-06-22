@@ -11,10 +11,6 @@ __pycache__/
 !app/migrations/
 app/migrations/*
 app/migrations/__init__.py
-!app/migrations/0007_dailytripcollectionpoint_panchayat_id_and_more.py
-!app/migrations/0003_repair_daily_trip_assignment_household_waste_types.py
-!app/migrations/0004_repair_schedule_master_schema_drift.py
-!app/migrations/0005_project_attendance_api_config.py
 
 # Specifically ignore your API app migrations
 api/migrations/
@@ -36,8 +32,8 @@ db.sqlite3
 *.sqlite3
 
 # === Environment files ===
-# .env
-# .env.*
+.env
+.env.*
 
 # === IDE and System files ===
 .vscode/
