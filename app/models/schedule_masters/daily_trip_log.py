@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -22,12 +22,21 @@ from app.utils.base_models import Account, BaseMaster
 def _generate_daily_trip_log_unique_id(company_id, project_id):
     today = timezone.localdate()
     prefix = f"DTL-{today.year}-{today.month:02d}"
-    count = DailyTripLog.objects.filter(
-        company_id=company_id,
-        project_id=project_id,
-        unique_id__startswith=f"{prefix}-",
-    ).count()
-    return f"{prefix}-{count + 1:03d}"
+    with transaction.atomic():
+        existing = (
+            DailyTripLog.objects.select_for_update()
+            .filter(unique_id__startswith=f"{prefix}-")
+            .values_list("unique_id", flat=True)
+        )
+        max_seq = 0
+        for uid in existing:
+            try:
+                seq = int(uid.rsplit("-", 1)[-1])
+                if seq > max_seq:
+                    max_seq = seq
+            except (ValueError, IndexError):
+                pass
+        return f"{prefix}-{max_seq + 1:03d}"
 
 
 class DailyTripLog(BaseMaster):
@@ -313,12 +322,15 @@ class DailyTripLog(BaseMaster):
     def save(self, *args, **kwargs):
         self.autofill_from_assignment()
         if not self.unique_id:
-            self.unique_id = _generate_daily_trip_log_unique_id(
-                self.company_id, self.project_id
-            )
-
-        self.full_clean()
-        super().save(*args, **kwargs)
+            with transaction.atomic():
+                self.unique_id = _generate_daily_trip_log_unique_id(
+                    self.company_id, self.project_id
+                )
+                self.full_clean()
+                super().save(*args, **kwargs)
+        else:
+            self.full_clean()
+            super().save(*args, **kwargs)
 
         self.sync_from_bin_collection_events()
         self.sync_from_household_collections()
