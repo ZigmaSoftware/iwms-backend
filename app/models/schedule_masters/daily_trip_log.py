@@ -312,12 +312,9 @@ class DailyTripLog(BaseMaster):
                     "greater than 0 before submitting."
                 )
 
-        vehicle_capacity = getattr(self.vehicle_id, "capacity", None)
-        trip_capacity = getattr(assignment.trip_plan_id, "max_vehicle_capacity_kg", None)
-        capacity = vehicle_capacity or trip_capacity
-        if capacity and self.collected_weight_kg:
-            if Decimal(self.collected_weight_kg) > Decimal(capacity):
-                raise ValidationError("collected_weight_kg cannot exceed vehicle capacity.")
+        # Over-capacity trips are flagged in remarks by the auto-upsert but are
+        # not blocked here — the vehicle capacity field is often in different
+        # units or reflects a single-load limit, not a trip total ceiling.
 
     def save(self, *args, **kwargs):
         self.autofill_from_assignment()
