@@ -148,6 +148,11 @@ class TripPlan(BaseMaster):
         related_name="trip_plans",
         db_column="waste_type_id",
     )
+    waste_type_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of waste type unique_ids allowed for this trip plan.",
+    )
     trip_trigger_weight_kg = models.PositiveIntegerField(
         help_text="Collected weight (kg) that triggers a trip dispatch.",
     )

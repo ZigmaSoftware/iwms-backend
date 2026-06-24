@@ -137,7 +137,6 @@ class PermissionSeeder(BaseSeeder):
                 "alternative-staff-templates",
                 "collection-points",
                 "trip-plans",
-                "trip-plan-collection-points",
                 "daily-trip-assignments",
                 "daily-trip-collection-points",
                 "daily-trip-household-collections",
