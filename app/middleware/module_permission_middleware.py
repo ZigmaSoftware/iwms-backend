@@ -153,7 +153,6 @@ MODULE_RESOURCE_ALLOWLIST = {
         "AlternativeStaffTemplate",
         "CollectionPoint",
         "TripPlan",
-        "TripPlanCollectionPoint",
         "DailyTripAssignment",
         "DailyTripCollectionPoint",
         "BinCollectionEvent",
