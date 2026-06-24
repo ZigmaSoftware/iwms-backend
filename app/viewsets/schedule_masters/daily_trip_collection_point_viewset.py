@@ -179,10 +179,11 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             and total_weight
             and Decimal(str(total_weight)) > Decimal(str(capacity))
         )
-        stored_weight = None if exceeds_capacity else total_weight
+        # Always store the real weight so the log appears in waste comparison reports.
+        # Over-capacity trips are flagged in remarks for operator review.
         log_status = (
             DailyTripLog.LOG_STATUS_SUBMITTED
-            if all_collected and stored_weight
+            if all_collected and total_weight
             else DailyTripLog.LOG_STATUS_DRAFT
         )
         remarks = (
@@ -194,7 +195,7 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         log, created = DailyTripLog.objects.get_or_create(
             trip_assignment_id=assignment,
             defaults={
-                "collected_weight_kg": stored_weight,
+                "collected_weight_kg": total_weight,
                 "log_status": log_status,
                 "remarks": remarks,
             },
@@ -202,7 +203,7 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if created or log.log_status == DailyTripLog.LOG_STATUS_VERIFIED:
             return
 
-        log.collected_weight_kg = stored_weight
+        log.collected_weight_kg = total_weight
         log.log_status = log_status
         log.remarks = log.remarks or remarks
         log.save()
