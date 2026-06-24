@@ -71,8 +71,18 @@ ZgesIwms@26
 
 
 $apiUrl = "http://zigfly.in/attendance-api/api/sync/recognized?from_date=$today&to_date=$today";
-    $API_KEY = 'ZIGFLY_SYNC_2025';
+$API_KEY = 'ZIGFLY_SYNC_2025';
 
 
 
 python manage.py seed --group blue-planet
+
+https://erode.nic.in/elected-representatives/
+
+https://nallosai.tn.gov.in/index.php
+
+https://npp.gov.in/landing-home
+
+https://www.nseindia.com/get-quote/derivatives/NIFTY/NIFTY-50?identifier=OPTIDXNIFTY16-06-2026PE23400.00
+
+https://www.nseindia.com/
