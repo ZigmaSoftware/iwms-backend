@@ -1,3 +1,145 @@
+CURRENT CHANGE REQUEST: Merge Trip Plan Collection Point management into Trip Plan and enable bulk stop creation/update
+
+Goal
+- Trip Plan must be the main screen/API where the user manages the trip route and its multiple collection points.
+- The user should not need to create Trip Plan Collection Point rows one by one from a separate screen for normal trip-plan setup.
+- In the Trip Plan form, allow adding, editing, removing, and reordering multiple collection point rows before saving.
+- On save, the frontend must send all selected rows together to the Trip Plan API, and the backend must bulk-create/bulk-sync the related TripPlanCollectionPoint rows.
+
+Important source of truth
+- Keep using the active schedule-master flow:
+  - `TripPlan`
+  - `TripPlanCollectionPoint`
+  - `DailyTripAssignment`
+  - `DailyTripCollectionPoint`
+- Do not bring back or depend on old `TripDefinition`, `TripInstance`, `RoutePlan`, or `PointCollection` flows except for legacy compatibility if already required.
+- Use `Collection_point` for collection point selection.
+
+Backend required changes
+- Files to inspect/update:
+  - `app/models/schedule_masters/trip_plan.py`
+  - `app/models/schedule_masters/trip_plan_collection_point.py`
+  - `app/serializers/schedule_masters/trip_plan_serializer.py`
+  - `app/serializers/schedule_masters/trip_plan_collection_point_serializer.py`
+  - `app/viewsets/schedule_masters/trip_plan_viewset.py`
+  - `app/viewsets/schedule_masters/trip_plan_collection_point_viewset.py`
+  - router/url registrations for both endpoints
+- `TripPlanSerializer` must accept a nested write-only array named `collection_points`.
+- `TripPlanSerializer` must return the saved related rows as `plan_collection_points` so edit mode can prefill the frontend.
+- For each nested collection point row support at least:
+  - `collection_type`
+  - `collection_point_id`
+  - `bin_id`
+  - `customer_id`
+  - `sequence`
+  - `is_active`
+- `bin_collection` rows require `collection_point_id` and `bin_id`.
+- `household_collection` rows require `customer_id`.
+- Validate duplicate `sequence` values per trip plan.
+- Validate duplicate collection point/bin rows so the same stop is not repeated accidentally.
+- Validate that a selected bin belongs to the selected collection point.
+- Use a transaction for Trip Plan create/update plus nested stop sync.
+- On Trip Plan create:
+  - create the TripPlan
+  - bulk-create the submitted TripPlanCollectionPoint rows
+  - copy company/project from the trip plan into each stop
+  - derive zone/ward/panchayat from the selected collection point where applicable
+- On Trip Plan update:
+  - if `collection_points` is included in payload, replace/sync the old active stop list with the submitted list
+  - preserve soft-delete behavior by marking removed old rows `is_deleted=True` and `is_active=False`
+  - create/update the submitted rows in the correct sequence
+  - if `collection_points` is not included, do not modify existing stops
+- Do not expose `TripPlanCollectionPoint` as a standalone user/admin API workflow. It is an internal child table used by `TripPlan` to store multiple stops.
+- Ensure generated DailyTripAssignment/DailyTripCollectionPoint logic reads the TripPlan's related `plan_collection_points`.
+- Add or update backend tests for:
+  - Trip Plan create with multiple collection points
+  - Trip Plan edit replacing the collection point list
+  - duplicate sequence validation
+  - invalid bin/collection point validation
+  - edit response includes `plan_collection_points`
+
+Frontend required changes
+- Files to inspect/update:
+  - `iwms-frontend/src/pages/admin/modules/transportMasters/tripPlan/tripPlanForm.tsx`
+  - `iwms-frontend/src/pages/admin/modules/transportMasters/tripPlan/tripPlanList.tsx`
+  - `iwms-frontend/src/pages/admin/modules/transportMasters/tripPlan/types.ts`
+  - `iwms-frontend/src/pages/admin/modules/scheduleMasters/tripPlanCollectionPoint/*`
+  - `iwms-frontend/src/helpers/admin/index.ts`
+  - `iwms-frontend/src/helpers/admin/endpoints.ts`
+  - admin router/nav/sidebar files that expose Trip Plan Collection Point separately
+- In `tripPlanForm.tsx`, render a visible "Collection Points" section inside the Trip Plan form.
+- The Collection Points section must support multiple rows:
+  - add row
+  - remove row
+  - select collection type
+  - select collection point
+  - select bin filtered by selected collection point
+  - select customer when household collection is used
+  - sequence/order must be handled automatically or editable without duplicates
+  - active/inactive toggle per row
+- On create/update, send the nested array as `collection_points` in the Trip Plan payload.
+- On edit, prefill the rows from `record.plan_collection_points`.
+- When location fields change in Trip Plan:
+  - filter available collection points by selected panchayat or ward
+  - reset incompatible stop rows if the selected geography changes
+- The UI must support bulk creation from one submit, not repeated single API calls from the Trip Plan screen.
+- Update `types.ts` so `StopRow` matches the backend payload, including `collection_type`, optional `customer_id`, and active flag.
+- In `tripPlanList.tsx`, optionally show stop count from `plan_collection_points`.
+- Remove the separate Trip Plan Collection Point menu, route, list page, form page, permissions entry, and bulk import entry.
+- Do not leave a broken or duplicate workflow where users can only create stops one by one.
+
+Expected payload example
+```json
+{
+  "company_id_input": "COMP-001",
+  "project_id_input": "PROJ-001",
+  "district_id": "DIST-001",
+  "city_id": "CITY-001",
+  "zone_id": "ZONE-001",
+  "panchayat_id": null,
+  "ward_id": "WARD-001",
+  "staff_template_id": "STFTEMP-001",
+  "vehicle_id": "VEH-001",
+  "supervisor_id": "STAFF-001",
+  "property_id": "PROP-001",
+  "sub_property_id": "SUBPROP-001",
+  "waste_type_id": "WASTE-001",
+  "trip_trigger_weight_kg": 500,
+  "max_vehicle_capacity_kg": 1000,
+  "scheduled_time": "07:30",
+  "approval_status": "PENDING",
+  "status": "ACTIVE",
+  "collection_points": [
+    {
+      "collection_type": "bin_collection",
+      "collection_point_id": "CP-001",
+      "bin_id": "BIN-001",
+      "sequence": 1,
+      "is_active": true
+    },
+    {
+      "collection_type": "bin_collection",
+      "collection_point_id": "CP-002",
+      "bin_id": "BIN-002",
+      "sequence": 2,
+      "is_active": true
+    }
+  ]
+}
+```
+
+Verification
+- Backend:
+  - run Django checks
+  - run targeted tests or create focused tests for Trip Plan nested collection point create/update
+  - manually verify POST/PUT/PATCH response includes `plan_collection_points`
+- Frontend:
+  - run TypeScript/build check if available
+  - manually test Trip Plan create with more than one collection point
+  - manually test Trip Plan edit prefill and replace the collection point list
+  - verify bin options filter after selecting a collection point
+  - verify standalone Trip Plan Collection Point route/menu is either intentionally hidden or still works as compatibility
+
 Execute this new plan schema for iwms backend.
 You have to aligne the iwms-frontend with this new chaanges as well.,
 Create seeder as well
@@ -1639,5 +1781,3 @@ StaffTemplateapp.models.user_creations.staff_template2AlternativeStaffTemplateap
 
 eg:-
 router.register_group("schedule masters", "daily-trip-assigment", DailyTripAssignmentViewset)
-
-
