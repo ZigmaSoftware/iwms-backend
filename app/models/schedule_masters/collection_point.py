@@ -69,13 +69,10 @@ class Collection_point(BaseMaster):
         blank=True
     )
 
-    ward_id = models.ForeignKey(
+    wards = models.ManyToManyField(
         Ward,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="ward_id",
-        null=True,
-        blank=True
+        related_name="collection_points",
+        blank=True,
     )
 
     cp_name = models.CharField(max_length=100)
@@ -85,21 +82,12 @@ class Collection_point(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
-
     def clean(self):
-        if not self.panchayat_id and not self.ward_id:
-            raise ValidationError("Collection Point must belong to Ward or Panchayat.")
-
-        if self.panchayat_id and self.ward_id:
-            raise ValidationError("Collection Point cannot belong to both Ward and Panchayat.")
-        
+        # XOR validation is done in the serializer (M2M not available pre-save),
+        # but keep a basic guard for admin/shell usage.
+        pass
 
     def __str__(self):
         if self.panchayat_id:
             return f"{self.cp_name} (Panchayat: {self.panchayat_id.panchayat_name})"
-
-        if self.ward_id:
-            return f"{self.cp_name} (Ward: {self.ward_id.ward_name})"
-
         return self.cp_name

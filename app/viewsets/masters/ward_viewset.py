@@ -28,12 +28,16 @@ class WardViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             queryset = queryset.filter(project_id__unique_id=project_uid)
 
         zone_uid = self.request.query_params.get("zone") or self.request.query_params.get("zone_id")
+        panchayat_uid = self.request.query_params.get("panchayat") or self.request.query_params.get("panchayat_id")
         district_uid = self.request.query_params.get("district") or self.request.query_params.get("district_id")
         city_uid = self.request.query_params.get("city") or self.request.query_params.get("city_id")
         state_uid = self.request.query_params.get("state") or self.request.query_params.get("state_id")
 
         if zone_uid:
             queryset = queryset.filter(zone_id__unique_id=zone_uid)
+
+        if panchayat_uid:
+            queryset = queryset.filter(panchayat_id__unique_id=panchayat_uid)
 
         if district_uid:
             queryset = queryset.filter(district_id__unique_id=district_uid)
