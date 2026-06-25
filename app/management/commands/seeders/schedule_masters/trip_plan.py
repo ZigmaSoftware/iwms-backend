@@ -64,6 +64,13 @@ class TripPlanSeeder(BaseSeeder):
         }
         fallback_waste = WasteType.objects.filter(is_deleted=False).first()
 
+        def waste_id_list(*items):
+            ids = []
+            for waste_type in items:
+                if waste_type and waste_type.unique_id and waste_type.unique_id not in ids:
+                    ids.append(waste_type.unique_id)
+            return ids
+
         common_defaults = dict(
             district_id=district,
             city_id=city,
@@ -74,6 +81,8 @@ class TripPlanSeeder(BaseSeeder):
             max_vehicle_capacity_kg=3000,
             approval_status=TripPlan.ApprovalStatus.APPROVED,
             status=TripPlan.Status.ACTIVE,
+            is_auto_assign=True,
+            repeat_days=[],
         )
 
         # Approve any already-active plans
@@ -96,6 +105,7 @@ class TripPlanSeeder(BaseSeeder):
             if not waste_type:
                 ward_skipped += 1
                 continue
+            plan_waste_ids = waste_id_list(waste_type)
 
             staff_template = staff_templates[idx % len(staff_templates)]
             vehicle = vehicles[idx % len(vehicles)]
@@ -112,6 +122,7 @@ class TripPlanSeeder(BaseSeeder):
                     "zone_id": ward.zone_id,   # zone comes from the ward's own zone
                     "panchayat_id": None,
                     "scheduled_time": BASE_TIMES[idx % len(BASE_TIMES)],
+                    "waste_type_ids": plan_waste_ids,
                 },
             )
             if created:
@@ -132,6 +143,10 @@ class TripPlanSeeder(BaseSeeder):
             if not waste_type:
                 pan_skipped += 1
                 continue
+            plan_waste_ids = waste_id_list(
+                waste_types.get("wet") or waste_type,
+                waste_types.get("dry") or waste_type,
+            ) or waste_id_list(waste_type)
 
             staff_template = staff_templates[idx % len(staff_templates)]
             vehicle = vehicles[idx % len(vehicles)]
@@ -148,6 +163,7 @@ class TripPlanSeeder(BaseSeeder):
                     "zone_id": None,           # panchayats are rural, no zone
                     "ward_id": None,
                     "scheduled_time": BASE_TIMES[idx % len(BASE_TIMES)],
+                    "waste_type_ids": plan_waste_ids,
                 },
             )
             if created:
