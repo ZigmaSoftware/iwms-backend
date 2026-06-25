@@ -156,12 +156,9 @@ class DailyTripCollectionPoint(BaseMaster):
         if self.collection_point_id_id:
             collection_point = self.collection_point_id
             self.panchayat_id = collection_point.panchayat_id
-            self.ward_id = collection_point.ward_id
-            self.zone_id = (
-                collection_point.ward_id.zone_id
-                if collection_point.ward_id_id
-                else None
-            )
+            first_ward = collection_point.wards.select_related("zone_id").first()
+            self.ward_id = first_ward
+            self.zone_id = first_ward.zone_id if first_ward else None
         super().save(*args, **kwargs)
 
     def __str__(self):

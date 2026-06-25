@@ -225,7 +225,7 @@ class DailyTripLog(BaseMaster):
             )
             if first_child:
                 self.collection_point_id = first_child.collection_point_id
-        self.waste_type_id = assignment.waste_type_id
+        self.waste_type_id = assignment.primary_waste_type
         self.trip_date = assignment.trip_date
         self.actual_start_time = self.actual_start_time or assignment.actual_start_time
         self.actual_end_time = self.actual_end_time or assignment.actual_end_time

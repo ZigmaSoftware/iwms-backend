@@ -1,4 +1,5 @@
 from app.management.commands.seeders.base import BaseSeeder
+from django.db.models import Max
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.schedule_masters.trip_plan import TripPlan
@@ -23,14 +24,20 @@ class TripPlanCollectionPointSeeder(BaseSeeder):
             if plan.panchayat_id:
                 cps = cps.filter(panchayat_id=plan.panchayat_id)
             elif plan.ward_id:
-                cps = cps.filter(ward_id=plan.ward_id)
+                cps = cps.filter(wards=plan.ward_id)
             cps = cps.order_by("cp_name")
 
-            sequence = 0
+            sequence = (
+                TripPlanCollectionPoint.objects
+                .filter(trip_plan_id=plan, is_deleted=False)
+                .aggregate(max_sequence=Max("sequence"))
+                .get("max_sequence")
+                or 0
+            )
             for cp in cps:
                 bin_obj = Bins.objects.filter(
                     collection_point_id=cp,
-                    wastetype_id=plan.waste_type_id,
+                    wastetype_id__unique_id__in=plan.waste_type_ids or [plan.waste_type_id_id],
                     is_deleted=False,
                 ).first()
                 if not bin_obj:
@@ -41,17 +48,26 @@ class TripPlanCollectionPointSeeder(BaseSeeder):
                 if not bin_obj:
                     continue
 
-                sequence += 1
-                _, created = TripPlanCollectionPoint.objects.get_or_create(
+                existing_stop = TripPlanCollectionPoint.objects.filter(
                     trip_plan_id=plan,
                     collection_point_id=cp,
-                    defaults={
-                        "bin_id": bin_obj,
-                        "sequence": sequence,
-                        "is_active": True,
-                    },
+                    bin_id=bin_obj,
+                    is_deleted=False,
+                ).first()
+                if existing_stop:
+                    if not existing_stop.is_active:
+                        existing_stop.is_active = True
+                        existing_stop.save(update_fields=["is_active"])
+                    continue
+
+                sequence += 1
+                TripPlanCollectionPoint.objects.create(
+                    trip_plan_id=plan,
+                    collection_point_id=cp,
+                    bin_id=bin_obj,
+                    sequence=sequence,
+                    is_active=True,
                 )
-                if created:
-                    total_created += 1
+                total_created += 1
 
         self.log(f"---TripPlanCollectionPoint seeded | created={total_created}---")

@@ -32,9 +32,8 @@ class CollectionPointSeeder(BaseSeeder):
             cp_name = f"CP-WARD-{idx:02d}"
             lat = float(ward.latitude) + 0.0005 if ward.latitude else 13.0840
             lon = float(ward.longitude) + 0.0005 if ward.longitude else 80.2720
-            _, created = Collection_point.objects.update_or_create(
+            cp, created = Collection_point.objects.update_or_create(
                 cp_name=cp_name,
-                ward_id=ward,
                 company_id=company,
                 project_id=project,
                 defaults={
@@ -48,6 +47,7 @@ class CollectionPointSeeder(BaseSeeder):
                     "is_deleted": False,
                 },
             )
+            cp.wards.set([ward])
             if created:
                 ward_created += 1
 
@@ -63,7 +63,7 @@ class CollectionPointSeeder(BaseSeeder):
             cp_name = f"CP-PAN{pan_num}-01"
             lat = float(panchayat.latitude) + 0.0005 if panchayat.latitude else 13.1500
             lon = float(panchayat.longitude) + 0.0005 if panchayat.longitude else 80.2000
-            _, created = Collection_point.objects.update_or_create(
+            cp, created = Collection_point.objects.update_or_create(
                 cp_name=cp_name,
                 panchayat_id=panchayat,
                 company_id=company,
@@ -72,13 +72,13 @@ class CollectionPointSeeder(BaseSeeder):
                     "state_id": tamil_nadu,
                     "district_id": chennai_dist,
                     "city_id": chennai_city,
-                    "ward_id": None,
                     "latitude": lat,
                     "longitude": lon,
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
+            cp.wards.clear()
             if created:
                 pan_created += 1
 

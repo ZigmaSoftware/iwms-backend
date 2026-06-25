@@ -33,9 +33,9 @@ class BinSeeder(BaseSeeder):
         ward_cps = Collection_point.objects.filter(
             company_id=company,
             project_id=project,
-            ward_id__isnull=False,
+            wards__isnull=False,
             is_deleted=False,
-        ).order_by("cp_name")
+        ).distinct().order_by("cp_name")
 
         for cp in ward_cps:
             cp_key = cp.unique_id[-6:]   # last 6 chars of PK for a compact unique suffix
@@ -69,10 +69,10 @@ class BinSeeder(BaseSeeder):
         panchayat_cps = Collection_point.objects.filter(
             company_id=company,
             project_id=project,
-            ward_id__isnull=True,
+            wards__isnull=True,
             panchayat_id__isnull=False,
             is_deleted=False,
-        ).order_by("panchayat_id", "cp_name")
+        ).distinct().order_by("panchayat_id", "cp_name")
 
         for cp in panchayat_cps:
             cp_key = cp.unique_id[-6:]

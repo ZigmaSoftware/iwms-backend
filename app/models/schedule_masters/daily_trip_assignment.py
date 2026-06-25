@@ -1,4 +1,4 @@
-from django.db import models, transaction
+from django.db import connection, models, transaction
 from django.utils import timezone
 
 from app.utils.base_models import BaseMaster
@@ -22,14 +22,26 @@ def _generate_trip_assignment_unique_id(company_id, project_id):
     """
     today = timezone.localdate()
     prefix = f"TRIP-{today.year}-{today.month:02d}"
+    from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+
     with transaction.atomic():
-        existing = (
+        assignment_ids = (
             DailyTripAssignment.objects.select_for_update()
             .filter(unique_id__startswith=f"{prefix}-")
             .values_list("unique_id", flat=True)
         )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT DISTINCT trip_assignment_id
+                FROM {DailyTripCollectionPoint._meta.db_table}
+                WHERE trip_assignment_id LIKE %s
+                """,
+                [f"{prefix}-%"],
+            )
+            collection_point_assignment_ids = [row[0] for row in cursor.fetchall()]
         max_seq = 0
-        for uid in existing:
+        for uid in set(assignment_ids).union(collection_point_assignment_ids):
             try:
                 seq = int(uid.rsplit("-", 1)[-1])
                 if seq > max_seq:
@@ -150,12 +162,10 @@ class DailyTripAssignment(BaseMaster):
     # WASTE TYPE
     # ------------------------------------------------------------------
 
-    waste_type_id = models.ForeignKey(
-        WasteType,
-        on_delete=models.PROTECT,
-        db_column="waste_type_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
+    waste_type_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of waste type unique_ids assigned to this daily trip plan.",
     )
 
     # Multiple waste types for household collection stops on this trip
@@ -228,6 +238,10 @@ class DailyTripAssignment(BaseMaster):
             models.Index(fields=["ward_id", "trip_date"]),
         ]
         constraints = [
+            models.UniqueConstraint(
+                fields=["trip_plan_id", "trip_date"],
+                name="uniq_daily_trip_plan_per_date",
+            ),
             models.CheckConstraint(
                 check=(
                     models.Q(panchayat_id__isnull=False, ward_id__isnull=True) |
@@ -245,10 +259,10 @@ class DailyTripAssignment(BaseMaster):
         if self.trip_plan_id:
             self.staff_template_id = self.staff_template_id or self.trip_plan_id.staff_template_id
             self.vehicle_id = self.vehicle_id or self.trip_plan_id.vehicle_id
-            self.waste_type_id = self.waste_type_id or self.trip_plan_id.waste_type_id
             self.panchayat_id = self.panchayat_id or self.trip_plan_id.panchayat_id
             self.ward_id = self.ward_id or self.trip_plan_id.ward_id
             self.scheduled_time = self.scheduled_time or self.trip_plan_id.scheduled_time
+            self.waste_type_ids = self.waste_type_ids or self.trip_plan_id.waste_type_ids
         if not self.unique_id:
             with transaction.atomic():
                 self.unique_id = _generate_trip_assignment_unique_id(
@@ -260,6 +274,15 @@ class DailyTripAssignment(BaseMaster):
 
     def __str__(self):
         return self.unique_id
+
+    @property
+    def primary_waste_type(self):
+        if not self.waste_type_ids:
+            return None
+        return WasteType.objects.filter(
+            unique_id=self.waste_type_ids[0],
+            is_deleted=False,
+        ).first()
 
     def mark_completed_if_all_cps_collected(self):
         children = self.trip_collection_points.filter(is_deleted=False)

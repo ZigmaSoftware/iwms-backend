@@ -1,12 +1,8 @@
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.assets.bins import Bins
-from app.models.schedule_masters.collection_point import Collection_point
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import (
-    DailyTripCollectionPoint,
-)
+from app.services.daily_trip_generation import ensure_assignment_collection_points
 
 
 class DailyTripCollectionPointSeeder(BaseSeeder):
@@ -18,7 +14,7 @@ class DailyTripCollectionPointSeeder(BaseSeeder):
             DailyTripAssignment.objects
             .filter(trip_date=today, is_deleted=False)
             .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-            .select_related("panchayat_id", "ward_id", "waste_type_id")
+            .select_related("trip_plan_id")
         )
 
         if not assignments.exists():
@@ -26,8 +22,8 @@ class DailyTripCollectionPointSeeder(BaseSeeder):
                 DailyTripAssignment.objects
                 .filter(is_deleted=False)
                 .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-                .select_related("panchayat_id", "ward_id", "waste_type_id")
-                .order_by("-trip_date", "-scheduled_time")[:3]
+                .select_related("trip_plan_id")
+                .order_by("-trip_date", "-scheduled_time")[:10]
             )
 
         if not assignments:
@@ -36,55 +32,7 @@ class DailyTripCollectionPointSeeder(BaseSeeder):
 
         total_created = 0
         for assignment in assignments:
-            cp_qs = Collection_point.objects.filter(
-                company_id=assignment.company_id,
-                project_id=assignment.project_id,
-                is_deleted=False,
-            )
-            if assignment.panchayat_id:
-                cp_qs = cp_qs.filter(panchayat_id=assignment.panchayat_id)
-            elif assignment.ward_id:
-                cp_qs = cp_qs.filter(ward_id=assignment.ward_id)
-            cps = list(cp_qs.order_by("cp_name"))
-
-            if not cps:
-                cps = list(
-                    Collection_point.objects
-                    .filter(
-                        company_id=assignment.company_id,
-                        project_id=assignment.project_id,
-                        is_deleted=False,
-                    )
-                    .order_by("cp_name")[:5]
-                )
-
-            sequence = 0
-            for cp in cps:
-                bin_obj = Bins.objects.filter(
-                    collection_point_id=cp,
-                    wastetype_id=assignment.waste_type_id,
-                    is_deleted=False,
-                ).first()
-                if not bin_obj:
-                    bin_obj = Bins.objects.filter(
-                        collection_point_id=cp,
-                        is_deleted=False,
-                    ).first()
-                if not bin_obj:
-                    continue
-                sequence += 1
-                _, created = DailyTripCollectionPoint.objects.get_or_create(
-                    trip_assignment_id=assignment,
-                    collection_point_id=cp,
-                    defaults={
-                        "bin_id": bin_obj,
-                        "sequence": sequence,
-                        "is_collected": False,
-                        "status": DailyTripCollectionPoint.STATUS_PENDING,
-                    },
-                )
-                if created:
-                    total_created += 1
+            total_created += ensure_assignment_collection_points(assignment)
 
         self.log(
             f"---DailyTripCollectionPoint seeded | created={total_created}---"

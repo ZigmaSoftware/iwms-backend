@@ -1,11 +1,17 @@
 from django.utils import timezone
 from django.db.models import Q
+from django.db.models import Prefetch
 
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+from app.services.daily_trip_scheduler import (
+    run_daily_trip_job,
+    scheduler_status as get_scheduler_status,
+)
 from app.serializers.schedule_masters.daily_trip_assignment_serializer import (
     DailyTripAssignmentSerializer,
     DailyTripAssignmentStatusSerializer,
@@ -31,7 +37,9 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         "trip_plan_id__ward_id",
         "trip_plan_id__ward_id__zone_id",
         "trip_plan_id__vehicle_id",
-        "trip_plan_id__waste_type_id",
+        "trip_plan_id__staff_template_id",
+        "trip_plan_id__staff_template_id__driver_id",
+        "trip_plan_id__staff_template_id__operator_id",
         "staff_template_id",
         "staff_template_id__driver_id",
         "staff_template_id__operator_id",
@@ -41,8 +49,19 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         "panchayat_id",
         "ward_id",
         "ward_id__zone_id",
-        "waste_type_id",
         "vehicle_id",
+    ).prefetch_related(
+        Prefetch(
+            "trip_collection_points",
+            queryset=DailyTripCollectionPoint.objects.filter(is_deleted=False).select_related(
+                "collection_point_id",
+                "bin_id",
+                "collected_by",
+                "zone_id",
+                "ward_id",
+                "panchayat_id",
+            ).order_by("sequence"),
+        )
     ).filter(is_deleted=False)
 
     serializer_class = DailyTripAssignmentSerializer
@@ -94,24 +113,43 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             qs = qs.filter(status=trip_status)
 
         if waste_type:
-            qs = qs.filter(waste_type_id=waste_type)
+            qs = qs.filter(waste_type_ids__contains=waste_type)
 
         return qs
 
     # ----------------------------------------------------------
-    # UPDATE — only allowed when Scheduled
+    # UPDATE — cancelled trips remain locked, other daily trips can be edited
     # ----------------------------------------------------------
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        if instance.status != DailyTripAssignment.STATUS_SCHEDULED:
+        if instance.status == DailyTripAssignment.STATUS_CANCELLED:
             return Response(
-                {"detail": "Only Scheduled assignments can be edited."},
+                {"detail": "Cancelled assignments cannot be edited."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         return super().update(request, *args, **kwargs)
+
+    @action(detail=False, methods=["get"], url_path="scheduler-status")
+    def scheduler_status(self, request):
+        return Response(get_scheduler_status(), status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="run-scheduler")
+    def run_scheduler(self, request):
+        raw_date = request.data.get("date")
+        target_date = None
+        if raw_date:
+            try:
+                target_date = timezone.datetime.strptime(raw_date, "%Y-%m-%d").date()
+            except ValueError:
+                return Response(
+                    {"date": "Use YYYY-MM-DD format."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        result = run_daily_trip_job(target_date=target_date, force=True)
+        return Response(result, status=status.HTTP_200_OK)
 
     # ----------------------------------------------------------
     # DELETE — soft-delete + cancel
