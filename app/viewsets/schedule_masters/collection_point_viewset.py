@@ -6,25 +6,27 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class CollectionPointViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class CollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = CollectionPointSerializer
     lookup_field = "unique_id"
 
     permission_resource = "CollectionPoint"
 
     AUDIT_MODULE = "assets"
-    AUDIT_ENDPOINT ="collection-point"
+    AUDIT_ENDPOINT = "collection-point"
 
     def get_queryset(self):
-        queryset = Collection_point.objects.select_related(
+        queryset = Collection_point.objects.prefetch_related(
+            "wards",
+            "wards__zone_id",
+            "wards__panchayat_id",
+        ).select_related(
             "company_id",
             "project_id",
             "state_id",
             "district_id",
             "city_id",
             "panchayat_id",
-            "ward_id",
-            "ward_id__zone_id",
         ).filter(is_deleted=False)
 
         company_uid = self.request.query_params.get("company_id")
@@ -51,10 +53,10 @@ class CollectionPointViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             queryset = queryset.filter(panchayat_id__unique_id=panchayat_uid)
 
         if ward_uid:
-            queryset = queryset.filter(ward_id__unique_id=ward_uid)
+            queryset = queryset.filter(wards__unique_id=ward_uid).distinct()
 
         if zone_uid:
-            queryset = queryset.filter(ward_id__zone_id__unique_id=zone_uid)
+            queryset = queryset.filter(wards__zone_id__unique_id=zone_uid).distinct()
 
         return queryset
 

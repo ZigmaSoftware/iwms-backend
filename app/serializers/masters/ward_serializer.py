@@ -11,6 +11,7 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     district_name = serializers.CharField(source="district_id.name", read_only=True)
     hierarchy_name = serializers.CharField(source="hierarchy_id.level_name", read_only=True)
     zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True)
+    panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
 
     continent_name = serializers.CharField(source="state_id.continent_id.name", read_only=True)
     country_name = serializers.CharField(source="state_id.country_id.name", read_only=True)
@@ -52,6 +53,8 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "area_type_name",
             "zone_id",
             "zone_name",
+            "panchayat_id",
+            "panchayat_name",
 
             "hierarchy_id",
             "hierarchy_order",
@@ -84,9 +87,27 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         ward_name = attrs.get("ward_name")
 
-        if area_type and area_type.name.lower() != "urban":
+        zone = attrs.get("zone_id") if "zone_id" in attrs else getattr(self.instance, "zone_id", None)
+        panchayat = attrs.get("panchayat_id") if "panchayat_id" in attrs else getattr(self.instance, "panchayat_id", None)
+
+        if zone and panchayat:
+            raise serializers.ValidationError(
+                "Ward can belong to either Zone or Panchayat."
+            )
+
+        if not zone and not panchayat:
+            raise serializers.ValidationError(
+                "Ward must belong to Zone or Panchayat."
+            )
+
+        # Zone-wards are Urban; Panchayat-wards are Rural — only validate when zone is set
+        if zone and area_type and area_type.name.lower() != "urban":
             raise serializers.ValidationError({
-                "area_type": "ward must belong to urban area type."
+                "area_type": "Zone-based ward must belong to urban area type."
+            })
+        if panchayat and area_type and area_type.name.lower() != "rural":
+            raise serializers.ValidationError({
+                "area_type": "Panchayat-based ward must belong to rural area type."
             })
 
         if hierarchy and hierarchy.level_name.lower() != "ward":

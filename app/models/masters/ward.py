@@ -1,6 +1,7 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -10,6 +11,7 @@ from ..common_masters.state import State
 from .district import District
 from .city import City
 from app.models.masters.zone import Zone
+from app.models.masters.panchayat import Panchayat
 
 
 
@@ -47,10 +49,17 @@ class Ward(BaseMaster):
         blank=True
     )
 
+    panchayat_id = models.ForeignKey(
+        Panchayat,
+        on_delete=models.PROTECT,
+        related_name="wards",
+        null=True,
+        blank=True
+    )
+
     area_type_id = models.ForeignKey(
         AreaType,
         on_delete=models.PROTECT,
-        limit_choices_to={"name": "Urban"},
         null=True,
         blank=True
     )
@@ -65,10 +74,27 @@ class Ward(BaseMaster):
 
     ward_name = models.CharField(max_length=100)
     description = models.TextField(null=True, blank=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     geofencing_type = models.CharField(max_length=20, choices=GeoFencingType.choices, default=GeoFencingType.SQUARE)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)     
-    
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        has_zone = bool(self.zone_id_id or self.zone_id)
+        has_panchayat = bool(self.panchayat_id_id or self.panchayat_id)
+
+        if has_zone and has_panchayat:
+            raise ValidationError("Ward can belong to either Zone or Panchayat.")
+
+        if not has_zone and not has_panchayat:
+            raise ValidationError("Ward must belong to Zone or Panchayat.")
+
+    def __str__(self):
+        if self.zone_id:
+            return f"{self.ward_name} (Zone: {self.zone_id.zone_name})"
+        if self.panchayat_id:
+            return f"{self.ward_name} (Panchayat: {self.panchayat_id.panchayat_name})"
+        return self.ward_name
+
     
