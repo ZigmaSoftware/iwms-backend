@@ -133,6 +133,8 @@ class TripPlan(BaseMaster):
         to_field="unique_id",
         related_name="trip_plans",
         db_column="property_id",
+        null=True,
+        blank=True,
     )
     sub_property_id = models.ForeignKey(
         SubProperty,
@@ -140,6 +142,8 @@ class TripPlan(BaseMaster):
         to_field="unique_id",
         related_name="trip_plans",
         db_column="sub_property_id",
+        null=True,
+        blank=True,
     )
     waste_type_id = models.ForeignKey(
         WasteType,
@@ -200,16 +204,7 @@ class TripPlan(BaseMaster):
             models.Index(fields=["display_code"]),
             models.Index(fields=["district_id", "city_id"]),
         ]
-        constraints = [
-            models.CheckConstraint(
-                # Mirrors Collection_point: must have panchayat OR ward, not both, not neither
-                check=(
-                    models.Q(panchayat_id__isnull=False, ward_id__isnull=True) |
-                    models.Q(panchayat_id__isnull=True,  ward_id__isnull=False)
-                ),
-                name="trip_plan_panchayat_xor_ward",
-            )
-        ]
+        constraints = []
 
     def _generate_display_code(self):
         driver_name = "DRV"

@@ -113,11 +113,15 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         slug_field="unique_id",
         queryset=Property.objects.filter(is_deleted=False),
         write_only=True,
+        required=False,
+        allow_null=True,
     )
     sub_property_id = UniqueIdOrPkField(
         slug_field="unique_id",
         queryset=SubProperty.objects.filter(is_deleted=False),
         write_only=True,
+        required=False,
+        allow_null=True,
     )
     waste_type_id = UniqueIdOrPkField(
         slug_field="unique_id",
@@ -331,10 +335,15 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
 
         instance = getattr(self, "instance", None)
         panchayat = attrs.get("panchayat_id", getattr(instance, "panchayat_id", None))
+        zone = attrs.get("zone_id", getattr(instance, "zone_id", None))
         ward = attrs.get("ward_id", getattr(instance, "ward_id", None))
-        if bool(panchayat) == bool(ward):
+        if not ward:
             raise serializers.ValidationError(
-                "Trip plan must belong to either a ward or a panchayat."
+                {"ward_id": "Ward is required."}
+            )
+        if bool(panchayat) == bool(zone):
+            raise serializers.ValidationError(
+                "Trip plan must belong to either a zone or a panchayat (not both, not neither)."
             )
 
         trigger = attrs.get(
@@ -348,20 +357,6 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         if trigger is not None and capacity is not None and trigger >= capacity:
             raise serializers.ValidationError(
                 "Trigger weight must be less than vehicle capacity."
-            )
-
-        property_obj = attrs.get("property_id", getattr(instance, "property_id", None))
-        sub_property_obj = attrs.get(
-            "sub_property_id",
-            getattr(instance, "sub_property_id", None),
-        )
-        if (
-            property_obj
-            and sub_property_obj
-            and sub_property_obj.property_id != property_obj
-        ):
-            raise serializers.ValidationError(
-                "Sub-property does not belong to the selected property."
             )
 
         waste_type_ids = attrs.get("waste_type_ids")
@@ -387,12 +382,6 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             raise serializers.ValidationError(
                 {"waste_type_ids": "Select at least one waste type."}
             )
-
-        allowed_waste_type_ids = set(
-            attrs.get("waste_type_ids")
-            or getattr(instance, "waste_type_ids", None)
-            or ([getattr(waste_type, "unique_id", None)] if waste_type else [])
-        )
 
         stops = attrs.get("collection_points")
         if stops is not None:
@@ -446,11 +435,6 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
                         raise serializers.ValidationError(
                             {"collection_points": "Selected bin does not belong to the collection point."}
                         )
-                    bin_waste_type_id = getattr(bin_obj, "wastetype_id_id", None)
-                    if allowed_waste_type_ids and bin_waste_type_id not in allowed_waste_type_ids:
-                        raise serializers.ValidationError(
-                            {"collection_points": "Selected bin waste type is not allowed for this trip plan."}
-                        )
                 elif collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD:
                     if not customer_id:
                         raise serializers.ValidationError(
@@ -499,13 +483,12 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             if collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_BIN:
                 cp = Collection_point.objects.select_related(
                     "panchayat_id",
-                    "ward_id",
-                    "ward_id__zone_id",
                 ).get(unique_id=stop["collection_point_id"])
                 bin_obj = Bins.objects.get(unique_id=stop["bin_id"])
                 panchayat = cp.panchayat_id
-                ward = cp.ward_id
-                zone = cp.ward_id.zone_id if cp.ward_id_id else None
+                first_ward = cp.wards.select_related("zone_id").first()
+                ward = first_ward
+                zone = first_ward.zone_id if first_ward else None
             elif collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD:
                 customer = CustomerCreation.objects.select_related(
                     "panchayat_id",
