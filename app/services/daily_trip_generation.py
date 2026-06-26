@@ -35,11 +35,11 @@ def ensure_assignment_collection_points(assignment: DailyTripAssignment, created
     if not assignment or not assignment.trip_plan_id_id:
         return 0
 
-    existing_collection_point_ids = set(
+    existing_stop_keys = set(
         DailyTripCollectionPoint.objects.filter(
             trip_assignment_id=assignment,
             is_deleted=False,
-        ).values_list("collection_point_id_id", flat=True)
+        ).values_list("collection_point_id_id", "bin_id_id")
     )
     stops = (
         TripPlanCollectionPoint.objects.filter(
@@ -56,7 +56,8 @@ def ensure_assignment_collection_points(assignment: DailyTripAssignment, created
 
     created_count = 0
     for stop in stops:
-        if stop.collection_point_id_id in existing_collection_point_ids:
+        stop_key = (stop.collection_point_id_id, stop.bin_id_id)
+        if stop_key in existing_stop_keys:
             continue
         DailyTripCollectionPoint.objects.create(
             trip_assignment_id=assignment,
@@ -67,7 +68,7 @@ def ensure_assignment_collection_points(assignment: DailyTripAssignment, created
             status=DailyTripCollectionPoint.STATUS_PENDING,
             created_by=created_by,
         )
-        existing_collection_point_ids.add(stop.collection_point_id_id)
+        existing_stop_keys.add(stop_key)
         created_count += 1
     return created_count
 
