@@ -79,7 +79,6 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
         "vehicle_id": plan.vehicle_id,
         "waste_type_ids": plan.waste_type_ids or ([plan.waste_type_id_id] if plan.waste_type_id_id else []),
         "panchayat_id": plan.panchayat_id,
-        "ward_id": plan.ward_id,
         "scheduled_time": plan.scheduled_time,
     }
     assignment, created = DailyTripAssignment.objects.get_or_create(

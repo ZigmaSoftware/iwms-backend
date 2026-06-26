@@ -87,12 +87,12 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         required=False,
         allow_null=True,
     )
-    ward_id = UniqueIdOrPkField(
-        slug_field="unique_id",
-        queryset=Ward.objects.filter(is_deleted=False),
+    ward_ids = serializers.ListField(
+        child=serializers.CharField(),
         write_only=True,
         required=False,
-        allow_null=True,
+        allow_empty=True,
+        default=list,
     )
     staff_template_id = UniqueIdOrPkField(
         slug_field="unique_id",
@@ -153,7 +153,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
     city = serializers.SerializerMethodField()
     zone = serializers.SerializerMethodField()
     panchayat = serializers.SerializerMethodField()
-    ward = serializers.SerializerMethodField()
+    wards = serializers.SerializerMethodField()
     staff_template = serializers.SerializerMethodField()
     vehicle = serializers.SerializerMethodField()
     supervisor = serializers.SerializerMethodField()
@@ -178,7 +178,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             "city_id",
             "zone_id",
             "panchayat_id",
-            "ward_id",
+            "ward_ids",
             "staff_template_id",
             "vehicle_id",
             "supervisor_id",
@@ -190,7 +190,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             "city",
             "zone",
             "panchayat",
-            "ward",
+            "wards",
             "staff_template",
             "vehicle",
             "supervisor",
@@ -238,8 +238,11 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
     def get_panchayat(self, obj):
         return self._ref(obj, "panchayat_id", "panchayat_name")
 
-    def get_ward(self, obj):
-        return self._ref(obj, "ward_id", "ward_name")
+    def get_wards(self, obj):
+        return [
+            {"unique_id": w.unique_id, "ward_name": w.ward_name}
+            for w in obj.wards.all()
+        ]
 
     def get_staff_template(self, obj):
         st = obj.staff_template_id
@@ -336,11 +339,21 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         instance = getattr(self, "instance", None)
         panchayat = attrs.get("panchayat_id", getattr(instance, "panchayat_id", None))
         zone = attrs.get("zone_id", getattr(instance, "zone_id", None))
-        ward = attrs.get("ward_id", getattr(instance, "ward_id", None))
-        if not ward:
-            raise serializers.ValidationError(
-                {"ward_id": "Ward is required."}
-            )
+
+        # Validate ward_ids — must have at least one ward
+        raw_ward_ids = attrs.get("ward_ids")
+        if raw_ward_ids is not None:
+            valid_ward_ids = [str(w) for w in raw_ward_ids if str(w)]
+            if not valid_ward_ids:
+                raise serializers.ValidationError({"ward_ids": "At least one ward is required."})
+            existing = set(Ward.objects.filter(unique_id__in=valid_ward_ids, is_deleted=False).values_list("unique_id", flat=True))
+            invalid = [w for w in valid_ward_ids if w not in existing]
+            if invalid:
+                raise serializers.ValidationError({"ward_ids": f"Invalid ward(s): {', '.join(invalid)}"})
+            attrs["ward_ids"] = valid_ward_ids
+        elif instance is None:
+            raise serializers.ValidationError({"ward_ids": "At least one ward is required."})
+
         if bool(panchayat) == bool(zone):
             raise serializers.ValidationError(
                 "Trip plan must belong to either a zone or a panchayat (not both, not neither)."
@@ -516,16 +529,33 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
 
         TripPlanCollectionPoint.objects.bulk_create(new_stops)
 
+    def _sync_wards(self, trip_plan, ward_ids):
+        if ward_ids is None:
+            return
+        wards = Ward.objects.filter(unique_id__in=ward_ids, is_deleted=False)
+        trip_plan.wards.set(wards)
+
     def create(self, validated_data):
         stops = validated_data.pop("collection_points", None)
+        ward_ids = validated_data.pop("ward_ids", [])
         with transaction.atomic():
             trip_plan = super().create(validated_data)
+            self._sync_wards(trip_plan, ward_ids)
             self._sync_stops(trip_plan, stops)
         return trip_plan
 
     def update(self, instance, validated_data):
         stops = validated_data.pop("collection_points", None)
+        ward_ids = validated_data.pop("ward_ids", None)
+        old_vehicle_id = instance.vehicle_id_id
+        old_template_id = instance.staff_template_id_id
         with transaction.atomic():
             trip_plan = super().update(instance, validated_data)
+            vehicle_changed = trip_plan.vehicle_id_id != old_vehicle_id
+            template_changed = trip_plan.staff_template_id_id != old_template_id
+            if vehicle_changed or template_changed:
+                trip_plan.display_code = trip_plan._generate_display_code()
+                trip_plan.save(update_fields=["display_code"])
+            self._sync_wards(trip_plan, ward_ids)
             self._sync_stops(trip_plan, stops)
         return trip_plan
