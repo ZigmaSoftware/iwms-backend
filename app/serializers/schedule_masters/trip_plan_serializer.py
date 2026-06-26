@@ -161,6 +161,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
     sub_property = serializers.SerializerMethodField()
     waste_type = serializers.SerializerMethodField()
     waste_types = serializers.SerializerMethodField()
+    start_time = serializers.SerializerMethodField()
     plan_collection_points = serializers.SerializerMethodField()
 
     class Meta:
@@ -200,6 +201,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             "waste_types",
             "trip_trigger_weight_kg",
             "max_vehicle_capacity_kg",
+            "start_time",
             "scheduled_time",
                 "is_auto_assign",
                 "repeat_days",
@@ -297,6 +299,9 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             for waste_type_id in ids
             if waste_type_id in by_id
         ]
+
+    def get_start_time(self, obj):
+        return str(obj.scheduled_time) if obj.scheduled_time else None
 
     def get_plan_collection_points(self, obj):
         stops = obj.plan_collection_points.filter(is_deleted=False).select_related(

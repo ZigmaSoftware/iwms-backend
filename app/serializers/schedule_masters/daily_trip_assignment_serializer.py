@@ -151,6 +151,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     vehicle = serializers.SerializerMethodField(read_only=True)
     collection_types = serializers.SerializerMethodField(read_only=True)
     collection_points = serializers.SerializerMethodField(read_only=True)
+    start_time = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
         write_only=True,
@@ -187,6 +188,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "vehicle",
             "collection_types",
             "collection_points",
+            "start_time",
             "collection_points_input",
             "trip_date",
             "scheduled_time",
@@ -366,6 +368,9 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "panchayat_id",
         ).order_by("sequence")
         return DailyTripCollectionPointInlineSerializer(stops, many=True).data
+
+    def get_start_time(self, obj):
+        return str(obj.scheduled_time) if obj.scheduled_time else None
 
     def _resolve_by_unique_id(self, model, value, field="unique_id"):
         if not value:
