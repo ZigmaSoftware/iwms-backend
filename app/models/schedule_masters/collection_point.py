@@ -14,6 +14,13 @@ def geneate_collection_point_id():
     return f"CP-{generate_unique_id()}"
 
 class Collection_point(BaseMaster):
+    COLLECTION_TYPE_BIN = "bin_collection"
+    COLLECTION_TYPE_HOUSEHOLD = "household_collection"
+    COLLECTION_TYPE_CHOICES = [
+        (COLLECTION_TYPE_BIN, "Bin Collection"),
+        (COLLECTION_TYPE_HOUSEHOLD, "Household Collection"),
+    ]
+
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -73,6 +80,12 @@ class Collection_point(BaseMaster):
         Ward,
         related_name="collection_points",
         blank=True,
+    )
+
+    collection_type = models.CharField(
+        max_length=30,
+        choices=COLLECTION_TYPE_CHOICES,
+        default=COLLECTION_TYPE_BIN,
     )
 
     cp_name = models.CharField(max_length=100)

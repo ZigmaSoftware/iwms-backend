@@ -216,6 +216,11 @@ class DailyTripLog(BaseMaster):
         self.company_id = assignment.company_id
         self.project_id = assignment.project_id
         self.panchayat_id = assignment.panchayat_id
+        # For ward-based (household) trips, derive panchayat from the first ward.
+        if not self.panchayat_id_id:
+            first_ward = assignment.wards.select_related("panchayat_id").first()
+            if first_ward and first_ward.panchayat_id_id:
+                self.panchayat_id_id = first_ward.panchayat_id_id
         if not self.collection_point_id:
             first_child = (
                 assignment.trip_collection_points
