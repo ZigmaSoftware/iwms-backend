@@ -70,6 +70,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         salary_type = self.request.query_params.get("salary_type", None)
         department_id = self.request.query_params.get("department_id", None)
         staffusertype_id = self.request.query_params.get("staffusertype_id", None)
+        staff_role = self.request.query_params.get("staff_role", None)
         contractorusertype_id = self.request.query_params.get("contractorusertype_id", None)
         approval_status = self.request.query_params.get("approval_status", None)
         login_enabled = self.request.query_params.get("login_enabled", None)
@@ -91,6 +92,9 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
 
         if staffusertype_id:
             queryset = queryset.filter(staffusertype_id__unique_id=staffusertype_id)
+
+        if staff_role:
+            queryset = queryset.filter(staffusertype_id__name=staff_role)
 
         if contractorusertype_id:
             queryset = queryset.filter(contractorusertype_id__unique_id=contractorusertype_id)

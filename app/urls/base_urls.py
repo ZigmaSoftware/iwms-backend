@@ -104,6 +104,7 @@ from ..viewsets.schedule_masters.bin_collection_event_viewset import BinCollecti
 from ..viewsets.schedule_masters.daily_trip_log_viewset import DailyTripLogViewSet
 from ..viewsets.schedule_masters.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
 from ..viewsets.schedule_masters.daily_waste_comparison_viewset import DailyWasteComparisonViewSet
+from ..viewsets.schedule_masters.vehicle_breakdown_viewset import VehicleBreakdownViewSet
 
 # Audits
 from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
@@ -247,6 +248,7 @@ router.register_group("schedule-masters", "bin-collection-events", BinCollection
 router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
 router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
 router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
+router.register_group("schedule-masters", "vehicle-breakdowns", VehicleBreakdownViewSet)
 
 # ============================================================
 # GROUP: REPORTS (aliases used by the admin frontend)
