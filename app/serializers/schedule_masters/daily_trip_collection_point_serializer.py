@@ -103,6 +103,8 @@ class DailyTripCollectionPointSerializer(
         cp = obj.collection_point_id
         if not cp:
             return None
+        first_ward = cp.wards.first()
+        zone = getattr(first_ward, "zone_id", None)
         return {
             "unique_id": cp.unique_id,
             "cp_name": cp.cp_name,
@@ -110,10 +112,10 @@ class DailyTripCollectionPointSerializer(
             "longitude": cp.longitude,
             "panchayat_id": getattr(cp.panchayat_id, "unique_id", None),
             "panchayat_name": getattr(cp.panchayat_id, "panchayat_name", None),
-            "ward_id": getattr(cp.ward_id, "unique_id", None),
-            "ward_name": getattr(cp.ward_id, "ward_name", None),
-            "zone_id": getattr(getattr(cp.ward_id, "zone_id", None), "unique_id", None),
-            "zone_name": getattr(getattr(cp.ward_id, "zone_id", None), "zone_name", None),
+            "ward_id": getattr(first_ward, "unique_id", None),
+            "ward_name": getattr(first_ward, "ward_name", None),
+            "zone_id": getattr(zone, "unique_id", None),
+            "zone_name": getattr(zone, "zone_name", None),
         }
 
     def get_bin(self, obj):

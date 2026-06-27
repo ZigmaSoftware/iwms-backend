@@ -74,6 +74,7 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
             "ward_name",
             "ward_ids",
             "wards",
+            "collection_type",
             "cp_name",
             "latitude",
             "longitude",

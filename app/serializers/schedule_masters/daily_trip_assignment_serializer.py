@@ -106,12 +106,11 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         required=False,
         allow_null=True,
     )
-    ward_id = UniqueIdOrPkField(
-        slug_field="unique_id",
-        queryset=Ward.objects.filter(is_deleted=False),
+    ward_ids = serializers.ListField(
+        child=serializers.CharField(),
         write_only=True,
         required=False,
-        allow_null=True,
+        allow_empty=True,
     )
     waste_type_ids = serializers.ListField(
         child=serializers.CharField(),
@@ -146,12 +145,13 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     alt_staff_template = serializers.SerializerMethodField(read_only=True)
     effective_staff = serializers.SerializerMethodField(read_only=True)
     panchayat = serializers.SerializerMethodField(read_only=True)
-    ward = serializers.SerializerMethodField(read_only=True)
+    wards = serializers.SerializerMethodField(read_only=True)
     zone = serializers.SerializerMethodField(read_only=True)
     waste_types = serializers.SerializerMethodField(read_only=True)
     vehicle = serializers.SerializerMethodField(read_only=True)
     collection_types = serializers.SerializerMethodField(read_only=True)
     collection_points = serializers.SerializerMethodField(read_only=True)
+    household_collection_points = serializers.SerializerMethodField(read_only=True)
     start_time = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
@@ -172,7 +172,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "trip_plan_id",
             "staff_template_id",
             "panchayat_id",
-            "ward_id",
+            "ward_ids",
             "waste_type_ids",
             "household_waste_type_ids",
             "household_waste_types",
@@ -183,12 +183,13 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "alt_staff_template",
             "effective_staff",
             "panchayat",
-            "ward",
+            "wards",
             "zone",
             "waste_types",
             "vehicle",
             "collection_types",
             "collection_points",
+            "household_collection_points",
             "start_time",
             "collection_points_input",
             "trip_date",
@@ -226,7 +227,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "scheduled_time": plan.scheduled_time,
             "zone": self._zone_payload(getattr(plan, "zone_id", None)),
             "panchayat": self._panchayat_payload(getattr(plan, "panchayat_id", None)),
-            "ward": self._ward_payload(getattr(plan, "ward_id", None)),
+            "wards": [self._ward_payload(w) for w in plan.wards.select_related("zone_id").all()],
             "vehicle_no": getattr(getattr(plan, "vehicle_id", None), "vehicle_no", None),
             "waste_type_name": getattr(getattr(plan, "waste_type_id", None), "waste_type_name", None),
             "waste_type_ids": plan.waste_type_ids or ([plan.waste_type_id_id] if plan.waste_type_id_id else []),
@@ -286,13 +287,24 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     def get_panchayat(self, obj):
         return self._panchayat_payload(obj.panchayat_id)
 
-    def get_ward(self, obj):
-        return self._ward_payload(obj.ward_id)
+    def get_wards(self, obj):
+        return [self._ward_payload(w) for w in obj.wards.select_related("zone_id").all()]
 
     def get_zone(self, obj):
         plan_zone = getattr(getattr(obj, "trip_plan_id", None), "zone_id", None)
-        ward_zone = getattr(getattr(obj, "ward_id", None), "zone_id", None)
-        return self._zone_payload(plan_zone or ward_zone)
+        if plan_zone:
+            return self._zone_payload(plan_zone)
+        # Fall back to zone from this assignment's own wards
+        first_ward = obj.wards.select_related("zone_id").first()
+        if first_ward:
+            return self._zone_payload(getattr(first_ward, "zone_id", None))
+        # Fall back to zone from the trip plan's wards
+        plan = getattr(obj, "trip_plan_id", None)
+        if plan:
+            first_plan_ward = plan.wards.select_related("zone_id").first()
+            if first_plan_ward:
+                return self._zone_payload(getattr(first_plan_ward, "zone_id", None))
+        return None
 
     def _panchayat_payload(self, panchayat):
         if not panchayat:
@@ -358,6 +370,28 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "panchayat_id",
         ).order_by("sequence")
         return DailyTripCollectionPointInlineSerializer(stops, many=True).data
+
+    def get_household_collection_points(self, obj):
+        stops = obj.trip_household_collections.filter(is_deleted=False).order_by("sequence")
+        result = []
+        for stop in stops:
+            customer = stop.customer_id
+            result.append({
+                "unique_id": stop.unique_id,
+                "customer_id": stop.customer_id_id,
+                "customer": {
+                    "unique_id": getattr(customer, "unique_id", None),
+                    "customer_name": getattr(customer, "customer_name", None),
+                    "building_no": getattr(customer, "building_no", None),
+                    "street": getattr(customer, "street", None),
+                } if customer else None,
+                "sequence": stop.sequence,
+                "is_collected": stop.is_collected,
+                "collected_at": str(stop.collected_at) if stop.collected_at else None,
+                "collected_weight_kg": str(stop.collected_weight_kg) if stop.collected_weight_kg is not None else None,
+                "status": stop.status,
+            })
+        return result
 
     def get_start_time(self, obj):
         return str(obj.scheduled_time) if obj.scheduled_time else None
@@ -429,15 +463,25 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             created_by=getattr(self.context.get("request"), "user", None),
         )
 
+    def _sync_wards(self, assignment, ward_ids):
+        if ward_ids is None:
+            return
+        wards = Ward.objects.filter(unique_id__in=ward_ids, is_deleted=False)
+        assignment.wards.set(wards)
+
     def create(self, validated_data):
         collection_points = validated_data.pop("collection_points_input", None)
+        ward_ids = validated_data.pop("ward_ids", None)
         assignment = super().create(validated_data)
+        self._sync_wards(assignment, ward_ids)
         self._sync_collection_points(assignment, collection_points)
         return assignment
 
     def update(self, instance, validated_data):
         collection_points = validated_data.pop("collection_points_input", None)
+        ward_ids = validated_data.pop("ward_ids", None)
         assignment = super().update(instance, validated_data)
+        self._sync_wards(assignment, ward_ids)
         self._sync_collection_points(assignment, collection_points)
         return assignment
 
@@ -457,7 +501,10 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             attrs.setdefault("staff_template_id", trip_plan.staff_template_id)
             attrs.setdefault("vehicle_id", trip_plan.vehicle_id)
             attrs.setdefault("panchayat_id", trip_plan.panchayat_id)
-            attrs.setdefault("ward_id", trip_plan.ward_id)
+            if "ward_ids" not in attrs:
+                plan_ward_ids = list(trip_plan.wards.values_list("unique_id", flat=True))
+                if plan_ward_ids:
+                    attrs["ward_ids"] = plan_ward_ids
             attrs.setdefault("scheduled_time", trip_plan.scheduled_time)
             scheduled_time = attrs.get("scheduled_time", scheduled_time)
 
@@ -492,11 +539,11 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
                 plan_waste_type_ids,
             )
 
-        panchayat = attrs.get("panchayat_id", getattr(instance, "panchayat_id", None))
-        ward = attrs.get("ward_id", getattr(instance, "ward_id", None))
-        if bool(panchayat) == bool(ward):
+        ward_ids = attrs.get("ward_ids")
+        existing_wards = instance.wards.exists() if instance else False
+        if not ward_ids and not existing_wards:
             raise serializers.ValidationError(
-                "Daily trip assignment must belong to either a ward or a panchayat."
+                {"ward_ids": "At least one ward is required for the daily trip assignment."}
             )
 
         if trip_plan and trip_date and scheduled_time:

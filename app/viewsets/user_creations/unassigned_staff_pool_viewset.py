@@ -43,7 +43,7 @@ class UnassignedStaffPoolViewSet(ModelViewSet,AuditViewSetMixin):
         zone = attrs.get("zone")
         ward = attrs.get("ward")
 
-        assignment_ward = getattr(daily_trip_assignment, "ward_id", None)
+        assignment_ward = daily_trip_assignment.wards.select_related("zone_id").first() if daily_trip_assignment else None
         assignment_zone = getattr(assignment_ward, "zone_id", None)
         if daily_trip_assignment and zone and assignment_zone and assignment_zone.unique_id != zone.unique_id:
             raise ValidationError(

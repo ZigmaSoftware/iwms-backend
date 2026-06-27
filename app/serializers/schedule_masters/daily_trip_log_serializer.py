@@ -259,10 +259,10 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
 
     def get_ward(self, obj):
         assignment = obj.trip_assignment_id
-        ward = getattr(assignment, "ward_id", None)
-        if not ward:
+        if not assignment:
             return None
-        return {"unique_id": ward.unique_id, "ward_name": ward.ward_name}
+        wards = assignment.wards.all()
+        return [{"unique_id": w.unique_id, "ward_name": w.ward_name} for w in wards] or None
 
     def get_collection_point(self, obj):
         cp = obj.collection_point_id

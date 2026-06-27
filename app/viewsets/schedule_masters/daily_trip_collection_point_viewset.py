@@ -225,14 +225,17 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "trip_assignment_id__trip_plan_id",
                 "collection_point_id",
                 "collection_point_id__panchayat_id",
-                "collection_point_id__ward_id",
-                "collection_point_id__ward_id__zone_id",
                 "zone_id",
                 "ward_id",
+                "ward_id__zone_id",
                 "panchayat_id",
                 "bin_id",
                 "bin_id__wastetype_id",
                 "collected_by",
+            )
+            .prefetch_related(
+                "collection_point_id__wards",
+                "collection_point_id__wards__zone_id",
             )
             .filter(is_deleted=False)
         )
@@ -422,8 +425,6 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 DailyTripCollectionPoint.objects.select_related(
                     "collection_point_id",
                     "collection_point_id__panchayat_id",
-                    "collection_point_id__ward_id",
-                    "collection_point_id__ward_id__zone_id",
                     "trip_assignment_id",
                     "trip_assignment_id__trip_plan_id",
                     "bin_id",
@@ -431,6 +432,10 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                     "collected_by",
                     "company_id",
                     "project_id",
+                )
+                .prefetch_related(
+                    "collection_point_id__wards",
+                    "collection_point_id__wards__zone_id",
                 )
                 .filter(trip_assignment_id=assignment, is_deleted=False)
                 .order_by("sequence")
