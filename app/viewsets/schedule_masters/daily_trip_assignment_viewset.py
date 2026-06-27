@@ -9,6 +9,7 @@ from rest_framework.response import Response
 
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
 from app.models.schedule_masters.scheduler_config import SchedulerConfig
 from app.services.daily_trip_scheduler import (
     notify_scheduler_config_changed,
@@ -64,7 +65,15 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "ward_id",
                 "panchayat_id",
             ).order_by("sequence"),
-        )
+        ),
+        Prefetch(
+            "trip_household_collections",
+            queryset=DailyTripHouseholdCollection.objects.filter(is_deleted=False).select_related(
+                "customer_id",
+                "ward_id",
+                "panchayat_id",
+            ).order_by("sequence"),
+        ),
     ).filter(is_deleted=False)
 
     serializer_class = DailyTripAssignmentSerializer

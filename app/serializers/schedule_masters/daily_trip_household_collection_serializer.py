@@ -63,6 +63,8 @@ class DailyTripHouseholdCollectionSerializer(
             "ward_id",
             "panchayat_id",
             "waste_collection_id",
+            "trip_assignment_id",
+            "customer_id",
             "created_at",
             "updated_at",
         ]

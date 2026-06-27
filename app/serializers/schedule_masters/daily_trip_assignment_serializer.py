@@ -151,6 +151,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     vehicle = serializers.SerializerMethodField(read_only=True)
     collection_types = serializers.SerializerMethodField(read_only=True)
     collection_points = serializers.SerializerMethodField(read_only=True)
+    household_collection_points = serializers.SerializerMethodField(read_only=True)
     start_time = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
@@ -188,6 +189,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "vehicle",
             "collection_types",
             "collection_points",
+            "household_collection_points",
             "start_time",
             "collection_points_input",
             "trip_date",
@@ -368,6 +370,28 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "panchayat_id",
         ).order_by("sequence")
         return DailyTripCollectionPointInlineSerializer(stops, many=True).data
+
+    def get_household_collection_points(self, obj):
+        stops = obj.trip_household_collections.filter(is_deleted=False).order_by("sequence")
+        result = []
+        for stop in stops:
+            customer = stop.customer_id
+            result.append({
+                "unique_id": stop.unique_id,
+                "customer_id": stop.customer_id_id,
+                "customer": {
+                    "unique_id": getattr(customer, "unique_id", None),
+                    "customer_name": getattr(customer, "customer_name", None),
+                    "building_no": getattr(customer, "building_no", None),
+                    "street": getattr(customer, "street", None),
+                } if customer else None,
+                "sequence": stop.sequence,
+                "is_collected": stop.is_collected,
+                "collected_at": str(stop.collected_at) if stop.collected_at else None,
+                "collected_weight_kg": str(stop.collected_weight_kg) if stop.collected_weight_kg is not None else None,
+                "status": stop.status,
+            })
+        return result
 
     def get_start_time(self, obj):
         return str(obj.scheduled_time) if obj.scheduled_time else None

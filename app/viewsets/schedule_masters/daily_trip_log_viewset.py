@@ -23,7 +23,6 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "trip_assignment_id",
             "trip_assignment_id__trip_plan_id",
             "trip_assignment_id__trip_plan_id__zone_id",
-            "trip_assignment_id__ward_id",
             "trip_assignment_id__staff_template_id",
             "trip_assignment_id__staff_template_id__driver_id",
             "trip_assignment_id__staff_template_id__operator_id",
@@ -49,6 +48,7 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         .prefetch_related(
             "bin_ids",
             "extra_operator_ids",
+            "trip_assignment_id__wards",
             "trip_assignment_id__trip_collection_points",
             "trip_assignment_id__trip_collection_points__collection_point_id",
         )
