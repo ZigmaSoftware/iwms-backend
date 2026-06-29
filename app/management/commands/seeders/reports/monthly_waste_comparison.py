@@ -6,6 +6,7 @@ from app.models.masters.panchayat import Panchayat
 from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.models.schedule_masters.monthly_weight_report import MonthlyWeightReport
 from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 
 TWO_PLACES = Decimal("0.01")
@@ -56,6 +57,7 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
 
     def run(self):
         company = Company.objects.get(name="IWMS")
+        project = Project.objects.get(name=f"{company.name} Main Project", company_id=company)
 
         created_count = 0
         skipped_count = 0
@@ -75,6 +77,8 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
 
             waste_type = WasteType.objects.filter(
                 waste_type_name=waste_type_name,
+                company_id=company,
+                project_id=project,
                 is_deleted=False,
             ).first()
             if not waste_type:
