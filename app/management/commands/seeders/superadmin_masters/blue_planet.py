@@ -328,13 +328,13 @@ class BluePlanetSeeder(BaseSeeder):
                 "state_id": state,
                 "district_id": district,
                 "city_id": city,
-                "ward_id": None,
                 "latitude": config["base_lat"] + 0.003,
                 "longitude": config["base_lon"] + 0.003,
                 "is_active": True,
                 "is_deleted": False,
             },
         )
+        collection_point.wards.clear()
 
         bins = []
         for waste_type in waste_types:
