@@ -162,8 +162,6 @@ class BluePlanetSeeder(BaseSeeder):
             vehicleType=f"Blue Planet {prefix} Compactor",
             defaults={
                 "description": f"Blue Planet {prefix} compactor",
-                "company_id": company,
-                "project_id": project,
                 "is_active": True,
                 "is_deleted": False,
             },

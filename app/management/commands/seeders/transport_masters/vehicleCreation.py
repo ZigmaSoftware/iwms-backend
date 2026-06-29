@@ -17,8 +17,6 @@ class VehicleCreationSeeder(BaseSeeder):
             vehicleType=vehicle_type,
             defaults={
                 "description": f"{vehicle_type} vehicle type",
-                "company_id": company,
-                "project_id": project,
                 "is_active": True,
                 "is_deleted": False,
             },

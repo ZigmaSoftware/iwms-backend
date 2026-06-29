@@ -21,7 +21,10 @@ class SubPropertySeeder(BaseSeeder):
         total = 0
         for property_name, subproperties in self.PROPERTY_MAP.items():
             property_obj = Property.objects.filter(
-                property_name=property_name, is_deleted=False
+                property_name=property_name,
+                company_id=None,
+                project_id=None,
+                is_deleted=False,
             ).first()
             if not property_obj:
                 self.log(f"Property '{property_name}' not found — skipping.")
@@ -31,6 +34,8 @@ class SubPropertySeeder(BaseSeeder):
                 obj, created = SubProperty.objects.get_or_create(
                     property_id=property_obj,
                     sub_property_name=sub_name,
+                    company_id=None,
+                    project_id=None,
                     defaults={
                         "is_active": True,
                         "is_deleted": False,

@@ -14,8 +14,11 @@ class PlatformDeveloperSeeder(BaseSeeder):
     def run(self):
         developer_type = UserType.objects.filter(name__iexact="developer").first()
         if not developer_type:
-            self.log("UserType 'developer' missing. Run UserTypeSeeder first.")
-            return
+            developer_type = UserType.objects.create(
+                name="Developer",
+                is_active=True,
+                is_deleted=False,
+            )
 
         UserModel = get_user_model()
         username = "platformDev"

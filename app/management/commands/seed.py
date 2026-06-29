@@ -80,8 +80,8 @@ from app.management.commands.seeders.reports import REPORT_SEEDERS
 # ============================================================
 
 SUPERADMIN_SEEDERS = [
-    *PLATFORM_SEEDERS,  # super_admin user
     *COMPANY_SEEDERS,   # company + project
+    *PLATFORM_SEEDERS,  # platform users need company/project after the base data exists
 ]
 
 COMMON_MASTER_SEEDERS = [
