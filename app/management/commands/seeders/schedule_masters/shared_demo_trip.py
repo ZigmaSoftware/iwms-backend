@@ -48,6 +48,12 @@ class SharedDemoTripSeeder(BaseSeeder):
             .first()
         )
 
+    def _ward_ids(self, obj):
+        return list(obj.wards.values_list("unique_id", flat=True))
+
+    def _has_area(self, obj):
+        return bool(obj.panchayat_id_id or self._ward_ids(obj))
+
     def run(self):
         today = timezone.localdate()
 
@@ -90,8 +96,8 @@ class SharedDemoTripSeeder(BaseSeeder):
                 is_deleted=False,
             )
             .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-            .select_related("company_id", "project_id", "panchayat_id", "ward_id",
-                            "waste_type_id", "vehicle_id")
+            .select_related("company_id", "project_id", "panchayat_id", "vehicle_id")
+            .prefetch_related("wards")
             .order_by("scheduled_time", "unique_id")
             .first()
         )
@@ -105,12 +111,12 @@ class SharedDemoTripSeeder(BaseSeeder):
                     status=TripPlan.Status.ACTIVE,
                     approval_status=TripPlan.ApprovalStatus.APPROVED,
                 )
-                .select_related("company_id", "project_id", "panchayat_id",
-                                "ward_id", "waste_type_id", "vehicle_id")
+                .select_related("company_id", "project_id", "panchayat_id", "waste_type_id", "vehicle_id")
+                .prefetch_related("wards")
                 .order_by("scheduled_time", "unique_id")
                 .first()
             )
-            if plan is None or (not plan.panchayat_id and not plan.ward_id):
+            if plan is None or not self._has_area(plan):
                 self.log(
                     "No usable approved TripPlan on this template (need one with a "
                     "panchayat or ward) — run TripPlanSeeder first. Aborting."
@@ -125,14 +131,14 @@ class SharedDemoTripSeeder(BaseSeeder):
                 trip_plan_id=plan,
                 staff_template_id=template,
                 panchayat_id=plan.panchayat_id,
-                ward_id=plan.ward_id,
-                waste_type_id=plan.waste_type_id,
+                waste_type_ids=plan.waste_type_ids or ([plan.waste_type_id_id] if plan.waste_type_id_id else []),
                 vehicle_id=plan.vehicle_id,
                 trip_date=today,
                 scheduled_time=plan.scheduled_time,
                 status=DailyTripAssignment.STATUS_IN_PROGRESS,
                 approval_status=DailyTripAssignment.APPROVAL_APPROVED,
             )
+            assignment.wards.set(plan.wards.all())
             self.log(f"Created shared trip {assignment.unique_id} on {template.display_code}.")
         else:
             self.log(
@@ -180,11 +186,27 @@ class SharedDemoTripSeeder(BaseSeeder):
                 status=DailyTripAssignment.STATUS_COMPLETED,
                 is_deleted=False,
             )
-            .select_related("company_id", "project_id", "panchayat_id", "ward_id",
-                            "waste_type_id", "vehicle_id")
+            .select_related("company_id", "project_id", "panchayat_id", "vehicle_id")
+            .prefetch_related("wards")
             .order_by("scheduled_time", "unique_id")
             .first()
         )
+
+        if existing is None:
+            existing = (
+                DailyTripAssignment.objects
+                .filter(
+                    staff_template_id=template,
+                    trip_date=today,
+                    is_deleted=False,
+                )
+                .exclude(unique_id=active_assignment.unique_id)
+                .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
+                .select_related("company_id", "project_id", "panchayat_id", "vehicle_id")
+                .prefetch_related("wards")
+                .order_by("scheduled_time", "unique_id")
+                .first()
+            )
 
         if existing is None:
             # Pick an approved plan whose area differs from the active trip's, so
@@ -197,16 +219,14 @@ class SharedDemoTripSeeder(BaseSeeder):
                     status=TripPlan.Status.ACTIVE,
                     approval_status=TripPlan.ApprovalStatus.APPROVED,
                 )
-                .exclude(
-                    panchayat_id=active_assignment.panchayat_id_id,
-                    ward_id=active_assignment.ward_id_id,
-                )
-                .select_related("company_id", "project_id", "panchayat_id",
-                                "ward_id", "waste_type_id", "vehicle_id")
+                .exclude(unique_id=active_assignment.trip_plan_id_id)
+                .exclude(daily_trip_assignments__trip_date=today)
+                .select_related("company_id", "project_id", "panchayat_id", "waste_type_id", "vehicle_id")
+                .prefetch_related("wards")
                 .order_by("scheduled_time", "unique_id")
                 .first()
             )
-            if plan is None or (not plan.panchayat_id and not plan.ward_id):
+            if plan is None or not self._has_area(plan):
                 self.log(
                     "No second approved TripPlan (distinct area) on this template "
                     "— skipping shared completed trip."
@@ -219,14 +239,14 @@ class SharedDemoTripSeeder(BaseSeeder):
                 trip_plan_id=plan,
                 staff_template_id=template,
                 panchayat_id=plan.panchayat_id,
-                ward_id=plan.ward_id,
-                waste_type_id=plan.waste_type_id,
+                waste_type_ids=plan.waste_type_ids or ([plan.waste_type_id_id] if plan.waste_type_id_id else []),
                 vehicle_id=plan.vehicle_id,
                 trip_date=today,
                 scheduled_time=plan.scheduled_time,
                 status=DailyTripAssignment.STATUS_IN_PROGRESS,
                 approval_status=DailyTripAssignment.APPROVAL_APPROVED,
             )
+            existing.wards.set(plan.wards.all())
             self.log(
                 f"Created shared completed trip {existing.unique_id} on "
                 f"{template.display_code}."
@@ -290,9 +310,11 @@ class SharedDemoTripSeeder(BaseSeeder):
         )
         if assignment.panchayat_id:
             cp_qs = cp_qs.filter(panchayat_id=assignment.panchayat_id)
-        elif assignment.ward_id:
-            cp_qs = cp_qs.filter(ward_id=assignment.ward_id)
-        cps = list(cp_qs.order_by("cp_name"))
+        else:
+            ward_ids = self._ward_ids(assignment)
+            if ward_ids:
+                cp_qs = cp_qs.filter(wards__unique_id__in=ward_ids)
+        cps = list(cp_qs.distinct().order_by("cp_name"))
 
         if not cps:
             cps = list(
@@ -309,7 +331,7 @@ class SharedDemoTripSeeder(BaseSeeder):
             bin_obj = (
                 Bins.objects.filter(
                     collection_point_id=cp,
-                    wastetype_id=assignment.waste_type_id,
+                    wastetype_id__unique_id__in=assignment.waste_type_ids,
                     is_deleted=False,
                 ).first()
                 or Bins.objects.filter(

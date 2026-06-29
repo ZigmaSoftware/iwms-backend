@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -22,12 +22,21 @@ from app.utils.base_models import Account, BaseMaster
 def _generate_daily_trip_log_unique_id(company_id, project_id):
     today = timezone.localdate()
     prefix = f"DTL-{today.year}-{today.month:02d}"
-    count = DailyTripLog.objects.filter(
-        company_id=company_id,
-        project_id=project_id,
-        unique_id__startswith=f"{prefix}-",
-    ).count()
-    return f"{prefix}-{count + 1:03d}"
+    with transaction.atomic():
+        existing = (
+            DailyTripLog.objects.select_for_update()
+            .filter(unique_id__startswith=f"{prefix}-")
+            .values_list("unique_id", flat=True)
+        )
+        max_seq = 0
+        for uid in existing:
+            try:
+                seq = int(uid.rsplit("-", 1)[-1])
+                if seq > max_seq:
+                    max_seq = seq
+            except (ValueError, IndexError):
+                pass
+        return f"{prefix}-{max_seq + 1:03d}"
 
 
 class DailyTripLog(BaseMaster):
@@ -207,6 +216,11 @@ class DailyTripLog(BaseMaster):
         self.company_id = assignment.company_id
         self.project_id = assignment.project_id
         self.panchayat_id = assignment.panchayat_id
+        # For ward-based (household) trips, derive panchayat from the first ward.
+        if not self.panchayat_id_id:
+            first_ward = assignment.wards.select_related("panchayat_id").first()
+            if first_ward and first_ward.panchayat_id_id:
+                self.panchayat_id_id = first_ward.panchayat_id_id
         if not self.collection_point_id:
             first_child = (
                 assignment.trip_collection_points
@@ -216,7 +230,7 @@ class DailyTripLog(BaseMaster):
             )
             if first_child:
                 self.collection_point_id = first_child.collection_point_id
-        self.waste_type_id = assignment.waste_type_id
+        self.waste_type_id = assignment.primary_waste_type
         self.trip_date = assignment.trip_date
         self.actual_start_time = self.actual_start_time or assignment.actual_start_time
         self.actual_end_time = self.actual_end_time or assignment.actual_end_time
@@ -303,22 +317,22 @@ class DailyTripLog(BaseMaster):
                     "greater than 0 before submitting."
                 )
 
-        vehicle_capacity = getattr(self.vehicle_id, "capacity", None)
-        trip_capacity = getattr(assignment.trip_plan_id, "max_vehicle_capacity_kg", None)
-        capacity = vehicle_capacity or trip_capacity
-        if capacity and self.collected_weight_kg:
-            if Decimal(self.collected_weight_kg) > Decimal(capacity):
-                raise ValidationError("collected_weight_kg cannot exceed vehicle capacity.")
+        # Over-capacity trips are flagged in remarks by the auto-upsert but are
+        # not blocked here — the vehicle capacity field is often in different
+        # units or reflects a single-load limit, not a trip total ceiling.
 
     def save(self, *args, **kwargs):
         self.autofill_from_assignment()
         if not self.unique_id:
-            self.unique_id = _generate_daily_trip_log_unique_id(
-                self.company_id, self.project_id
-            )
-
-        self.full_clean()
-        super().save(*args, **kwargs)
+            with transaction.atomic():
+                self.unique_id = _generate_daily_trip_log_unique_id(
+                    self.company_id, self.project_id
+                )
+                self.full_clean()
+                super().save(*args, **kwargs)
+        else:
+            self.full_clean()
+            super().save(*args, **kwargs)
 
         self.sync_from_bin_collection_events()
         self.sync_from_household_collections()

@@ -28,7 +28,6 @@ class DailyTripLogSeeder(BaseSeeder):
                 "alt_staff_template_id__driver_id",
                 "alt_staff_template_id__operator_id",
                 "panchayat_id",
-                "waste_type_id",
             )
             .filter(is_deleted=False)
             .exclude(status=DailyTripAssignment.STATUS_CANCELLED)

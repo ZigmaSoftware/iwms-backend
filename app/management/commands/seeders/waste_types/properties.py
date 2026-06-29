@@ -27,6 +27,8 @@ class PropertySeeder(BaseSeeder):
     def run(self):
         for prop in self.PROPERTIES:
             obj, created = Property.objects.get_or_create(
+                company_id=None,
+                project_id=None,
                 property_name=prop,
                 defaults={
                     "is_active": True,

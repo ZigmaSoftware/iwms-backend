@@ -75,6 +75,7 @@ class PermissionSeeder(BaseSeeder):
                 "department-masters",
                 "designation-masters",
                 "panchayat-leaders",
+                "district-leaders",
             ],
             "waste-types": [
                 "properties",
@@ -136,7 +137,6 @@ class PermissionSeeder(BaseSeeder):
                 "alternative-staff-templates",
                 "collection-points",
                 "trip-plans",
-                "trip-plan-collection-points",
                 "daily-trip-assignments",
                 "daily-trip-collection-points",
                 "daily-trip-household-collections",
@@ -214,6 +214,7 @@ class PermissionSeeder(BaseSeeder):
                     "department-masters": ("app", "Department"),
                     "designation-masters": ("app", "Designation"),
                     "panchayat-leaders": ("app", "PanchayatLeaderLogin"),
+                    "district-leaders": ("app", "DistrictLeaderLogin"),
                 }
                 if screen.userscreen_name in mapping:
                     app_label, model_name = mapping[screen.userscreen_name]

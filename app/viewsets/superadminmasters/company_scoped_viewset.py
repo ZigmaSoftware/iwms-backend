@@ -134,6 +134,20 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         queryset = super().filter_queryset(queryset)
 
         if self._is_platform_super_admin():
+            # Apply optional company/project filters from query params for superadmin list views
+            company_id_param = (
+                self.request.query_params.get("company_id")
+                or self.request.query_params.get("company_unique_id")
+            )
+            project_id_param = (
+                self.request.query_params.get("project_id")
+                or self.request.query_params.get("project_unique_id")
+                or self.request.query_params.get("project")
+            )
+            if company_id_param and hasattr(queryset.model, "company_id"):
+                queryset = queryset.filter(company_id=company_id_param)
+            if project_id_param and hasattr(queryset.model, "project_id"):
+                queryset = queryset.filter(project_id=project_id_param)
             return queryset
 
         company = self._company()

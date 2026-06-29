@@ -5,16 +5,34 @@ from app.validators.unique_name_validator import unique_name_validator
 
 class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    panchayat_name = serializers.CharField(source="collection_point_id.panchayat_id.panchayat_name", read_only = True)
-    panchayat_id = serializers.CharField(source="collection_point_id.panchayat_id", read_only = True)
+    panchayat_name = serializers.CharField(source="collection_point_id.panchayat_id.panchayat_name", read_only=True)
+    panchayat_id = serializers.CharField(source="collection_point_id.panchayat_id.unique_id", read_only=True)
     district_name = serializers.CharField(source="district_id.name", read_only=True)
     city_name = serializers.CharField(source="city_id.name", read_only=True)
-    ward_id = serializers.CharField(source="collection_point_id.ward_id", read_only = True)
-    ward_name = serializers.CharField(source="collection_point_id.ward_id.ward_name", read_only = True)
-    wastetype_name = serializers.CharField(source="wastetype_id.waste_type_name", read_only = True)
-    collection_point_name = serializers.CharField(source="collection_point_id.cp_name", read_only = True)
-    zone_id = serializers.CharField(source="collection_point_id.ward_id.zone_id.unique_id", read_only=True)  # ✅ for zone_id   
-    zone_name = serializers.CharField(source="collection_point_id.ward_id.zone_id.zone_name", read_only=True)  # ✅ for zone_name
+    wastetype_name = serializers.CharField(source="wastetype_id.waste_type_name", read_only=True)
+    collection_point_name = serializers.CharField(source="collection_point_id.cp_name", read_only=True)
+
+    # Derived from the first ward in the wards M2M on the collection point
+    ward_id = serializers.SerializerMethodField()
+    ward_name = serializers.SerializerMethodField()
+    zone_id = serializers.SerializerMethodField()
+    zone_name = serializers.SerializerMethodField()
+
+    def get_ward_id(self, obj):
+        w = obj.collection_point_id.wards.first()
+        return w.unique_id if w else None
+
+    def get_ward_name(self, obj):
+        w = obj.collection_point_id.wards.first()
+        return w.ward_name if w else None
+
+    def get_zone_id(self, obj):
+        w = obj.collection_point_id.wards.select_related("zone_id").first()
+        return w.zone_id.unique_id if w and w.zone_id else None
+
+    def get_zone_name(self, obj):
+        w = obj.collection_point_id.wards.select_related("zone_id").first()
+        return w.zone_id.zone_name if w and w.zone_id else None
 
     class Meta:
         model = Bins

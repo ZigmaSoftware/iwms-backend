@@ -155,9 +155,9 @@ class DailyTripHouseholdCollection(BaseMaster):
         # Denormalise location from customer
         if self.customer_id_id and not self.panchayat_id_id:
             customer = self.customer_id
-            self.panchayat_id = getattr(customer, "panchayat_id", None)
-            self.ward_id = getattr(customer, "ward_id", None)
-            self.zone_id = getattr(customer, "zone_id", None)
+            self.panchayat_id_id = getattr(customer, "panchayat_id_id", None) or getattr(customer, "panchayat_id", None)
+            self.ward_id_id = getattr(customer, "ward_id_id", None) or getattr(customer, "ward_id", None)
+            self.zone_id_id = getattr(customer, "zone_id_id", None) or getattr(customer, "zone_id", None)
         super().save(*args, **kwargs)
 
     def __str__(self):

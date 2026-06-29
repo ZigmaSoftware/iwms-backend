@@ -30,29 +30,27 @@ class CollectionPointSeeder(BaseSeeder):
         )
         ward_created = 0
         for idx, ward in enumerate(wards, start=1):
-            base_lat = float(ward.latitude) if ward.latitude else 13.0840
-            base_lon = float(ward.longitude) if ward.longitude else 80.2720
-            for stop_no in range(1, self.POINTS_PER_AREA + 1):
-                cp_name = f"CP-WARD-{idx:02d}-{stop_no:02d}"
-                offset = 0.0005 * stop_no
-                _, created = Collection_point.objects.update_or_create(
-                    cp_name=cp_name,
-                    ward_id=ward,
-                    company_id=company,
-                    project_id=project,
-                    defaults={
-                        "state_id": tamil_nadu,
-                        "district_id": chennai_dist,
-                        "city_id": chennai_city,
-                        "panchayat_id": None,
-                        "latitude": base_lat + offset,
-                        "longitude": base_lon + offset,
-                        "is_active": True,
-                        "is_deleted": False,
-                    },
-                )
-                if created:
-                    ward_created += 1
+            cp_name = f"CP-WARD-{idx:02d}"
+            lat = float(ward.latitude) + 0.0005 if ward.latitude else 13.0840
+            lon = float(ward.longitude) + 0.0005 if ward.longitude else 80.2720
+            cp, created = Collection_point.objects.update_or_create(
+                cp_name=cp_name,
+                company_id=company,
+                project_id=project,
+                defaults={
+                    "state_id": tamil_nadu,
+                    "district_id": chennai_dist,
+                    "city_id": chennai_city,
+                    "panchayat_id": None,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            cp.wards.set([ward])
+            if created:
+                ward_created += 1
 
         # --- Panchayat-based CPs (multiple per panchayat) ---
         panchayats = list(
@@ -63,29 +61,27 @@ class CollectionPointSeeder(BaseSeeder):
         pan_created = 0
         for panchayat in panchayats:
             pan_num = "".join(filter(str.isdigit, panchayat.panchayat_name)) or "0"
-            base_lat = float(panchayat.latitude) if panchayat.latitude else 13.1500
-            base_lon = float(panchayat.longitude) if panchayat.longitude else 80.2000
-            for stop_no in range(1, self.POINTS_PER_AREA + 1):
-                cp_name = f"CP-PAN{pan_num}-{stop_no:02d}"
-                offset = 0.0005 * stop_no
-                _, created = Collection_point.objects.update_or_create(
-                    cp_name=cp_name,
-                    panchayat_id=panchayat,
-                    company_id=company,
-                    project_id=project,
-                    defaults={
-                        "state_id": tamil_nadu,
-                        "district_id": chennai_dist,
-                        "city_id": chennai_city,
-                        "ward_id": None,
-                        "latitude": base_lat + offset,
-                        "longitude": base_lon + offset,
-                        "is_active": True,
-                        "is_deleted": False,
-                    },
-                )
-                if created:
-                    pan_created += 1
+            cp_name = f"CP-PAN{pan_num}-01"
+            lat = float(panchayat.latitude) + 0.0005 if panchayat.latitude else 13.1500
+            lon = float(panchayat.longitude) + 0.0005 if panchayat.longitude else 80.2000
+            cp, created = Collection_point.objects.update_or_create(
+                cp_name=cp_name,
+                panchayat_id=panchayat,
+                company_id=company,
+                project_id=project,
+                defaults={
+                    "state_id": tamil_nadu,
+                    "district_id": chennai_dist,
+                    "city_id": chennai_city,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            cp.wards.clear()
+            if created:
+                pan_created += 1
 
         total = ward_created + pan_created
         self.log(

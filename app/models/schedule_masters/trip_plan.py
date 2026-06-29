@@ -87,7 +87,6 @@ class TripPlan(BaseMaster):
         null=True,
         blank=True,
     )
-    # panchayat XOR ward mirrors Collection_point.clean() logic.
     panchayat_id = models.ForeignKey(
         Panchayat,
         on_delete=models.PROTECT,
@@ -96,12 +95,9 @@ class TripPlan(BaseMaster):
         null=True,
         blank=True,
     )
-    ward_id = models.ForeignKey(
+    wards = models.ManyToManyField(
         Ward,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        null=True,
+        related_name="trip_plans_m2m",
         blank=True,
     )
 
@@ -133,6 +129,8 @@ class TripPlan(BaseMaster):
         to_field="unique_id",
         related_name="trip_plans",
         db_column="property_id",
+        null=True,
+        blank=True,
     )
     sub_property_id = models.ForeignKey(
         SubProperty,
@@ -140,6 +138,8 @@ class TripPlan(BaseMaster):
         to_field="unique_id",
         related_name="trip_plans",
         db_column="sub_property_id",
+        null=True,
+        blank=True,
     )
     waste_type_id = models.ForeignKey(
         WasteType,
@@ -147,6 +147,11 @@ class TripPlan(BaseMaster):
         to_field="unique_id",
         related_name="trip_plans",
         db_column="waste_type_id",
+    )
+    waste_type_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of waste type unique_ids allowed for this trip plan.",
     )
     trip_trigger_weight_kg = models.PositiveIntegerField(
         help_text="Collected weight (kg) that triggers a trip dispatch.",
@@ -195,16 +200,7 @@ class TripPlan(BaseMaster):
             models.Index(fields=["display_code"]),
             models.Index(fields=["district_id", "city_id"]),
         ]
-        constraints = [
-            models.CheckConstraint(
-                # Mirrors Collection_point: must have panchayat OR ward, not both, not neither
-                check=(
-                    models.Q(panchayat_id__isnull=False, ward_id__isnull=True) |
-                    models.Q(panchayat_id__isnull=True,  ward_id__isnull=False)
-                ),
-                name="trip_plan_panchayat_xor_ward",
-            )
-        ]
+        constraints = []
 
     def _generate_display_code(self):
         driver_name = "DRV"

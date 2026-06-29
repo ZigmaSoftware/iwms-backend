@@ -1,15 +1,15 @@
 from django.core.management.base import BaseCommand
-from django.db import transaction
 from django.utils import timezone
 
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+from app.services.daily_trip_generation import (
+    active_auto_assign_plans,
+    generate_assignment_for_plan,
+    should_generate_for_date,
+)
 
 
 class Command(BaseCommand):
-    help = "Generate DailyTripAssignment records from active TripPlan entries (auto-assign)."
+    help = "Generate DailyTripAssignment records from active TripPlan entries."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -17,6 +17,11 @@ class Command(BaseCommand):
             dest="date",
             help="Optional date (YYYY-MM-DD) to generate trips for. Defaults to today.",
             required=False,
+        )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Generate from all active trip plans for the date, ignoring approval and repeat-day filters.",
         )
 
     def handle(self, *args, **options):
@@ -28,78 +33,43 @@ class Command(BaseCommand):
                 self.stderr.write(f"Invalid date: {e}")
                 return
 
-        weekday = today.weekday()  # Monday=0 .. Sunday=6
-
-        plans = TripPlan.objects.filter(
-            is_deleted=False,
-            status=TripPlan.Status.ACTIVE,
-            approval_status=TripPlan.ApprovalStatus.APPROVED,
-            is_auto_assign=True,
-        )
+        force = bool(options.get("force"))
+        plans = active_auto_assign_plans(force=force)
 
         created_count = 0
+        existing_count = 0
+        cp_created_count = 0
         skipped_count = 0
-        for plan in plans.select_related("company_id", "project_id").all():
-            repeat_days = plan.repeat_days or []
-            if not repeat_days:
-                # No repeat days configured; skip
+        error_count = 0
+        for plan in plans.all():
+            if not should_generate_for_date(plan, today, force=force):
                 skipped_count += 1
                 continue
+
             try:
-                # ensure list of ints
-                allowed = [int(d) for d in repeat_days]
-            except Exception:
-                self.stderr.write(f"TripPlan {plan.unique_id} has invalid repeat_days: {repeat_days}")
-                skipped_count += 1
+                assignment, created, cp_created = generate_assignment_for_plan(plan, today)
+            except Exception as exc:
+                error_count += 1
+                self.stderr.write(f"TripPlan {plan.unique_id} failed: {exc}")
                 continue
 
-            if weekday not in allowed:
-                skipped_count += 1
-                continue
-
-            defaults = {
-                "staff_template_id": plan.staff_template_id,
-                "vehicle_id": plan.vehicle_id,
-                "waste_type_id": plan.waste_type_id,
-                "panchayat_id": plan.panchayat_id,
-                "ward_id": plan.ward_id,
-                "scheduled_time": plan.scheduled_time,
-            }
-
-            with transaction.atomic():
-                assignment, created = DailyTripAssignment.objects.get_or_create(
-                    company_id=plan.company_id,
-                    project_id=plan.project_id,
-                    trip_plan_id=plan,
-                    trip_date=today,
-                    defaults=defaults,
+            cp_created_count += cp_created
+            if created:
+                created_count += 1
+                self.stdout.write(
+                    f"Created assignment {assignment.unique_id} with {cp_created} collection points for plan {plan.unique_id}"
+                )
+            else:
+                existing_count += 1
+                self.stdout.write(
+                    f"Assignment already exists for plan {plan.unique_id} on {today}; added {cp_created} missing collection points"
                 )
 
-                if created:
-                    created_count += 1
-                    # create collection points
-                    stops = (
-                        TripPlanCollectionPoint.objects
-                        .filter(trip_plan_id=plan, is_active=True, is_deleted=False)
-                        .order_by("sequence")
-                    )
-                    cp_created = 0
-                    for stop in stops:
-                        cp_obj, cp_new = DailyTripCollectionPoint.objects.get_or_create(
-                            trip_assignment_id=assignment,
-                            collection_point_id=stop.collection_point_id,
-                            defaults={
-                                "bin_id": stop.bin_id,
-                                "sequence": stop.sequence,
-                                "status": DailyTripCollectionPoint.STATUS_PENDING,
-                            },
-                        )
-                        if cp_new:
-                            cp_created += 1
-                    self.stdout.write(
-                        f"Created assignment {assignment.unique_id} with {cp_created} collection points for plan {plan.unique_id}"
-                    )
-                else:
-                    self.stdout.write(f"Assignment already exists for plan {plan.unique_id} on {today}")
-
-        self.stdout.write(f"Finished. assignments_created={created_count} skipped={skipped_count}")
+        self.stdout.write(
+            "Finished. "
+            f"assignments_created={created_count} "
+            f"assignments_existing={existing_count} "
+            f"collection_points_created={cp_created_count} "
+            f"skipped={skipped_count} "
+            f"errors={error_count}"
+        )

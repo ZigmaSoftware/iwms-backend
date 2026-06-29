@@ -1,6 +1,4 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 
 
@@ -27,31 +25,11 @@ class VehicleTypeCreationSeeder(BaseSeeder):
     ]
 
     def run(self):
-        company, _ = Company.objects.get_or_create(
-            name="IWMS",
-            defaults={
-                "description": "Integrated Waste Management System",
-                "is_active": True,
-                "is_deleted": False,
-            },
-        )
-        project, _ = Project.objects.get_or_create(
-            name=f"{company.name} Main Project",
-            company_id=company,
-            defaults={
-                "description": f"Default project for {company.name}",
-                "is_active": True,
-                "is_deleted": False,
-            },
-        )
-
         for vehicle_type, description in self.VEHICLE_TYPES:
             obj, created = VehicleTypeCreation.objects.get_or_create(
                 vehicleType=vehicle_type,
                 defaults={
                     "description": description,
-                    "company_id": company,
-                    "project_id": project,
                     "is_active": True,
                     "is_deleted": False,
                 },

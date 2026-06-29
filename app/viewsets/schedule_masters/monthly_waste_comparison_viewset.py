@@ -1,7 +1,7 @@
 """
 Monthly Waste Comparison — computed live from DailyTripLog.
 
-Data source: DailyTripLog (Submitted + Verified logs only)
+Data source: DailyTripLog (all non-deleted logs, including Draft)
   actual_weight_kg  = Sum(collected_weight_kg) per (month, panchayat, waste_type)
                       OR household_collected_weight_kg when source=household
                       OR both combined when source=all
@@ -72,15 +72,11 @@ class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):
     lookup_field = "unique_id"
 
     def list(self, request):
-        # ── base queryset: only confirmed trip logs ──────────────────────
+        # ── base queryset: all non-deleted trip logs (real-time) ────────
         queryset = DailyTripLog.objects.select_related(
             "company_id", "project_id", "panchayat_id", "waste_type_id",
         ).filter(
             is_deleted=False,
-            log_status__in=[
-                DailyTripLog.LOG_STATUS_SUBMITTED,
-                DailyTripLog.LOG_STATUS_VERIFIED,
-            ],
         )
 
         # ── company / project scoping (superadmin passes through) ────────
