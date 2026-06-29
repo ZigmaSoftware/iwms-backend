@@ -366,7 +366,6 @@ class BluePlanetSeeder(BaseSeeder):
                 "district_id": district,
                 "city_id": city,
                 "zone_id": None,
-                "ward_id": None,
                 "supervisor_id": staff["supervisor"],
                 "property_id": prop,
                 "sub_property_id": sub_property,
