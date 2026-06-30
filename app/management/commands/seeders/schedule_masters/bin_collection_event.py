@@ -63,7 +63,6 @@ class BinCollectionEventSeeder(BaseSeeder):
                 "trip_assignment_id__company_id",
                 "trip_assignment_id__project_id",
                 "trip_assignment_id__panchayat_id",
-                "trip_assignment_id__ward_id",
                 "trip_assignment_id__vehicle_id",
                 "collection_point_id",
                 "bin_id",

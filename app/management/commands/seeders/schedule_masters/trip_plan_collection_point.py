@@ -23,8 +23,10 @@ class TripPlanCollectionPointSeeder(BaseSeeder):
             )
             if plan.panchayat_id:
                 cps = cps.filter(panchayat_id=plan.panchayat_id)
-            elif plan.ward_id:
-                cps = cps.filter(wards=plan.ward_id)
+            else:
+                plan_wards = plan.wards.all()
+                if plan_wards.exists():
+                    cps = cps.filter(wards__in=plan_wards).distinct()
             cps = cps.order_by("cp_name")
 
             sequence = (
