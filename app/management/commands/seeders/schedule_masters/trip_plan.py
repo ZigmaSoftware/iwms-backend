@@ -110,21 +110,22 @@ class TripPlanSeeder(BaseSeeder):
             staff_template = staff_templates[idx % len(staff_templates)]
             vehicle = vehicles[idx % len(vehicles)]
 
-            _, created = TripPlan.objects.update_or_create(
+            scheduled_time = BASE_TIMES[idx % len(BASE_TIMES)]
+            plan, created = TripPlan.objects.update_or_create(
                 company_id=company,
                 project_id=project,
                 staff_template_id=staff_template,
                 vehicle_id=vehicle,
                 waste_type_id=waste_type,
-                ward_id=ward,
+                panchayat_id=None,
+                scheduled_time=scheduled_time,
                 defaults={
                     **common_defaults,
-                    "zone_id": ward.zone_id,   # zone comes from the ward's own zone
-                    "panchayat_id": None,
-                    "scheduled_time": BASE_TIMES[idx % len(BASE_TIMES)],
+                    "zone_id": ward.zone_id,
                     "waste_type_ids": plan_waste_ids,
                 },
             )
+            plan.wards.set([ward])
             if created:
                 ward_created += 1
 
@@ -151,21 +152,22 @@ class TripPlanSeeder(BaseSeeder):
             staff_template = staff_templates[idx % len(staff_templates)]
             vehicle = vehicles[idx % len(vehicles)]
 
-            _, created = TripPlan.objects.update_or_create(
+            scheduled_time = BASE_TIMES[idx % len(BASE_TIMES)]
+            plan, created = TripPlan.objects.update_or_create(
                 company_id=company,
                 project_id=project,
                 staff_template_id=staff_template,
                 vehicle_id=vehicle,
                 waste_type_id=waste_type,
                 panchayat_id=panchayat,
+                scheduled_time=scheduled_time,
                 defaults={
                     **common_defaults,
-                    "zone_id": None,           # panchayats are rural, no zone
-                    "ward_id": None,
-                    "scheduled_time": BASE_TIMES[idx % len(BASE_TIMES)],
+                    "zone_id": None,
                     "waste_type_ids": plan_waste_ids,
                 },
             )
+            plan.wards.clear()
             if created:
                 pan_created += 1
 
