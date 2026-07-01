@@ -184,6 +184,11 @@ class PermissionSeeder(BaseSeeder):
                 "trip-summary",
                 "monthly-distance",
                 "waste-collected-summary",
+                "vehicle-track",
+                "vehicle-history",
+                "workforce-management",
+                "date-report",
+                "day-report",
                 # "monthly-waste-comparison",
             ],
         }
