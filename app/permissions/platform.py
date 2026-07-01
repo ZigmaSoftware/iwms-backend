@@ -35,7 +35,7 @@ class CompanyAdminOnly(BasePermission):
             and user.is_authenticated
             and not getattr(user, "is_superuser", False)
             and getattr(user, "company_id", None) is not None
-            and (role or "").lower() in ["admin","company_admin","company admin"]
+            and (role or "").lower() in ["admin","company_admin","company admin","company project admin","company_project_admin"]
         )
 
 
@@ -58,7 +58,7 @@ class PlatformOrCompanyAdminFullAccess(BasePermission):
         is_company_admin = bool(
             not getattr(user, "is_superuser", False)
             and getattr(user, "company_id", None) is not None
-            and (role or "").lower() in ["admin","company_admin","company admin"]
+            and (role or "").lower() in ["admin","company_admin","company admin","company project admin","company_project_admin"]
         )
 
         return is_platform_super_admin or is_company_admin
@@ -90,12 +90,12 @@ class PlatformOrCompanyAdminOnly(BasePermission):
         if is_platform_super_admin:
             return True
 
-        # ✅ Company Admin
+        # ✅ Company Admin / Company Project Admin
         role = getattr(getattr(user, "staffusertype_id", None), "name", "")
         is_company_admin = bool(
             not getattr(user, "is_superuser", False)
             and getattr(user, "company_id", None) is not None
-            and (role or "").lower() in ["admin","company_admin","company admin"]
+            and (role or "").lower() in ["admin","company_admin","company admin","company project admin","company_project_admin"]
         )
 
         if is_company_admin:

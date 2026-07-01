@@ -237,6 +237,8 @@ class StaffcreationOfficeDetails(BaseMaster):
         on_delete=models.PROTECT,
         related_name="staff_office_details",
         db_column="project_id",
+        null=True,
+        blank=True,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -329,6 +331,8 @@ class StaffPersonalDetails(models.Model):
         on_delete=models.PROTECT,
         related_name="staff_personal_details",
         db_column="project_id",
+        null=True,
+        blank=True,
     )
     marital_status = models.CharField(max_length=50, blank=True, null=True)
     dob = models.DateField(blank=True, null=True)

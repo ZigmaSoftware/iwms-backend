@@ -186,11 +186,12 @@ class LoginSerializer(serializers.Serializer):
         if not company:
             raise serializers.ValidationError("Staff record has no company assigned")
         
-        projects_queryset = Project.objects.filter(
-            company_id=company,
-            is_active=True,
-            is_deleted=False,
-        ).values(
+        project_filter = {"company_id": company, "is_active": True, "is_deleted": False}
+        staff_project = getattr(staff_record, "project_id", None)
+        if staff_project:
+            project_filter["unique_id"] = getattr(staff_project, "unique_id", staff_project)
+
+        projects_queryset = Project.objects.filter(**project_filter).values(
             "unique_id", "name",
             "gps_api_url",
             "gps_user_id", "gps_group_name", "gps_provider_name", "gps_fcode", "gps_trip_user_id",
