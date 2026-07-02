@@ -8,6 +8,7 @@ from django.utils import timezone
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.masters.panchayat import Panchayat
+from app.models.masters.zone import Zone
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
@@ -102,6 +103,17 @@ class DailyTripLog(BaseMaster):
         db_column="panchayat_id",
         to_field="unique_id",
         related_name="daily_trip_logs",
+        null=True,
+        blank=True,
+    )
+    zone_id = models.ForeignKey(
+        Zone,
+        on_delete=models.PROTECT,
+        db_column="zone_id",
+        to_field="unique_id",
+        related_name="daily_trip_logs",
+        null=True,
+        blank=True,
     )
     collection_point_id = models.ForeignKey(
         Collection_point,
@@ -216,11 +228,16 @@ class DailyTripLog(BaseMaster):
         self.company_id = assignment.company_id
         self.project_id = assignment.project_id
         self.panchayat_id = assignment.panchayat_id
-        # For ward-based (household) trips, derive panchayat from the first ward.
-        if not self.panchayat_id_id:
-            first_ward = assignment.wards.select_related("panchayat_id").first()
-            if first_ward and first_ward.panchayat_id_id:
-                self.panchayat_id_id = first_ward.panchayat_id_id
+        self.zone_id = getattr(assignment, "zone_id", None)
+
+        # For ward-based trips, derive panchayat or zone from the first ward.
+        if not self.panchayat_id_id and not self.zone_id_id:
+            first_ward = assignment.wards.select_related("panchayat_id", "zone_id").first()
+            if first_ward:
+                if first_ward.panchayat_id_id:
+                    self.panchayat_id_id = first_ward.panchayat_id_id
+                elif first_ward.zone_id_id:
+                    self.zone_id_id = first_ward.zone_id_id
         if not self.collection_point_id:
             first_child = (
                 assignment.trip_collection_points

@@ -10,6 +10,11 @@ class CitySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     district_name  = serializers.CharField(source="district_id.name", read_only=True)
     company_name   = serializers.CharField(source="company_id.name", read_only=True)
     project_name   = serializers.CharField(source="project_id.name", read_only=True)
+    # UUID read fields — separate names so FK write fields are not clobbered
+    continent_unique_id = serializers.CharField(source="continent_id.unique_id", read_only=True)
+    country_unique_id   = serializers.CharField(source="country_id.unique_id", read_only=True)
+    state_unique_id     = serializers.CharField(source="state_id.unique_id", read_only=True)
+    district_unique_id  = serializers.CharField(source="district_id.unique_id", read_only=True)
     
 
     class Meta:

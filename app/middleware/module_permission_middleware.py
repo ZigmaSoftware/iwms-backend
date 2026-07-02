@@ -186,6 +186,7 @@ RESOURCE_PERMISSION_ALIASES = {
     "Department": ("departments", "department-masters"),
     "Designation": ("designations", "designation-masters"),
     "StaffTemplateCreation": ("StaffTemplate", "staff-templates"),
+    "VehicleTypeCreation": ("vehicle-type", "vehicle-types"),
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),
     "column-permissions": ("CompanyUserScreenPermission",),
 }

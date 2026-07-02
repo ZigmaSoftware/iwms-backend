@@ -7,6 +7,7 @@ from app.models.masters.panchayat import Panchayat
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.ward import Ward
+from app.models.masters.zone import Zone
 from app.models.common_masters.state import State
 from django.core.exceptions import ValidationError
 
@@ -72,6 +73,15 @@ class Collection_point(BaseMaster):
         on_delete=models.PROTECT,
         related_name="cp",
         db_column="panchayat_id",
+        null=True,
+        blank=True
+    )
+
+    zone_id = models.ForeignKey(
+        Zone,
+        on_delete=models.PROTECT,
+        related_name="cp",
+        db_column="zone_id",
         null=True,
         blank=True
     )

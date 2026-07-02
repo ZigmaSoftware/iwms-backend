@@ -32,7 +32,6 @@ class StaffUserType(BaseMaster):
         ("company_operator", "Company Operator"),
         ("company_driver", "Company Driver"),
         ("company_supervisor", "Company Supervisor"),
-        # ("superadmin", "Superadmin"),
         ("company_user", "Company User"),
         ("company_project_admin", "Company Project Admin"),
     ]
