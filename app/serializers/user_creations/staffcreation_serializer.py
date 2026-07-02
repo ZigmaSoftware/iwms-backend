@@ -294,8 +294,13 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         if password:
             validated_data["password"] = encrypt_password(password)
 
-
         validated_data["is_active"] = True
+
+        # When login_enabled is explicitly requested on creation, auto-approve so
+        # the staff member can sign in immediately — the creator (a Company Admin
+        # or superadmin) is the implicit approver.
+        if validated_data.get("login_enabled"):
+            validated_data.setdefault("approval_status", Staffcreation.APPROVAL_APPROVED)
 
         staffusertype = validated_data.get("staffusertype_id")
         if staffusertype and staffusertype.usertype_id:

@@ -255,12 +255,18 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             is_deleted=False,
         ).values_list("vehicle_id", flat=True)
 
-        pending_replacement_ids = VehicleBreakdown.objects.filter(
+        # When editing an existing breakdown, exclude it from the pending filter
+        # so its own replacement vehicle is still shown as available.
+        current_breakdown_id = request.query_params.get("exclude_id")
+        pending_qs = VehicleBreakdown.objects.filter(
             trip_assignment_id__trip_date=trip_date,
             approval_status=VehicleBreakdown.APPROVAL_PENDING,
             replacement_vehicle_id__isnull=False,
             is_deleted=False,
-        ).values_list("replacement_vehicle_id", flat=True)
+        )
+        if current_breakdown_id:
+            pending_qs = pending_qs.exclude(unique_id=current_breakdown_id)
+        pending_replacement_ids = pending_qs.values_list("replacement_vehicle_id", flat=True)
 
         qs = VehicleCreation.objects.filter(
             is_deleted=False,

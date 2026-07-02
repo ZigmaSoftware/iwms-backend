@@ -38,6 +38,12 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "trip_assignment_id__alt_staff_template_id__driver_id",
                 "trip_assignment_id__alt_staff_template_id__operator_id",
                 "trip_assignment_id__alt_staff_template_id__approved_by",
+                # Breakdown reverse OneToOne — used by BinCollectionEventSerializer.get_breakdown_info
+                "trip_assignment_id__vehicle_breakdown",
+                "trip_assignment_id__vehicle_breakdown__breakdown_vehicle_id",
+                "trip_assignment_id__vehicle_breakdown__replacement_vehicle_id",
+                "trip_assignment_id__vehicle_breakdown__replacement_driver_id",
+                "trip_assignment_id__vehicle_breakdown__replacement_operator_id",
                 "trip_collection_point_id",
                 "collection_point_id",
                 "bin_id",

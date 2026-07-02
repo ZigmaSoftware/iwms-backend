@@ -50,6 +50,12 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         "alt_staff_template_id__operator_id",
         "panchayat_id",
         "vehicle_id",
+        # Breakdown reverse OneToOne — used by DailyTripAssignmentSerializer.get_breakdown_info
+        "vehicle_breakdown",
+        "vehicle_breakdown__breakdown_vehicle_id",
+        "vehicle_breakdown__replacement_vehicle_id",
+        "vehicle_breakdown__replacement_driver_id",
+        "vehicle_breakdown__replacement_operator_id",
     ).prefetch_related(
         "wards",
         "wards__zone_id",

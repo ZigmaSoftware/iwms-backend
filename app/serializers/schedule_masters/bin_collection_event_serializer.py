@@ -55,6 +55,7 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
     ward_name = serializers.SerializerMethodField()
     zone_name = serializers.SerializerMethodField()
     collection_point = serializers.SerializerMethodField()
+    breakdown_info = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = BinCollectionEvent
@@ -92,6 +93,7 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "ward_name",
             "zone_name",
             "collection_point",
+            "breakdown_info",
             "created_by",
             "updated_by",
             "is_active",
@@ -103,6 +105,7 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "unique_id",
             "collection_point_id",
             "panchayat_id",
+            "breakdown_info",
             "created_at",
             "updated_at",
         ]
@@ -282,3 +285,23 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
         if not cp:
             return None
         return {"unique_id": getattr(cp, "unique_id", None), "cp_name": getattr(cp, "cp_name", None)}
+
+    def get_breakdown_info(self, obj):
+        try:
+            bd = obj.trip_assignment_id.vehicle_breakdown
+        except Exception:
+            return None
+        if not bd:
+            return None
+        return {
+            "unique_id": bd.unique_id,
+            "status": bd.status,
+            "approval_status": bd.approval_status,
+            "breakdown_reason": bd.breakdown_reason,
+            "breakdown_time": str(bd.breakdown_time) if bd.breakdown_time else None,
+            "breakdown_location": bd.breakdown_location,
+            "breakdown_vehicle_no": getattr(bd.breakdown_vehicle_id, "vehicle_no", None),
+            "replacement_vehicle_no": getattr(bd.replacement_vehicle_id, "vehicle_no", None),
+            "replacement_driver": getattr(bd.replacement_driver_id, "employee_name", None),
+            "replacement_operator": getattr(bd.replacement_operator_id, "employee_name", None),
+        }

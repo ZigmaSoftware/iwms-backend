@@ -110,6 +110,9 @@ from ..viewsets.schedule_masters.vehicle_breakdown_viewset import VehicleBreakdo
 from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
 from ..viewsets.audits.common_audit_viewset import CommonAuditViewSet
 
+# Palakad district admin portal
+from ..viewsets.palakad.palakad_login_viewset import PalakadLoginViewSet
+
 # Localbody
 from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardViewSet
 # District dashboard
@@ -270,6 +273,11 @@ router.register_group(
     ExternalAttendanceViewSet,
     basename="external-attendance",
 )
+
+# ============================================================
+# GROUP: PALAKAD (company admin district portal)
+# ============================================================
+router.register_group("palakad", "login-user", PalakadLoginViewSet, basename="palakad-login")
 
 # ============================================================
 # GROUP: LOCALBODY (panchayat leader portal — auth-only, no module permission check)

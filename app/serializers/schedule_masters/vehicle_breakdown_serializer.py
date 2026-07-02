@@ -9,6 +9,14 @@ from app.models.user_creations.staffcreation import Staffcreation
 
 class VehicleBreakdownSerializer(serializers.ModelSerializer):
 
+    # Tenancy write inputs (resolved by CompanyScopedViewSet.perform_create)
+    company_id_input = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, allow_null=True
+    )
+    project_id_input = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, allow_null=True
+    )
+
     # Write fields — accept unique_id strings
     trip_assignment_id = serializers.SlugRelatedField(
         slug_field="unique_id",
@@ -47,6 +55,8 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
             "unique_id",
             "company_id",
             "project_id",
+            "company_id_input",
+            "project_id_input",
             "trip_assignment_id",
             "trip_assignment_detail",
             "breakdown_vehicle_id",
@@ -78,6 +88,8 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "unique_id",
+            "company_id",
+            "project_id",
             "alt_staff_template_id",
             "status",
             "approval_status",
@@ -91,6 +103,9 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     # ── Validation ───────────────────────────────────────────────────
 
     def validate(self, attrs):
+        attrs.pop("company_id_input", None)
+        attrs.pop("project_id_input", None)
+
         assignment = attrs.get("trip_assignment_id")
         if assignment:
             if assignment.status in [
@@ -220,21 +235,30 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
         with transaction.atomic():
             assignment = instance.trip_assignment_id
 
-            # Create AlternativeStaffTemplate for replacement crew
-            alt_template = AlternativeStaffTemplate.objects.create(
+            # Create or update AlternativeStaffTemplate for replacement crew.
+            # The model has a UniqueConstraint on staff_template, so use
+            # update_or_create to handle cases where one already exists.
+            alt_template, _ = AlternativeStaffTemplate.objects.update_or_create(
                 staff_template=assignment.staff_template_id,
-                driver_id=instance.replacement_driver_id,
-                operator_id=instance.replacement_operator_id,
-                company_id=instance.company_id,
-                project_id=instance.project_id,
-                change_reason="Vehicle Breakdown",
-                change_remarks=remarks or instance.breakdown_remarks or "",
+                defaults=dict(
+                    driver_id=instance.replacement_driver_id,
+                    operator_id=instance.replacement_operator_id,
+                    company_id=instance.company_id,
+                    project_id=instance.project_id,
+                    change_reason="Vehicle Breakdown",
+                    change_remarks=remarks or instance.breakdown_remarks or "",
+                ),
             )
 
-            # Update DailyTripAssignment to use replacement vehicle + new alt staff template
+            # Update DailyTripAssignment: replacement vehicle, alt staff template, and
+            # advance status to In Progress (breakdown proves the trip was underway).
+            update_fields = ["vehicle_id", "alt_staff_template_id", "updated_at"]
             assignment.vehicle_id = instance.replacement_vehicle_id
             assignment.alt_staff_template_id = alt_template
-            assignment.save(update_fields=["vehicle_id", "alt_staff_template_id", "updated_at"])
+            if assignment.status == DailyTripAssignment.STATUS_SCHEDULED:
+                assignment.status = DailyTripAssignment.STATUS_IN_PROGRESS
+                update_fields.append("status")
+            assignment.save(update_fields=update_fields)
 
             # Update the breakdown record
             approved_by_staff = None
