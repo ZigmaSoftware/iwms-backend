@@ -42,8 +42,7 @@ class Project(BaseMaster):
     gps_trip_user_id = models.CharField(max_length=255, default="NMCP2DISPOSAL", blank=True)
     
     # Other APIs
-    weighment_api_url = models.URLField(max_length=500, blank=True, null=True)  # Date‑wise
-    # NEW: Day‑wise weighment API URL
+    weighment_api_url = models.URLField(max_length=500, blank=True, null=True)
     day_wise_weighment_api_url = models.URLField(max_length=500, blank=True, null=True)
     attendance_api_url = models.URLField(max_length=500, blank=True, null=True)
     attendance_api_key = models.CharField(max_length=255, blank=True, null=True)

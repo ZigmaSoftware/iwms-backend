@@ -6,9 +6,12 @@ from app.validators.unique_name_validator import unique_name_validator
 
 class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    state_name = serializers.CharField(source="state_id.name", read_only=True)
-    city_name = serializers.CharField(source="city_id.name", read_only=True)
-    district_name = serializers.CharField(source="district_id.name", read_only=True)
+    state_name        = serializers.CharField(source="state_id.name", read_only=True)
+    state_unique_id   = serializers.CharField(source="state_id.unique_id", read_only=True)
+    city_name         = serializers.CharField(source="city_id.name", read_only=True)
+    city_unique_id    = serializers.CharField(source="city_id.unique_id", read_only=True)
+    district_name     = serializers.CharField(source="district_id.name", read_only=True)
+    district_unique_id = serializers.CharField(source="district_id.unique_id", read_only=True)
     area_type_name = serializers.CharField(source="area_type_id.name", read_only=True)
     hierarchy_order = serializers.IntegerField(source="hierarchy_id.hierarchy_order", read_only=True)
     hierarchy_name = serializers.CharField(source="hierarchy_id.level_name", read_only=True)
@@ -23,10 +26,13 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
             "project_id",
             "project_name",
             "state_id",
+            "state_unique_id",
             "state_name",
             "city_id",
+            "city_unique_id",
             "city_name",
             "district_id",
+            "district_unique_id",
             "district_name",
             "block_id",
             "block_name",

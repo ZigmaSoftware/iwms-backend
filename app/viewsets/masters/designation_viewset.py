@@ -1,12 +1,12 @@
 from rest_framework import filters
-
+from rest_framework import viewsets
 from app.models.masters.designation import Designation
 from app.serializers.masters.designation_serializer import DesignationSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
-class DesignationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class DesignationViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     queryset = Designation.objects.filter(is_deleted=False)
     serializer_class = DesignationSerializer
     lookup_field = "unique_id"

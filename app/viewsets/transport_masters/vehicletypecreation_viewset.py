@@ -10,7 +10,7 @@ class VehicleTypeCreationViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     queryset = VehicleTypeCreation.objects.filter(is_deleted=False)
     serializer_class = VehicleTypeCreationSerializer
     lookup_field = "unique_id"
-
+    permission_resource = "VehicleTypeCreation"
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "vehicle-types"
 
