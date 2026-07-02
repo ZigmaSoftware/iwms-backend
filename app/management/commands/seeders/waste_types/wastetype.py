@@ -32,9 +32,9 @@ class WasteTypeSeeder(BaseSeeder):
         for wt in self.WASTE_TYPES:
             _, created = WasteType.objects.update_or_create(
                 waste_type_name=wt,
+                company_id=company,
+                project_id=project,
                 defaults={
-                    "company_id": company,
-                    "project_id": project,
                     "is_active": True,
                     "is_deleted": False,
                 },

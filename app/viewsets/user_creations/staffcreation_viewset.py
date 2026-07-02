@@ -247,19 +247,26 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
                         raise ValidationError({"company_id": "Invalid company_id"})
                     
                     # Get project from request data
-                    project_unique_id = (
+                    # Empty string means "All Projects" (null project) for superadmin
+                    raw_project_id = (
                         request.headers.get(self.project_header)
                         or request.data.get("project_id")
                         or request.data.get("project_unique_id")
                     )
-                    if project_unique_id:
+                    project_id_explicitly_empty = (
+                        "project_id" in request.data and request.data.get("project_id") == ""
+                    )
+                    if raw_project_id:
                         project = Project.objects.filter(
-                            unique_id=project_unique_id,
+                            unique_id=raw_project_id,
                             company_id=company
                         ).first()
                         if not project:
                             from rest_framework.exceptions import ValidationError
                             raise ValidationError({"project_id": "Invalid project_id for this company"})
+                    elif project_id_explicitly_empty:
+                        # Superadmin chose "All Projects" — save with null project
+                        project = None
                     else:
                         # Get the first active project for the company as default
                         project = Project.objects.filter(
@@ -320,11 +327,14 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         if serializer.is_valid():
             with transaction.atomic():
                 company = getattr(instance, "company_id", None) or self._company()
-                project = getattr(instance, "project_id", None) or self._project()
-                # serializer.save(
-                #     company_id=company,
-                #     project_id=project,
-                # )
+                # If project_id was explicitly sent as "" (all-projects), honour it (None).
+                # Otherwise keep the existing project or fall back to the session project.
+                if "project_id" in request.data and request.data.get("project_id") == "":
+                    project = None
+                else:
+                    project = serializer.validated_data.get(
+                        "project_id", getattr(instance, "project_id", None) or self._project()
+                    )
                 previous_data = self._serialize_instance(instance)
 
             updated_instance = serializer.save(

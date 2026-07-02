@@ -133,7 +133,6 @@ MODULE_RESOURCE_ALLOWLIST = {
     },
     "customer-masters": {
         "CustomerCreation",
-        "WasteCollection",
         "FeedBack",
         "UserChargeRule",
     },
@@ -159,6 +158,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "DailyTripLog",
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
+        "WasteCollection",
     },
     "audits": {
         "VehicleTripAudit",
@@ -186,6 +186,7 @@ RESOURCE_PERMISSION_ALIASES = {
     "Department": ("departments", "department-masters"),
     "Designation": ("designations", "designation-masters"),
     "StaffTemplateCreation": ("StaffTemplate", "staff-templates"),
+    "VehicleTypeCreation": ("vehicle-type", "vehicle-types"),
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),
     "column-permissions": ("CompanyUserScreenPermission",),
 }

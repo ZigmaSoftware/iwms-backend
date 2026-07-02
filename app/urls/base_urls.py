@@ -29,7 +29,6 @@ from ..viewsets.masters.department_viewset import DepartmentViewSet
 from ..viewsets.masters.designation_viewset import DesignationViewSet
 from ..viewsets.masters.municipality_viewset import MunicipalityViewSet
 from ..viewsets.masters.town_panchayat_viewset import TownPanchayatViewSet
-from ..viewsets.masters.block_panchayat_union_viewset import BlockPanchayatUnionViewSet
 
 # Waste types
 from ..viewsets.waste_types.property_viewset import PropertyViewSet
@@ -169,7 +168,7 @@ router.register_group("masters", "departments",       DepartmentViewSet)
 router.register_group("masters", "designations",      DesignationViewSet)
 router.register_group("masters", "municipalities",          MunicipalityViewSet)
 router.register_group("masters", "town-panchayats",         TownPanchayatViewSet)
-router.register_group("masters", "block-panchayat-unions",  BlockPanchayatUnionViewSet)
+
 
 # ============================================================
 # GROUP: Waste-Type
@@ -218,7 +217,6 @@ router.register_group("login", "my-permissions",     PermissionViewSet, basename
 # GROUP: CUSTOMER MODULES
 # ============================================================
 router.register_group("customer-masters", "customercreations", CustomerCreationViewSet)
-router.register_group("customer-masters", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
 router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
 
@@ -250,6 +248,7 @@ router.register_group("schedule-masters", "daily-trip-household-collections", Da
 router.register_group("schedule-masters", "bin-collection-events", BinCollectionEventViewSet)
 router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
 router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
+router.register_group("schedule-masters", "wastecollections", WasteCollectionViewSet)
 router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
 router.register_group("schedule-masters", "vehicle-breakdowns", VehicleBreakdownViewSet)
 

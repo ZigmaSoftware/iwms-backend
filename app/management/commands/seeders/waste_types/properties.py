@@ -28,6 +28,8 @@ class PropertySeeder(BaseSeeder):
         for prop in self.PROPERTIES:
             obj, created = Property.objects.get_or_create(
                 property_name=prop,
+                company_id=None,
+                project_id=None,
                 defaults={
                     "is_active": True,
                     "is_deleted": False,

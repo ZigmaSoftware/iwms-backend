@@ -50,8 +50,8 @@ class SubProperty(BaseMaster):
         ordering = ["sub_property_name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["property_id", "sub_property_name", "is_deleted"],
-                name="unique_sub_property_per_property_not_deleted"
+                fields=["company_id", "project_id", "property_id", "sub_property_name", "is_deleted"],
+                name="unique_sub_property_per_company_project_property_not_deleted"
             )
         ]
 

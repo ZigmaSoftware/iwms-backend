@@ -30,19 +30,12 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     )
     wards = WardMinimalSerializer(many=True, read_only=True)
 
-    # Convenience flat fields derived from wards (first ward's zone, for backwards compat)
-    zone_id = serializers.SerializerMethodField()
-    zone_name = serializers.SerializerMethodField()
+    # zone_id is now a direct FK on the model; expose name as read-only
+    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True, default=None)
+
+    # Convenience flat fields derived from wards (backwards compat)
     ward_id = serializers.SerializerMethodField()
     ward_name = serializers.SerializerMethodField()
-
-    def get_zone_id(self, obj):
-        w = obj.wards.select_related("zone_id").first()
-        return w.zone_id.unique_id if w and w.zone_id else None
-
-    def get_zone_name(self, obj):
-        w = obj.wards.select_related("zone_id").first()
-        return w.zone_id.zone_name if w and w.zone_id else None
 
     def get_ward_id(self, obj):
         w = obj.wards.first()
@@ -102,6 +95,13 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
             else raw_panchayat
         )
 
+        raw_zone = attrs.get("zone_id", _MISSING)
+        zone = (
+            getattr(self.instance, "zone_id", None)
+            if raw_zone is _MISSING
+            else raw_zone
+        )
+
         if "ward_ids" in attrs:
             ward_ids = attrs["ward_ids"]
             has_wards = bool(ward_ids)
@@ -109,10 +109,10 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
             ward_ids = []
             has_wards = bool(self.instance and self.instance.wards.exists())
 
-        # ── Rule: CP must belong to at least a panchayat OR one ward ──────────
-        if not panchayat and not has_wards:
+        # ── Rule: CP must belong to at least a panchayat, zone, or ward ───────
+        if not panchayat and not zone and not has_wards:
             raise serializers.ValidationError(
-                "Collection Point must belong to Ward or Panchayat."
+                "Collection Point must belong to a Panchayat, Zone, or Ward."
             )
 
         # ── Validate ward IDs exist and share the same parent ─────────────────
@@ -151,6 +151,17 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
                 raise serializers.ValidationError(
                     "Zone-based wards cannot be combined with a Panchayat on the same Collection Point."
                 )
+
+            # Auto-set zone_id from wards (zone-type wards) or clear it (panchayat-type wards)
+            if zone_parents:
+                from app.models.masters.zone import Zone as ZoneModel
+                zone_unique_id = next(iter(zone_parents))
+                try:
+                    attrs["zone_id"] = ZoneModel.objects.get(unique_id=zone_unique_id)
+                except ZoneModel.DoesNotExist:
+                    pass
+            elif pan_parents:
+                attrs["zone_id"] = None
 
         if not self.instance or "cp_name" in attrs:
             unique_name_validator(

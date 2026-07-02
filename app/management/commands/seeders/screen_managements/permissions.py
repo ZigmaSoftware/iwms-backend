@@ -1,5 +1,3 @@
-from django.db.models import F
-
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.screen_managements.mainscreentype import MainScreenType
 from app.models.screen_managements.userscreenaction import UserScreenAction
@@ -20,6 +18,36 @@ from app.models.screen_managements.companyuserscreencolumnpermission import (
 
 class PermissionSeeder(BaseSeeder):
     name = "permission_full"
+
+    def _move_mainscreen_orders_out_of_range(self, mainscreentype, reserved_count):
+        """Free the target 1..N order range without tripping MySQL unique checks."""
+        screens = list(
+            MainScreen.objects.filter(mainscreentype_id=mainscreentype)
+            .order_by("order_no", "unique_id")
+        )
+        if not screens:
+            return
+
+        max_order = max((screen.order_no or 0) for screen in screens)
+        offset = max_order + len(screens) + reserved_count + 1000
+        for idx, screen in enumerate(screens, start=1):
+            screen.order_no = offset + idx
+            screen.save(update_fields=["order_no"])
+
+    def _move_userscreen_orders_out_of_range(self, main):
+        """Free per-main user screen orders before applying canonical order."""
+        screens = list(
+            UserScreen.objects.filter(mainscreen_id=main)
+            .order_by("order_no", "unique_id")
+        )
+        if not screens:
+            return
+
+        max_order = max((screen.order_no or 0) for screen in screens)
+        offset = max_order + len(screens) + 1000
+        for idx, screen in enumerate(screens, start=1):
+            screen.order_no = offset + idx
+            screen.save(update_fields=["order_no"])
 
     def run(self):
         # --------------------------------------------------
@@ -112,7 +140,6 @@ class PermissionSeeder(BaseSeeder):
             "customers": [
                 "customercreations",
                 "apartment-list",
-                "wastecollections",
                 "feedbacks",
                 # "user-charge-rules",
             ],
@@ -142,7 +169,9 @@ class PermissionSeeder(BaseSeeder):
                 "daily-trip-household-collections",
                 "bin-collection-events",
                 "daily-trip-logs",
+                "daily-waste-comparisons",
                 "monthly-waste-comparison",
+                "wastecollections",
             ],
             "audits": [
                 # "stafftemplate-audit-log",
@@ -156,6 +185,11 @@ class PermissionSeeder(BaseSeeder):
                 "trip-summary",
                 "monthly-distance",
                 "waste-collected-summary",
+                "vehicle-track",
+                "vehicle-history",
+                "workforce-management",
+                "date-report",
+                "day-report",
                 # "monthly-waste-comparison",
             ],
         }
@@ -167,9 +201,7 @@ class PermissionSeeder(BaseSeeder):
 
         total_mains = len(screen_structure)
         if total_mains:
-            MainScreen.objects.filter(order_no__lte=total_mains).update(
-                order_no=F("order_no") + total_mains
-            )
+            self._move_mainscreen_orders_out_of_range(megamenu, total_mains)
 
         for order, (main_name, screens) in enumerate(screen_structure.items(), start=1):
             main, _ = MainScreen.objects.update_or_create(
@@ -184,9 +216,7 @@ class PermissionSeeder(BaseSeeder):
             )
             mainscreens[main_name] = main
 
-            UserScreen.objects.filter(mainscreen_id=main).update(
-                order_no=F("order_no") + 1000
-            )
+            self._move_userscreen_orders_out_of_range(main)
 
             ordered_screens = []
             for idx, screen_name in enumerate(screens, start=1):
@@ -201,6 +231,9 @@ class PermissionSeeder(BaseSeeder):
                         "is_deleted": False,
                     },
                 )
+                if screen.mainscreen_id_id != main.pk:
+                    screen.mainscreen_id = main
+                    screen.save(update_fields=["mainscreen_id"])
                 ordered_screens.append(screen)
 
             for idx, screen in enumerate(ordered_screens, start=1):

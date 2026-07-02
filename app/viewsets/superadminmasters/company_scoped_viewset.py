@@ -106,6 +106,8 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
         project_unique_id = (
             self.request.headers.get(self.project_header)
+            or self.request.query_params.get("project_id")
+            or self.request.query_params.get("project_unique_id")
             or self.request.query_params.get("project")
             or self.request.data.get("project_id_input")
             or self.request.data.get("project_id")
