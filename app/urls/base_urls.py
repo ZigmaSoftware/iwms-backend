@@ -213,7 +213,6 @@ router.register_group("login", "my-permissions",     PermissionViewSet, basename
 # GROUP: CUSTOMER MODULES
 # ============================================================
 router.register_group("customer-masters", "customercreations", CustomerCreationViewSet)
-router.register_group("customer-masters", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
 router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
 
@@ -245,6 +244,7 @@ router.register_group("schedule-masters", "daily-trip-household-collections", Da
 router.register_group("schedule-masters", "bin-collection-events", BinCollectionEventViewSet)
 router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
 router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
+router.register_group("schedule-masters", "wastecollections", WasteCollectionViewSet)
 router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
 
 # ============================================================
