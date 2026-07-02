@@ -170,6 +170,7 @@ class PermissionSeeder(BaseSeeder):
                 "daily-trip-household-collections",
                 "bin-collection-events",
                 "daily-trip-logs",
+                "daily-waste-comparisons",
                 "monthly-waste-comparison",
             ],
             "audits": [
