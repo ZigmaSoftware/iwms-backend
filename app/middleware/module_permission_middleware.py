@@ -133,7 +133,6 @@ MODULE_RESOURCE_ALLOWLIST = {
     },
     "customer-masters": {
         "CustomerCreation",
-        "WasteCollection",
         "FeedBack",
         "UserChargeRule",
     },
@@ -159,6 +158,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "DailyTripLog",
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
+        "WasteCollection",
     },
     "audits": {
         "VehicleTripAudit",
