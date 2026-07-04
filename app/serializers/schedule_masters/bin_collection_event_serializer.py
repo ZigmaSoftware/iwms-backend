@@ -6,6 +6,7 @@ from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignmen
 from app.models.schedule_masters.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
+from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
 from app.serializers.assets.bins_serializer import BinsSerializer
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.transport_masters.vehicleCreation_serializer import (
@@ -55,6 +56,7 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
     ward_name = serializers.SerializerMethodField()
     zone_name = serializers.SerializerMethodField()
     collection_point = serializers.SerializerMethodField()
+    breakdown_info = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = BinCollectionEvent
@@ -73,6 +75,7 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "waste_type",
             "trip_plan",
             "vehicle",
+            "vehicle_breakdown_id",
             "staff_template",
             "alternative_staff_template",
             "effective_staff_template",
@@ -92,6 +95,7 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "ward_name",
             "zone_name",
             "collection_point",
+            "breakdown_info",
             "created_by",
             "updated_by",
             "is_active",
@@ -103,6 +107,8 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "unique_id",
             "collection_point_id",
             "panchayat_id",
+            "vehicle_breakdown_id",
+            "breakdown_info",
             "created_at",
             "updated_at",
         ]
@@ -154,6 +160,8 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             attrs["waste_type_id"] = getattr(bin_obj, "wastetype_id", None)
         if hasattr(BinCollectionEvent, "vehicle_id"):
             attrs["vehicle_id"] = self._resolve_vehicle(assignment)
+        if hasattr(BinCollectionEvent, "vehicle_breakdown_id"):
+            attrs["vehicle_breakdown_id"] = self._resolve_approved_breakdown(assignment)
 
         return attrs
 
@@ -170,6 +178,15 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "staff_template_id",
             None,
         )
+
+    def _resolve_approved_breakdown(self, assignment):
+        try:
+            breakdown = assignment.vehicle_breakdown
+        except Exception:
+            return None
+        if breakdown.approval_status != VehicleBreakdown.APPROVAL_APPROVED:
+            return None
+        return breakdown
 
     def _resolve_alternative_staff_template(self, obj):
         return getattr(obj.trip_assignment_id, "alt_staff_template_id", None)
@@ -282,3 +299,22 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
         if not cp:
             return None
         return {"unique_id": getattr(cp, "unique_id", None), "cp_name": getattr(cp, "cp_name", None)}
+
+    def get_breakdown_info(self, obj):
+        bd = getattr(obj, "vehicle_breakdown_id", None)
+        if not bd:
+            bd = self._resolve_approved_breakdown(obj.trip_assignment_id)
+        if not bd:
+            return None
+        return {
+            "unique_id": bd.unique_id,
+            "status": bd.status,
+            "approval_status": bd.approval_status,
+            "breakdown_reason": bd.breakdown_reason,
+            "breakdown_time": str(bd.breakdown_time) if bd.breakdown_time else None,
+            "breakdown_location": bd.breakdown_location,
+            "breakdown_vehicle_no": getattr(bd.breakdown_vehicle_id, "vehicle_no", None),
+            "replacement_vehicle_no": getattr(bd.replacement_vehicle_id, "vehicle_no", None),
+            "replacement_driver": getattr(bd.replacement_driver_id, "employee_name", None),
+            "replacement_operator": getattr(bd.replacement_operator_id, "employee_name", None),
+        }

@@ -10,7 +10,8 @@ __pycache__/
 !**/migrations/__init__.py
 !app/migrations/
 app/migrations/*
-app/migrations/__init__.py
+!app/migrations/__init__.py
+!app/migrations/*.py
 
 # Specifically ignore your API app migrations
 api/migrations/

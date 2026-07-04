@@ -181,6 +181,7 @@ class LoginViewSet(ViewSet):
 
         if user_type == "staff":
             staff_source = profile_object or user
+            _staff_project = getattr(staff_source, "project_id", None)
             profile_payload.update(
                 {
                     "staff_unique_id": emp_id,
@@ -190,6 +191,10 @@ class LoginViewSet(ViewSet):
                     "staffusertype_unique_id": staffusertype_unique_id,
                     "district_unique_id": getattr(getattr(staff_source, "district_id", None), "unique_id", None),
                     "district_name": getattr(getattr(staff_source, "district_id", None), "name", None),
+                    # Expose the staff's assigned project so authStorage saves it to
+                    # localStorage["project_id"], enabling the frontend to scope dropdowns.
+                    "project_unique_id": getattr(_staff_project, "unique_id", None),
+                    "project_name": getattr(_staff_project, "name", None),
                 }
             )
         elif user_type == "customer":

@@ -103,10 +103,14 @@ from ..viewsets.schedule_masters.bin_collection_event_viewset import BinCollecti
 from ..viewsets.schedule_masters.daily_trip_log_viewset import DailyTripLogViewSet
 from ..viewsets.schedule_masters.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
 from ..viewsets.schedule_masters.daily_waste_comparison_viewset import DailyWasteComparisonViewSet
+from ..viewsets.schedule_masters.vehicle_breakdown_viewset import VehicleBreakdownViewSet
 
 # Audits
 from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
 from ..viewsets.audits.common_audit_viewset import CommonAuditViewSet
+
+# Palakad district admin portal
+from ..viewsets.palakad.palakad_login_viewset import PalakadLoginViewSet
 
 # Localbody
 from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardViewSet
@@ -246,6 +250,7 @@ router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteC
 router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
 router.register_group("schedule-masters", "wastecollections", WasteCollectionViewSet)
 router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
+router.register_group("schedule-masters", "vehicle-breakdowns", VehicleBreakdownViewSet)
 
 # ============================================================
 # GROUP: REPORTS (aliases used by the admin frontend)
@@ -267,6 +272,11 @@ router.register_group(
     ExternalAttendanceViewSet,
     basename="external-attendance",
 )
+
+# ============================================================
+# GROUP: PALAKAD (company admin district portal)
+# ============================================================
+router.register_group("palakad", "login-user", PalakadLoginViewSet, basename="palakad-login")
 
 # ============================================================
 # GROUP: LOCALBODY (panchayat leader portal — auth-only, no module permission check)
