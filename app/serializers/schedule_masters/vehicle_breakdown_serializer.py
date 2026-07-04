@@ -281,6 +281,16 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             )
             instance.refresh_from_db()
 
+            from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+
+            BinCollectionEvent.objects.filter(
+                trip_assignment_id=assignment,
+                is_deleted=False,
+            ).update(
+                vehicle_breakdown_id=instance,
+                updated_at=now,
+            )
+
         return instance
 
 
