@@ -107,6 +107,14 @@ class BinCollectionEvent(BaseMaster):
         null=True,
         blank=True,
     )
+    vehicle_breakdown_id = models.ForeignKey(
+        "VehicleBreakdown",
+        on_delete=models.SET_NULL,
+        db_column="vehicle_breakdown_id",
+        related_name="bin_collection_events",
+        null=True,
+        blank=True,
+    )
 
 
 

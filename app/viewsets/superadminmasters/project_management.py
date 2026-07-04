@@ -35,7 +35,17 @@ class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
         company = getattr(user, "company_id", None)
         if not company:
             return Project.objects.none()
-        return queryset.filter(company_id=company)
+
+        queryset = queryset.filter(company_id=company)
+
+        # Staff members (Staffcreation instances) are scoped to their assigned project.
+        # hasattr check distinguishes them from Django platform users who also have company_id.
+        if hasattr(user, "staff_unique_id"):
+            user_project = getattr(user, "project_id", None)
+            if user_project:
+                queryset = queryset.filter(unique_id=user_project.unique_id)
+
+        return queryset
 
     def get_serializer_class(self):
         if self.action == "create":

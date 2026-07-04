@@ -153,6 +153,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     collection_points = serializers.SerializerMethodField(read_only=True)
     household_collection_points = serializers.SerializerMethodField(read_only=True)
     start_time = serializers.SerializerMethodField(read_only=True)
+    breakdown_info = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
         write_only=True,
@@ -199,6 +200,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "status",
             "approval_status",
             "remarks",
+            "breakdown_info",
             "created_at",
             "updated_at",
         ]
@@ -207,9 +209,30 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "actual_start_time",
             "actual_end_time",
             "approval_status",
+            "breakdown_info",
             "created_at",
             "updated_at",
         ]
+
+    def get_breakdown_info(self, obj):
+        try:
+            bd = obj.vehicle_breakdown
+        except Exception:
+            return None
+        if not bd:
+            return None
+        return {
+            "unique_id": bd.unique_id,
+            "status": bd.status,
+            "approval_status": bd.approval_status,
+            "breakdown_reason": bd.breakdown_reason,
+            "breakdown_time": str(bd.breakdown_time) if bd.breakdown_time else None,
+            "breakdown_location": bd.breakdown_location,
+            "breakdown_vehicle_no": getattr(bd.breakdown_vehicle_id, "vehicle_no", None),
+            "replacement_vehicle_no": getattr(bd.replacement_vehicle_id, "vehicle_no", None),
+            "replacement_driver": getattr(bd.replacement_driver_id, "employee_name", None),
+            "replacement_operator": getattr(bd.replacement_operator_id, "employee_name", None),
+        }
 
     def get_trip_plan(self, obj):
         from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint

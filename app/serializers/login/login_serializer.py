@@ -198,6 +198,12 @@ class LoginSerializer(serializers.Serializer):
             "weighment_api_url", "day_wise_weighment_api_url",
         )
 
+        # Scope to the staff member's assigned project so the frontend only
+        # shows the project(s) that belong to this user, not all company projects.
+        staff_project = getattr(staff_record, "project_id", None)
+        if staff_project:
+            projects_queryset = projects_queryset.filter(unique_id=staff_project.unique_id)
+
         projects = list(projects_queryset)
 
         permission_payload = self._resolve_permission_payload(
