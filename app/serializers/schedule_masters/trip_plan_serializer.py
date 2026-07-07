@@ -163,6 +163,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
     waste_types = serializers.SerializerMethodField()
     start_time = serializers.SerializerMethodField()
     plan_collection_points = serializers.SerializerMethodField()
+    active_breakdown = serializers.SerializerMethodField()
 
     class Meta:
         model = TripPlan
@@ -209,6 +210,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             "status",
             "collection_points",
             "plan_collection_points",
+            "active_breakdown",
             "created_at",
             "updated_at",
         ]
@@ -302,6 +304,43 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
 
     def get_start_time(self, obj):
         return str(obj.scheduled_time) if obj.scheduled_time else None
+
+    def get_active_breakdown(self, obj):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
+
+        # Find the most recent assignment under this plan that actually has an
+        # approved breakdown — NOT just the most recent assignment overall, since
+        # plans repeat daily and a newer, unaffected trip would otherwise shadow
+        # the breakdown event.
+        assignment = (
+            DailyTripAssignment.objects.filter(
+                trip_plan_id=obj,
+                is_deleted=False,
+                vehicle_breakdown__approval_status=VehicleBreakdown.APPROVAL_APPROVED,
+            )
+            .select_related(
+                "vehicle_breakdown",
+                "vehicle_breakdown__breakdown_vehicle_id",
+                "vehicle_breakdown__replacement_vehicle_id",
+                "vehicle_breakdown__replacement_driver_id",
+                "vehicle_breakdown__replacement_operator_id",
+            )
+            .order_by("-trip_date")
+            .first()
+        )
+        if not assignment:
+            return None
+        bd = assignment.vehicle_breakdown
+        return {
+            "unique_id": bd.unique_id,
+            "status": bd.status,
+            "trip_date": str(assignment.trip_date),
+            "breakdown_vehicle_no": getattr(bd.breakdown_vehicle_id, "vehicle_no", None),
+            "replacement_vehicle_no": getattr(bd.replacement_vehicle_id, "vehicle_no", None),
+            "replacement_driver": getattr(bd.replacement_driver_id, "employee_name", None),
+            "replacement_operator": getattr(bd.replacement_operator_id, "employee_name", None),
+        }
 
     def get_plan_collection_points(self, obj):
         stops = obj.plan_collection_points.filter(is_deleted=False).select_related(

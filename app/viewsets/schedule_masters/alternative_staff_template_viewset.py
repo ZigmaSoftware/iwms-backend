@@ -194,7 +194,7 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if not user:
             return
         StaffTemplateAuditLog.objects.create(
-            entity_type=StaffTemplateAuditLog.EntityType.ALTERNATIVE_TEMPLATE,
+            entity_type=StaffTemplateAuditLog.EntityType.ALT_STAFF_TEMPLATE,
             entity_id=str(entity_id),
             action=action,
             performed_by=user,

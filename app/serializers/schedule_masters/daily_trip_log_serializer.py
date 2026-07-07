@@ -4,6 +4,7 @@ from rest_framework import serializers
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.daily_trip_log import DailyTripLog
+from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
 from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.user_creations.user_serializer import UniqueIdOrPkField
@@ -56,6 +57,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     verified_by_name = serializers.SerializerMethodField(read_only=True)
     collection_status = serializers.SerializerMethodField(read_only=True)
     household_collections = serializers.SerializerMethodField(read_only=True)
+    breakdown_info = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = DailyTripLog
@@ -100,6 +102,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "verified_at",
             "collection_status",
             "household_collections",
+            "breakdown_info",
             "created_by",
             "created_at",
             "updated_at",
@@ -315,6 +318,31 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         staff = getattr(account, "staff", None)
         user = getattr(account, "user", None)
         return getattr(staff, "employee_name", None) or getattr(user, "username", None)
+
+    def _resolve_approved_breakdown(self, assignment):
+        try:
+            breakdown = assignment.vehicle_breakdown
+        except Exception:
+            return None
+        if breakdown.approval_status != VehicleBreakdown.APPROVAL_APPROVED:
+            return None
+        return breakdown
+
+    def get_breakdown_info(self, obj):
+        bd = self._resolve_approved_breakdown(obj.trip_assignment_id)
+        if not bd:
+            return None
+        return {
+            "unique_id": bd.unique_id,
+            "status": bd.status,
+            "approval_status": bd.approval_status,
+            "breakdown_reason": bd.breakdown_reason,
+            "breakdown_time": str(bd.breakdown_time) if bd.breakdown_time else None,
+            "breakdown_vehicle_no": getattr(bd.breakdown_vehicle_id, "vehicle_no", None),
+            "replacement_vehicle_no": getattr(bd.replacement_vehicle_id, "vehicle_no", None),
+            "replacement_driver": getattr(bd.replacement_driver_id, "employee_name", None),
+            "replacement_operator": getattr(bd.replacement_operator_id, "employee_name", None),
+        }
 
     def validate(self, attrs):
         instance = getattr(self, "instance", None)
