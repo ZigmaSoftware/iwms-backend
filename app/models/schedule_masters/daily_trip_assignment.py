@@ -148,13 +148,9 @@ class DailyTripAssignment(BaseMaster):
         blank=True,
     )
 
-    ward_id = models.ForeignKey(
+    wards = models.ManyToManyField(
         Ward,
-        on_delete=models.PROTECT,
-        db_column="ward_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-        null=True,
+        related_name="daily_trip_assignments_m2m",
         blank=True,
     )
 
@@ -235,20 +231,12 @@ class DailyTripAssignment(BaseMaster):
             models.Index(fields=["trip_date", "status"]),
             models.Index(fields=["trip_plan_id", "trip_date"]),
             models.Index(fields=["panchayat_id", "trip_date"]),
-            models.Index(fields=["ward_id", "trip_date"]),
         ]
         constraints = [
             models.UniqueConstraint(
                 fields=["trip_plan_id", "trip_date"],
                 name="uniq_daily_trip_plan_per_date",
             ),
-            models.CheckConstraint(
-                check=(
-                    models.Q(panchayat_id__isnull=False, ward_id__isnull=True) |
-                    models.Q(panchayat_id__isnull=True, ward_id__isnull=False)
-                ),
-                name="daily_trip_assignment_panchayat_xor_ward",
-            )
         ]
 
     # ------------------------------------------------------------------
@@ -260,7 +248,6 @@ class DailyTripAssignment(BaseMaster):
             self.staff_template_id = self.staff_template_id or self.trip_plan_id.staff_template_id
             self.vehicle_id = self.vehicle_id or self.trip_plan_id.vehicle_id
             self.panchayat_id = self.panchayat_id or self.trip_plan_id.panchayat_id
-            self.ward_id = self.ward_id or self.trip_plan_id.ward_id
             self.scheduled_time = self.scheduled_time or self.trip_plan_id.scheduled_time
             self.waste_type_ids = self.waste_type_ids or self.trip_plan_id.waste_type_ids
         if not self.unique_id:

@@ -7,6 +7,7 @@ class CountrySerializer(serializers.ModelSerializer):
     continent_name = serializers.CharField(
         source="continent_id.name", read_only=True
     )
+    continent_unique_id = serializers.CharField(source="continent_id.unique_id", read_only=True)
 
     class Meta:
         model = Country

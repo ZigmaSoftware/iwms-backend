@@ -166,14 +166,6 @@ class LoginSerializer(serializers.Serializer):
             )
             raise serializers.ValidationError("Login is disabled for this user")
 
-        if staff_record.approval_status != Staffcreation.APPROVAL_APPROVED:
-            Staffcreation.objects.filter(pk=staff_record.pk).update(
-                failed_login_attempts=F("failed_login_attempts") + 1
-            )
-            raise serializers.ValidationError(
-                f"User approval status is {staff_record.approval_status}"
-            )
-
         user_type = staff_record.user_type_id or getattr(login_user, "user_type_id", None)
         if not user_type:
             raise serializers.ValidationError("Invalid user type")
@@ -194,16 +186,23 @@ class LoginSerializer(serializers.Serializer):
         if not company:
             raise serializers.ValidationError("Staff record has no company assigned")
         
-        projects_queryset = Project.objects.filter(
-            company_id=company,
-            is_active=True,
-            is_deleted=False,
-        ).values(
+        project_filter = {"company_id": company, "is_active": True, "is_deleted": False}
+        staff_project = getattr(staff_record, "project_id", None)
+        if staff_project:
+            project_filter["unique_id"] = getattr(staff_project, "unique_id", staff_project)
+
+        projects_queryset = Project.objects.filter(**project_filter).values(
             "unique_id", "name",
             "gps_api_url",
             "gps_user_id", "gps_group_name", "gps_provider_name", "gps_fcode", "gps_trip_user_id",
             "weighment_api_url", "day_wise_weighment_api_url",
         )
+
+        # Scope to the staff member's assigned project so the frontend only
+        # shows the project(s) that belong to this user, not all company projects.
+        staff_project = getattr(staff_record, "project_id", None)
+        if staff_project:
+            projects_queryset = projects_queryset.filter(unique_id=staff_project.unique_id)
 
         projects = list(projects_queryset)
 
@@ -381,14 +380,6 @@ class LoginSerializer(serializers.Serializer):
                     failed_login_attempts=F("failed_login_attempts") + 1
                 )
                 raise serializers.ValidationError("Login is disabled for this user")
-
-            if candidate.approval_status != Staffcreation.APPROVAL_APPROVED:
-                Staffcreation.objects.filter(pk=candidate.pk).update(
-                    failed_login_attempts=F("failed_login_attempts") + 1
-                )
-                raise serializers.ValidationError(
-                    f"User approval status is {candidate.approval_status}"
-                )
 
             return self._build_staff_payload(candidate)
 

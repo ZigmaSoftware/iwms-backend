@@ -49,13 +49,13 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
             comp = getattr(staff_template, "company_id", None) or company
             proj = getattr(staff_template, "project_id", None) or project
 
-            _, created = AlternativeStaffTemplate.objects.get_or_create(
+            _, created = AlternativeStaffTemplate.objects.update_or_create(
                 staff_template=staff_template,
-                company_id=comp,
-                project_id=proj,
-                driver_id=alt_driver,
-                operator_id=alt_operator,
                 defaults={
+                    "company_id": comp,
+                    "project_id": proj,
+                    "driver_id": alt_driver,
+                    "operator_id": alt_operator,
                     "extra_operator_id": [str(alt_extra.staff_unique_id)],
                     "change_reason": f"Temporary substitution #{idx + 1}",
                     "change_remarks": f"Seeder-generated alternative for template {staff_template.pk}",

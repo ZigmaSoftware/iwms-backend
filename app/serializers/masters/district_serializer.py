@@ -4,9 +4,13 @@ from app.models.masters.district import District
 from app.validators.unique_name_validator import unique_name_validator
 
 class DistrictSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
-    continent_name = serializers.CharField(source="continent_id.name", read_only=True)
-    country_name   = serializers.CharField(source="country_id.name", read_only=True)
-    state_name     = serializers.CharField(source="state_id.name", read_only=True)
+    continent_name    = serializers.CharField(source="continent_id.name", read_only=True)
+    country_name      = serializers.CharField(source="country_id.name", read_only=True)
+    state_name        = serializers.CharField(source="state_id.name", read_only=True)
+    # UUID read fields — separate names so FK write fields are not clobbered
+    state_unique_id   = serializers.CharField(source="state_id.unique_id", read_only=True)
+    country_unique_id = serializers.CharField(source="country_id.unique_id", read_only=True)
+    continent_unique_id = serializers.CharField(source="continent_id.unique_id", read_only=True)
 
     class Meta:
         model = District

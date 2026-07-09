@@ -29,7 +29,6 @@ from ..viewsets.masters.department_viewset import DepartmentViewSet
 from ..viewsets.masters.designation_viewset import DesignationViewSet
 from ..viewsets.masters.municipality_viewset import MunicipalityViewSet
 from ..viewsets.masters.town_panchayat_viewset import TownPanchayatViewSet
-from ..viewsets.masters.block_panchayat_union_viewset import BlockPanchayatUnionViewSet
 
 # Waste types
 from ..viewsets.waste_types.property_viewset import PropertyViewSet
@@ -104,10 +103,14 @@ from ..viewsets.schedule_masters.bin_collection_event_viewset import BinCollecti
 from ..viewsets.schedule_masters.daily_trip_log_viewset import DailyTripLogViewSet
 from ..viewsets.schedule_masters.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
 from ..viewsets.schedule_masters.daily_waste_comparison_viewset import DailyWasteComparisonViewSet
+from ..viewsets.schedule_masters.vehicle_breakdown_viewset import VehicleBreakdownViewSet
 
 # Audits
 from ..viewsets.audits.login_audit_viewset import LoginAuditViewSet
 from ..viewsets.audits.common_audit_viewset import CommonAuditViewSet
+
+# Palakad district admin portal
+from ..viewsets.palakad.palakad_login_viewset import PalakadLoginViewSet
 
 # Localbody
 from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardViewSet
@@ -165,7 +168,7 @@ router.register_group("masters", "departments",       DepartmentViewSet)
 router.register_group("masters", "designations",      DesignationViewSet)
 router.register_group("masters", "municipalities",          MunicipalityViewSet)
 router.register_group("masters", "town-panchayats",         TownPanchayatViewSet)
-router.register_group("masters", "block-panchayat-unions",  BlockPanchayatUnionViewSet)
+
 
 # ============================================================
 # GROUP: Waste-Type
@@ -214,7 +217,6 @@ router.register_group("login", "my-permissions",     PermissionViewSet, basename
 # GROUP: CUSTOMER MODULES
 # ============================================================
 router.register_group("customer-masters", "customercreations", CustomerCreationViewSet)
-router.register_group("customer-masters", "wastecollections",  WasteCollectionViewSet)
 router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
 router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
 
@@ -246,7 +248,9 @@ router.register_group("schedule-masters", "daily-trip-household-collections", Da
 router.register_group("schedule-masters", "bin-collection-events", BinCollectionEventViewSet)
 router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
 router.register_group("schedule-masters", "daily-trip-logs", DailyTripLogViewSet)
+router.register_group("schedule-masters", "wastecollections", WasteCollectionViewSet)
 router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
+router.register_group("schedule-masters", "vehicle-breakdowns", VehicleBreakdownViewSet)
 
 # ============================================================
 # GROUP: REPORTS (aliases used by the admin frontend)
@@ -268,6 +272,11 @@ router.register_group(
     ExternalAttendanceViewSet,
     basename="external-attendance",
 )
+
+# ============================================================
+# GROUP: PALAKAD (company admin district portal)
+# ============================================================
+router.register_group("palakad", "login-user", PalakadLoginViewSet, basename="palakad-login")
 
 # ============================================================
 # GROUP: LOCALBODY (panchayat leader portal — auth-only, no module permission check)

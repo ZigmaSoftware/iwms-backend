@@ -3,6 +3,7 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.contractorUserType import ContractorUserType
 from app.models.masters.department import Department
 from app.models.masters.designation import Designation
+from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
@@ -56,6 +57,11 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     )
     designation_id = serializers.PrimaryKeyRelatedField(
         queryset=Designation.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    project_id = serializers.PrimaryKeyRelatedField(
+        queryset=Project.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
@@ -150,6 +156,18 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     allow_null=True
 )
 
+    def to_internal_value(self, data):
+        # For multipart/form-data, empty string for nullable FK means "clear to null".
+        # QueryDict is immutable so we copy it first.
+        nullable_fk_fields = ('project_id',)
+        if hasattr(data, '_mutable'):
+            data = data.copy()
+            for field in nullable_fk_fields:
+                raw = data.get(field)
+                if raw == '':
+                    data[field] = None
+        return super().to_internal_value(data)
+
     def validate_username(self, value):
         if not value:
             return value
@@ -159,7 +177,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         if qs.exists():
             raise serializers.ValidationError("A staff member with this username already exists.")
         return value
-    
+
     user_type_id = serializers.CharField(
     source="staffusertype_id.usertype_id.unique_id",read_only=True)
 
@@ -294,8 +312,13 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         if password:
             validated_data["password"] = encrypt_password(password)
 
-
         validated_data["is_active"] = True
+
+        # When login_enabled is explicitly requested on creation, auto-approve so
+        # the staff member can sign in immediately — the creator (a Company Admin
+        # or superadmin) is the implicit approver.
+        if validated_data.get("login_enabled"):
+            validated_data.setdefault("approval_status", Staffcreation.APPROVAL_APPROVED)
 
         staffusertype = validated_data.get("staffusertype_id")
         if staffusertype and staffusertype.usertype_id:

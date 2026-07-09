@@ -140,7 +140,6 @@ class PermissionSeeder(BaseSeeder):
             "customers": [
                 "customercreations",
                 "apartment-list",
-                "wastecollections",
                 "feedbacks",
                 # "user-charge-rules",
             ],
@@ -170,7 +169,9 @@ class PermissionSeeder(BaseSeeder):
                 "daily-trip-household-collections",
                 "bin-collection-events",
                 "daily-trip-logs",
+                "daily-waste-comparisons",
                 "monthly-waste-comparison",
+                "wastecollections",
             ],
             "audits": [
                 # "stafftemplate-audit-log",
@@ -184,6 +185,11 @@ class PermissionSeeder(BaseSeeder):
                 "trip-summary",
                 "monthly-distance",
                 "waste-collected-summary",
+                "vehicle-track",
+                "vehicle-history",
+                "workforce-management",
+                "date-report",
+                "day-report",
                 # "monthly-waste-comparison",
             ],
         }
@@ -225,6 +231,9 @@ class PermissionSeeder(BaseSeeder):
                         "is_deleted": False,
                     },
                 )
+                if screen.mainscreen_id_id != main.pk:
+                    screen.mainscreen_id = main
+                    screen.save(update_fields=["mainscreen_id"])
                 ordered_screens.append(screen)
 
             for idx, screen in enumerate(ordered_screens, start=1):

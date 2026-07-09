@@ -87,7 +87,6 @@ class TripPlan(BaseMaster):
         null=True,
         blank=True,
     )
-    # panchayat XOR ward mirrors Collection_point.clean() logic.
     panchayat_id = models.ForeignKey(
         Panchayat,
         on_delete=models.PROTECT,
@@ -96,12 +95,9 @@ class TripPlan(BaseMaster):
         null=True,
         blank=True,
     )
-    ward_id = models.ForeignKey(
+    wards = models.ManyToManyField(
         Ward,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        null=True,
+        related_name="trip_plans_m2m",
         blank=True,
     )
 
