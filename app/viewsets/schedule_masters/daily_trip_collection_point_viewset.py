@@ -225,8 +225,6 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "trip_assignment_id__trip_plan_id",
                 "collection_point_id",
                 "collection_point_id__panchayat_id",
-                "collection_point_id__ward_id",
-                "collection_point_id__ward_id__zone_id",
                 "zone_id",
                 "ward_id",
                 "panchayat_id",
@@ -422,8 +420,6 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 DailyTripCollectionPoint.objects.select_related(
                     "collection_point_id",
                     "collection_point_id__panchayat_id",
-                    "collection_point_id__ward_id",
-                    "collection_point_id__ward_id__zone_id",
                     "trip_assignment_id",
                     "trip_assignment_id__trip_plan_id",
                     "bin_id",

@@ -116,11 +116,10 @@ class TripPlanSeeder(BaseSeeder):
                 staff_template_id=staff_template,
                 vehicle_id=vehicle,
                 waste_type_id=waste_type,
-                ward_id=ward,
+                panchayat_id=None,
                 defaults={
                     **common_defaults,
-                    "zone_id": ward.zone_id,   # zone comes from the ward's own zone
-                    "panchayat_id": None,
+                    "zone_id": ward.zone_id,
                     "scheduled_time": BASE_TIMES[idx % len(BASE_TIMES)],
                     "waste_type_ids": plan_waste_ids,
                 },
@@ -160,8 +159,7 @@ class TripPlanSeeder(BaseSeeder):
                 panchayat_id=panchayat,
                 defaults={
                     **common_defaults,
-                    "zone_id": None,           # panchayats are rural, no zone
-                    "ward_id": None,
+                    "zone_id": None,
                     "scheduled_time": BASE_TIMES[idx % len(BASE_TIMES)],
                     "waste_type_ids": plan_waste_ids,
                 },
