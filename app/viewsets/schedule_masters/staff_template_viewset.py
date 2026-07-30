@@ -17,6 +17,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 
 class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+    pagination_class = None
     """
     Staff Template API
     """

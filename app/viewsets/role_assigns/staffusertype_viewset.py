@@ -10,6 +10,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 
 class StaffUserTypeViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
+    pagination_class = None
     queryset = StaffUserType.objects.filter(is_deleted=False)
     serializer_class = StaffUserTypeSerializer
     lookup_field = "unique_id"

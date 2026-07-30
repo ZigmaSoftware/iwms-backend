@@ -7,6 +7,7 @@ from app.serializers.audits.supervisor_zone_access_audit_serializer import (
 
 
 class SupervisorZoneAccessAuditViewSet(ReadOnlyModelViewSet):
+    pagination_class = None
     """
     Read-only audit log for supervisor zone access changes.
     Authorization enforced via JWT + ModulePermissionMiddleware.

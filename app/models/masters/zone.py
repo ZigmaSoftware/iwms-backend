@@ -10,7 +10,6 @@ from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.masters.hierarchy import AdministrativeHierarchy
-from app.models.masters.areatype import AreaType
 
 
 
@@ -59,14 +58,6 @@ class Zone(BaseMaster):
     state_id = models.ForeignKey(State, on_delete=models.PROTECT)
     district_id = models.ForeignKey(District, on_delete=models.PROTECT)
     city_id = models.ForeignKey(City, on_delete=models.PROTECT)
-
-    area_type_id = models.ForeignKey(
-        AreaType,
-        on_delete=models.PROTECT,
-        limit_choices_to={"name": "Urban"},
-        null=True,
-        blank=True
-    )
 
     hierarchy_id = models.ForeignKey(
         AdministrativeHierarchy,

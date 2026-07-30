@@ -14,6 +14,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 
 class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+    pagination_class = None
     """
     API Contract:
     - Create alternative staff mapping

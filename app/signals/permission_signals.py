@@ -30,4 +30,4 @@ def log_permission_change(sender, instance, created, **kwargs):
         )
 
     except Exception as e:
-        print("❌ Permission Audit Log Error:", str(e))
+        print("Permission Audit Log Error:", str(e))

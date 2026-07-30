@@ -20,11 +20,6 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
     district_unique_id = serializers.CharField(source="district_id.unique_id", read_only=True)
     hierarchy_name = serializers.CharField(source = "hierarchy_id.level_name", read_only = True)
 
-    area_type_name = serializers.CharField(
-        source="area_type_id.name",
-        read_only=True
-    )
-
     hierarchy_order = serializers.IntegerField(
         source="hierarchy_id.hierarchy_order",
         read_only=True
@@ -53,9 +48,6 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
             "district_id",
             "district_unique_id",
             "district_name",
-
-            "area_type_id",
-            "area_type_name",
 
             "hierarchy_id",
             "hierarchy_order",
@@ -87,17 +79,8 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
         # -------------------------------
         # GET VALUES (Handle Update Case)
         # -------------------------------
-        area_type = attrs.get("area_type_id") or getattr(self.instance, "area_type_id", None)
         hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         zone_name = attrs.get("zone_name")
-
-        # -------------------------------
-        # 1️⃣ AreaType Must Be Urban
-        # -------------------------------
-        if area_type and area_type.name.lower() != "urban":
-            raise serializers.ValidationError({
-                "area_type": "zone must belong to urban area type."
-            })
 
         # -------------------------------
         # 2️⃣ Hierarchy Must Be Panchayat
