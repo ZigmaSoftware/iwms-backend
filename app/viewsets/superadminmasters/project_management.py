@@ -14,6 +14,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [PlatformOrCompanyAdminFullAccess]
+    permission_resource = "Project"
     queryset = Project.objects.select_related("company_id").filter(is_deleted=False).order_by("name")
     serializer_class = ProjectSerializer
     lookup_field = "unique_id"

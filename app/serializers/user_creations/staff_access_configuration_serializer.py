@@ -21,34 +21,73 @@ from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
 from app.serializers.user_creations.staffcreation_serializer import StaffcreationSerializer
 
 
-LOCATION_FIELDS = (
-    "state_id",
-    "district_id",
-    "city_id",
-    "zone_id",
-    "panchayat_id",
-    "ward_id",
+# (write-payload key, model, m2m accessor name on StaffAccessConfiguration, is geo-scoped-to-project)
+LOCATION_LEVELS = (
+    ("state_ids", State, "states", False),
+    ("district_ids", District, "districts", True),
+    ("city_ids", City, "cities", True),
+    ("zone_ids", Zone, "zones", True),
+    ("panchayat_ids", Panchayat, "panchayats", True),
+    ("ward_ids", Ward, "wards", True),
 )
 
-LOCATION_MODELS = {
-    "state_id": State,
-    "district_id": District,
-    "city_id": City,
-    "zone_id": Zone,
-    "panchayat_id": Panchayat,
-    "ward_id": Ward,
-}
+
+# Supporting master/lookup screens that operational forms across the app
+# depend on for dropdown data (District, City, Zone, Panchayat, Ward,
+# Collection Point, State). Matches TN_Iwms's provisioning convention: any
+# staff member granted at least one real operational screen also gets
+# "view" on these, so their forms' dropdowns aren't blocked by a permission
+# they'd otherwise have no reason to think to grant separately.
+LOOKUP_SCREEN_NAMES = (
+    "states",
+    "districts",
+    "cities",
+    "zones",
+    "panchayat",
+    "wards",
+    "collection-points",
+    "continents",
+    "countries",
+)
 
 
-def _project_enabled_screen_action_keys(company_id, project_id):
-    """(userscreen_id, userscreenaction_id) pairs enabled for a project's catalog."""
+def _auto_lookup_permission_entries(company_id, project_ids):
+    """"view" (userscreen_id, userscreenaction_id, mainscreen_id) entries for
+    the supporting lookup screens enabled in the given company/project(s)'
+    catalog — to be auto-granted alongside a staff's real permissions."""
     qs = CompanyUserScreenPermission.objects.filter(
         company_id_id=company_id,
-        project_id_id=project_id,
+        userscreen_id__userscreen_name__in=LOOKUP_SCREEN_NAMES,
         permission_type="screen",
         is_deleted=False,
         is_active=True,
-    ).exclude(
+    ).filter(
+        Q(userscreenaction_id__variable_name__iexact="view")
+        | Q(userscreenaction_id__action_name__iexact="view")
+    )
+    if project_ids:
+        qs = qs.filter(project_id_id__in=project_ids)
+    rows = qs.values_list("userscreen_id_id", "userscreenaction_id_id", "mainscreen_id_id").distinct()
+    return [
+        {"mainscreen_id": row[2], "userscreen_id": row[0], "userscreenaction_id": row[1]}
+        for row in rows
+    ]
+
+
+def _project_enabled_screen_action_keys(company_id, project_ids):
+    """(userscreen_id, userscreenaction_id) pairs enabled for the union of the
+    given projects' catalogs. `project_ids` falsy/empty means "no project
+    restriction" — i.e. the staff is scoped to the whole company, so the
+    catalog is the union across every project the company has."""
+    qs = CompanyUserScreenPermission.objects.filter(
+        company_id_id=company_id,
+        permission_type="screen",
+        is_deleted=False,
+        is_active=True,
+    )
+    if project_ids:
+        qs = qs.filter(project_id_id__in=project_ids)
+    qs = qs.exclude(
         Q(userscreenaction_id__action_name__iexact="show")
         | Q(userscreenaction_id__variable_name__iexact="show")
     ).values_list("userscreen_id_id", "userscreenaction_id_id", "mainscreen_id_id")
@@ -72,14 +111,14 @@ class StaffAccessConfigurationPermissionInputSerializer(serializers.Serializer):
 class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
     staff_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     company_id = serializers.CharField()
-    project_id = serializers.CharField()
+    project_ids = serializers.ListField(child=serializers.CharField(), required=False)
 
-    state_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    district_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    city_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    zone_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    panchayat_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    ward_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    state_ids = serializers.ListField(child=serializers.CharField(), required=False)
+    district_ids = serializers.ListField(child=serializers.CharField(), required=False)
+    city_ids = serializers.ListField(child=serializers.CharField(), required=False)
+    zone_ids = serializers.ListField(child=serializers.CharField(), required=False)
+    panchayat_ids = serializers.ListField(child=serializers.CharField(), required=False)
+    ward_ids = serializers.ListField(child=serializers.CharField(), required=False)
 
     permissions = StaffAccessConfigurationPermissionInputSerializer(many=True, required=False, write_only=True)
     basicInfo = serializers.JSONField(required=False, write_only=True)
@@ -96,13 +135,6 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
     staffusertype_id = serializers.CharField(source="staff_id.staffusertype_id_id", read_only=True, default=None)
     staffusertype_name = serializers.CharField(source="staff_id.staffusertype_id.name", read_only=True, default=None)
     company_name = serializers.CharField(source="company_id.name", read_only=True)
-    project_name = serializers.CharField(source="project_id.name", read_only=True)
-    state_name = serializers.CharField(source="state_id.name", read_only=True, default=None)
-    district_name = serializers.CharField(source="district_id.name", read_only=True, default=None)
-    city_name = serializers.CharField(source="city_id.name", read_only=True, default=None)
-    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True, default=None)
-    panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True, default=None)
-    ward_name = serializers.CharField(source="ward_id.ward_name", read_only=True, default=None)
 
     granted_permissions = serializers.SerializerMethodField()
     main_screen_count = serializers.SerializerMethodField()
@@ -110,16 +142,51 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StaffAccessConfiguration
-        fields = "__all__"
+        exclude = ("projects", "states", "districts", "cities", "zones", "panchayats", "wards")
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["staff_id"] = instance.staff_id_id
         data["staff_unique_id"] = instance.staff_id_id
         data["company_id"] = instance.company_id_id
-        data["project_id"] = instance.project_id_id
-        for field in LOCATION_FIELDS:
-            data[field] = getattr(instance, f"{field}_id")
+
+        data["project_ids"] = list(instance.projects.values_list("unique_id", flat=True))
+        data["project_names"] = list(instance.projects.values_list("name", flat=True))
+
+        name_fields = {
+            "states": "name",
+            "districts": "name",
+            "cities": "name",
+            "zones": "zone_name",
+            "panchayats": "panchayat_name",
+            "wards": "ward_name",
+        }
+        for accessor, name_field in name_fields.items():
+            manager = getattr(instance, accessor)
+            singular = accessor[:-1] if accessor != "cities" else "city"
+            data[f"{singular}_ids"] = list(manager.values_list("unique_id", flat=True))
+            data[f"{singular}_names"] = list(manager.values_list(name_field, flat=True))
+
+        continent_ids = []
+        continent_names = []
+        country_ids = []
+        country_names = []
+        for state in instance.states.all().select_related("continent_id", "country_id"):
+            if state.continent_id:
+                c_id = state.continent_id.unique_id
+                if c_id not in continent_ids:
+                    continent_ids.append(c_id)
+                    continent_names.append(state.continent_id.name)
+            if state.country_id:
+                c_id = state.country_id.unique_id
+                if c_id not in country_ids:
+                    country_ids.append(c_id)
+                    country_names.append(state.country_id.name)
+        data["continent_ids"] = continent_ids
+        data["continent_names"] = continent_names
+        data["country_ids"] = country_ids
+        data["country_names"] = country_names
+
         if instance.staff_id:
             staff_data = StaffcreationSerializer(instance.staff_id, context=self.context).data
             data["password"] = staff_data.get("password", "")
@@ -134,17 +201,17 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
                     return value
         return default
 
-    def _nested_id(self, group, snake_key, camel_key=None):
+    def _nested_list(self, group, snake_key, camel_key=None):
         source = self.initial_data or {}
         nested = source.get(group) if isinstance(source, dict) else None
+        value = None
         if isinstance(nested, dict):
             value = nested.get(camel_key or snake_key) or nested.get(snake_key)
-            if value not in ("", None):
-                return str(value).strip()
-        value = source.get(snake_key) if isinstance(source, dict) else None
-        if value not in ("", None):
-            return str(value).strip()
-        return None
+        if value is None:
+            value = source.get(snake_key) if isinstance(source, dict) else None
+        if isinstance(value, list):
+            return [str(v).strip() for v in value if str(v).strip()]
+        return []
 
     def _build_staff_payload(self, staff=None):
         source = self.initial_data or {}
@@ -155,7 +222,6 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
 
         payload = {
             "company_id": self._nested_value("company_id", "companyId"),
-            "project_id": self._nested_value("project_id", "projectId"),
             "employee_name": (
                 basic.get("employeeName")
                 or basic.get("employee_name")
@@ -176,6 +242,15 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
             "active_status": basic.get("activeStatus", source.get("active_status", True)),
             "login_enabled": login.get("loginEnabled", source.get("login_enabled", True)),
         }
+
+        primary_project_id = self._nested_value("project_id", "projectId")
+        if not primary_project_id:
+            project_ids = self._nested_list("dataScope", "project_ids", "projectIds") or (
+                source.get("project_ids") if isinstance(source, dict) else None
+            ) or []
+            primary_project_id = project_ids[0] if project_ids else None
+        if primary_project_id:
+            payload["project_id"] = primary_project_id
 
         for key in ("department_id", "designation_id"):
             value = basic.get(key) or basic.get(key.replace("_id", "Id")) or source.get(key)
@@ -240,7 +315,6 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
     def validate(self, data):
         staff_id = data.get("staff_id")
         company_id = data.get("company_id")
-        project_id = data.get("project_id")
 
         staff = None
         if staff_id:
@@ -254,29 +328,49 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         except Company.DoesNotExist:
             raise serializers.ValidationError({"company_id": "Invalid company"})
 
-        try:
-            project = Project.objects.get(unique_id=project_id, company_id_id=company.unique_id, is_deleted=False)
-        except Project.DoesNotExist:
-            raise serializers.ValidationError({"project_id": "Invalid project for company"})
+        # Company is the only mandatory scope field. An empty project_ids list
+        # means "no project restriction" — the staff can access every project
+        # (and, transitively, every geo record) under the company, including
+        # ones added later. Only validate/resolve the projects the caller did
+        # list.
+        project_ids = data.get("project_ids") or self._nested_list("dataScope", "project_ids", "projectIds")
+        project_ids = list(dict.fromkeys(project_ids))
+
+        projects = list(Project.objects.filter(
+            unique_id__in=project_ids, company_id_id=company.unique_id, is_deleted=False,
+        ))
+        found_project_ids = {p.unique_id for p in projects}
+        missing = [pid for pid in project_ids if pid not in found_project_ids]
+        if missing:
+            raise serializers.ValidationError({
+                "project_ids": f"Invalid project(s) for company: {', '.join(missing)}"
+            })
 
         resolved_locations = {}
-        for field in LOCATION_FIELDS:
-            value = (
-                data.get(field)
-                or self._nested_id("dataScope", field, field.replace("_id", "Id"))
-                or ""
-            ).strip()
-            value = value or None
-            resolved_locations[field] = None
-            if value:
-                model = LOCATION_MODELS[field]
-                try:
-                    resolved_locations[field] = model.objects.get(unique_id=value, is_deleted=False)
-                except model.DoesNotExist:
-                    raise serializers.ValidationError({field: f"Invalid {field}"})
+        for field_key, model, accessor, project_scoped in LOCATION_LEVELS:
+            ids = data.get(field_key) or self._nested_list(
+                "dataScope", field_key, field_key[:-4] + "Ids"
+            )
+            ids = list(dict.fromkeys(ids))
+            if not ids:
+                continue
+
+            qs = model.objects.filter(unique_id__in=ids, is_deleted=False)
+            if project_scoped:
+                qs = qs.filter(company_id_id=company.unique_id)
+                if found_project_ids:
+                    qs = qs.filter(project_id_id__in=found_project_ids)
+            instances = list(qs)
+            found_ids = {obj.unique_id for obj in instances}
+            missing_ids = [i for i in ids if i not in found_ids]
+            if missing_ids:
+                raise serializers.ValidationError({
+                    field_key: f"Invalid {field_key}: {', '.join(missing_ids)}"
+                })
+            resolved_locations[accessor] = instances
 
         permissions = data.get("permissions") or []
-        enabled_keys = _project_enabled_screen_action_keys(company.unique_id, project.unique_id)
+        enabled_keys = _project_enabled_screen_action_keys(company.unique_id, found_project_ids)
 
         normalized_permissions = []
         invalid = []
@@ -296,52 +390,70 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         if invalid:
             raise serializers.ValidationError({
                 "permissions": (
-                    "The following screen/action grants are not enabled for this project "
+                    "The following screen/action grants are not enabled for these projects "
                     f"by Super Admin: {', '.join(sorted(invalid))}"
                 )
             })
 
+        # Auto-grant "view" on lookup screens (e.g. continents, countries)
+        # so operational forms can populate their dropdowns.
+        lookup_entries = _auto_lookup_permission_entries(company.unique_id, found_project_ids)
+        existing_keys = {(p["userscreen_id"], p["userscreenaction_id"]) for p in normalized_permissions}
+        for entry in lookup_entries:
+            key = (entry["userscreen_id"], entry["userscreenaction_id"])
+            if key not in existing_keys and key in enabled_keys:
+                normalized_permissions.append({
+                    "mainscreen_id": enabled_keys[key],
+                    "userscreen_id": entry["userscreen_id"],
+                    "userscreenaction_id": entry["userscreenaction_id"],
+                })
+                existing_keys.add(key)
+
         data["resolved_staff"] = staff
         data["resolved_company"] = company
-        data["resolved_project"] = project
+        data["resolved_projects"] = projects
         data["resolved_locations"] = resolved_locations
         data["resolved_permissions"] = normalized_permissions
         return data
 
     @transaction.atomic
     def create(self, validated_data):
+        primary_project = validated_data["resolved_projects"][0] if validated_data["resolved_projects"] else None
         staff = validated_data["resolved_staff"] or self._save_staff(
             validated_data["resolved_company"],
-            validated_data["resolved_project"],
+            primary_project,
         )
         instance, _ = StaffAccessConfiguration.objects.update_or_create(
             staff_id=staff,
             defaults={
                 "company_id": validated_data["resolved_company"],
-                "project_id": validated_data["resolved_project"],
                 "description": validated_data.get("description", ""),
-                **validated_data["resolved_locations"],
                 "is_deleted": False,
                 "is_active": True,
             },
         )
+        instance.projects.set(validated_data["resolved_projects"])
+        for accessor, instances in validated_data["resolved_locations"].items():
+            getattr(instance, accessor).set(instances)
         self._sync_permissions(instance, validated_data["resolved_permissions"])
         return instance
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        primary_project = validated_data["resolved_projects"][0] if validated_data["resolved_projects"] else None
         staff = self._save_staff(
             validated_data["resolved_company"],
-            validated_data["resolved_project"],
+            primary_project,
             validated_data["resolved_staff"] or instance.staff_id,
         )
         instance.staff_id = staff
         instance.company_id = validated_data["resolved_company"]
-        instance.project_id = validated_data["resolved_project"]
         instance.description = validated_data.get("description", instance.description)
-        for field, value in validated_data["resolved_locations"].items():
-            setattr(instance, field, value)
         instance.save()
+
+        instance.projects.set(validated_data["resolved_projects"])
+        for accessor, instances in validated_data["resolved_locations"].items():
+            getattr(instance, accessor).set(instances)
 
         if "permissions" in self.initial_data:
             self._sync_permissions(instance, validated_data["resolved_permissions"])
