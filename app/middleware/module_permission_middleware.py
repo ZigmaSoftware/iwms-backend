@@ -97,12 +97,11 @@ MODULE_RESOURCE_ALLOWLIST = {
     "waste-types": {
         "Property",
         "SubProperty",
-    },
-    "assets": {
+        # merged in from the legacy "assets" module (assets/waste-types,
+        # assets/bins now route as waste-types/wastetypes, waste-types/bins)
         "Bin",
         "CollectionPoint",
         "WasteType",
-        "Bin"
     },
     "screen-managements": {
         "MainScreenType",
@@ -136,10 +135,24 @@ MODULE_RESOURCE_ALLOWLIST = {
         "FeedBack",
         "UserChargeRule",
     },
-    "grivences": {
+    "complaint-ticket": {
+        # renamed from the legacy "grivences" module
         "Complaint",
         "MainCategory",
         "SubCategory",
+        # stub sub-resources — see complaint_ticket_stub_viewsets.py
+        "ComplaintModule",
+        "ComplaintPriority",
+        "ComplaintStatus",
+        "ComplaintSource",
+        "ComplaintLanguage",
+        "ComplaintTeam",
+        "ComplaintSlaRule",
+        "ComplaintRoutingRule",
+        "ComplaintFeedback",
+        "ComplaintReopenHistory",
+        "ComplaintNotification",
+        "ComplaintAddressChange",
     },
     "transport-masters": {
         "VehicleTypeCreation",
@@ -147,18 +160,26 @@ MODULE_RESOURCE_ALLOWLIST = {
         "TripAttendance",
         "Fuel",
     },
-    "schedule-masters": {
+    "schedule-setup": {
+        # split from the legacy "schedule-masters" module — setup resources
         "StaffTemplateCreation",
         "AlternativeStaffTemplate",
         "CollectionPoint",
         "TripPlan",
+    },
+    "schedule-operations": {
+        # split from the legacy "schedule-masters" module — operational resources
         "DailyTripAssignment",
         "DailyTripCollectionPoint",
         "BinCollectionEvent",
         "DailyTripLog",
+        "WasteCollection",
+    },
+    "schedule-masters": {
+        # legacy name — kept alive only for the reporting sub-resources
+        # still registered under it (see base_urls.py)
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
-        "WasteCollection",
     },
     "audits": {
         "VehicleTripAudit",
@@ -171,7 +192,8 @@ MODULE_RESOURCE_ALLOWLIST = {
 }
 
 # alias safety
-MODULE_RESOURCE_ALLOWLIST["grievance"] = MODULE_RESOURCE_ALLOWLIST["grivences"]
+MODULE_RESOURCE_ALLOWLIST["grivences"] = MODULE_RESOURCE_ALLOWLIST["complaint-ticket"]
+MODULE_RESOURCE_ALLOWLIST["grievance"] = MODULE_RESOURCE_ALLOWLIST["complaint-ticket"]
 
 PROTECTED_MODULES = tuple(MODULE_RESOURCE_ALLOWLIST.keys())
 
@@ -179,6 +201,15 @@ MODULE_PERMISSION_ALIASES = {
     "customer-masters": "customers",
     "process-items": "process",
     "grievance": "grivences",
+    # "complaint-ticket" is the live URL module (see base_urls.py); permission
+    # rows already seeded/granted under the old "grivences" module name keep
+    # authorizing it without needing to be re-granted.
+    "complaint-ticket": "grivences",
+    # "schedule-setup"/"schedule-operations" are a pure split of the legacy
+    # "schedule-masters" module — same bridge, so existing granted
+    # "schedule-masters" permissions keep authorizing both halves.
+    "schedule-setup": "schedule-masters",
+    "schedule-operations": "schedule-masters",
 }
 
 RESOURCE_PERMISSION_ALIASES = {
