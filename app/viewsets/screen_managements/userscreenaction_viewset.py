@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -13,7 +14,9 @@ from app.serializers.screen_managements.userscreenaction_serializer import (
 
 class UserScreenActionViewSet(CompanyScopedViewSet):
     serializer_class = UserScreenActionSerializer
-    queryset = UserScreenAction.objects.filter(is_deleted=False)
+    queryset = UserScreenAction.objects.filter(is_deleted=False).exclude(
+        Q(action_name__iexact="show") | Q(variable_name__iexact="show")
+    )
     lookup_field = "unique_id"
 
     def get_queryset(self):
@@ -73,4 +76,3 @@ class UserScreenActionViewSet(CompanyScopedViewSet):
             {"message": "User Screen Action deleted successfully"},
             status=status.HTTP_200_OK
         )
-

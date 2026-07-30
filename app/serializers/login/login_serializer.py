@@ -80,18 +80,14 @@ class LoginSerializer(serializers.Serializer):
         self,
         *,
         company_unique_id=None,
-        usertype_unique_id=None,
-        staffusertype_unique_id=None,
-        contractorusertype_unique_id=None,
+        staff_unique_id=None,
         include_all=False,
         role_name=None,
         user_type=None,
     ):
         return resolve_permission_payload(
             company_unique_id=company_unique_id,
-            usertype_unique_id=usertype_unique_id,
-            staffusertype_unique_id=staffusertype_unique_id,
-            contractorusertype_unique_id=contractorusertype_unique_id,
+            staff_unique_id=staff_unique_id,
             include_all=include_all,
             role_name=role_name,
             user_type=user_type,
@@ -101,16 +97,12 @@ class LoginSerializer(serializers.Serializer):
         self,
         *,
         company_unique_id=None,
-        usertype_unique_id=None,
-        staffusertype_unique_id=None,
-        contractorusertype_unique_id=None,
+        staff_unique_id=None,
         include_all=False
     ):
         payload = self._resolve_permission_payload(
             company_unique_id=company_unique_id,
-            usertype_unique_id=usertype_unique_id,
-            staffusertype_unique_id=staffusertype_unique_id,
-            contractorusertype_unique_id=contractorusertype_unique_id,
+            staff_unique_id=staff_unique_id,
             include_all=include_all,
         )
         return payload["permissions"]
@@ -208,9 +200,7 @@ class LoginSerializer(serializers.Serializer):
 
         permission_payload = self._resolve_permission_payload(
             company_unique_id=company.unique_id,
-            usertype_unique_id=user_type.unique_id,
-            staffusertype_unique_id=staff_usertype.unique_id if staff_usertype else None,
-            contractorusertype_unique_id=contractor_usertype.unique_id if contractor_usertype else None,
+            staff_unique_id=getattr(staff_record, "staff_unique_id", None),
             role_name=role_usertype.name,
             user_type="contractor" if contractor_usertype else "staff",
         )
@@ -272,10 +262,11 @@ class LoginSerializer(serializers.Serializer):
         if not company:
             raise serializers.ValidationError("Customer record has no company assigned")
 
+        # Customers are not scoped through Staff Access Configuration; they
+        # rely on the frontend's fixed citizen surface, not the screen-permission
+        # catalog, so no per-project grant lookup applies here.
         permission_payload = self._resolve_permission_payload(
             company_unique_id=company.unique_id,
-            usertype_unique_id=user_type.unique_id,
-            staffusertype_unique_id=None,
             role_name="customer",
             user_type="customer",
         )

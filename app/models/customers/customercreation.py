@@ -10,6 +10,7 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.masters.ward import Ward
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
+from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.masters.panchayat import Panchayat
@@ -29,6 +30,20 @@ def generate_customer_id():
 def generate_apartment_id():
     """Generate readable prefixed ID like APT-20260424001"""
     return f"APT-{generate_unique_id()}"
+
+
+# Bulk waste generator auto-detection thresholds
+BULK_WASTE_SQFT_THRESHOLD = 20000
+BULK_WASTE_WATER_LPD_THRESHOLD = 40000
+BULK_WASTE_COLLECTION_KG_THRESHOLD = 100
+
+
+def exceeds_bulk_waste_threshold(sqft, water_consumption_lpd, waste_collection_kg_per_day):
+    return (
+        (sqft is not None and sqft > BULK_WASTE_SQFT_THRESHOLD)
+        or (water_consumption_lpd is not None and water_consumption_lpd > BULK_WASTE_WATER_LPD_THRESHOLD)
+        or (waste_collection_kg_per_day is not None and waste_collection_kg_per_day > BULK_WASTE_COLLECTION_KG_THRESHOLD)
+    )
 
 
 def get_or_create_apartment_id(apartment_name, latitude, longitude, company_id):
@@ -58,6 +73,8 @@ class CustomerCreation(BaseMaster):
         "villa_no",
         "industry_name",
         "industry_type",
+        "company_id_id",
+        "project_id_id",
         "sub_property",
         "sub_property_id",
     }
@@ -71,6 +88,8 @@ class CustomerCreation(BaseMaster):
         "villa_no",
         "industry_name",
         "industry_type",
+        "company_id_id",
+        "project_id_id",
         "sub_property_id",
     )
 
@@ -164,6 +183,22 @@ class CustomerCreation(BaseMaster):
         blank=True
     )
 
+    water_consumption_lpd = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Water consumption in litres per day",
+    )
+
+    waste_collection_kg_per_day = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Waste collection in kg per day",
+    )
+
     id_proof_type = models.CharField(
         max_length=20,
         choices=IDProofType.choices,
@@ -172,6 +207,18 @@ class CustomerCreation(BaseMaster):
     )
 
     id_no = models.CharField(max_length=100)
+
+    member_count = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of family members in the household",
+    )
+
+    family_members = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {member_name, id_proof_type, id_no} dicts for family members",
+    )
 
     property_ref = models.ForeignKey(
         Property,
@@ -184,6 +231,12 @@ class CustomerCreation(BaseMaster):
         SubProperty,
         on_delete=models.PROTECT,
         related_name="customer_creation"
+    )
+
+    waste_types = models.ManyToManyField(
+        WasteType,
+        related_name="customer_creations",
+        blank=True,
     )
 
     # =============================
@@ -342,6 +395,11 @@ class CustomerCreation(BaseMaster):
         super().save(update_fields=["qr_code"])
 
     def save(self, *args, **kwargs):
+
+        if exceeds_bulk_waste_threshold(
+            self.sqft, self.water_consumption_lpd, self.waste_collection_kg_per_day
+        ):
+            self.is_bulkwaste_generator = True
 
         if self.block_no:
             self.block_no = self.block_no.upper()

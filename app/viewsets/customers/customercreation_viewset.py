@@ -2,7 +2,7 @@ import re
 import csv
 import io
 
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Prefetch
 from django.db.models.functions import Upper
 from rest_framework import status
 from rest_framework.decorators import action
@@ -17,6 +17,7 @@ from app.models.waste_types.subproperty import SubProperty
 from app.models.common_masters.state import State
 from app.models.common_masters.country import Country
 from app.models.waste_types.property import Property
+from app.models.user_creations.waste_collection_bluetooth import WasteType
 
 from app.serializers.customers.customercreation_serializer import CustomerCreationSerializer
 
@@ -128,6 +129,12 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "district", "state", "country", "panchayat_id",
             "property_ref", "sub_property",
         )
+        .prefetch_related(
+            Prefetch(
+                "waste_types",
+                queryset=WasteType.objects.filter(is_deleted=False).order_by("waste_type_name"),
+            )
+        )
         .order_by("customer_name")
     )
 
@@ -140,17 +147,31 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         zone_id = self.request.query_params.get("zone_id")
         ward_id = self.request.query_params.get("ward_id")
         panchayat_id = self.request.query_params.get("panchayat_id")
+        city_id = self.request.query_params.get("city_id")
+        district_id = self.request.query_params.get("district_id")
+        state_id = self.request.query_params.get("state_id")
+        waste_type_param = self.request.query_params.get("waste_type_id")
 
         if company_id:
             queryset = queryset.filter(company_id__unique_id=company_id)
         if project_id:
             queryset = queryset.filter(project_id__unique_id=project_id)
+        if state_id:
+            queryset = queryset.filter(state__unique_id=state_id)
+        if district_id:
+            queryset = queryset.filter(district__unique_id=district_id)
+        if city_id:
+            queryset = queryset.filter(city__unique_id=city_id)
         if panchayat_id:
             queryset = queryset.filter(panchayat_id__unique_id=panchayat_id)
         elif ward_id:
             queryset = queryset.filter(ward__unique_id=ward_id)
         elif zone_id:
             queryset = queryset.filter(zone__unique_id=zone_id)
+        if waste_type_param:
+            waste_type_ids = [v for v in waste_type_param.split(",") if v]
+            if waste_type_ids:
+                queryset = queryset.filter(waste_types__unique_id__in=waste_type_ids).distinct()
 
         return queryset
     
@@ -432,6 +453,27 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             # Try name
             return model.objects.filter(**{f"{field}__iexact": value}).first()
 
+        def get_waste_type_ids(value):
+            raw_values = [
+                item.strip()
+                for item in re.split(r"[,|;]", value or "")
+                if item and item.strip()
+            ]
+            waste_type_ids = []
+            invalid_values = []
+
+            for raw_value in raw_values:
+                waste_type = (
+                    WasteType.objects.filter(unique_id=raw_value, is_deleted=False).first()
+                    or WasteType.objects.filter(waste_type_name__iexact=raw_value, is_deleted=False).first()
+                )
+                if waste_type:
+                    waste_type_ids.append(waste_type.unique_id)
+                else:
+                    invalid_values.append(raw_value)
+
+            return waste_type_ids, invalid_values
+
         try:
             decoded_file = file.read().decode("utf-8")
             io_string = io.StringIO(decoded_file)
@@ -468,6 +510,9 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 city = get_fk(City, "name", row.get("city_id") or row.get("city_name"))
                 district = get_fk(District, "name", row.get("district_id") or row.get("district_name"))
                 panchayat = get_fk(Panchayat, "panchayat_name", row.get("panchayat_id") or row.get("panchayat_name"))
+                waste_type_ids, invalid_waste_types = get_waste_type_ids(
+                    row.get("waste_type_ids") or row.get("waste_types") or row.get("waste_type_names")
+                )
 
                 # ✅ VALIDATION
                 if not state:
@@ -508,6 +553,12 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                         "error": "Either (ward + zone) OR panchayat is required"
                     })
                     continue
+                if invalid_waste_types:
+                    errors.append({
+                        "row": index,
+                        "error": f"Invalid waste type(s): {', '.join(invalid_waste_types)}"
+                    })
+                    continue
 
                 data = {
                     "company_id": company.unique_id,
@@ -538,6 +589,11 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                     "country_id": country.unique_id if country else None,
                     "property_id": property_obj.unique_id if property_obj else None,
                     "sub_property_id": sub_property.unique_id,
+                    "waste_type_ids": waste_type_ids,
+                    "water_consumption_lpd": clean(row.get("water_consumption_lpd")) or None,
+                    "waste_collection_kg_per_day": clean(row.get("waste_collection_kg_per_day")) or None,
+                    "member_count": clean(row.get("member_count")) or None,
+                    "family_members": [],
 
                     "id_proof_type": clean(row.get("id_proof_type")),
                     "id_no": clean(row.get("id_no")),

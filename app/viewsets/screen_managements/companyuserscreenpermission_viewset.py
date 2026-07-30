@@ -1,3 +1,6 @@
+import csv
+import io
+
 from django.core.cache import cache
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -5,15 +8,24 @@ from rest_framework import status, viewsets
 from collections import defaultdict
 from app.models.screen_managements.userscreen import UserScreen
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 
-from app.models.role_assigns.contractorUserType import ContractorUserType
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
 from app.models.screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
+from app.models.screen_managements.mainscreen import MainScreen
+from app.models.screen_managements.userscreenaction import UserScreenAction
 from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+from app.models.common_masters.state import State
+from app.models.masters.district import District
+from app.models.masters.city import City
+from app.models.masters.zone import Zone
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.ward import Ward
 from app.serializers.screen_managements.companyuserscreenpermission_serializer import (
     CompanyUserScreenPermissionMultiScreenSerializer,
     CompanyUserScreenPermissionSerializer,
@@ -79,6 +91,15 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         return company, None
 
+    def _find_project_by_value(self, company, raw_value):
+        if not raw_value:
+            return None
+        value = str(raw_value).strip()
+        qs = Project.objects.filter(is_deleted=False)
+        if company:
+            qs = qs.filter(company_id_id=company.unique_id)
+        return qs.filter(Q(unique_id__iexact=value) | Q(name__iexact=value)).first()
+
     def _normalize_permission_payloads(self, payload):
         if "permissions" not in payload:
             return [payload]
@@ -88,61 +109,18 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             normalized.append({
                 "companyId": payload.get("companyId") or payload.get("company_id"),
                 "projectId": payload.get("projectId") or payload.get("project_id"),
-                "userTypeId": (
-                    payload.get("userTypeId")
-                    or payload.get("usertypeId")
-                    or payload.get("usertype_id")
-                ),
-                "staffUserTypeId": (
-                    payload.get("staffUserTypeId")
-                    or payload.get("staffusertype_id")
-                ),
-                "contractorUserTypeId": (
-                    payload.get("contractorUserTypeId")
-                    or payload.get("contractorusertype_id")
-                ),
+                "stateId": payload.get("stateId") or payload.get("state_id"),
+                "districtId": payload.get("districtId") or payload.get("district_id"),
+                "cityId": payload.get("cityId") or payload.get("city_id"),
+                "zoneId": payload.get("zoneId") or payload.get("zone_id"),
+                "panchayatId": payload.get("panchayatId") or payload.get("panchayat_id"),
+                "wardId": payload.get("wardId") or payload.get("ward_id"),
+                "permissionType": payload.get("permissionType") or payload.get("permission_type"),
                 "mainScreenId": permission.get("mainScreenId") or permission.get("mainscreen_id"),
                 "userScreens": permission.get("userScreens") or permission.get("screens") or [],
                 "description": payload.get("description", ""),
             })
         return normalized
-
-    def _role_from_request(self, request, *, default_staffusertype_id=None, default_contractorusertype_id=None):
-        permission_for = (request.query_params.get("permission_for") or request.data.get("permission_for") or "").lower()
-        contractorusertype_id = (
-            default_contractorusertype_id
-            or request.query_params.get("contractorusertype_id")
-            or request.query_params.get("contractorUserTypeId")
-            or request.data.get("contractorusertype_id")
-            or request.data.get("contractorUserTypeId")
-        )
-        staffusertype_id = (
-            default_staffusertype_id
-            or request.query_params.get("staffusertype_id")
-            or request.query_params.get("staffUserTypeId")
-            or request.data.get("staffusertype_id")
-            or request.data.get("staffUserTypeId")
-        )
-
-        if not contractorusertype_id and staffusertype_id:
-            if str(staffusertype_id).startswith("CNTUSRTYPE-") or ContractorUserType.objects.filter(
-                unique_id=staffusertype_id,
-                is_deleted=False,
-            ).exists():
-                contractorusertype_id = staffusertype_id
-                staffusertype_id = None
-
-        if permission_for == "contractor" or contractorusertype_id:
-            return "contractor", contractorusertype_id
-        return "staff", staffusertype_id
-
-    def _role_filter_kwargs(self, permission_for, role_id):
-        if permission_for == "contractor":
-            return {"contractorusertype_id_id": role_id}
-        return {"staffusertype_id_id": role_id}
-
-    def _role_response_key(self, permission_for):
-        return "contractorusertype_id" if permission_for == "contractor" else "staffusertype_id"
 
     def _sync_nested_permissions(self, request, update_only=False):
         payloads = self._normalize_permission_payloads(request.data)
@@ -180,33 +158,32 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     def _sync_permissions(
         self,
         request,
-        staffusertype_id=None,
+        project_id=None,
         update_only=False,
-        contractorusertype_id=None,
     ):
         company, error = self._company_from_request(request, source="data", required=True)
         if error:
             return error
 
-        permission_for, role_id = self._role_from_request(
-            request,
-            default_staffusertype_id=staffusertype_id,
-            default_contractorusertype_id=contractorusertype_id,
+        project_id = (
+            project_id
+            or request.data.get("project_id")
+            or request.data.get("projectId")
         )
-        if not role_id:
+        if not project_id:
             return Response(
-                {"error": f"{self._role_response_key(permission_for)} is required"},
+                {"error": "project_id is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         payload = request.data.copy()
         payload["company_id"] = company.unique_id
-        if permission_for == "contractor":
-            payload["contractorusertype_id"] = role_id
-            payload["staffusertype_id"] = None
-        else:
-            payload["staffusertype_id"] = role_id
-            payload["contractorusertype_id"] = None
+        payload["project_id"] = project_id
+        payload["permissionType"] = (
+            request.data.get("permissionType")
+            or request.data.get("permission_type")
+            or "screen"
+        )
 
         with transaction.atomic():
             serializer = CompanyUserScreenPermissionMultiScreenSerializer(
@@ -239,9 +216,6 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         qs = CompanyUserScreenPermission.objects.filter(is_deleted=False).select_related(
             "company_id",
             "project_id",
-            "usertype_id",
-            "staffusertype_id",
-            "contractorusertype_id",
             "mainscreen_id",
             "userscreen_id",
             "userscreenaction_id",
@@ -249,10 +223,24 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         if not company:
             if self._is_platform_super_admin():
-                return qs
-            return qs.none()
+                pass
+            else:
+                return qs.none()
+        else:
+            qs = qs.filter(company_id_id=company.unique_id)
 
-        return qs.filter(company_id_id=company.unique_id)
+        project_id = self.request.query_params.get("project_id") or self.request.query_params.get("projectId")
+        if project_id:
+            qs = qs.filter(project_id_id=project_id)
+
+        permission_type = (
+            self.request.query_params.get("permission_type")
+            or self.request.query_params.get("permissionType")
+        )
+        if permission_type:
+            qs = qs.filter(permission_type=permission_type)
+
+        return qs
 
     @swagger_auto_schema(
         manual_parameters=[
@@ -298,82 +286,65 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     # ---------------------------------------------------------
     # Bulk Sync / Update
     # ---------------------------------------------------------
-    @action(detail=False, methods=["post"], url_path=r"bulk-sync-multi/(?P<staffusertype_id>[^/.]+)")
-    def bulk_sync_multi(self, request, staffusertype_id):
-        return self._sync_permissions(request, staffusertype_id, update_only=False)
+    @action(detail=False, methods=["post"], url_path=r"bulk-sync-multi-project/(?P<project_id>[^/.]+)")
+    def bulk_sync_multi_project(self, request, project_id):
+        return self._sync_permissions(request, project_id=project_id, update_only=False)
 
-    @action(detail=False, methods=["post"], url_path=r"bulk-sync-multi-contractor/(?P<contractorusertype_id>[^/.]+)")
-    def bulk_sync_multi_contractor(self, request, contractorusertype_id):
-        return self._sync_permissions(
-            request,
-            contractorusertype_id=contractorusertype_id,
-            update_only=False,
-        )
-
-    @action(detail=False, methods=["post", "put"], url_path=r"update-by-staffusertype/(?P<staffusertype_id>[^/.]+)")
-    def update_by_staffusertype(self, request, staffusertype_id):
-        return self._sync_permissions(request, staffusertype_id, update_only=False)
-
-    @action(detail=False, methods=["post", "put"], url_path=r"update-by-contractorusertype/(?P<contractorusertype_id>[^/.]+)")
-    def update_by_contractorusertype(self, request, contractorusertype_id):
-        return self._sync_permissions(
-            request,
-            contractorusertype_id=contractorusertype_id,
-            update_only=True,
-        )
+    @action(detail=False, methods=["post", "put"], url_path=r"update-by-project/(?P<project_id>[^/.]+)")
+    def update_by_project(self, request, project_id):
+        return self._sync_permissions(request, project_id=project_id, update_only=True)
 
     # ---------------------------------------------------------
-    # By Staff + Mainscreen (Shows ALL screens with their actions)
+    # By Project + Mainscreen (Shows ALL screens with their actions)
     # ---------------------------------------------------------
-    @action(detail=False, methods=["get"], url_path="by-staff-format")
-    def by_staff_format(self, request):
-        return self._by_user_format(request)
+    @action(detail=False, methods=["get"], url_path="by-project-format")
+    def by_project_format(self, request):
+        return self._by_project_format(request)
 
-    @action(detail=False, methods=["get"], url_path="by-user-format")
-    def by_user_format(self, request):
-        return self._by_user_format(request)
-
-    def _by_user_format(self, request):
+    def _by_project_format(self, request):
         company, error = self._company_from_request(request, source="query", required=True)
         if error:
             return error
 
-        permission_for, role_id = self._role_from_request(request)
+        project_id = request.query_params.get("project_id") or request.query_params.get("projectId")
         mainscreen_id = request.query_params.get("mainscreen_id")
+        permission_type = (
+            request.query_params.get("permission_type")
+            or request.query_params.get("permissionType")
+            or "screen"
+        )
 
-        if not role_id or not mainscreen_id:
+        if not project_id or not mainscreen_id:
             return Response(
-                {"error": f"{self._role_response_key(permission_for)} and mainscreen_id required"},
+                {"error": "project_id and mainscreen_id required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # 🔥 CACHE KEY
-        cache_key = f"perm_{company.unique_id}_{permission_for}_{role_id}_{mainscreen_id}"
+        cache_key = f"perm_{company.unique_id}_{project_id}_{mainscreen_id}_{permission_type}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
 
-        role_filters = self._role_filter_kwargs(permission_for, role_id)
-
         # 🔥 OPTIMIZED QUERY (NO MODEL LOAD)
         perms = CompanyUserScreenPermission.objects.filter(
             company_id_id=company.unique_id,
+            project_id_id=project_id,
             mainscreen_id_id=mainscreen_id,
+            permission_type=permission_type,
             is_deleted=False,
-            **role_filters,
         ).values(
             "unique_id",
             "userscreen_id_id",
             "userscreenaction_id_id",
-            "usertype_id_id",
             "description",
         )
 
         column_perms = CompanyUserScreenColumnPermission.objects.filter(
             company_id_id=company.unique_id,
+            project_id_id=project_id,
             userscreen_id__mainscreen_id_id=mainscreen_id,
             is_deleted=False,
-            **role_filters,
         ).values(
             "userscreen_id_id",
             "column_id_id",
@@ -383,14 +354,10 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         # 🔥 FAST MAP BUILD
         screen_map = defaultdict(lambda: {"actions": [], "columns": []})
         column_map = defaultdict(list)
-        usertype_id = None
         description = ""
 
         for p in perms:
             screen_map[p["userscreen_id_id"]]["actions"].append(p["userscreenaction_id_id"])
-
-            if not usertype_id:
-                usertype_id = p["usertype_id_id"]
 
             if not description:
                 description = p["description"]
@@ -430,10 +397,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         response_data = {
             "company_id": company.unique_id,
-            self._role_response_key(permission_for): role_id,
-            "permission_for": permission_for,
-            "usertype_id": usertype_id,
+            "project_id": project_id,
             "mainscreen_id": mainscreen_id,
+            "permission_type": permission_type,
             "screens": screens,
             "description": description,
         }
@@ -444,68 +410,54 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         return Response(response_data)
 
     # ---------------------------------------------------------
-    # All Screens By Staff (across all mainscreens)
+    # All Screens By Project (across all mainscreens)
     # ---------------------------------------------------------
-    @action(detail=False, methods=["get"], url_path="all-screens-by-staff")
-    def all_screens_by_staff(self, request):
-        return self._all_screens_by_user(request)
+    @action(detail=False, methods=["get"], url_path="all-screens-by-project")
+    def all_screens_by_project(self, request):
+        return self._all_screens_by_project(request)
 
-    @action(detail=False, methods=["get"], url_path="all-screens-by-user")
-    def all_screens_by_user(self, request):
-        return self._all_screens_by_user(request)
-
-    def _all_screens_by_user(self, request):
+    def _all_screens_by_project(self, request):
         """
-        Get ALL screens assigned to a staff user type across all mainscreens.
+        Get ALL screens assigned to a project across all mainscreens.
         Grouped by mainscreen for better visibility.
-        
+
         Query params:
-        - staffusertype_id: required for staff
-        - contractorusertype_id: required for contractor
-        - permission_for: staff|contractor (optional; inferred from contractorusertype_id)
+        - project_id: required
         - company_id: optional (uses middleware scope if available)
         """
         company, error = self._company_from_request(request, source="query", required=True)
         if error:
             return error
 
-        permission_for, role_id = self._role_from_request(request)
-        if not role_id:
+        project_id = request.query_params.get("project_id") or request.query_params.get("projectId")
+        if not project_id:
             return Response(
-                {"error": f"{self._role_response_key(permission_for)} is required"},
+                {"error": "project_id is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        role_filters = self._role_filter_kwargs(permission_for, role_id)
-
-        # Get ALL permissions for this company + staff user type (no mainscreen filter)
+        # Get ALL permissions for this company + project (no mainscreen filter)
         qs = CompanyUserScreenPermission.objects.filter(
             company_id_id=company.unique_id,
+            project_id_id=project_id,
             is_deleted=False,
-            **role_filters,
-        ).select_related("mainscreen_id", "usertype_id")
+        ).select_related("mainscreen_id")
 
         if not qs.exists():
             return Response(
                 {
                     "company_id": company.unique_id,
-                    self._role_response_key(permission_for): role_id,
-                    "permission_for": permission_for,
+                    "project_id": project_id,
                     "mainscreens": [],
                     "total_screens": 0,
-                    "usertype_id": None,
                 },
                 status=status.HTTP_200_OK,
             )
 
         # Group by mainscreen
         mainscreen_map = {}
-        usertype_id = None
 
         for perm in qs:
-            if not usertype_id and perm.usertype_id_id:
-                usertype_id = perm.usertype_id_id
-
             mainscreen_id = perm.mainscreen_id_id
             mainscreen_name = perm.mainscreen_id.mainscreen_name if perm.mainscreen_id else "Unknown"
 
@@ -539,9 +491,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         return Response(
             {
                 "company_id": company.unique_id,
-                self._role_response_key(permission_for): role_id,
-                "permission_for": permission_for,
-                "usertype_id": usertype_id,
+                "project_id": project_id,
                 "mainscreens": mainscreens,
                 "total_screens": total_screens,
             },
@@ -549,40 +499,35 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         )
 
     # ---------------------------------------------------------
-    # Delete By Staff + Mainscreen (safe delete)
+    # Delete By Project + Mainscreen (safe delete)
     # ---------------------------------------------------------
-    @action(detail=False, methods=["delete"], url_path=r"delete-by-staffusertype/(?P<staffusertype_id>[^/.]+)/?")
-    def delete_by_staffusertype(self, request, staffusertype_id):
-        return self._delete_by_usertype(request, staffusertype_id=staffusertype_id)
+    @action(detail=False, methods=["delete"], url_path=r"delete-by-project/(?P<project_id>[^/.]+)/?")
+    def delete_by_project(self, request, project_id):
+        return self._delete_by_project(request, project_id=project_id)
 
-    @action(detail=False, methods=["delete"], url_path=r"delete-by-contractorusertype/(?P<contractorusertype_id>[^/.]+)/?")
-    def delete_by_contractorusertype(self, request, contractorusertype_id):
-        return self._delete_by_usertype(request, contractorusertype_id=contractorusertype_id)
-
-    def _delete_by_usertype(self, request, staffusertype_id=None, contractorusertype_id=None):
+    def _delete_by_project(self, request, project_id=None):
         company, error = self._company_from_request(request, source="query", required=True)
         if error:
             return error
 
         mainscreen_id = request.query_params.get("mainscreen_id")
+        permission_type = (
+            request.query_params.get("permission_type")
+            or request.query_params.get("permissionType")
+            or "screen"
+        )
         if not mainscreen_id:
             return Response(
                 {"error": "mainscreen_id is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        permission_for, role_id = self._role_from_request(
-            request,
-            default_staffusertype_id=staffusertype_id,
-            default_contractorusertype_id=contractorusertype_id,
-        )
-        role_filters = self._role_filter_kwargs(permission_for, role_id)
-
         qs = CompanyUserScreenPermission.objects.filter(
             company_id_id=company.unique_id,
+            project_id_id=project_id,
             mainscreen_id_id=mainscreen_id,
+            permission_type=permission_type,
             is_deleted=False,
-            **role_filters,
         )
 
         deleted_count = qs.count()
@@ -590,19 +535,223 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             qs.update(is_deleted=True, is_active=False)
             CompanyUserScreenColumnPermission.objects.filter(
                 company_id_id=company.unique_id,
+                project_id_id=project_id,
                 userscreen_id__mainscreen_id_id=mainscreen_id,
                 is_deleted=False,
-                **role_filters,
             ).update(is_deleted=True, is_active=False)
 
         return Response(
             {
                 "message": "Permissions deleted successfully",
                 "deleted_count": deleted_count,
-                self._role_response_key(permission_for): role_id,
-                "permission_for": permission_for,
+                "project_id": project_id,
                 "mainscreen_id": mainscreen_id,
+                "permission_type": permission_type,
                 "company_id": company.unique_id,
             },
             status=status.HTTP_200_OK,
         )
+
+    # ---------------------------------------------------------
+    # Bulk Upload (CSV)
+    # ---------------------------------------------------------
+    @action(detail=False, methods=["post"], url_path="bulk-upload")
+    def bulk_upload(self, request):
+        file = request.FILES.get("file")
+
+        if not file:
+            return Response({"error": "CSV file is required"}, status=400)
+
+        try:
+            decoded_file = file.read().decode("utf-8")
+        except Exception as exc:
+            return Response({"error": "Unable to decode CSV file", "detail": str(exc)}, status=400)
+
+        io_string = io.StringIO(decoded_file)
+        reader = csv.DictReader(io_string)
+        if reader.fieldnames:
+            reader.fieldnames = [(name or "").strip().lower() for name in reader.fieldnames]
+
+        success_count = 0
+        errors: list[dict[str, object]] = []
+
+        company_override = request.data.get("company_id") or request.data.get("companyId")
+        project_override = request.data.get("project_id") or request.data.get("projectId")
+
+        order_counters: dict[tuple, int] = {}
+
+        for index, row in enumerate(reader, start=1):
+            row = {(key or "").strip().lower(): value for key, value in row.items()}
+            try:
+                company_id_value = (row.get("company_id") or company_override or "")
+                company_id_value = str(company_id_value).strip() if company_id_value else ""
+
+                company = None
+                if self._is_platform_super_admin():
+                    if not company_id_value:
+                        errors.append({"row": index, "error": "company_id is required for superadmin"})
+                        continue
+                    company = Company.objects.filter(
+                        unique_id=company_id_value, is_deleted=False
+                    ).first()
+                    if not company:
+                        errors.append({"row": index, "error": f"Invalid company_id: {company_id_value}"})
+                        continue
+                else:
+                    company = self._company()
+                    if not company:
+                        errors.append({"row": index, "error": "Failed to resolve company context"})
+                        continue
+
+                project_id_value = (row.get("project_id") or project_override or "")
+                project_id_value = str(project_id_value).strip() if project_id_value else ""
+                if not project_id_value:
+                    errors.append({"row": index, "error": "project_id is required"})
+                    continue
+
+                project = self._find_project_by_value(company, project_id_value)
+                if not project:
+                    errors.append({"row": index, "error": f"Invalid project_id: {project_id_value}"})
+                    continue
+
+                mainscreen_value = (row.get("main_screen_id_or_name") or "").strip()
+                if not mainscreen_value:
+                    errors.append({"row": index, "error": "main_screen_id_or_name is required"})
+                    continue
+                mainscreen = MainScreen.objects.filter(
+                    is_deleted=False
+                ).filter(
+                    Q(unique_id__iexact=mainscreen_value) | Q(mainscreen_name__iexact=mainscreen_value)
+                ).first()
+                if not mainscreen:
+                    errors.append({"row": index, "error": f"Invalid main_screen_id_or_name: {mainscreen_value}"})
+                    continue
+
+                userscreen_value = (row.get("user_screen_id_or_name") or "").strip()
+                if not userscreen_value:
+                    errors.append({"row": index, "error": "user_screen_id_or_name is required"})
+                    continue
+                userscreen = UserScreen.objects.filter(
+                    is_deleted=False,
+                    mainscreen_id_id=mainscreen.unique_id,
+                ).filter(
+                    Q(unique_id__iexact=userscreen_value) | Q(userscreen_name__iexact=userscreen_value)
+                ).first()
+                if not userscreen:
+                    errors.append({
+                        "row": index,
+                        "error": (
+                            f"Invalid user_screen_id_or_name '{userscreen_value}' "
+                            f"for main screen '{mainscreen_value}'"
+                        ),
+                    })
+                    continue
+
+                action_value = (
+                    row.get("action_id_or_name")
+                    or row.get("action_name")
+                    or row.get("variable_name")
+                    or ""
+                ).strip()
+                if not action_value:
+                    errors.append({"row": index, "error": "action_id_or_name/action_name/variable_name is required"})
+                    continue
+                userscreenaction = UserScreenAction.objects.filter(
+                    is_deleted=False
+                ).filter(
+                    Q(unique_id__iexact=action_value)
+                    | Q(action_name__iexact=action_value)
+                    | Q(variable_name__iexact=action_value)
+                ).first()
+                if not userscreenaction:
+                    errors.append({"row": index, "error": f"Invalid action: {action_value}"})
+                    continue
+
+                permission_type = (row.get("permission_type") or "screen").strip().lower()
+                if permission_type not in {"screen", "field"}:
+                    errors.append({"row": index, "error": "permission_type must be 'screen' or 'field'"})
+                    continue
+
+                def _resolve_optional(model, field_value):
+                    field_value = (field_value or "").strip()
+                    if not field_value:
+                        return None
+                    obj = model.objects.filter(unique_id=field_value, is_deleted=False).first()
+                    return obj
+
+                state = _resolve_optional(State, row.get("state_id"))
+                if row.get("state_id") and not state:
+                    errors.append({"row": index, "error": f"Invalid state_id: {row.get('state_id')}"})
+                    continue
+
+                district = _resolve_optional(District, row.get("district_id"))
+                if row.get("district_id") and not district:
+                    errors.append({"row": index, "error": f"Invalid district_id: {row.get('district_id')}"})
+                    continue
+
+                city = _resolve_optional(City, row.get("city_id"))
+                if row.get("city_id") and not city:
+                    errors.append({"row": index, "error": f"Invalid city_id: {row.get('city_id')}"})
+                    continue
+
+                zone = _resolve_optional(Zone, row.get("zone_id"))
+                if row.get("zone_id") and not zone:
+                    errors.append({"row": index, "error": f"Invalid zone_id: {row.get('zone_id')}"})
+                    continue
+
+                panchayat = _resolve_optional(Panchayat, row.get("panchayat_id"))
+                if row.get("panchayat_id") and not panchayat:
+                    errors.append({"row": index, "error": f"Invalid panchayat_id: {row.get('panchayat_id')}"})
+                    continue
+
+                ward = _resolve_optional(Ward, row.get("ward_id"))
+                if row.get("ward_id") and not ward:
+                    errors.append({"row": index, "error": f"Invalid ward_id: {row.get('ward_id')}"})
+                    continue
+
+                existing = CompanyUserScreenPermission.objects.filter(
+                    company_id_id=company.unique_id,
+                    project_id_id=project.unique_id,
+                    mainscreen_id_id=mainscreen.unique_id,
+                    permission_type=permission_type,
+                    userscreen_id_id=userscreen.unique_id,
+                    userscreenaction_id_id=userscreenaction.unique_id,
+                    is_deleted=False,
+                ).first()
+
+                if existing:
+                    success_count += 1
+                    continue
+
+                counter_key = (company.unique_id, project.unique_id, mainscreen.unique_id)
+                order_counters[counter_key] = order_counters.get(counter_key, 0) + 1
+
+                CompanyUserScreenPermission.objects.create(
+                    company_id_id=company.unique_id,
+                    project_id_id=project.unique_id,
+                    mainscreen_id_id=mainscreen.unique_id,
+                    permission_type=permission_type,
+                    userscreen_id_id=userscreen.unique_id,
+                    userscreenaction_id_id=userscreenaction.unique_id,
+                    state_id_id=state.unique_id if state else None,
+                    district_id_id=district.unique_id if district else None,
+                    city_id_id=city.unique_id if city else None,
+                    zone_id_id=zone.unique_id if zone else None,
+                    panchayat_id_id=panchayat.unique_id if panchayat else None,
+                    ward_id_id=ward.unique_id if ward else None,
+                    description=(row.get("description") or "").strip() or None,
+                    order_no=order_counters[counter_key],
+                    is_active=True,
+                    is_deleted=False,
+                )
+                success_count += 1
+            except Exception as exc:
+                errors.append({"row": index, "error": str(exc)})
+
+        cache.clear()
+
+        return Response({
+            "message": "Permission bulk upload completed",
+            "success_count": success_count,
+            "errors": errors,
+        })

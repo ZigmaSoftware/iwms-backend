@@ -58,9 +58,13 @@ def resolve_subproperty_type(subproperty_name):
 
 
 def generate_qr_data(instance):
-    return {
-        "id": _clean_text(getattr(instance, "unique_id", None))
-    }
+    company = getattr(instance, "company_id", None)
+    project = getattr(instance, "project_id", None)
+    return _drop_empty_fields({
+        "id": _clean_text(getattr(instance, "unique_id", None)),
+        "company": _clean_text(getattr(company, "name", None)),
+        "project": _clean_text(getattr(project, "name", None)),
+    })
 
 def generate_customer_qr_content(data):
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))

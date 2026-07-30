@@ -7,3 +7,13 @@ class UserScreenActionSerializer(TenancyReadSerializerMixin, serializers.ModelSe
     class Meta:
         model = UserScreenAction
         fields = "__all__"
+
+    def validate_action_name(self, value):
+        if str(value or "").strip().lower() == "show":
+            raise serializers.ValidationError("The show action is not used in IWMS.")
+        return value
+
+    def validate_variable_name(self, value):
+        if str(value or "").strip().lower() == "show":
+            raise serializers.ValidationError("The show action is not used in IWMS.")
+        return value

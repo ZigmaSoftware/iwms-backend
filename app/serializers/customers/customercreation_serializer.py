@@ -12,10 +12,23 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
+from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.validators.unique_name_validator import unique_name_validator
 
-from django.contrib.auth.hashers import make_password
+from app.utils.password_encryption import encrypt_password, decrypt_password
+
+RESIDENTIAL_WASTE_TYPE_KEYWORDS = ("dry", "wet", "mixed", "sanitary")
+RESIDENTIAL_PROPERTY_KEYWORDS = ("residential", "residental")
+RESIDENTIAL_SUB_PROPERTY_KEYWORDS = (
+    "residential",
+    "residental",
+    "individual",
+    "house",
+    "apartment",
+    "villa",
+    "townhouse",
+)
 
 
 class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -89,6 +102,14 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         queryset=SubProperty.objects.all(),
         slug_field="unique_id",
     )
+    waste_type_ids = serializers.SlugRelatedField(
+        source="waste_types",
+        queryset=WasteType.objects.filter(is_deleted=False),
+        slug_field="unique_id",
+        many=True,
+        required=False,
+    )
+    waste_types = serializers.SerializerMethodField(read_only=True)
     panchayat_id = serializers.SlugRelatedField(
         # source="panchayat_id",
         queryset=Panchayat.objects.all(),
@@ -116,8 +137,14 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
     group_qr_id = serializers.CharField(read_only=True)
     is_bulkwaste_generator = serializers.BooleanField(read_only=True)
     qr_code = serializers.ImageField(read_only=True)
+    member_count = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    family_members = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_empty=True,
+    )
 
-    password = serializers.CharField(write_only=True, required=False)
+    password = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     password_crt_date = serializers.DateTimeField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
 
@@ -152,10 +179,16 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "latitude",
             "longitude",
             "sqft",
+            "water_consumption_lpd",
+            "waste_collection_kg_per_day",
             "id_proof_type",
             "id_no",
+            "member_count",
+            "family_members",
             "property_id",
             "sub_property_id",
+            "waste_type_ids",
+            "waste_types",
             "username",
             "email",
             "password",
@@ -178,9 +211,13 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         read_only_fields = ["unique_id", "password_crt_date", "created_at"]
         validators = []
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['password'] = decrypt_password(instance.password or "")
+        return data
 
         # =============================
-    # CREATE (HASH PASSWORD)
+    # CREATE (ENCRYPT PASSWORD)
     # =============================
     def create(self, validated_data):
         password = validated_data.pop("password", None)
@@ -188,13 +225,13 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         instance = super().create(validated_data)
 
         if password:
-            instance.password = make_password(password)
+            instance.password = encrypt_password(password)
             instance.save(update_fields=["password"])
 
         return instance
 
     # =============================
-    # UPDATE (HASH PASSWORD)
+    # UPDATE (ENCRYPT PASSWORD)
     # =============================
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
@@ -202,7 +239,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         instance = super().update(instance, validated_data)
 
         if password:
-            instance.password = make_password(password)
+            instance.password = encrypt_password(password)
             instance.save(update_fields=["password"])
 
         return instance
@@ -232,9 +269,9 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
 
         sub_property = attrs.get("sub_property") or getattr(instance, "sub_property", None)
 
-        if sub_property:
-            sub_name = (sub_property.sub_property_name or "").lower()
+        sub_name = (sub_property.sub_property_name or "").lower() if sub_property else ""
 
+        if sub_property:
             def value(field_name):
                 return attrs.get(field_name, getattr(instance, field_name, None))
 
@@ -251,4 +288,64 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
                 if not value("industry_name"):
                     raise serializers.ValidationError("Industry name required")
 
+        property_ref = attrs.get("property_ref") or getattr(instance, "property_ref", None)
+        waste_types = attrs.get("waste_types")
+        if property_ref and waste_types is not None:
+            property_name = (property_ref.property_name or "").lower()
+            is_residential_customer = (
+                "industry" not in sub_name
+                and (
+                    any(keyword in property_name for keyword in RESIDENTIAL_PROPERTY_KEYWORDS)
+                    or any(keyword in sub_name for keyword in RESIDENTIAL_SUB_PROPERTY_KEYWORDS)
+                )
+            )
+            if is_residential_customer:
+                invalid_waste_types = [
+                    waste_type.waste_type_name
+                    for waste_type in waste_types
+                    if (
+                        "organic" in (waste_type.waste_type_name or "").lower()
+                        or not any(
+                            keyword in (waste_type.waste_type_name or "").lower()
+                            for keyword in RESIDENTIAL_WASTE_TYPE_KEYWORDS
+                        )
+                    )
+                ]
+                if invalid_waste_types:
+                    raise serializers.ValidationError(
+                        {
+                            "waste_type_ids": (
+                                "Residential customers can only use Dry, Wet, Mixed, "
+                                "and Sanitary Waste."
+                            )
+                        }
+                    )
+
         return attrs
+
+    def validate_family_members(self, value):
+        allowed_keys = {"member_name", "id_proof_type", "id_no"}
+        valid_id_proof_types = {choice for choice, _ in CustomerCreation.IDProofType.choices}
+        for member in value:
+            if not isinstance(member, dict):
+                raise serializers.ValidationError("Each family member must be an object.")
+            extra_keys = set(member.keys()) - allowed_keys
+            if extra_keys:
+                raise serializers.ValidationError(
+                    f"Unsupported family member field(s): {', '.join(sorted(extra_keys))}"
+                )
+            id_proof_type = member.get("id_proof_type")
+            if id_proof_type and id_proof_type not in valid_id_proof_types:
+                raise serializers.ValidationError(
+                    f"Invalid id_proof_type '{id_proof_type}' for family member."
+                )
+        return value
+
+    def get_waste_types(self, obj):
+        return [
+            {
+                "unique_id": waste_type.unique_id,
+                "waste_type_name": waste_type.waste_type_name,
+            }
+            for waste_type in obj.waste_types.all()
+        ]

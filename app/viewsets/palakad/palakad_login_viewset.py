@@ -153,11 +153,9 @@ class PalakadLoginViewSet(ViewSet):
             )
 
         # ── 4. Resolve permissions ───────────────────────────────────────
-        user_type_obj = getattr(staff, "user_type_id", None)
         permission_payload = resolve_permission_payload(
             company_unique_id=company.unique_id,
-            usertype_unique_id=getattr(user_type_obj, "unique_id", None),
-            staffusertype_unique_id=usertype.unique_id,
+            staff_unique_id=staff.staff_unique_id,
             role_name=usertype.name,
             user_type="staff",
         )

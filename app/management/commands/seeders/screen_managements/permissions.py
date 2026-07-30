@@ -6,9 +6,8 @@ from app.models.screen_managements.userscreen import UserScreen
 from app.models.screen_managements.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
-from app.models.role_assigns.userType import UserType
-from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 
 from app.models.screen_managements.userscreencolumn import UserScreenColumn
 from app.models.screen_managements.companyuserscreencolumnpermission import (
@@ -73,7 +72,7 @@ class PermissionSeeder(BaseSeeder):
         # 2. ACTIONS
         # --------------------------------------------------
         actions = {}
-        for name in ["add", "view", "edit", "delete", "show"]:
+        for name in ["add", "view", "edit", "delete"]:
             action, _ = UserScreenAction.objects.get_or_create(
                 action_name=name,
                 defaults={
@@ -345,33 +344,35 @@ class PermissionSeeder(BaseSeeder):
                     )
 
         # --------------------------------------------------
-        # 5. SUPERADMIN ROLE LOOKUP
+        # 5. BASELINE PERMISSIONS (COMPANY-WIDE, PROJECT-INDEPENDENT)
         # --------------------------------------------------
-        platform_type = UserType.objects.filter(name__iexact="platform").first()
-        superadmin_role = None
-        if platform_type:
-            superadmin_role = StaffUserType.objects.filter(
-                usertype_id=platform_type,
-                name__iexact="superadmin",
-            ).first()
-
-        if not platform_type or not superadmin_role:
-            self.log("SuperAdmin role not found. Seed userType and staffUserType first.")
-            return
-
+        # Roles no longer gate permission rows; this seeds a full-access
+        # baseline per company with project_id left null (project-level
+        # scoping, if needed, is layered on top via the normal permission
+        # APIs).
         # --------------------------------------------------
-        # 6. SUPERADMIN SCREEN PERMISSIONS (FULL ACCESS TO ALL SCREENS)
+        # 6. BASELINE SCREEN PERMISSIONS (FULL ACCESS TO ALL SCREENS)
         # --------------------------------------------------
         for company in companies:
-            self.log(f"--- Seeding superadmin permissions for company: {company.name} ---")
+            self.log(f"--- Seeding baseline permissions for company: {company.name} ---")
+
+            company_project = (
+                Project.objects.filter(company_id=company, is_active=True, is_deleted=False)
+                .order_by("unique_id")
+                .first()
+            )
+            if not company_project:
+                self.log(
+                    f"    No active project found for company {company.name}; "
+                    "seeding baseline permissions with project_id=None."
+                )
 
             for main in mainscreens.values():
                 for screen in UserScreen.objects.filter(mainscreen_id=main, is_deleted=False):
                     for order_no, action in enumerate(actions.values(), start=1):
                         CompanyUserScreenPermission.objects.get_or_create(
                             company_id=company,
-                            usertype_id=platform_type,
-                            staffusertype_id=superadmin_role,
+                            project_id=company_project,
                             mainscreen_id=main,
                             userscreen_id=screen,
                             userscreenaction_id=action,
@@ -384,13 +385,18 @@ class PermissionSeeder(BaseSeeder):
                         )
 
         # --------------------------------------------------
-        # 7. SUPERADMIN COLUMN PERMISSIONS (FULL ACCESS TO ALL COLUMNS)
+        # 7. BASELINE COLUMN PERMISSIONS (FULL ACCESS TO ALL COLUMNS)
         # --------------------------------------------------
-        self.log("Seeding superadmin column permissions...")
+        self.log("Seeding baseline column permissions...")
 
         all_screens = UserScreen.objects.filter(is_deleted=False, is_active=True)
 
         for company in companies:
+            company_project = (
+                Project.objects.filter(company_id=company, is_active=True, is_deleted=False)
+                .order_by("unique_id")
+                .first()
+            )
             for screen in all_screens:
                 columns = UserScreenColumn.objects.filter(
                     userscreen_id=screen,
@@ -400,10 +406,7 @@ class PermissionSeeder(BaseSeeder):
                 for order_no, column in enumerate(columns, start=1):
                     CompanyUserScreenColumnPermission.objects.update_or_create(
                         company_id=company,
-                        project_id=None,
-                        usertype_id=platform_type,
-                        staffusertype_id=superadmin_role,
-                        contractorusertype_id=None,
+                        project_id=company_project,
                         userscreen_id=screen,
                         column_id=column,
                         defaults={
@@ -415,4 +418,4 @@ class PermissionSeeder(BaseSeeder):
                         },
                     )
 
-        self.log("--- SuperAdmin permission seeding completed successfully ---")
+        self.log("--- Baseline permission seeding completed successfully ---")
