@@ -13,6 +13,11 @@ from app.serializers.schedule_masters.vehicle_breakdown_serializer import (
     VehicleBreakdownRejectSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
@@ -39,6 +44,7 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = VehicleBreakdownSerializer
     lookup_field = "unique_id"
     permission_resource = "VehicleBreakdown"
+    filter_backends = [ModelFieldQueryFilter, ModelFieldSearchFilter, SerializerOrderingFilter]
 
     AUDIT_MODULE = "schedule-masters"
     AUDIT_ENDPOINT = "vehicle-breakdowns"

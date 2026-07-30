@@ -15,12 +15,22 @@ from app.serializers.user_creations.staff_access_configuration_serializer import
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     pagination_class = None
     serializer_class = StaffAccessConfigurationSerializer
     lookup_field = "staff_unique_id"
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
 
     AUDIT_MODULE = "user-creations"
     AUDIT_ENDPOINT = "staff-access-configuration"

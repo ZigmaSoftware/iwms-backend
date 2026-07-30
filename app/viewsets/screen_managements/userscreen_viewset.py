@@ -8,12 +8,22 @@ from app.models.superadmin_masters.company import Company
 
 from app.models.screen_managements.userscreen import UserScreen
 from app.serializers.screen_managements.userscreen_serializer import UserScreenSerializer
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class UserScreenViewSet(CompanyScopedViewSet):
     serializer_class = UserScreenSerializer
     queryset = UserScreen.objects.filter(is_deleted=False)
     lookup_field = "unique_id"
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)

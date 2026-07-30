@@ -10,6 +10,11 @@ from app.serializers.schedule_masters.alternative_staff_template_serializer impo
     AlternativeStaffTemplateSerializer
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 
@@ -35,6 +40,12 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
     AUDIT_MODULE = "user-creations"
     AUDIT_ENDPOINT = "alternative-staff-templates"
+
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
 
     def get_queryset(self):
         qs = super().get_queryset()

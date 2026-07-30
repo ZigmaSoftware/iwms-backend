@@ -7,12 +7,22 @@ from app.serializers.schedule_masters.daily_trip_household_collection_serializer
     DailyTripHouseholdCollectionSerializer,
 )
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class DailyTripHouseholdCollectionViewSet(CompanyScopedViewSet):
     serializer_class = DailyTripHouseholdCollectionSerializer
     lookup_field = "unique_id"
     permission_resource = "DailyTripHouseholdCollection"
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
 
     def get_queryset(self):
         queryset = (

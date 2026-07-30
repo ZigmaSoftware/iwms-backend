@@ -9,11 +9,21 @@ from app.models.screen_managements.mainscreentype import MainScreenType
 from app.serializers.screen_managements.mainscreentype_serializer import (
     MainScreenTypeSerializer
 )
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 class MainScreenTypeViewSet(CompanyScopedViewSet):
     serializer_class = MainScreenTypeSerializer
     queryset = MainScreenType.objects.filter(is_deleted=False)
     lookup_field = "unique_id"
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -13,6 +13,11 @@ from app.serializers.schedule_masters.daily_trip_log_serializer import (
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -58,6 +63,11 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     lookup_field = "unique_id"
     permission_resource = "DailyTripLog"
     pagination_class = LimitOffsetWithPage
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
 
     AUDIT_MODULE = "trip-logs"
     AUDIT_ENDPOINT = "daily-trip-logs"
