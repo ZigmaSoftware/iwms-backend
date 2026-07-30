@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.models.common_masters.country import Country
@@ -33,16 +35,24 @@ def generate_apartment_id():
 
 
 # Bulk waste generator auto-detection thresholds
-BULK_WASTE_SQFT_THRESHOLD = 20000
-BULK_WASTE_WATER_LPD_THRESHOLD = 40000
-BULK_WASTE_COLLECTION_KG_THRESHOLD = 100
+BULK_WASTE_SQFT_THRESHOLD = Decimal("20000")
+BULK_WASTE_WATER_LPD_THRESHOLD = Decimal("40000")
+BULK_WASTE_COLLECTION_KG_THRESHOLD = Decimal("100")
 
 
 def exceeds_bulk_waste_threshold(sqft, water_consumption_lpd, waste_collection_kg_per_day):
+    def exceeds(value, threshold):
+        if value is None:
+            return False
+        return Decimal(str(value)) > threshold
+
     return (
-        (sqft is not None and sqft > BULK_WASTE_SQFT_THRESHOLD)
-        or (water_consumption_lpd is not None and water_consumption_lpd > BULK_WASTE_WATER_LPD_THRESHOLD)
-        or (waste_collection_kg_per_day is not None and waste_collection_kg_per_day > BULK_WASTE_COLLECTION_KG_THRESHOLD)
+        exceeds(sqft, BULK_WASTE_SQFT_THRESHOLD)
+        or exceeds(water_consumption_lpd, BULK_WASTE_WATER_LPD_THRESHOLD)
+        or exceeds(
+            waste_collection_kg_per_day,
+            BULK_WASTE_COLLECTION_KG_THRESHOLD,
+        )
     )
 
 
