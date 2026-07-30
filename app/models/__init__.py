@@ -22,8 +22,6 @@ from .masters.department import Department
 from .masters.designation import Designation
 from .masters.panchayat_leader_login import PanchayatLeaderLogin
 from .masters.district_leader_login import DistrictLeaderLogin
-from .masters.municipality import Municipality
-from .masters.town_panchayat import TownPanchayat
 from .masters.block_panchayat_union import BlockPanchayatUnion
 
 
@@ -161,8 +159,6 @@ __all__ = [
     "Designation",
     "PanchayatLeaderLogin",
     "DistrictLeaderLogin",
-    "Municipality",
-    "TownPanchayat",
     "BlockPanchayatUnion",
 
     # Assets

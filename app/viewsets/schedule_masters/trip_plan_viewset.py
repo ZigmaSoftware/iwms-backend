@@ -15,7 +15,7 @@ class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         "company_id",
         "project_id",
         "district_id",
-        "city_id",
+        "city_id",  
         "zone_id",
         "panchayat_id",
         "staff_template_id",

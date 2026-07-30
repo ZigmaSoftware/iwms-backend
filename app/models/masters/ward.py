@@ -6,7 +6,6 @@ from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.masters.hierarchy import AdministrativeHierarchy
-from app.models.masters.areatype import AreaType
 from ..common_masters.state import State
 from .district import District
 from .city import City
@@ -57,13 +56,6 @@ class Ward(BaseMaster):
         blank=True
     )
 
-    area_type_id = models.ForeignKey(
-        AreaType,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True
-    )
-
     hierarchy_id = models.ForeignKey(
         AdministrativeHierarchy,
         on_delete=models.PROTECT,
@@ -97,4 +89,3 @@ class Ward(BaseMaster):
             return f"{self.ward_name} (Panchayat: {self.panchayat_id.panchayat_name})"
         return self.ward_name
 
-    

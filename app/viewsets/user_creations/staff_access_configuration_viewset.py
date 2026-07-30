@@ -18,6 +18,7 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 
 
 class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+    pagination_class = None
     serializer_class = StaffAccessConfigurationSerializer
     lookup_field = "staff_unique_id"
 

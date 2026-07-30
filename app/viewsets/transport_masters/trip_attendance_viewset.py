@@ -18,6 +18,7 @@ from app.serializers.user_creations.trip_attendance_serializer import (
 
 
 class TripAttendanceViewSet(ModelViewSet):
+    pagination_class = None
     """
     Mobile-triggered periodic attendance capture.
     Invoked every 45 minutes per staff during a trip.

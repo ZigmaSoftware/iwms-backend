@@ -88,7 +88,6 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Zone",
         "Ward",
         "Panchayat",
-        "AreaType",
         "AdministrativeHierarchy",
         "Department",
         "Designation",

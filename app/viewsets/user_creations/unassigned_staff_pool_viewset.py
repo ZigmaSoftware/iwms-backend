@@ -11,6 +11,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 
 class UnassignedStaffPoolViewSet(ModelViewSet,AuditViewSetMixin):
+    pagination_class = None
     """
     Controls staff availability by zone & ward.
     Used by system + supervisors.

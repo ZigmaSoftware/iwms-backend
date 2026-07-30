@@ -18,11 +18,6 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     continent_id = serializers.CharField(source="state_id.continent_id.unique_id", read_only=True)
     country_id = serializers.CharField(source="state_id.country_id.unique_id", read_only=True)
 
-    area_type_name = serializers.CharField(
-        source="area_type_id.name",
-        read_only=True
-    )
-
     hierarchy_order = serializers.IntegerField(
         source="hierarchy_id.hierarchy_order",
         read_only=True
@@ -49,8 +44,6 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "district_id",
             "district_name",
 
-            "area_type_id",
-            "area_type_name",
             "zone_id",
             "zone_name",
             "panchayat_id",
@@ -83,7 +76,6 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     def validate(self, attrs):
 
-        area_type = attrs.get("area_type_id") or getattr(self.instance, "area_type_id", None)
         hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         ward_name = attrs.get("ward_name")
 
@@ -99,16 +91,6 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Ward must belong to Zone or Panchayat."
             )
-
-        # Zone-wards are Urban; Panchayat-wards are Rural — only validate when zone is set
-        if zone and area_type and area_type.name.lower() != "urban":
-            raise serializers.ValidationError({
-                "area_type": "Zone-based ward must belong to urban area type."
-            })
-        if panchayat and area_type and area_type.name.lower() != "rural":
-            raise serializers.ValidationError({
-                "area_type": "Panchayat-based ward must belong to rural area type."
-            })
 
         if hierarchy and hierarchy.level_name.lower() != "ward":
             raise serializers.ValidationError({

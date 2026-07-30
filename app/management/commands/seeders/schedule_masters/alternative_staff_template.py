@@ -67,3 +67,10 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
                 created_count += 1
 
         self.log(f"---Alternative staff templates seeded | created={created_count} | total={len(staff_templates)}---")
+        
+
+        
+        
+        
+
+          

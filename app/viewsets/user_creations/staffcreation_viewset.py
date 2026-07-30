@@ -19,6 +19,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 
 class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
+    pagination_class = None
     queryset = Staffcreation.objects.select_related(
         "personal_details",
         "department_id",

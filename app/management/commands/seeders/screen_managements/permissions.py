@@ -98,7 +98,6 @@ class PermissionSeeder(BaseSeeder):
                 "zones",
                 "wards",
                 "panchayat",
-                "area type",
                 "department-masters",
                 "designation-masters",
                 "panchayat-leaders",

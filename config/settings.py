@@ -135,7 +135,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {   
     'default': {
         'ENGINE': os.getenv("DB_ENGINE", "django.db.backends.mysql"),
-        'NAME': os.getenv("DB_NAME", "iwmsdb"), 
+        'NAME': os.getenv("DB_NAME", "iwmsdbPrivate"), 
         'USER': os.getenv("DB_USER", "root"),
         'PASSWORD': os.getenv("DB_PASSWORD", "admin@123"),
         'HOST': os.getenv("DB_HOST", "localhost"),
@@ -206,10 +206,14 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'app.authentication.jwt.JWTUserAuthentication',
     ],
-    # Global pagination: limit/offset style with page metadata, 20 items per page
-    # "DEFAULT_PAGINATION_CLASS": "app.utils.pagination.LimitOffsetWithPage",
-    # "PAGE_SIZE": 20,
-    "DEFAULT_PAGINATION_CLASS": None
+    # Shared list pagination. Staff-management viewsets explicitly opt out.
+    "DEFAULT_PAGINATION_CLASS": "app.utils.pagination.LimitOffsetWithPage",
+    "PAGE_SIZE": 20,
+    "DEFAULT_FILTER_BACKENDS": [
+        "app.utils.filters.ModelFieldQueryFilter",
+        "app.utils.filters.ModelFieldSearchFilter",
+        "app.utils.filters.SerializerOrderingFilter",
+    ],
 }
 
 # -------------------------------------------------------
