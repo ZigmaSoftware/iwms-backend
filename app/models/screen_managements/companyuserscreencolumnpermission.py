@@ -1,9 +1,6 @@
 from django.db import models
 from django.db.models import UniqueConstraint
 
-from app.models.role_assigns.contractorUserType import ContractorUserType
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.userType import UserType
 from app.models.screen_managements.userscreen import UserScreen
 from app.models.screen_managements.userscreencolumn import UserScreenColumn
 from app.models.superadmin_masters.company import Company
@@ -41,33 +38,6 @@ class CompanyUserScreenColumnPermission(BaseMaster):
         null=True,
         blank=True,
     )
-    usertype_id = models.ForeignKey(
-        UserType,
-        on_delete=models.PROTECT,
-        related_name="userscreen_column_permissions",
-        to_field="unique_id",
-        db_column="usertype_id",
-        null=True,
-        blank=True,
-    )
-    staffusertype_id = models.ForeignKey(
-        StaffUserType,
-        on_delete=models.PROTECT,
-        related_name="userscreen_column_permissions",
-        to_field="unique_id",
-        db_column="staffusertype_id",
-        null=True,
-        blank=True,
-    )
-    contractorusertype_id = models.ForeignKey(
-        ContractorUserType,
-        on_delete=models.PROTECT,
-        related_name="userscreen_column_permissions",
-        to_field="unique_id",
-        db_column="contractorusertype_id",
-        null=True,
-        blank=True,
-    )
     userscreen_id = models.ForeignKey(
         UserScreen,
         on_delete=models.PROTECT,
@@ -96,8 +66,6 @@ class CompanyUserScreenColumnPermission(BaseMaster):
         verbose_name_plural = "Company User Screen Column Permissions"
         indexes = [
             models.Index(fields=["company_id", "project_id", "userscreen_id"]),
-            models.Index(fields=["company_id", "staffusertype_id", "userscreen_id"]),
-            models.Index(fields=["company_id", "contractorusertype_id", "userscreen_id"]),
             models.Index(fields=["userscreen_id", "column_id", "is_active", "is_deleted"]),
         ]
         constraints = [
@@ -105,9 +73,6 @@ class CompanyUserScreenColumnPermission(BaseMaster):
                 fields=[
                     "company_id",
                     "project_id",
-                    "usertype_id",
-                    "staffusertype_id",
-                    "contractorusertype_id",
                     "userscreen_id",
                     "column_id",
                     "is_deleted",

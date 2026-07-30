@@ -6,15 +6,8 @@ __pycache__/
 *.pyc
 
 # === Django Migrations ===
-**/migrations/
+**/migrations/*
 !**/migrations/__init__.py
-!app/migrations/
-app/migrations/*
-
-
-# Specifically ignore your API app migrations
-api/migrations/
-!api/migrations/__init__.py
 
 # === Virtual Environments ===
 venv/

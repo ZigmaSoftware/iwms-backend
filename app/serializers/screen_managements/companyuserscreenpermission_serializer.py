@@ -2,12 +2,10 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.userType import UserType
 from app.models.screen_managements.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
-from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission, PermissionType
 from app.models.screen_managements.mainscreen import MainScreen
 from app.models.screen_managements.userscreen import UserScreen
 from app.models.screen_managements.userscreenaction import UserScreenAction
@@ -15,49 +13,35 @@ from app.models.screen_managements.userscreencolumn import UserScreenColumn
 from app.models.superadmin_masters.project import Project
 from app.models.superadmin_masters.company import Company
 
-from app.models.role_assigns.contractorUserType import ContractorUserType
+from app.models.common_masters.state import State
+from app.models.masters.district import District
+from app.models.masters.city import City
+from app.models.masters.zone import Zone
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.ward import Ward
 
 
-SUPPORTED_ACTION_NAMES = {"add", "edit", "delete", "show", "view"}
+SUPPORTED_ACTION_NAMES = {"add", "edit", "delete", "view"}
 
 
 class CompanyUserScreenPermissionSerializer(serializers.ModelSerializer):
     userscreen_name = serializers.CharField(source="userscreen_id.userscreen_name", read_only=True)
     userscreenaction_name = serializers.CharField(source="userscreenaction_id.action_name", read_only=True)
-    usertype_name = serializers.CharField(source="usertype_id.name", read_only=True)
-    staffusertype_name = serializers.SerializerMethodField()
-    contractorusertype_name = serializers.CharField(
-        source="contractorusertype_id.name",
-        read_only=True,
-    )
     mainscreen_name = serializers.CharField(source="mainscreen_id.mainscreen_name", read_only=True)
     company_name = serializers.CharField(source="company_id.name", read_only=True)
     project_name = serializers.CharField(source="project_id.name", read_only=True, allow_null=True, default=None)
+    state_name = serializers.CharField(source="state_id.name", read_only=True, allow_null=True, default=None)
+    district_name = serializers.CharField(source="district_id.name", read_only=True, allow_null=True, default=None)
+    city_name = serializers.CharField(source="city_id.name", read_only=True, allow_null=True, default=None)
+    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True, allow_null=True, default=None)
+    panchayat_name = serializers.CharField(
+        source="panchayat_id.panchayat_name", read_only=True, allow_null=True, default=None
+    )
+    ward_name = serializers.CharField(source="ward_id.ward_name", read_only=True, allow_null=True, default=None)
 
     class Meta:
         model = CompanyUserScreenPermission
         fields = "__all__"
-
-    def get_staffusertype_name(self, obj):
-        staffusertype = getattr(obj, "staffusertype_id", None)
-        if staffusertype:
-            return staffusertype.name
-        contractorusertype = getattr(obj, "contractorusertype_id", None)
-        if contractorusertype:
-            return contractorusertype.name
-        return None
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        contractorusertype_id = data.get("contractorusertype_id")
-
-        if contractorusertype_id and not data.get("staffusertype_id"):
-            data["staffusertype_id"] = contractorusertype_id
-            data["staffUserTypeId"] = contractorusertype_id
-
-        data["contractorUserTypeId"] = contractorusertype_id
-        data["permission_for"] = "contractor" if contractorusertype_id else "staff"
-        return data
 
 
 class ScreenActionSerializer(serializers.Serializer):
@@ -120,56 +104,44 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
     companyId = serializers.CharField(required=False)
     project_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     projectId = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    usertype_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    usertypeId = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    userTypeId = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    staffusertype_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    staffUserTypeId = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     mainscreen_id = serializers.CharField(required=False)
     mainScreenId = serializers.CharField(required=False)
+    permission_type = serializers.ChoiceField(
+        choices=PermissionType.choices, required=False, allow_blank=True, allow_null=True
+    )
+    permissionType = serializers.ChoiceField(
+        choices=PermissionType.choices, required=False, allow_blank=True, allow_null=True
+    )
     screens = ScreenActionSerializer(many=True, required=False)
     userScreens = ScreenActionSerializer(many=True, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
 
-    contractorusertype_id = serializers.CharField(
-        required=False,
-        allow_null=True,
-        allow_blank=True,
-    )
-
-    contractorUserTypeId = serializers.CharField(
-        required=False,
-        allow_null=True,
-        allow_blank=True,
-    )
+    state_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    stateId = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    district_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    districtId = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    city_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    cityId = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    zone_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    zoneId = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    panchayat_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    panchayatId = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    ward_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    wardId = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate(self, data):
         data["company_id"] = (data.get("company_id") or data.get("companyId") or "").strip()
         data["project_id"] = (data.get("project_id") or data.get("projectId") or "").strip() or None
-        data["staffusertype_id"] = (
-            data.get("staffusertype_id")
-            or data.get("staffUserTypeId")
-            or ""
-        ).strip() or None
-        data["usertype_id"] = (
-            data.get("usertype_id")
-            or data.get("usertypeId")
-            or data.get("userTypeId")
-            or ""
-        ).strip() or None
-        data["contractorusertype_id"] = (
-            data.get("contractorusertype_id")
-            or data.get("contractorUserTypeId")
-            or ""
-        ).strip() or None
-        if data["staffusertype_id"] and not data["contractorusertype_id"]:
-            if str(data["staffusertype_id"]).startswith("CNTUSRTYPE-") or ContractorUserType.objects.filter(
-                unique_id=data["staffusertype_id"],
-                is_deleted=False,
-            ).exists():
-                data["contractorusertype_id"] = data["staffusertype_id"]
-                data["staffusertype_id"] = None
+        data["state_id"] = (data.get("state_id") or data.get("stateId") or "").strip() or None
+        data["district_id"] = (data.get("district_id") or data.get("districtId") or "").strip() or None
+        data["city_id"] = (data.get("city_id") or data.get("cityId") or "").strip() or None
+        data["zone_id"] = (data.get("zone_id") or data.get("zoneId") or "").strip() or None
+        data["panchayat_id"] = (data.get("panchayat_id") or data.get("panchayatId") or "").strip() or None
+        data["ward_id"] = (data.get("ward_id") or data.get("wardId") or "").strip() or None
         data["mainscreen_id"] = (data.get("mainscreen_id") or data.get("mainScreenId") or "").strip()
+        data["permission_type"] = (
+            data.get("permission_type") or data.get("permissionType") or PermissionType.SCREEN
+        )
         data["screens"] = data.get("screens") or data.get("userScreens") or []
 
         if not data["company_id"]:
@@ -195,48 +167,47 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
             except Project.DoesNotExist:
                 raise serializers.ValidationError({"project_id": "Invalid project for company"})
 
-        usertype = None
-        if data["usertype_id"]:
+        state = None
+        if data["state_id"]:
             try:
-                usertype = UserType.objects.get(unique_id=data["usertype_id"], is_deleted=False)
-            except UserType.DoesNotExist:
-                raise serializers.ValidationError({"usertype_id": "Invalid usertype"})
+                state = State.objects.get(unique_id=data["state_id"], is_deleted=False)
+            except State.DoesNotExist:
+                raise serializers.ValidationError({"state_id": "Invalid state"})
 
-        staffusertype = None
-        if data["staffusertype_id"]:
+        district = None
+        if data["district_id"]:
             try:
-                staffusertype = StaffUserType.objects.get(
-                    unique_id=data["staffusertype_id"],
-                    is_deleted=False,
-                )
-            except StaffUserType.DoesNotExist:
-                raise serializers.ValidationError({"staffusertype_id": "Invalid staffusertype"})
-        
-        contractorusertype = None
+                district = District.objects.get(unique_id=data["district_id"], is_deleted=False)
+            except District.DoesNotExist:
+                raise serializers.ValidationError({"district_id": "Invalid district"})
 
-        if data["contractorusertype_id"]:
+        city = None
+        if data["city_id"]:
             try:
-                contractorusertype = ContractorUserType.objects.get(
-                    unique_id=data["contractorusertype_id"],
-                    is_deleted=False,
-                )
-            except ContractorUserType.DoesNotExist:
-                raise serializers.ValidationError({
-                    "contractorusertype_id": "Invalid contractorusertype"
-                })
+                city = City.objects.get(unique_id=data["city_id"], is_deleted=False)
+            except City.DoesNotExist:
+                raise serializers.ValidationError({"city_id": "Invalid city"})
 
-        if staffusertype and contractorusertype:
-            raise serializers.ValidationError({
-                "permission_for": "Use either staffusertype_id or contractorusertype_id, not both."
-            })
-        if staffusertype and usertype and staffusertype.usertype_id_id != usertype.unique_id:
-            raise serializers.ValidationError({
-                "staffusertype_id": "Staff usertype does not belong to selected usertype."
-            })
-        if contractorusertype and usertype and contractorusertype.usertype_id_id != usertype.unique_id:
-            raise serializers.ValidationError({
-                "contractorusertype_id": "Contractor usertype does not belong to selected usertype."
-            })
+        zone = None
+        if data["zone_id"]:
+            try:
+                zone = Zone.objects.get(unique_id=data["zone_id"], is_deleted=False)
+            except Zone.DoesNotExist:
+                raise serializers.ValidationError({"zone_id": "Invalid zone"})
+
+        panchayat = None
+        if data["panchayat_id"]:
+            try:
+                panchayat = Panchayat.objects.get(unique_id=data["panchayat_id"], is_deleted=False)
+            except Panchayat.DoesNotExist:
+                raise serializers.ValidationError({"panchayat_id": "Invalid panchayat"})
+
+        ward = None
+        if data["ward_id"]:
+            try:
+                ward = Ward.objects.get(unique_id=data["ward_id"], is_deleted=False)
+            except Ward.DoesNotExist:
+                raise serializers.ValidationError({"ward_id": "Invalid ward"})
 
         try:
             mainscreen = MainScreen.objects.get(unique_id=data["mainscreen_id"], is_deleted=False)
@@ -263,10 +234,6 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
             for action_id in screen.get("actionIds", [])
             if str(action_id).strip()
         }
-        if action_values and not data["usertype_id"]:
-            raise serializers.ValidationError({
-                "usertype_id": "Required when assigning action permissions."
-            })
         if action_values:
             for action_value in action_values:
                 normalized = action_value.lower()
@@ -365,11 +332,12 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
 
         data["resolved_company_id"] = company.unique_id
         data["resolved_project_id"] = project.unique_id if project else None
-        data["resolved_usertype_id"] = usertype.unique_id if usertype else None
-        data["resolved_staffusertype_id"] = staffusertype.unique_id if staffusertype else None
-        data["resolved_contractorusertype_id"] = (
-            contractorusertype.unique_id if contractorusertype else None
-        )
+        data["resolved_state_id"] = state.unique_id if state else None
+        data["resolved_district_id"] = district.unique_id if district else None
+        data["resolved_city_id"] = city.unique_id if city else None
+        data["resolved_zone_id"] = zone.unique_id if zone else None
+        data["resolved_panchayat_id"] = panchayat.unique_id if panchayat else None
+        data["resolved_ward_id"] = ward.unique_id if ward else None
         data["resolved_mainscreen_id"] = mainscreen.unique_id
         return data
 
@@ -377,11 +345,13 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
     def create(self, validated_data):
         company_id = validated_data["resolved_company_id"]
         project_id = validated_data["resolved_project_id"]
-        usertype_id = validated_data["resolved_usertype_id"]
-        staffusertype_id = validated_data["resolved_staffusertype_id"]
-        contractorusertype_id = validated_data.get(
-            "resolved_contractorusertype_id"
-        )
+        state_id = validated_data.get("resolved_state_id")
+        district_id = validated_data.get("resolved_district_id")
+        city_id = validated_data.get("resolved_city_id")
+        zone_id = validated_data.get("resolved_zone_id")
+        panchayat_id = validated_data.get("resolved_panchayat_id")
+        ward_id = validated_data.get("resolved_ward_id")
+        permission_type = validated_data.get("permission_type") or PermissionType.SCREEN
         mainscreen_id = validated_data["resolved_mainscreen_id"]
         screens = validated_data["screens"]
         desc = (validated_data.get("description") or "").strip()
@@ -394,10 +364,9 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
             "userscreen_id", "userscreenaction_id"
         ).filter(
             company_id_id=company_id,
-            usertype_id_id=usertype_id,
-            staffusertype_id_id=staffusertype_id,
-            contractorusertype_id_id=contractorusertype_id,
+            project_id_id=project_id,
             mainscreen_id_id=mainscreen_id,
+            permission_type=permission_type,
         )
         existing_lookup = {
             (obj.userscreen_id_id, obj.userscreenaction_id_id): obj
@@ -418,13 +387,27 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                     permission.is_active = True
                     permission.order_no = order_no
                     permission.description = screen_desc
+                    permission.permission_type = permission_type
                     permission.project_id_id = project_id
+                    permission.state_id_id = state_id
+                    permission.district_id_id = district_id
+                    permission.city_id_id = city_id
+                    permission.zone_id_id = zone_id
+                    permission.panchayat_id_id = panchayat_id
+                    permission.ward_id_id = ward_id
                     permission.save(update_fields=[
                         "is_deleted",
                         "is_active",
                         "order_no",
                         "description",
+                        "permission_type",
                         "project_id",
+                        "state_id",
+                        "district_id",
+                        "city_id",
+                        "zone_id",
+                        "panchayat_id",
+                        "ward_id",
                         "updated_at",
                     ])
                     updated.append(permission)
@@ -438,10 +421,14 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                 permission = CompanyUserScreenPermission.objects.create(
                     company_id_id=company_id,
                     project_id_id=project_id,
-                    usertype_id_id=usertype_id,
-                    staffusertype_id_id=staffusertype_id,
-                    contractorusertype_id_id=contractorusertype_id,
+                    state_id_id=state_id,
+                    district_id_id=district_id,
+                    city_id_id=city_id,
+                    zone_id_id=zone_id,
+                    panchayat_id_id=panchayat_id,
+                    ward_id_id=ward_id,
                     mainscreen_id_id=mainscreen_id,
+                    permission_type=permission_type,
                     userscreen_id_id=screen_id,
                     userscreenaction_id_id=action_id,
                     order_no=order_no,
@@ -455,9 +442,6 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                 result = self._sync_column_permissions(
                     company_id=company_id,
                     project_id=project_id,
-                    usertype_id=usertype_id,
-                    staffusertype_id=staffusertype_id,
-                    contractorusertype_id=contractorusertype_id,
                     userscreen_id=screen_id,
                     column_permissions=screen.get("columnPermissions"),
                     column_ids=screen["columnIds"],
@@ -488,9 +472,6 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         *,
         company_id,
         project_id,
-        usertype_id,
-        staffusertype_id,
-        contractorusertype_id,
         userscreen_id,
         column_ids,
         column_permissions,
@@ -501,9 +482,6 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
             for obj in CompanyUserScreenColumnPermission.objects.filter(
                 company_id_id=company_id,
                 project_id_id=project_id,
-                usertype_id_id=usertype_id,
-                staffusertype_id_id=staffusertype_id,
-                contractorusertype_id_id=contractorusertype_id,
                 userscreen_id_id=userscreen_id,
             )
         }
@@ -538,9 +516,6 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                 CompanyUserScreenColumnPermission(
                     company_id_id=company_id,
                     project_id_id=project_id,
-                    usertype_id_id=usertype_id,
-                    staffusertype_id_id=staffusertype_id,
-                    contractorusertype_id_id=contractorusertype_id,
                     userscreen_id_id=userscreen_id,
                     column_id_id=column_id,
                     can_view=can_view,
