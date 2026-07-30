@@ -435,6 +435,13 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         )
 
         if action not in allowed_actions:
+            # A GET is also satisfied by "use" — a lighter-weight grant meant
+            # for consuming a screen's records as reference data (e.g. a
+            # dropdown option source) without exposing the full list screen.
+            if action == "view" and "use" in allowed_actions:
+                request.permission_use_only = True
+                return None
+
             return JsonResponse(
                 {
                     "detail": "Permission denied",

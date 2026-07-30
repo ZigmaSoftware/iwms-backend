@@ -11,6 +11,7 @@ from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.district_leader_login import DistrictLeaderLogin
 
 from app.models.superadmin_masters.project import Project
+from app.models.user_creations.staff_access_configuration import StaffAccessConfiguration
 from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
 from app.utils.password_encryption import decrypt_password
 
@@ -174,14 +175,36 @@ class LoginSerializer(serializers.Serializer):
         if not role_usertype:
             raise serializers.ValidationError("Staff role not assigned")
 
-        company = getattr(staff_record, "company_id", None) or getattr(login_user, "company_id", None)
-        if not company:
-            raise serializers.ValidationError("Staff record has no company assigned")
-        
-        project_filter = {"company_id": company, "is_active": True, "is_deleted": False}
-        staff_project = getattr(staff_record, "project_id", None)
-        if staff_project:
-            project_filter["unique_id"] = getattr(staff_project, "unique_id", staff_project)
+        # Staff Access Configuration (the "Data Scope" tab) is the source of
+        # truth for which company/projects a staff can operate under, once
+        # one exists for them — it supports multiple projects and treats an
+        # empty project selection as "every project under the company"
+        # (see app/utils/staff_scope.py:resolve_staff_scope_ids). Forms should
+        # show company/project data from this scope regardless of whether
+        # the staff was separately granted "view" on Company/Project as
+        # screens — that permission only governs the Company/Project admin
+        # management screens' own sidebar visibility.
+        access_config = StaffAccessConfiguration.objects.filter(
+            staff_id_id=getattr(staff_record, "staff_unique_id", None),
+            is_active=True,
+            is_deleted=False,
+        ).select_related("company_id").prefetch_related("projects").first()
+
+        if access_config and access_config.company_id:
+            company = access_config.company_id
+            scoped_projects = access_config.projects.all()
+            project_filter = {"company_id": company, "is_active": True, "is_deleted": False}
+            if scoped_projects.exists():
+                project_filter["unique_id__in"] = list(scoped_projects.values_list("unique_id", flat=True))
+        else:
+            company = getattr(staff_record, "company_id", None) or getattr(login_user, "company_id", None)
+            if not company:
+                raise serializers.ValidationError("Staff record has no company assigned")
+
+            project_filter = {"company_id": company, "is_active": True, "is_deleted": False}
+            staff_project = getattr(staff_record, "project_id", None)
+            if staff_project:
+                project_filter["unique_id"] = getattr(staff_project, "unique_id", staff_project)
 
         projects_queryset = Project.objects.filter(**project_filter).values(
             "unique_id", "name",
@@ -189,12 +212,6 @@ class LoginSerializer(serializers.Serializer):
             "gps_user_id", "gps_group_name", "gps_provider_name", "gps_fcode", "gps_trip_user_id",
             "weighment_api_url", "day_wise_weighment_api_url",
         )
-
-        # Scope to the staff member's assigned project so the frontend only
-        # shows the project(s) that belong to this user, not all company projects.
-        staff_project = getattr(staff_record, "project_id", None)
-        if staff_project:
-            projects_queryset = projects_queryset.filter(unique_id=staff_project.unique_id)
 
         projects = list(projects_queryset)
 

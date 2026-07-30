@@ -14,7 +14,7 @@ from app.models.user_creations.staff_access_configuration import (
 )
 
 
-ACTION_KEYS = ("view", "add", "edit", "delete")
+ACTION_KEYS = ("view", "add", "edit", "delete", "use")
 
 APP_SURFACE_CONFIG = {
     "citizen": {
@@ -517,11 +517,18 @@ def permission_querysets(
 
     column_queryset = CompanyUserScreenColumnPermission.objects.filter(
         company_id_id=config.company_id_id,
-        project_id_id=config.project_id_id,
         userscreen_id_id__in=action_queryset.values_list("userscreen_id_id", flat=True),
         is_active=True,
         is_deleted=False,
-    ).select_related("userscreen_id", "userscreen_id__mainscreen_id", "column_id")
+    )
+    # No projects configured => unrestricted access to every project under
+    # the company, so don't narrow by project at all.
+    project_ids = list(config.projects.values_list("unique_id", flat=True))
+    if project_ids:
+        column_queryset = column_queryset.filter(project_id_id__in=project_ids)
+    column_queryset = column_queryset.select_related(
+        "userscreen_id", "userscreen_id__mainscreen_id", "column_id"
+    )
 
     return action_queryset, column_queryset
 
