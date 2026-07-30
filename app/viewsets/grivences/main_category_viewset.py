@@ -5,12 +5,18 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 from app.models.grivences.main_category_citizenGrievance import MainCategory
 from app.serializers.grivences.maincategory_serializer import MainCategorySerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class MainCategoryViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     queryset = MainCategory.objects.filter(is_deleted=False).order_by("unique_id")
     serializer_class = MainCategorySerializer
     lookup_field = "unique_id"
+    filter_backends = [ModelFieldQueryFilter, ModelFieldSearchFilter, SerializerOrderingFilter]
 
     AUDIT_MODULE = "grivences"
     AUDIT_ENDPOINT = "main-categories"

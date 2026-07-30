@@ -4,6 +4,11 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 from app.models.grivences.complaints import Complaint
 from app.serializers.grivences.complaint_serializer import ComplaintSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 class ComplaintViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = ComplaintSerializer
@@ -11,6 +16,7 @@ class ComplaintViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     queryset = Complaint.objects.filter(is_deleted=False).select_related(
         "customer", "zone", "ward"
     )
+    filter_backends = [ModelFieldQueryFilter, ModelFieldSearchFilter, SerializerOrderingFilter]
 
     AUDIT_MODULE = "grivences"
     AUDIT_ENDPOINT = "complaints"

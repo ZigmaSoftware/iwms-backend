@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.utils import timezone
 
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -16,6 +16,11 @@ from app.serializers.user_creations.staffcreation_serializer import (
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
@@ -35,7 +40,11 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
     AUDIT_MODULE = "user-creations"
     AUDIT_ENDPOINT = "staffcreation"
 
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
     search_fields = [
         "employee_name",
         "staff_unique_id",

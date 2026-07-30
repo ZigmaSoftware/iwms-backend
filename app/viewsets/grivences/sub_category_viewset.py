@@ -5,11 +5,17 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 from app.models.grivences.sub_category_citizenGrievance import SubCategory
 from app.serializers.grivences.subcategory_serializer import SubCategorySerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 class SubCategoryViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     queryset = SubCategory.objects.filter(is_deleted=False)
     serializer_class = SubCategorySerializer
     lookup_field = "unique_id"
+    filter_backends = [ModelFieldQueryFilter, ModelFieldSearchFilter, SerializerOrderingFilter]
 
     AUDIT_MODULE = "grivences"
     AUDIT_ENDPOINT = "sub-categories"

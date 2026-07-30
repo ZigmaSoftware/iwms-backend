@@ -3,6 +3,11 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 from app.models.customers.wastecollection import WasteCollection
 from app.serializers.customers.wastecollection_serializer import WasteCollectionSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 class WasteCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     queryset = WasteCollection.objects.filter(is_deleted=False).select_related(
@@ -13,6 +18,7 @@ class WasteCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     ).order_by("-collection_date","-collection_time")
     serializer_class = WasteCollectionSerializer
     lookup_field = "unique_id"
+    filter_backends = [ModelFieldQueryFilter, ModelFieldSearchFilter, SerializerOrderingFilter]
 
     AUDIT_MODULE = "schedule-masters"
     AUDIT_ENDPOINT = "wastecollections"

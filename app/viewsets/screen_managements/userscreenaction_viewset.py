@@ -10,6 +10,11 @@ from app.models.screen_managements.userscreenaction import UserScreenAction
 from app.serializers.screen_managements.userscreenaction_serializer import (
     UserScreenActionSerializer
 )
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class UserScreenActionViewSet(CompanyScopedViewSet):
@@ -18,6 +23,11 @@ class UserScreenActionViewSet(CompanyScopedViewSet):
         Q(action_name__iexact="show") | Q(variable_name__iexact="show")
     )
     lookup_field = "unique_id"
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -17,11 +17,21 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.serializers.transport_masters.vehicleCreation_serializer import VehicleCreationSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     queryset = VehicleCreation.objects.filter(is_deleted=False)
     serializer_class = VehicleCreationSerializer
     lookup_field = "unique_id"
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
 
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "vehicles"

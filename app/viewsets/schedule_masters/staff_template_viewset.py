@@ -14,6 +14,11 @@ from app.serializers.schedule_masters.staff_template_serializer import (
     StaffTemplateSerializer
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
@@ -28,6 +33,12 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
     AUDIT_MODULE = "user-creations"
     AUDIT_ENDPOINT = "staff-templates"
+
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
 
     def get_queryset(self):
         qs = StaffTemplate.objects.all()

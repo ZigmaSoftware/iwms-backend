@@ -4,6 +4,11 @@ from rest_framework import viewsets
 from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.serializers.transport_masters.vehicletypecreation_serializer import VehicleTypeCreationSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class VehicleTypeCreationViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
@@ -11,6 +16,11 @@ class VehicleTypeCreationViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     serializer_class = VehicleTypeCreationSerializer
     lookup_field = "unique_id"
     permission_resource = "VehicleTypeCreation"
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "vehicle-types"
 

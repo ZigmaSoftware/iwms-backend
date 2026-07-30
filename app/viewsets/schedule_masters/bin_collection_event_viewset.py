@@ -11,6 +11,11 @@ from app.serializers.schedule_masters.bin_collection_event_serializer import (
     BinCollectionEventSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
@@ -18,6 +23,7 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = BinCollectionEventSerializer
     lookup_field = "unique_id"
     permission_resource = "BinCollectionEvent"
+    filter_backends = [ModelFieldQueryFilter, ModelFieldSearchFilter, SerializerOrderingFilter]
 
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "bin-collection-event"

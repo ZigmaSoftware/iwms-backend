@@ -8,6 +8,11 @@ from app.serializers.schedule_masters.trip_plan_serializer import (
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.filters import (
+    ModelFieldQueryFilter,
+    ModelFieldSearchFilter,
+    SerializerOrderingFilter,
+)
 
 
 class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -32,6 +37,11 @@ class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     lookup_field = "unique_id"
     swagger_tags = ["Desktop / Operations / Trip Plan"]
     permission_resource = "TripPlan"
+    filter_backends = [
+        ModelFieldQueryFilter,
+        ModelFieldSearchFilter,
+        SerializerOrderingFilter,
+    ]
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "trip-plans"
 
