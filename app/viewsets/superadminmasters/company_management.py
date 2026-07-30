@@ -12,6 +12,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 class PlatformCompanyCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [PlatformOrCompanyAdminOnly]
+    permission_resource = "Company"
     serializer_class = CompanySerializer
     lookup_field = "unique_id"
     parser_classes = (MultiPartParser, FormParser, JSONParser)

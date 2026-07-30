@@ -308,20 +308,22 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
         from app.models.user_creations.staff_access_configuration import StaffAccessConfiguration
 
-        defaults = {
-            "company_id": staff.company_id,
-            "project_id": staff.project_id,
-            "district_id": getattr(staff, "district_id", None),
-            "city_id": getattr(staff, "city_id", None),
-            "zone_id": getattr(staff, "zone_id", None),
-            "ward_id": getattr(staff, "ward_id", None),
-            "is_deleted": False,
-            "is_active": True,
-        }
-        StaffAccessConfiguration.objects.update_or_create(
+        instance, _ = StaffAccessConfiguration.objects.update_or_create(
             staff_id=staff,
-            defaults=defaults,
+            defaults={
+                "company_id": staff.company_id,
+                "is_deleted": False,
+                "is_active": True,
+            },
         )
+        instance.projects.set([staff.project_id_id])
+        for accessor, related in (
+            ("districts", getattr(staff, "district_id", None)),
+            ("cities", getattr(staff, "city_id", None)),
+            ("zones", getattr(staff, "zone_id", None)),
+            ("wards", getattr(staff, "ward_id", None)),
+        ):
+            getattr(instance, accessor).set([related] if related else [])
 
     # --------------------------------------------------
     # Create

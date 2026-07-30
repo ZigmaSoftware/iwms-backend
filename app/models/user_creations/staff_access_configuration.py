@@ -47,37 +47,29 @@ class StaffAccessConfiguration(BaseMaster):
         related_name="staff_access_configurations",
     )
 
-    project_id = models.ForeignKey(
+    projects = models.ManyToManyField(
         Project,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        db_column="project_id",
         related_name="staff_access_configurations",
+        blank=True,
     )
 
-    state_id = models.ForeignKey(
-        State, on_delete=models.PROTECT, db_column="state_id",
-        null=True, blank=True, related_name="staff_access_configurations",
+    states = models.ManyToManyField(
+        State, related_name="staff_access_configurations", blank=True,
     )
-    district_id = models.ForeignKey(
-        District, on_delete=models.PROTECT, db_column="district_id",
-        null=True, blank=True, related_name="staff_access_configurations",
+    districts = models.ManyToManyField(
+        District, related_name="staff_access_configurations", blank=True,
     )
-    city_id = models.ForeignKey(
-        City, on_delete=models.PROTECT, db_column="city_id",
-        null=True, blank=True, related_name="staff_access_configurations",
+    cities = models.ManyToManyField(
+        City, related_name="staff_access_configurations", blank=True,
     )
-    zone_id = models.ForeignKey(
-        Zone, on_delete=models.PROTECT, db_column="zone_id",
-        null=True, blank=True, related_name="staff_access_configurations",
+    zones = models.ManyToManyField(
+        Zone, related_name="staff_access_configurations", blank=True,
     )
-    panchayat_id = models.ForeignKey(
-        Panchayat, on_delete=models.PROTECT, db_column="panchayat_id",
-        null=True, blank=True, related_name="staff_access_configurations",
+    panchayats = models.ManyToManyField(
+        Panchayat, related_name="staff_access_configurations", blank=True,
     )
-    ward_id = models.ForeignKey(
-        Ward, on_delete=models.PROTECT, db_column="ward_id",
-        null=True, blank=True, related_name="staff_access_configurations",
+    wards = models.ManyToManyField(
+        Ward, related_name="staff_access_configurations", blank=True,
     )
 
     description = models.CharField(max_length=255, blank=True, null=True)
@@ -96,7 +88,7 @@ class StaffAccessConfiguration(BaseMaster):
         ]
 
     def __str__(self):
-        return f"{self.staff_id_id} - {self.project_id_id}"
+        return f"{self.staff_id_id}"
 
     def delete(self, *args, **kwargs):
         self.is_active = False
