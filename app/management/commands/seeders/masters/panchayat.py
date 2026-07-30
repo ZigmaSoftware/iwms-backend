@@ -4,7 +4,6 @@ from app.models.common_masters.state import State
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.panchayat import Panchayat, GeoFencingType
-from app.models.masters.areatype import AreaType
 from app.models.masters.hierarchy import AdministrativeHierarchy
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -40,10 +39,7 @@ class PanchayatSeeder(BaseSeeder):
         chennai_dist = District.objects.get(name="Chennai")
         chennai_city = City.objects.get(name="Chennai City")
 
-        rural_area_type = AreaType.objects.get(name="Rural")
-
         hierarchy = AdministrativeHierarchy.objects.get(
-            area_type=rural_area_type,
             level_name="Panchayat",
         )
 
@@ -56,7 +52,6 @@ class PanchayatSeeder(BaseSeeder):
                     "state_id": tamil_nadu,
                     "district_id": chennai_dist,
                     "city_id": chennai_city,
-                    "area_type_id": rural_area_type,
                     "hierarchy_id": hierarchy,
                     "geofencing_type": GeoFencingType.POLYGON,
                     "agreed_weight_kg": entry["agreed_weight_kg"],

@@ -3,7 +3,6 @@ from django.db.models import F, Max
 from app.models.common_masters.continent import Continent
 from app.models.common_masters.country import Country
 from app.models.common_masters.state import State
-from app.models.masters.areatype import AreaType
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.hierarchy import AdministrativeHierarchy
@@ -75,33 +74,17 @@ class BluePlanetSeeder(BaseSeeder):
         )
         return asia, india, state
 
-    def _area_hierarchy(self, state, district, city):
-        urban, _ = AreaType.objects.get_or_create(
-            name="Urban",
-            defaults={
-                "state_id": state,
-                "district_id": district,
-                "city_id": city,
-                "description": "Urban area",
-                "is_active": True,
-                "is_deleted": False,
-            },
+    def _administrative_hierarchy(self):
+        zone_hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(
+            level_name="Zone"
         )
-        rural, _ = AreaType.objects.get_or_create(
-            name="Rural",
-            defaults={
-                "state_id": state,
-                "district_id": district,
-                "city_id": city,
-                "description": "Rural area",
-                "is_active": True,
-                "is_deleted": False,
-            },
+        ward_hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(
+            level_name="Ward"
         )
-        zone_hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(area_type=urban, level_name="Zone")
-        ward_hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(area_type=urban, level_name="Ward")
-        panchayat_hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(area_type=rural, level_name="Panchayat")
-        return urban, rural, zone_hierarchy, ward_hierarchy, panchayat_hierarchy
+        panchayat_hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(
+            level_name="Panchayat"
+        )
+        return zone_hierarchy, ward_hierarchy, panchayat_hierarchy
 
     def _staff_role(self, name):
         staff_type, _ = UserType.objects.get_or_create(
@@ -245,7 +228,9 @@ class BluePlanetSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-        urban, rural, zone_hierarchy, ward_hierarchy, panchayat_hierarchy = self._area_hierarchy(state, district, city)
+        zone_hierarchy, ward_hierarchy, panchayat_hierarchy = (
+            self._administrative_hierarchy()
+        )
 
         zone, _ = Zone.objects.update_or_create(
             zone_name=f"{prefix} Zone 1",
@@ -255,7 +240,6 @@ class BluePlanetSeeder(BaseSeeder):
             defaults={
                 "state_id": state,
                 "district_id": district,
-                "area_type_id": urban,
                 "hierarchy_id": zone_hierarchy,
                 "latitude": config["base_lat"],
                 "longitude": config["base_lon"],
@@ -272,7 +256,6 @@ class BluePlanetSeeder(BaseSeeder):
                 "state_id": state,
                 "district_id": district,
                 "city_id": city,
-                "area_type_id": urban,
                 "hierarchy_id": ward_hierarchy,
                 "latitude": config["base_lat"] + 0.001,
                 "longitude": config["base_lon"] + 0.001,
@@ -288,7 +271,6 @@ class BluePlanetSeeder(BaseSeeder):
                 "state_id": state,
                 "district_id": district,
                 "city_id": city,
-                "area_type_id": rural,
                 "hierarchy_id": panchayat_hierarchy,
                 "agreed_weight_kg": 800,
                 "weight_unit": "kg",

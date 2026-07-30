@@ -12,7 +12,6 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
     city_unique_id    = serializers.CharField(source="city_id.unique_id", read_only=True)
     district_name     = serializers.CharField(source="district_id.name", read_only=True)
     district_unique_id = serializers.CharField(source="district_id.unique_id", read_only=True)
-    area_type_name = serializers.CharField(source="area_type_id.name", read_only=True)
     hierarchy_order = serializers.IntegerField(source="hierarchy_id.hierarchy_order", read_only=True)
     hierarchy_name = serializers.CharField(source="hierarchy_id.level_name", read_only=True)
     block_name = serializers.CharField(source="block_id.block_name", read_only=True)
@@ -36,8 +35,6 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
             "district_name",
             "block_id",
             "block_name",
-            "area_type_id",
-            "area_type_name",
             "hierarchy_id",
             "hierarchy_order",
             "hierarchy_name",
@@ -67,17 +64,8 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
         # -------------------------------
         # GET VALUES (Handle Update Case)
         # -------------------------------
-        area_type = attrs.get("area_type_id") or getattr(self.instance, "area_type_id", None)
         hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         panchayat_name = attrs.get("panchayat_name")
-
-        # -------------------------------
-        # 1️⃣ AreaType Must Be Rural
-        # -------------------------------
-        if area_type and area_type.name.lower() != "rural":
-            raise serializers.ValidationError({
-                "area_type": "Panchayat must belong to Rural area type."
-            })
 
         # -------------------------------
         # 2️⃣ Hierarchy Must Be Panchayat

@@ -7,7 +7,6 @@ from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward, GeoFencingType
-from app.models.masters.areatype import AreaType
 from app.models.masters.hierarchy import AdministrativeHierarchy
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -68,15 +67,7 @@ class WardSeeder(BaseSeeder):
             project_id=project,
         )
 
-        urban_area_type = AreaType.objects.get(
-            name="Urban",
-            state_id=tamil_nadu,
-            district_id=chennai_dist,
-            city_id=chennai_city,
-        )
-
         hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(
-            area_type=urban_area_type,
             level_name="Ward",
         )
 
@@ -92,7 +83,6 @@ class WardSeeder(BaseSeeder):
                     "district_id": chennai_dist,
                     "city_id": chennai_city,
                     "zone_id": zone_1,
-                    "area_type_id": urban_area_type,
                     "hierarchy_id": hierarchy,
                     "latitude": lat,
                     "longitude": lon,
