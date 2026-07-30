@@ -23,7 +23,7 @@ class TestExternalAttendanceAPI:
         )
         assert response.status_code == 400
 
-    @patch("app.viewsets.attendance_view.external_attendance.requests.get")
+    @patch("app.viewsets.core_modules.attendance.external_attendance.requests.get")
     def test_proxies_dates_and_project_key(self, requests_get, auth_client, company, project):
         project.attendance_api_url = "http://zigfly.in/attendance-api/api/sync/recognized"
         project.attendance_api_key = "ZIGFLY_SYNC_2025"

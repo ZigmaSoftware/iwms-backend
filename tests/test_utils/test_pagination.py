@@ -6,7 +6,7 @@ from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.user_creations.staffcreation_viewset import StaffcreationViewset
+from app.viewsets.superadmin.staff_management.staffcreation_viewset import StaffcreationViewset
 
 
 class TestLimitOffsetWithPageUnit:
