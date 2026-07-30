@@ -76,6 +76,10 @@ from .user_creations.staffcreation import (
 from .schedule_masters.staff_template import StaffTemplate
 from .schedule_masters.alternative_staff_template import AlternativeStaffTemplate
 from .user_creations.unassigned_staff_pool import UnassignedStaffPool
+from .user_creations.staff_access_configuration import (
+    StaffAccessConfiguration,
+    StaffAccessConfigurationPermission,
+)
 
 
 # ============================================================
@@ -193,6 +197,8 @@ __all__ = [
     "AlternativeStaffTemplate",
     "SupervisorZoneMap",
     "UnassignedStaffPool",
+    "StaffAccessConfiguration",
+    "StaffAccessConfigurationPermission",
 
     # Auth / Audit
     "LoginAudit",

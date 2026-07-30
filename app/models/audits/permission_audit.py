@@ -3,8 +3,8 @@ from django.db import models
 from app.models.screen_managements.mainscreen import MainScreen
 from app.models.screen_managements.userscreen import UserScreen
 from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.models.user_creations.staffcreation import Staffcreation
 
 
@@ -25,13 +25,13 @@ class PermissionAuditLog(models.Model):
         to_field="unique_id",
         db_column="company_id",
     )
-    staffusertype = models.ForeignKey(
-        StaffUserType,
+    project = models.ForeignKey(
+        Project,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         to_field="unique_id",
-        db_column="staffusertype_id",
+        db_column="project_id",
     )
     mainscreen = models.ForeignKey(
         MainScreen,

@@ -59,6 +59,9 @@ from ..viewsets.role_assigns.contractorusertype_viewset import ContractorUserTyp
 # User creations
 from ..viewsets.user_creations.staff_viewset import StaffViewSet
 from ..viewsets.user_creations.staffcreation_viewset import StaffcreationViewset
+from ..viewsets.user_creations.staff_access_configuration_viewset import (
+    StaffAccessConfigurationViewSet,
+)
 from ..viewsets.user_creations.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
 
 # Authentication
@@ -206,6 +209,9 @@ router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeV
 # ============================================================
 router.register_group("user-creations", "users-creation",  StaffViewSet)
 router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
+router.register_group(
+    "user-creations", "staff-access-configuration", StaffAccessConfigurationViewSet
+)
 
 # ============================================================
 # GROUP: AUTHENTICATION

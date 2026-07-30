@@ -302,6 +302,27 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             if field in personal_data
         }
 
+    def _sync_staff_access_configuration(self, staff):
+        if not getattr(staff, "company_id_id", None) or not getattr(staff, "project_id_id", None):
+            return
+
+        from app.models.user_creations.staff_access_configuration import StaffAccessConfiguration
+
+        defaults = {
+            "company_id": staff.company_id,
+            "project_id": staff.project_id,
+            "district_id": getattr(staff, "district_id", None),
+            "city_id": getattr(staff, "city_id", None),
+            "zone_id": getattr(staff, "zone_id", None),
+            "ward_id": getattr(staff, "ward_id", None),
+            "is_deleted": False,
+            "is_active": True,
+        }
+        StaffAccessConfiguration.objects.update_or_create(
+            staff_id=staff,
+            defaults=defaults,
+        )
+
     # --------------------------------------------------
     # Create
     # --------------------------------------------------
@@ -338,6 +359,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             **personal_data,
         )
 
+        self._sync_staff_access_configuration(staff)
         return staff
 
     # --------------------------------------------------
@@ -380,4 +402,5 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
                     personal_details.staff_unique_id = staff.staff_unique_id
                     personal_details.save()
 
+        self._sync_staff_access_configuration(staff)
         return staff
