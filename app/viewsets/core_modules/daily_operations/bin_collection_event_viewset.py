@@ -62,6 +62,7 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "panchayat_id",
                 "ward_id",
                 "ward_id__zone_id",
+                "zone_id",
             )
             .filter(is_deleted=False)
         )
@@ -71,6 +72,9 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         trip_collection_point = params.get("trip_collection_point_id")
         bin_id = params.get("bin_id")
         panchayat = params.get("panchayat_id")
+        ward = params.get("ward_id")
+        zone = params.get("zone_id")
+        status_value = params.get("status")
         collection_date = params.get("collection_date") or params.get("date")
         date_from = params.get("date_from")
         date_to = params.get("date_to")
@@ -83,6 +87,12 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             queryset = queryset.filter(bin_id=bin_id)
         if panchayat:
             queryset = queryset.filter(panchayat_id=panchayat)
+        if ward:
+            queryset = queryset.filter(ward_id__unique_id=ward)
+        if zone:
+            queryset = queryset.filter(zone_id__unique_id=zone)
+        if status_value:
+            queryset = queryset.filter(status=status_value)
         if collection_date:
             queryset = queryset.filter(collection_date=collection_date)
         if date_from:
@@ -176,17 +186,32 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if not trip_cp:
             return
 
-        trip_cp.collected_weight_kg = event.collected_weight_kg or 0
-        trip_cp.collected_at = getattr(event, "created_at", None) or timezone.now()
-        trip_cp.is_collected = True
-        trip_cp.status = DailyTripCollectionPoint.STATUS_COLLECTED
-        trip_cp.save(update_fields=[
-            "collected_weight_kg",
-            "collected_at",
-            "is_collected",
-            "status",
-            "updated_at",
-        ])
+        event_status = getattr(event, "status", BinCollectionEvent.STATUS_COLLECTED)
+        if event_status == BinCollectionEvent.STATUS_COLLECTED:
+            trip_cp.collected_weight_kg = event.collected_weight_kg or 0
+            trip_cp.collected_at = getattr(event, "created_at", None) or timezone.now()
+            trip_cp.is_collected = True
+            trip_cp.status = DailyTripCollectionPoint.STATUS_COLLECTED
+            trip_cp.status_reason = None
+            trip_cp.save(update_fields=[
+                "collected_weight_kg",
+                "collected_at",
+                "is_collected",
+                "status",
+                "status_reason",
+                "updated_at",
+            ])
+        else:
+            # Not Collected / Collect Later — mirror onto the stop status
+            # vocabulary (Missed / Skipped) without recording a weight.
+            mapped_status = (
+                DailyTripCollectionPoint.STATUS_MISSED
+                if event_status == BinCollectionEvent.STATUS_NOT_COLLECTED
+                else DailyTripCollectionPoint.STATUS_SKIPPED
+            )
+            # mark_status() already calls mark_completed_if_all_cps_collected()
+            trip_cp.mark_status(mapped_status, getattr(event, "status_reason", None))
+
         assignment = trip_cp.trip_assignment_id
         assignment.mark_completed_if_all_cps_collected()
         self._upsert_trip_log_for_assignment(assignment)

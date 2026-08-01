@@ -26,6 +26,7 @@ class DailyTripHouseholdCollectionSerializer(
     customer = serializers.SerializerMethodField()
     panchayat = serializers.SerializerMethodField()
     ward = serializers.SerializerMethodField()
+    waste_breakdown = serializers.SerializerMethodField()
 
     class Meta:
         model = DailyTripHouseholdCollection
@@ -39,7 +40,9 @@ class DailyTripHouseholdCollectionSerializer(
             "trip_assignment",
             "customer_id",
             "customer",
+            "collection_type",
             "waste_collection_id",
+            "waste_breakdown",
             "zone_id",
             "ward_id",
             "ward",
@@ -50,6 +53,7 @@ class DailyTripHouseholdCollectionSerializer(
             "collected_at",
             "collected_weight_kg",
             "status",
+            "status_reason",
             "created_at",
             "updated_at",
         ]
@@ -101,3 +105,15 @@ class DailyTripHouseholdCollectionSerializer(
     def get_ward(self, obj):
         w = obj.ward_id
         return None if not w else {"unique_id": w.unique_id, "ward_name": w.ward_name}
+
+    def get_waste_breakdown(self, obj):
+        wc = obj.waste_collection_id
+        if not wc:
+            return None
+        return {
+            "wet_waste": wc.wet_waste,
+            "dry_waste": wc.dry_waste,
+            "mixed_waste": wc.mixed_waste,
+            "sanitary_waste": wc.sanitary_waste,
+            "total_quantity": wc.total_quantity,
+        }

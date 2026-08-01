@@ -46,6 +46,7 @@ class DailyTripHouseholdCollectionViewSet(CompanyScopedViewSet):
         company = params.get("company_id")
         project = params.get("project_id")
         status_value = params.get("status")
+        collection_type = params.get("collection_type")
         is_collected = params.get("is_collected")
         trip_date = params.get("date") or params.get("trip_date")
         panchayat = params.get("panchayat_id")
@@ -63,6 +64,8 @@ class DailyTripHouseholdCollectionViewSet(CompanyScopedViewSet):
             queryset = queryset.filter(customer_id__unique_id=customer)
         if status_value:
             queryset = queryset.filter(status=status_value)
+        if collection_type:
+            queryset = queryset.filter(collection_type=collection_type)
         if is_collected is not None:
             queryset = queryset.filter(
                 is_collected=str(is_collected).lower() in {"1", "true", "yes"}

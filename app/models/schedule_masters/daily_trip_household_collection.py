@@ -27,14 +27,30 @@ class DailyTripHouseholdCollection(BaseMaster):
 
     STATUS_PENDING = "Pending"
     STATUS_COLLECTED = "Collected"
+    STATUS_COLLECT_LATER = "Collect Later"
+    # "Not Available" is the canonical label for a household that couldn't be
+    # collected (mobile app's "Not available" action). Kept as STATUS_MISSED
+    # for backward-compat with existing call sites; value/label match TN_Iwms.
+    STATUS_MISSED = "Not Available"
+    # Legacy values kept so historical rows still validate.
+    STATUS_NOT_COLLECTED = "Not Collected"
     STATUS_SKIPPED = "Skipped"
-    STATUS_MISSED = "Missed"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
         (STATUS_COLLECTED, "Collected"),
+        (STATUS_COLLECT_LATER, "Collect Later"),
+        (STATUS_MISSED, "Not Available"),
+        (STATUS_NOT_COLLECTED, "Not Collected"),
         (STATUS_SKIPPED, "Skipped"),
-        (STATUS_MISSED, "Missed"),
+    ]
+
+    COLLECTION_TYPE_HOUSEHOLD = "household_collection"
+    COLLECTION_TYPE_BULK = "bulk_waste_collection"
+
+    COLLECTION_TYPE_CHOICES = [
+        (COLLECTION_TYPE_HOUSEHOLD, "Household Collection"),
+        (COLLECTION_TYPE_BULK, "Bulk Waste Collection"),
     ]
 
     unique_id = models.CharField(
@@ -112,6 +128,13 @@ class DailyTripHouseholdCollection(BaseMaster):
         blank=True,
     )
 
+    collection_type = models.CharField(
+        max_length=30,
+        choices=COLLECTION_TYPE_CHOICES,
+        default=COLLECTION_TYPE_HOUSEHOLD,
+        db_index=True,
+    )
+
     sequence = models.PositiveIntegerField(default=1)
 
     is_collected = models.BooleanField(default=False, db_index=True)
@@ -130,6 +153,16 @@ class DailyTripHouseholdCollection(BaseMaster):
         default=STATUS_PENDING,
         db_index=True,
     )
+    # Captured when a driver/operator marks the stop Not Available/Collect
+    # Later from the app (no WasteCollection exists in that case, so the
+    # reason and device location are recorded here for audit).
+    status_reason = models.TextField(null=True, blank=True)
+    status_latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+    )
+    status_longitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -142,7 +175,7 @@ class DailyTripHouseholdCollection(BaseMaster):
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=["trip_assignment_id", "customer_id"],
+                fields=["trip_assignment_id", "customer_id", "collection_type"],
                 name="uniq_household_per_trip_assignment",
             ),
         ]
@@ -170,11 +203,35 @@ class DailyTripHouseholdCollection(BaseMaster):
         self.collected_at = collected_at or timezone.now()
         self.is_collected = True
         self.status = self.STATUS_COLLECTED
+        self.status_reason = None
         self.save(update_fields=[
             "waste_collection_id",
             "collected_weight_kg",
             "collected_at",
             "is_collected",
             "status",
+            "status_reason",
+            "updated_at",
+        ])
+
+    def mark_status(self, status, reason=None, latitude=None, longitude=None):
+        """Mark this household/bulk stop Not Available / Collect Later from
+        the operator app. No WasteCollection is created in that case."""
+        self.status = status
+        self.status_reason = reason
+        self.status_latitude = latitude
+        self.status_longitude = longitude
+        self.is_collected = False
+        self.collected_at = None
+        if status == self.STATUS_MISSED:
+            self.collected_weight_kg = None
+        self.save(update_fields=[
+            "status",
+            "status_reason",
+            "status_latitude",
+            "status_longitude",
+            "is_collected",
+            "collected_at",
+            "collected_weight_kg",
             "updated_at",
         ])

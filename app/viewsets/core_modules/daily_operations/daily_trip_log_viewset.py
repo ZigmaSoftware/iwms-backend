@@ -80,8 +80,16 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         status_value = params.get("status") or params.get("log_status")
         assignment = params.get("trip_assignment_id")
         panchayat = params.get("panchayat_id")
+        zone = params.get("zone_id")
         collection_point = params.get("collection_point_id")
-        waste_type = params.get("waste_type_id")
+        # Accepts either repeated params (?waste_type_id=A&waste_type_id=B) or a
+        # single comma-separated value (?waste_type_id=A,B) for multi-select filtering.
+        waste_types = [
+            v
+            for raw in params.getlist("waste_type_id")
+            for v in raw.split(",")
+            if v
+        ]
         driver = params.get("driver_id")
         operator = params.get("operator_id")
         search = params.get("search") or params.get("q")
@@ -94,10 +102,12 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             qs = qs.filter(trip_assignment_id=assignment)
         if panchayat:
             qs = qs.filter(panchayat_id=panchayat)
+        if zone:
+            qs = qs.filter(trip_assignment_id__trip_plan_id__zone_id=zone)
         if collection_point:
             qs = qs.filter(collection_point_id=collection_point)
-        if waste_type:
-            qs = qs.filter(waste_type_id=waste_type)
+        if waste_types:
+            qs = qs.filter(waste_type_id__in=waste_types)
         if driver:
             qs = qs.filter(driver_id=driver)
         if operator:

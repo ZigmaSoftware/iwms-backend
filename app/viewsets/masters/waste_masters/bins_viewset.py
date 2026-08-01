@@ -70,14 +70,14 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         queryset = Bins.objects.select_related(
             "district_id",
             "city_id",
+            "panchayat_id",
+            "zone_id",
+            "ward_id",
             "collection_point_id",
             "collection_point_id__panchayat_id",
             "wastetype_id",
             "company_id",
             "project_id",
-        ).prefetch_related(
-            "collection_point_id__wards",
-            "collection_point_id__wards__zone_id",
         ).filter(is_deleted=False)
 
         company_uid = self.request.query_params.get("company_id")
@@ -105,13 +105,13 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             queryset = queryset.filter(city_id__unique_id=city_uid)
 
         if panchayat_uid:
-            queryset = queryset.filter(collection_point_id__panchayat_id__unique_id=panchayat_uid)
+            queryset = queryset.filter(panchayat_id__unique_id=panchayat_uid)
 
         if ward_uid:
-            queryset = queryset.filter(collection_point_id__wards__unique_id=ward_uid).distinct()
+            queryset = queryset.filter(ward_id__unique_id=ward_uid)
 
         if zone_uid:
-            queryset = queryset.filter(collection_point_id__wards__zone_id__unique_id=zone_uid).distinct()
+            queryset = queryset.filter(zone_id__unique_id=zone_uid)
 
         if collection_point_uid:
             queryset = queryset.filter(collection_point_id__unique_id=collection_point_uid)
