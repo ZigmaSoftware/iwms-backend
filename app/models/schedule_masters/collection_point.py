@@ -17,9 +17,22 @@ def geneate_collection_point_id():
 class Collection_point(BaseMaster):
     COLLECTION_TYPE_BIN = "bin_collection"
     COLLECTION_TYPE_HOUSEHOLD = "household_collection"
+    COLLECTION_TYPE_BULK = "bulk_waste_collection"
+
+    # Full legacy set — household is kept here so pre-existing household
+    # collection-point rows remain loadable and never fail on read.
     COLLECTION_TYPE_CHOICES = [
         (COLLECTION_TYPE_BIN, "Bin Collection"),
         (COLLECTION_TYPE_HOUSEHOLD, "Household Collection"),
+        (COLLECTION_TYPE_BULK, "Bulk Waste Collection"),
+    ]
+
+    # Choices exposed for collection points at the API boundary. Household
+    # collection belongs to household stops (DailyTripHouseholdCollection),
+    # not collection points, so it is intentionally excluded from new writes.
+    COLLECTION_TYPE_CP_CHOICES = [
+        (COLLECTION_TYPE_BIN, "Bin Collection"),
+        (COLLECTION_TYPE_BULK, "Bulk Waste Collection"),
     ]
 
     unique_id = models.CharField(

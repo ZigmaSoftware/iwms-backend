@@ -8,7 +8,7 @@ from datetime import datetime, time as datetime_time, timedelta
 from django.db import connection
 from django.utils import timezone
 
-from app.services.daily_trip_generation import generate_daily_trips_for_date
+from app.management.commands.generate_daily_trips import run_for_date
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ def run_daily_trip_job(target_date=None, force: bool = False):
     _status["is_running"] = True
     _status["last_error"] = None
     try:
-        result = generate_daily_trips_for_date(target_date, force=force)
+        result = run_for_date(target_date=target_date, force=force)
         _status["last_run_at"] = timezone.localtime().isoformat()
         _status["last_run_mode"] = mode
         if not force:

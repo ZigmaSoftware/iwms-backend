@@ -164,6 +164,14 @@ class DailyTripAssignment(BaseMaster):
         help_text="List of waste type unique_ids assigned to this daily trip plan.",
     )
 
+    # Waste types collected on this daily trip (inherited from the Trip Plan;
+    # can be narrowed per-trip). Mirrors TripPlan.waste_types.
+    waste_types = models.ManyToManyField(
+        WasteType,
+        related_name="daily_trip_assignments_multi",
+        blank=True,
+    )
+
     # Multiple waste types for household collection stops on this trip
     household_waste_type_ids = models.ManyToManyField(
         WasteType,
@@ -245,19 +253,40 @@ class DailyTripAssignment(BaseMaster):
 
     def save(self, *args, **kwargs):
         if self.trip_plan_id:
-            self.staff_template_id = self.staff_template_id or self.trip_plan_id.staff_template_id
-            self.vehicle_id = self.vehicle_id or self.trip_plan_id.vehicle_id
-            self.panchayat_id = self.panchayat_id or self.trip_plan_id.panchayat_id
+            # Accessing an unset non-nullable FK descriptor on an unsaved
+            # instance raises RelatedObjectDoesNotExist rather than
+            # returning None, so check the raw FK id first (works whether
+            # the field was left unset entirely or explicitly set to None).
+            if not self.staff_template_id_id:
+                self.staff_template_id = self.trip_plan_id.staff_template_id
+            if not self.vehicle_id_id:
+                self.vehicle_id = self.trip_plan_id.vehicle_id
+            if not self.panchayat_id_id:
+                self.panchayat_id = self.trip_plan_id.panchayat_id
             self.scheduled_time = self.scheduled_time or self.trip_plan_id.scheduled_time
             self.waste_type_ids = self.waste_type_ids or self.trip_plan_id.waste_type_ids
+        is_new = self._state.adding
         if not self.unique_id:
             with transaction.atomic():
                 self.unique_id = _generate_trip_assignment_unique_id(
                     self.company_id, self.project_id
                 )
                 super().save(*args, **kwargs)
-            return
-        super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
+
+        if is_new and self.trip_plan_id:
+            if not self.waste_types.exists():
+                self.waste_types.set(self.trip_plan_id.waste_types.all())
+            if not self.wards.exists():
+                self.wards.set(self.trip_plan_id.wards.all())
+                # post_save fires before M2M wards are available on this
+                # instance, so household/bulk stops (which are narrowed to
+                # the assignment's wards) may have been under-matched on the
+                # first cloning pass. Re-sync once more now that wards are
+                # copied — idempotent, mirrors TN_Iwms.
+                from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
+                sync_daily_assignment_stops_from_plan(self)
 
     def __str__(self):
         return self.unique_id
@@ -275,7 +304,16 @@ class DailyTripAssignment(BaseMaster):
         children = self.trip_collection_points.filter(is_deleted=False)
         if not children.exists():
             return False
-        if children.filter(is_collected=False).exists():
+        # A missed stop is operationally resolved for the day but contributes
+        # zero weight. "Skipped"/collect-later remains unresolved. Mirrors
+        # TN_Iwms's DailyTripAssignment.mark_completed_if_all_cps_collected.
+        from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+        if children.exclude(
+            status__in=[
+                DailyTripCollectionPoint.STATUS_COLLECTED,
+                DailyTripCollectionPoint.STATUS_MISSED,
+            ]
+        ).exists():
             return False
         if self.status == self.STATUS_COMPLETED:
             return True

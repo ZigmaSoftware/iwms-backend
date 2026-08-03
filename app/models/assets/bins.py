@@ -6,6 +6,8 @@ from app.models.superadmin_masters.project import Project
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.city import City
 from app.models.masters.district import District
+from app.models.masters.ward import Ward
+from app.models.masters.zone import Zone
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.utils.bin_qr import generate_bin_qr_content
@@ -70,6 +72,33 @@ class Bins(BaseMaster):
         blank=True
     )
 
+    panchayat_id = models.ForeignKey(
+        Panchayat,
+        on_delete=models.PROTECT,
+        related_name="bin",
+        db_column="panchayat_id",
+        null=True,
+        blank=True
+    )
+
+    zone_id = models.ForeignKey(
+        Zone,
+        on_delete=models.PROTECT,
+        related_name="bin",
+        db_column="zone_id",
+        null=True,
+        blank=True
+    )
+
+    ward_id = models.ForeignKey(
+        Ward,
+        on_delete=models.PROTECT,
+        related_name="bin",
+        db_column="ward_id",
+        null=True,
+        blank=True
+    )
+
     wastetype_id = models.ForeignKey(
         WasteType,  
         on_delete=models.PROTECT,
@@ -98,6 +127,14 @@ class Bins(BaseMaster):
         if self.collection_point_id:
             self.district_id = self.collection_point_id.district_id
             self.city_id = self.collection_point_id.city_id
+            if not self.panchayat_id:
+                self.panchayat_id = self.collection_point_id.panchayat_id
+
+        if self.ward_id:
+            if not self.zone_id and self.ward_id.zone_id:
+                self.zone_id = self.ward_id.zone_id
+            if not self.panchayat_id and self.ward_id.panchayat_id:
+                self.panchayat_id = self.ward_id.panchayat_id
 
         is_create = self._state.adding
         super().save(*args, **kwargs)

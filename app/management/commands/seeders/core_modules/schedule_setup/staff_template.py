@@ -91,9 +91,7 @@ class StaffTemplateSeeder(BaseSeeder):
                 "extra_operator_id": [],
                 "created_by": account,
                 "updated_by": account,
-                "approved_by": driver,
                 "status": "ACTIVE",
-                "approval_status": "APPROVED",
             },
         )
         return created

@@ -330,7 +330,7 @@ class CustomerCreation(BaseMaster):
 
     def __str__(self):
         location = (
-            self.zone.name if self.zone else
+            self.zone.zone_name if self.zone else
             self.city.name if self.city else
             self.state.name
         )

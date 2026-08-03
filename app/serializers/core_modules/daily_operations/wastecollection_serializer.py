@@ -2,6 +2,7 @@ from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.customers.wastecollection import WasteCollection
 from app.models.customers.customercreation import CustomerCreation
+from app.models.masters.ward import Ward
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 
 
@@ -35,12 +36,20 @@ class WasteCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     customer_id = serializers.CharField(
         source="customer.unique_id", read_only=True
     )
-    ward_name = serializers.CharField(source="customer.ward.ward_name", read_only=True)
-    zone_name = serializers.CharField(source="customer.zone.name", read_only=True, default=None)
-    city_name = serializers.CharField(source="customer.city.name", read_only=True)
-    district_name = serializers.CharField(source="customer.district.name", read_only=True)
-    state_name = serializers.CharField(source="customer.state.name", read_only=True)
-    country_name = serializers.CharField(source="customer.country.name", read_only=True)
+    # `ward` is now a real FK on WasteCollection (auto-inherited from the
+    # household via copy_flat_geo when left blank, see the model's save()),
+    # but selectable/editable so a collection can be scoped independently.
+    ward_id = serializers.SlugRelatedField(
+        source="ward", slug_field="unique_id",
+        queryset=Ward.objects.filter(is_deleted=False),
+        required=False, allow_null=True,
+    )
+    ward_name = serializers.CharField(source="ward.ward_name", read_only=True, default=None)
+    zone_name = serializers.CharField(source="customer.zone.zone_name", read_only=True, default=None)
+    city_name = serializers.CharField(source="customer.city.name", read_only=True, default=None)
+    district_name = serializers.CharField(source="customer.district.name", read_only=True, default=None)
+    state_name = serializers.CharField(source="customer.state.name", read_only=True, default=None)
+    country_name = serializers.CharField(source="customer.country.name", read_only=True, default=None)
     customer_name = serializers.CharField(source="customer.customer_name", read_only=True)
     panchayat_name = serializers.CharField(source="customer.panchayat_id.panchayat_name", read_only=True, default=None)
 
@@ -57,6 +66,7 @@ class WasteCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     class Meta:
         model = WasteCollection
         fields = "__all__"
+        read_only_fields = ["unique_id", "total_quantity", "collection_time"]
         extra_kwargs = {
             "customer": {"write_only": True},
         }

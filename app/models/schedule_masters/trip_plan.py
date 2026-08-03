@@ -10,6 +10,7 @@ from app.models.masters.district import District
 from app.models.masters.zone import Zone
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
+from app.models.masters.block_panchayat_union import BlockPanchayatUnion
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.user_creations.staffcreation import Staffcreation
@@ -27,6 +28,16 @@ def generate_trip_plan_id():
 
 class TripPlan(BaseMaster):
     """Single source of truth for route + trip configuration."""
+
+    COLLECTION_TYPE_BIN = "bin_collection"
+    COLLECTION_TYPE_HOUSEHOLD = "household_collection"
+    COLLECTION_TYPE_BULK = "bulk_waste_collection"
+
+    COLLECTION_TYPE_CHOICES = [
+        (COLLECTION_TYPE_BIN, "Bin Collection"),
+        (COLLECTION_TYPE_HOUSEHOLD, "Household Collection"),
+        (COLLECTION_TYPE_BULK, "Bulk Waste Collection"),
+    ]
 
     class ApprovalStatus(models.TextChoices):
         PENDING  = "PENDING",  "Pending"
@@ -95,6 +106,14 @@ class TripPlan(BaseMaster):
         null=True,
         blank=True,
     )
+    block_panchayat_union_id = models.ForeignKey(
+        BlockPanchayatUnion,
+        on_delete=models.PROTECT,
+        to_field="unique_id",
+        related_name="trip_plans",
+        null=True,
+        blank=True,
+    )
     wards = models.ManyToManyField(
         Ward,
         related_name="trip_plans_m2m",
@@ -151,7 +170,20 @@ class TripPlan(BaseMaster):
     waste_type_ids = models.JSONField(
         default=list,
         blank=True,
-        help_text="List of waste type unique_ids allowed for this trip plan.",
+        help_text="List of waste type unique_ids allowed for this trip plan (legacy).",
+    )
+    waste_types = models.ManyToManyField(
+        WasteType,
+        related_name="trip_plans_multi",
+        blank=True,
+        help_text="Multiple waste types handled by this trip plan.",
+    )
+    collection_type = models.CharField(
+        max_length=30,
+        choices=COLLECTION_TYPE_CHOICES,
+        default=COLLECTION_TYPE_BIN,
+        db_index=True,
+        help_text="One Trip Plan can generate only one category of daily work.",
     )
     trip_trigger_weight_kg = models.PositiveIntegerField(
         help_text="Collected weight (kg) that triggers a trip dispatch.",
@@ -196,6 +228,7 @@ class TripPlan(BaseMaster):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
+            models.Index(fields=["collection_type"]),
             models.Index(fields=["status", "approval_status"]),
             models.Index(fields=["display_code"]),
             models.Index(fields=["district_id", "city_id"]),

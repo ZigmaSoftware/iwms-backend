@@ -224,7 +224,6 @@ def staff_template(db, driver, operator, company, project):
         project_id=project,
         extra_operator_id=[],
         status="ACTIVE",
-        approval_status="APPROVED",
     )
 
 

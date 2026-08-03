@@ -16,11 +16,6 @@ def generate_stafftemplate_id():
 
 class StaffTemplate(BaseMaster):
     
-    class ApprovalStatus(models.TextChoices):
-        PENDING = "PENDING", "Pending"
-        APPROVED = "APPROVED", "Approved"
-        REJECTED = "REJECTED", "Rejected"
-
     class Status(models.TextChoices):
         ACTIVE = "ACTIVE", "Active"
         INACTIVE = "INACTIVE", "Inactive"
@@ -78,24 +73,7 @@ class StaffTemplate(BaseMaster):
         help_text="Supervisor friendly identifier (e.g. RAVI-KART-01)"
     )
 
-    # ---------------- AUDIT FIELDS ----------------
-    approved_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        related_name="stafftemplate_approved",
-        db_column="approved_by",
-        to_field="staff_unique_id",
-        null=True,
-        blank=True
-    )
-
-    approval_status = models.CharField(
-        max_length=10,
-        choices=ApprovalStatus.choices,
-        default=ApprovalStatus.PENDING
-    )
-
-
+    # ---------------- STATUS ----------------
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
@@ -108,7 +86,6 @@ class StaffTemplate(BaseMaster):
     # ---------------- META ----------------
     class Meta:
         indexes = [
-            models.Index(fields=["status", "approval_status"]),
             models.Index(fields=["display_code"]),
         ]
         ordering = ["-created_at"]
