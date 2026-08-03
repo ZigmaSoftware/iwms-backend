@@ -13,6 +13,7 @@ from app.utils.base_models import Account
 
 class DailyTripLogSeeder(BaseSeeder):
     name = "daily_trip_log"
+    target = 30
 
     def run(self):
         assignments = (
@@ -31,27 +32,38 @@ class DailyTripLogSeeder(BaseSeeder):
             )
             .filter(is_deleted=False)
             .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-            .order_by("-trip_date", "-scheduled_time")[:6]
+            .order_by("-trip_date", "-scheduled_time")
         )
 
         if not assignments:
             self.log("DailyTripLogSeeder skipped (no daily trip assignments).")
             return
 
+        # Comparison dashboards intentionally read confirmed logs only. Seed
+        # Submitted/Verified rows so all 30 fixtures are visible there.
         statuses = [
-            DailyTripLog.LOG_STATUS_DRAFT,
             DailyTripLog.LOG_STATUS_SUBMITTED,
             DailyTripLog.LOG_STATUS_VERIFIED,
         ]
         verifier = Account.objects.first()
         created = 0
         skipped = 0
+        eligible_processed = 0
 
         for idx, assignment in enumerate(assignments):
             if not assignment.panchayat_id:
                 skipped += 1
                 continue
-            if DailyTripLog.objects.filter(trip_assignment_id=assignment, is_deleted=False).exists():
+            if eligible_processed >= self.target:
+                break
+            eligible_processed += 1
+            existing_log = DailyTripLog.objects.filter(
+                trip_assignment_id=assignment, is_deleted=False
+            ).first()
+            if existing_log:
+                if existing_log.log_status == DailyTripLog.LOG_STATUS_DRAFT:
+                    existing_log.log_status = DailyTripLog.LOG_STATUS_SUBMITTED
+                    existing_log.save(update_fields=["log_status", "updated_at"])
                 skipped += 1
                 continue
 

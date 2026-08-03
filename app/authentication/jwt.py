@@ -15,6 +15,15 @@ class JWTUserAuthentication(BaseAuthentication):
     Supports both Staff (Staffcreation) and Customer (CustomerCreation) authentication.
     """
 
+    def authenticate_header(self, request):
+        """Tell DRF that authentication failures use the Bearer challenge.
+
+        Without this header DRF converts ``NotAuthenticated`` and
+        ``AuthenticationFailed`` responses to HTTP 403, which makes an expired
+        or invalid JWT look like an authorization failure to the frontend.
+        """
+        return "Bearer"
+
     def authenticate(self, request):
         raw_request = getattr(request, "_request", None)
         existing_user = getattr(raw_request, "user", None)
