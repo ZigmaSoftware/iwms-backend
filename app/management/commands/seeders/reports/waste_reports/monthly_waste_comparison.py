@@ -1,5 +1,6 @@
-import uuid
 from decimal import Decimal, ROUND_HALF_UP
+
+from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.masters.panchayat import Panchayat
@@ -32,24 +33,7 @@ def _status(actual, agreed):
     return "On Target"
 
 
-# Exactly 15 records across 5 panchayats + 2 waste types
-SAMPLE_RECORDS = [
-    ("Panchayat 1",  "Dry Waste", "2026-01", 500, 480,  60, 55),
-    ("Panchayat 1",  "Dry Waste", "2026-02", 500, 515,  62, 57),
-    ("Panchayat 1",  "Wet Waste", "2026-01", 300, 290,  40, 38),
-    ("Panchayat 2",  "Dry Waste", "2026-01", 750, 700,  80, 75),
-    ("Panchayat 2",  "Dry Waste", "2026-02", 750, 780,  82, 78),
-    ("Panchayat 2",  "Wet Waste", "2026-01", 400, 360,  50, 45),
-    ("Panchayat 3",  "Dry Waste", "2026-01", 600, 550,  70, 65),
-    ("Panchayat 3",  "Dry Waste", "2026-02", 600, 610,  72, 68),
-    ("Panchayat 3",  "Wet Waste", "2026-01", 350, 330,  45, 42),
-    ("Panchayat 4",  "Dry Waste", "2026-01", 450, 430,  55, 50),
-    ("Panchayat 4",  "Wet Waste", "2026-01", 250, 270,  35, 33),
-    ("Panchayat 4",  "Dry Waste", "2026-02", 450, 440,  56, 51),
-    ("Panchayat 5",  "Dry Waste", "2026-01", 820, 810,  90, 85),
-    ("Panchayat 5",  "Wet Waste", "2026-01", 500, 480,  65, 60),
-    ("Panchayat 5",  "Dry Waste", "2026-02", 820, 850,  92, 88),
-]
+TARGET = 30
 
 
 class MonthlyWasteComparisonSeeder(BaseSeeder):
@@ -59,76 +43,62 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
         company = Company.objects.get(name="IWMS")
         project = Project.objects.get(name=f"{company.name} Main Project", company_id=company)
 
-        created_count = 0
-        skipped_count = 0
-
-        for (panchayat_name, waste_type_name, month,
-             agreed_kg, actual_kg, trips, points) in SAMPLE_RECORDS:
-
-            panchayat = Panchayat.objects.filter(
-                panchayat_name=panchayat_name,
-                company_id=company,
-                is_deleted=False,
-            ).first()
-            if not panchayat:
-                self.log(f"Panchayat '{panchayat_name}' not found — skipping")
-                skipped_count += 1
-                continue
-
-            waste_type = WasteType.objects.filter(
-                waste_type_name=waste_type_name,
+        panchayats = list(Panchayat.objects.filter(
                 company_id=company,
                 project_id=project,
                 is_deleted=False,
-            ).first()
-            if not waste_type:
-                self.log(f"WasteType '{waste_type_name}' not found — skipping")
-                skipped_count += 1
-                continue
+            ).order_by("panchayat_name")[:15])
+        waste_types = list(WasteType.objects.filter(
+                company_id=company,
+                project_id=project,
+                is_deleted=False,
+            ).order_by("waste_type_name")[:2])
+        if len(panchayats) < 15 or len(waste_types) < 2:
+            self.log(
+                "Monthly comparison skipped: requires 15 panchayats and 2 waste types."
+            )
+            return
+
+        month = timezone.localdate().strftime("%Y-%m")
+        processed_count = 0
+
+        for index in range(TARGET):
+            panchayat = panchayats[index % len(panchayats)]
+            waste_type = waste_types[index // len(panchayats)]
+            agreed_kg = _rounded(panchayat.agreed_weight_kg or 500)
+            factor = Decimal("0.84") + Decimal(index % 9) * Decimal("0.03")
+            actual_kg = _rounded(agreed_kg * factor)
+            trips = 35 + (index % 28)
+            points = 22 + (index % 21)
 
             variance_kg = _rounded(Decimal(str(actual_kg)) - Decimal(str(agreed_kg)))
             variance_pct = _variance_percent(actual_kg, agreed_kg)
             report_status = _status(actual_kg, agreed_kg)
 
-            report_qs = MonthlyWeightReport.objects.filter(
+            report, created = MonthlyWeightReport.objects.update_or_create(
                 panchayat_id=panchayat,
                 waste_type_id=waste_type,
                 month=month,
+                defaults={
+                    "company_id": company,
+                    "project_id": project,
+                    "agreed_weight_kg": agreed_kg,
+                    "actual_weight_kg": actual_kg,
+                    "variance_kg": variance_kg,
+                    "variance_percent": variance_pct,
+                    "report_status": report_status,
+                    "total_trips": trips,
+                    "collection_points_covered": points,
+                },
             )
-            if report_qs.exists():
-                report = report_qs.first()
-                duplicates = report_qs.exclude(pk=report.pk)
-                if duplicates.exists():
-                    duplicates.delete()
-                report.agreed_weight_kg = agreed_kg
-                report.actual_weight_kg = actual_kg
-                report.variance_kg = variance_kg
-                report.variance_percent = variance_pct
-                report.report_status = report_status
-                report.total_trips = trips
-                report.collection_points_covered = points
-                report.save()
-                created = False
-            else:
-                report = MonthlyWeightReport.objects.create(
-                    unique_id=f"MWR-{uuid.uuid4().hex[:16].upper()}",
-                    panchayat_id=panchayat,
-                    waste_type_id=waste_type,
-                    month=month,
-                    agreed_weight_kg=agreed_kg,
-                    actual_weight_kg=actual_kg,
-                    variance_kg=variance_kg,
-                    variance_percent=variance_pct,
-                    report_status=report_status,
-                    total_trips=trips,
-                    collection_points_covered=points,
-                )
-                created = True
             action = "Created" if created else "Updated"
-            self.log(f"{panchayat_name} | {waste_type_name} | {month} → {report_status} ({action})")
-            created_count += 1
+            self.log(
+                f"{panchayat.panchayat_name} | {waste_type.waste_type_name} | "
+                f"{month} → {report_status} ({action})"
+            )
+            processed_count += 1
 
         self.log(
             f"---Monthly waste comparison seeded: "
-            f"{created_count} processed, {skipped_count} skipped---"
+            f"{processed_count} records processed---"
         )
