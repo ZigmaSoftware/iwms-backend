@@ -21,10 +21,11 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
-    pagination_class = None
+    pagination_class = LimitOffsetWithPage
     queryset = Staffcreation.objects.select_related(
         "personal_details",
         "department_id",

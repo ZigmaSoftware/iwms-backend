@@ -10,6 +10,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class FuelViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -21,6 +22,8 @@ class FuelViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         ModelFieldSearchFilter,
         SerializerOrderingFilter,
     ]
+    pagination_class = LimitOffsetWithPage
+    ordering_fields = ["fuel_type", "is_active"]
 
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "fuels"

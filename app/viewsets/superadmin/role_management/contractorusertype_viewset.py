@@ -1,9 +1,10 @@
 from rest_framework.response import Response
-from rest_framework import viewsets
+from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from app.models.role_assigns.contractorUserType import ContractorUserType
 from app.serializers.superadmin.role_management.contractorusertype_serializer import ContractorUserTypeSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class ContractorUserTypeViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
@@ -15,6 +16,10 @@ class ContractorUserTypeViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     AUDIT_ENDPOINT = "contractor-user-type"
 
     permission_resource = "ContractorUserType"
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["name"]
+    ordering_fields = ["name", "is_active"]
 
     def perform_destroy(self, instance):
         instance.delete()

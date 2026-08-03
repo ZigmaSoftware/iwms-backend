@@ -20,10 +20,11 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    pagination_class = None
+    pagination_class = LimitOffsetWithPage
     serializer_class = StaffAccessConfigurationSerializer
     lookup_field = "staff_unique_id"
     filter_backends = [
@@ -31,6 +32,13 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         ModelFieldSearchFilter,
         SerializerOrderingFilter,
     ]
+    search_fields = [
+        "staff_id__employee_name",
+        "staff_id__staff_unique_id",
+        "staff_id__department",
+        "staff_id__designation",
+    ]
+    ordering_fields = ["staff_id__employee_name", "staff_id__staff_unique_id", "staff_id__doj"]
 
     AUDIT_MODULE = "user-creations"
     AUDIT_ENDPOINT = "staff-access-configuration"

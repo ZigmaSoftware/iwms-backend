@@ -9,6 +9,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class VehicleTypeCreationViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
@@ -21,6 +22,8 @@ class VehicleTypeCreationViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
         ModelFieldSearchFilter,
         SerializerOrderingFilter,
     ]
+    pagination_class = LimitOffsetWithPage
+    ordering_fields = ["vehicleType", "is_active"]
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "vehicle-types"
 
