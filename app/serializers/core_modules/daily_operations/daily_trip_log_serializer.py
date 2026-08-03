@@ -7,7 +7,7 @@ from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
-from app.utils.waste_type_breakdown import waste_type_breakdown_for_assignment
+from app.utils.waste_type_breakdown import bulk_waste_type_rows_for_trip_assignments
 
 
 class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -320,7 +320,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         assignment = obj.trip_assignment_id
         if not assignment:
             return []
-        rows = waste_type_breakdown_for_assignment(assignment)
+        rows = bulk_waste_type_rows_for_trip_assignments(assignment)
         return [
             {
                 "waste_type_name": row["waste_type_name"],
