@@ -45,7 +45,7 @@ class WasteCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
         required=False, allow_null=True,
     )
     ward_name = serializers.CharField(source="ward.ward_name", read_only=True, default=None)
-    zone_name = serializers.CharField(source="customer.zone.name", read_only=True, default=None)
+    zone_name = serializers.CharField(source="customer.zone.zone_name", read_only=True, default=None)
     city_name = serializers.CharField(source="customer.city.name", read_only=True, default=None)
     district_name = serializers.CharField(source="customer.district.name", read_only=True, default=None)
     state_name = serializers.CharField(source="customer.state.name", read_only=True, default=None)
