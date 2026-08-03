@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from app.management.commands.generate_daily_trips import run_for_date
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
 from app.models.schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
@@ -21,8 +22,10 @@ from app.serializers.core_modules.daily_operations.daily_trip_assignment_seriali
     DailyTripAssignmentStatusSerializer,
     DailyTripAssignmentApprovalSerializer,
 )
+from rest_framework import filters
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -85,6 +88,11 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = DailyTripAssignmentSerializer
     lookup_field = "unique_id"
     permission_resource = "DailyTripAssignment"
+
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["unique_id", "vehicle_id__vehicle_no", "staff_template_id__driver_id__employee_name"]
+    ordering_fields = ["trip_date", "scheduled_time", "status", "approval_status"]
 
     AUDIT_MODULE = "trip-assignments"
     AUDIT_ENDPOINT = "daily-trip-assignments"
@@ -234,6 +242,51 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 )
         result = run_daily_trip_job(target_date=target_date, force=True)
         return Response(result, status=status.HTTP_200_OK)
+
+    # ----------------------------------------------------------
+    # ACTION: MANUAL JOB-SCHEDULER RUN  (for testing / on-demand)
+    # POST /daily-trip-assignments/generate-daily/
+    # body: { "date": "YYYY-MM-DD" }   (optional, defaults to today)
+    # ----------------------------------------------------------
+
+    @action(detail=False, methods=["post"], url_path="generate-daily")
+    def generate_daily(self, request):
+        """Manually run the daily trip auto-assign job for one date.
+
+        Mirrors the nightly/background scheduler
+        (app.services.daily_trip_scheduler.run_daily_trip_job) so admins can
+        generate / back-fill a day's trips on demand without shell access.
+        Idempotent — re-running the same date creates no duplicates.
+        """
+        if not self._has_approval_role(request):
+            return Response(
+                {"detail": "Only supervisors and admins can run the daily scheduler."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        target_date = None
+        raw_date = request.data.get("date")
+        if raw_date:
+            try:
+                target_date = timezone.datetime.strptime(str(raw_date), "%Y-%m-%d").date()
+            except ValueError:
+                return Response(
+                    {"detail": "Invalid date. Use YYYY-MM-DD."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        summary = run_for_date(target_date=target_date)
+
+        return Response(
+            {
+                "message": (
+                    f"Generated {summary['created']} assignment(s); "
+                    f"skipped {summary['skipped']} plan(s) for {summary['date']}."
+                ),
+                **summary,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     # ----------------------------------------------------------
     # DELETE — soft-delete + cancel

@@ -3,6 +3,7 @@ from rest_framework.response import Response
 
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 from app.models.masters.district_leader_login import DistrictLeaderLogin
 from app.serializers.masters.leader_management.district_leader_serializer import DistrictLeaderLoginSerializer
 
@@ -22,6 +23,7 @@ class DistrictLeaderLoginViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     AUDIT_ENDPOINT = "district-leaders"
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
     search_fields = ["username", "leader_name", "email", "district_id__name"]
     ordering_fields = ["username", "created_at"]
 

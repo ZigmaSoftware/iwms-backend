@@ -1,1783 +1,257 @@
-CURRENT CHANGE REQUEST: Merge Trip Plan Collection Point management into Trip Plan and enable bulk stop creation/update
-
-Goal
-- Trip Plan must be the main screen/API where the user manages the trip route and its multiple collection points.
-- The user should not need to create Trip Plan Collection Point rows one by one from a separate screen for normal trip-plan setup.
-- In the Trip Plan form, allow adding, editing, removing, and reordering multiple collection point rows before saving.
-- On save, the frontend must send all selected rows together to the Trip Plan API, and the backend must bulk-create/bulk-sync the related TripPlanCollectionPoint rows.
-
-Important source of truth
-- Keep using the active schedule-master flow:
-  - `TripPlan`
-  - `TripPlanCollectionPoint`
-  - `DailyTripAssignment`
-  - `DailyTripCollectionPoint`
-- Do not bring back or depend on old `TripDefinition`, `TripInstance`, `RoutePlan`, or `PointCollection` flows except for legacy compatibility if already required.
-- Use `Collection_point` for collection point selection.
-
-Backend required changes
-- Files to inspect/update:
-  - `app/models/schedule_masters/trip_plan.py`
-  - `app/models/schedule_masters/trip_plan_collection_point.py`
-  - `app/serializers/schedule_masters/trip_plan_serializer.py`
-  - `app/serializers/schedule_masters/trip_plan_collection_point_serializer.py`
-  - `app/viewsets/schedule_masters/trip_plan_viewset.py`
-  - `app/viewsets/schedule_masters/trip_plan_collection_point_viewset.py`
-  - router/url registrations for both endpoints
-- `TripPlanSerializer` must accept a nested write-only array named `collection_points`.
-- `TripPlanSerializer` must return the saved related rows as `plan_collection_points` so edit mode can prefill the frontend.
-- For each nested collection point row support at least:
-  - `collection_type`
-  - `collection_point_id`
-  - `bin_id`
-  - `customer_id`
-  - `sequence`
-  - `is_active`
-- `bin_collection` rows require `collection_point_id` and `bin_id`.
-- `household_collection` rows require `customer_id`.
-- Validate duplicate `sequence` values per trip plan.
-- Validate duplicate collection point/bin rows so the same stop is not repeated accidentally.
-- Validate that a selected bin belongs to the selected collection point.
-- Use a transaction for Trip Plan create/update plus nested stop sync.
-- On Trip Plan create:
-  - create the TripPlan
-  - bulk-create the submitted TripPlanCollectionPoint rows
-  - copy company/project from the trip plan into each stop
-  - derive zone/ward/panchayat from the selected collection point where applicable
-- On Trip Plan update:
-  - if `collection_points` is included in payload, replace/sync the old active stop list with the submitted list
-  - preserve soft-delete behavior by marking removed old rows `is_deleted=True` and `is_active=False`
-  - create/update the submitted rows in the correct sequence
-  - if `collection_points` is not included, do not modify existing stops
-- Do not expose `TripPlanCollectionPoint` as a standalone user/admin API workflow. It is an internal child table used by `TripPlan` to store multiple stops.
-- Ensure generated DailyTripAssignment/DailyTripCollectionPoint logic reads the TripPlan's related `plan_collection_points`.
-- Add or update backend tests for:
-  - Trip Plan create with multiple collection points
-  - Trip Plan edit replacing the collection point list
-  - duplicate sequence validation
-  - invalid bin/collection point validation
-  - edit response includes `plan_collection_points`
-
-Frontend required changes
-- Files to inspect/update:
-  - `iwms-frontend/src/pages/admin/modules/transportMasters/tripPlan/tripPlanForm.tsx`
-  - `iwms-frontend/src/pages/admin/modules/transportMasters/tripPlan/tripPlanList.tsx`
-  - `iwms-frontend/src/pages/admin/modules/transportMasters/tripPlan/types.ts`
-  - `iwms-frontend/src/pages/admin/modules/scheduleMasters/tripPlanCollectionPoint/*`
-  - `iwms-frontend/src/helpers/admin/index.ts`
-  - `iwms-frontend/src/helpers/admin/endpoints.ts`
-  - admin router/nav/sidebar files that expose Trip Plan Collection Point separately
-- In `tripPlanForm.tsx`, render a visible "Collection Points" section inside the Trip Plan form.
-- The Collection Points section must support multiple rows:
-  - add row
-  - remove row
-  - select collection type
-  - select collection point
-  - select bin filtered by selected collection point
-  - select customer when household collection is used
-  - sequence/order must be handled automatically or editable without duplicates
-  - active/inactive toggle per row
-- On create/update, send the nested array as `collection_points` in the Trip Plan payload.
-- On edit, prefill the rows from `record.plan_collection_points`.
-- When location fields change in Trip Plan:
-  - filter available collection points by selected panchayat or ward
-  - reset incompatible stop rows if the selected geography changes
-- The UI must support bulk creation from one submit, not repeated single API calls from the Trip Plan screen.
-- Update `types.ts` so `StopRow` matches the backend payload, including `collection_type`, optional `customer_id`, and active flag.
-- In `tripPlanList.tsx`, optionally show stop count from `plan_collection_points`.
-- Remove the separate Trip Plan Collection Point menu, route, list page, form page, permissions entry, and bulk import entry.
-- Do not leave a broken or duplicate workflow where users can only create stops one by one.
-
-Expected payload example
-```json
-{
-  "company_id_input": "COMP-001",
-  "project_id_input": "PROJ-001",
-  "district_id": "DIST-001",
-  "city_id": "CITY-001",
-  "zone_id": "ZONE-001",
-  "panchayat_id": null,
-  "ward_id": "WARD-001",
-  "staff_template_id": "STFTEMP-001",
-  "vehicle_id": "VEH-001",
-  "supervisor_id": "STAFF-001",
-  "property_id": "PROP-001",
-  "sub_property_id": "SUBPROP-001",
-  "waste_type_id": "WASTE-001",
-  "trip_trigger_weight_kg": 500,
-  "max_vehicle_capacity_kg": 1000,
-  "scheduled_time": "07:30",
-  "approval_status": "PENDING",
-  "status": "ACTIVE",
-  "collection_points": [
-    {
-      "collection_type": "bin_collection",
-      "collection_point_id": "CP-001",
-      "bin_id": "BIN-001",
-      "sequence": 1,
-      "is_active": true
-    },
-    {
-      "collection_type": "bin_collection",
-      "collection_point_id": "CP-002",
-      "bin_id": "BIN-002",
-      "sequence": 2,
-      "is_active": true
-    }
-  ]
-}
-```
-
-Verification
-- Backend:
-  - run Django checks
-  - run targeted tests or create focused tests for Trip Plan nested collection point create/update
-  - manually verify POST/PUT/PATCH response includes `plan_collection_points`
-- Frontend:
-  - run TypeScript/build check if available
-  - manually test Trip Plan create with more than one collection point
-  - manually test Trip Plan edit prefill and replace the collection point list
-  - verify bin options filter after selecting a collection point
-  - verify standalone Trip Plan Collection Point route/menu is either intentionally hidden or still works as compatibility
-
-Execute this new plan schema for iwms backend.
-You have to aligne the iwms-frontend with this new chaanges as well.,
-Create seeder as well
-Use this credentials for final tesitng:
-he is the super admin.
-username: Sathya
-PASS: Sathya@123
-Use this credenials and test the new changes. 
-remove the trip definition and routeplan in both frontend and backend
-
-python# ============================================================
-# 1. stafftemplate.py
-# ============================================================
-from django.db import models
-from django.db.models import Max
-from app.utils.base_models import BaseMaster
-from app.utils.comfun import generate_unique_id
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-
-
-def generate_stafftemplate_id():
-    return f"STFTEMP-{generate_unique_id(length=6)}"
-
-
-class StaffTemplate(BaseMaster):
-
-    class ApprovalStatus(models.TextChoices):
-        PENDING  = "PENDING",  "Pending"
-        APPROVED = "APPROVED", "Approved"
-        REJECTED = "REJECTED", "Rejected"
-
-    class Status(models.TextChoices):
-        ACTIVE   = "ACTIVE",   "Active"
-        INACTIVE = "INACTIVE", "Inactive"
-
-    unique_id = models.CharField(
-        max_length=20,
-        primary_key=True,
-        default=generate_stafftemplate_id,
-        editable=False,
-    )
-    driver_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        related_name="driver_templates",
-        db_column="driver_id",
-        to_field="staff_unique_id",
-    )
-    operator_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        related_name="operator_templates",
-        db_column="operator_id",
-        to_field="staff_unique_id",
-    )
-    extra_operator_id = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="List of additional operator staff_unique_ids",
-    )
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="staff_templates",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="staff_templates",
-        db_column="project_id",
-    )
-    display_code = models.CharField(
-        max_length=100,
-        unique=True,
-        db_index=True,
-        editable=False,
-        help_text="e.g. RAVI-KART-01",
-    )
-    approved_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        related_name="stafftemplate_approved",
-        db_column="approved_by",
-        to_field="staff_unique_id",
-        null=True,
-        blank=True,
-    )
-    approval_status = models.CharField(
-        max_length=10,
-        choices=ApprovalStatus.choices,
-        default=ApprovalStatus.PENDING,
-    )
-    status = models.CharField(
-        max_length=10,
-        choices=Status.choices,
-        default=Status.ACTIVE,
-    )
-
-    class Meta:
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["status", "approval_status"]),
-            models.Index(fields=["display_code"]),
-        ]
-
-    def _generate_display_code(self):
-        def short_name(staff, fallback):
-            name = getattr(staff, "employee_name", None)
-            return name[:4].upper() if name else fallback
-
-        base = (
-            f"{short_name(self.driver_id, 'DRV')}-"
-            f"{short_name(self.operator_id, 'OPR')}"
-        )
-        last = (
-            StaffTemplate.objects
-            .filter(display_code__startswith=base)
-            .aggregate(max_code=Max("display_code"))
-            .get("max_code")
-        )
-        seq = 0
-        if last:
-            try:
-                seq = int(last.split("-")[-1])
-            except ValueError:
-                pass
-        return f"{base}-{seq + 1:02d}"
-
-    def save(self, *args, **kwargs):
-        if not self.display_code:
-            self.display_code = self._generate_display_code()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.display_code
-python# ============================================================
-# 2. alternative_staff_template.py
-# ============================================================
-from django.db import models
-from django.db.models import Max
-from app.utils.comfun import generate_unique_id
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-
-
-def generate_alternative_staff_template_id():
-    return f"ALTSTAFFTEMPLATE-{generate_unique_id()}"
-
-
-class AlternativeStaffTemplate(models.Model):
-
-    APPROVAL_STATUS_CHOICES = (
-        ("PENDING",  "Pending"),
-        ("APPROVED", "Approved"),
-        ("REJECTED", "Rejected"),
-    )
-
-    unique_id = models.CharField(
-        max_length=50,
-        primary_key=True,
-        default=generate_alternative_staff_template_id,
-        editable=False,
-    )
-    staff_template = models.ForeignKey(
-        "app.StaffTemplate",
-        on_delete=models.PROTECT,
-        db_column="staff_template_id",
-        related_name="alternative_templates",
-    )
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="alternative_staff_templates",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="alternative_staff_templates",
-        db_column="project_id",
-    )
-    from_date = models.DateField(null=True, blank=True)
-    to_date   = models.DateField(null=True, blank=True)
-
-    driver_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column="driver_id",
-        to_field="staff_unique_id",
-        related_name="alt_driver_templates",
-    )
-    operator_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column="operator_id",
-        to_field="staff_unique_id",
-        related_name="alt_operator_templates",
-    )
-    extra_operator_id = models.JSONField(
-        default=list,
-        blank=True,
-        null=True,
-        db_column="extra_operator_id",
-    )
-    change_reason  = models.CharField(max_length=100)
-    change_remarks = models.TextField(null=True, blank=True)
-
-    approved_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column="approved_by",
-        related_name="alt_staff_approved",
-        null=True,
-        blank=True,
-    )
-    approval_status = models.CharField(
-        max_length=10,
-        choices=APPROVAL_STATUS_CHOICES,
-        default="PENDING",
-    )
-    display_code = models.CharField(
-        max_length=100,
-        unique=True,
-        db_index=True,
-        editable=False,
-        help_text="e.g. RAVI-KART-01-ALT-01",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["staff_template"]),
-            models.Index(fields=["approval_status"]),
-            models.Index(fields=["display_code"]),
-        ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["staff_template", "from_date"],
-                name="unique_alt_template_per_staff_and_date",
-            )
-        ]
-
-    def _generate_display_code(self):
-        def short_name(staff, fallback):
-            name = getattr(staff, "employee_name", None)
-            return name[:4].upper() if name else fallback
-
-        driver_name   = short_name(self.driver_id, "DRV")
-        operator_name = short_name(self.operator_id, "OPR")
-        staff_base    = f"{driver_name}-{operator_name}"
-
-        existing = []
-        if self.staff_template:
-            from app.models.user_creations.stafftemplate import StaffTemplate
-            existing += list(
-                StaffTemplate.objects
-                .filter(display_code__startswith=f"{staff_base}-")
-                .values_list("display_code", flat=True)
-            )
-        sibling_qs = AlternativeStaffTemplate.objects.filter(
-            display_code__startswith=f"{staff_base}-"
-        )
-        if self.pk:
-            sibling_qs = sibling_qs.exclude(pk=self.pk)
-        for code in sibling_qs.values_list("display_code", flat=True):
-            parts = str(code).split("-")
-            if len(parts) >= 3:
-                existing.append("-".join(parts[:3]))
-
-        base_seq = max(
-            (int(str(c).split("-")[2]) for c in existing
-             if len(str(c).split("-")) >= 3
-             and str(c).split("-")[2].isdigit()),
-            default=1,
-        )
-
-        base_code = f"{staff_base}-{base_seq:02d}-ALT"
-        qs = AlternativeStaffTemplate.objects.filter(
-            display_code__startswith=base_code
-        )
-        if self.pk:
-            qs = qs.exclude(pk=self.pk)
-        last = qs.aggregate(max_code=Max("display_code")).get("max_code")
-        last_seq = 0
-        if last:
-            try:
-                last_seq = int(last.split("-")[-1])
-            except (ValueError, IndexError):
-                pass
-        return f"{base_code}-{last_seq + 1:02d}"
-
-    def _staff_assignment_changed(self):
-        if not self.pk:
-            return False
-        try:
-            prev = AlternativeStaffTemplate.objects.only(
-                "driver_id", "operator_id", "staff_template"
-            ).get(pk=self.pk)
-        except AlternativeStaffTemplate.DoesNotExist:
-            return False
-        return (
-            prev.driver_id_id        != self.driver_id_id
-            or prev.operator_id_id   != self.operator_id_id
-            or prev.staff_template_id != self.staff_template_id
-        )
-
-    def save(self, *args, **kwargs):
-        if not self.display_code or self._staff_assignment_changed():
-            self.display_code = self._generate_display_code()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.display_code
-python# ============================================================
-# 3. collection_point.py
-# ============================================================
-from django.db import models
-from django.core.exceptions import ValidationError
-from app.utils.base_models import BaseMaster
-from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.city import City
-from app.models.masters.district import District
-from app.models.masters.ward import Ward
-from app.models.common_masters.state import State
-
-
-def generate_collection_point_id():
-    return f"CP-{generate_unique_id()}"
-
-
-class Collection_point(BaseMaster):
-
-    unique_id = models.CharField(
-        max_length=30,
-        primary_key=True,
-        default=generate_collection_point_id,
-        editable=False,
-    )
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="project_id",
-    )
-    state_id = models.ForeignKey(
-        State,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="state_id",
-    )
-    city_id = models.ForeignKey(
-        City,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="city_id",
-    )
-    district_id = models.ForeignKey(
-        District,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="district_id",
-    )
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="panchayat_id",
-        null=True,
-        blank=True,
-    )
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="ward_id",
-        null=True,
-        blank=True,
-    )
-    cp_name   = models.CharField(max_length=100)
-    latitude  = models.DecimalField(max_digits=9, decimal_places=6)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6)
-
-    class Meta:
-        ordering = ["-created_at"]
-
-    def clean(self):
-        if not self.panchayat_id and not self.ward_id:
-            raise ValidationError(
-                "Collection Point must belong to either a Ward or a Panchayat."
-            )
-        if self.panchayat_id and self.ward_id:
-            raise ValidationError(
-                "Collection Point cannot belong to both Ward and Panchayat."
-            )
-
-    def __str__(self):
-        if self.panchayat_id:
-            return f"{self.cp_name} (Panchayat: {self.panchayat_id.panchayat_name})"
-        if self.ward_id:
-            return f"{self.cp_name} (Ward: {self.ward_id.ward_name})"
-        return self.cp_name
-python# ============================================================
-# 4. trip_plan.py
-# ============================================================
-from django.db import models
-from django.db.models import Max
-from app.utils.base_models import BaseMaster
-from app.utils.comfun import generate_unique_id
-from app.models.masters.city import City
-from app.models.masters.district import District
-from app.models.masters.zone import Zone
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.user_creations.stafftemplate import StaffTemplate
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
-from app.models.user_creations.waste_collection_bluetooth import WasteType
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-
-
-def generate_trip_plan_id():
-    return f"TPLAN-{generate_unique_id()}"
-
-
-class TripPlan(BaseMaster):
-    """
-    Master blueprint for a route.
-    One TripPlan → many DailyTripAssignments (one per day).
-    Collection points for the route live in TripPlanCollectionPoint.
-    """
-
-    class ApprovalStatus(models.TextChoices):
-        PENDING  = "PENDING",  "Pending"
-        APPROVED = "APPROVED", "Approved"
-        REJECTED = "REJECTED", "Rejected"
-
-    class Status(models.TextChoices):
-        ACTIVE   = "ACTIVE",   "Active"
-        INACTIVE = "INACTIVE", "Inactive"
-
-    # ---- identifier ------------------------------------------------
-    unique_id = models.CharField(
-        max_length=30,
-        primary_key=True,
-        default=generate_trip_plan_id,
-        editable=False,
-    )
-    display_code = models.CharField(
-        max_length=100,
-        unique=True,
-        db_index=True,
-        editable=False,
-        help_text="e.g. RAVI-TN01AB1234-01",
-    )
-
-    # ---- tenancy ---------------------------------------------------
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="trip_plans",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="trip_plans",
-        db_column="project_id",
-    )
-
-    # ---- WHERE -----------------------------------------------------
-    district_id = models.ForeignKey(
-        District,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-    )
-    city_id = models.ForeignKey(
-        City,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-    )
-    zone_id = models.ForeignKey(
-        Zone,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        null=True,
-        blank=True,
-    )
-    # panchayat XOR ward — mirrors Collection_point constraint
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        null=True,
-        blank=True,
-    )
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        null=True,
-        blank=True,
-    )
-
-    # ---- WHO -------------------------------------------------------
-    staff_template_id = models.ForeignKey(
-        StaffTemplate,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        db_column="staff_template_id",
-    )
-    vehicle_id = models.ForeignKey(
-        VehicleCreation,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-    )
-    supervisor_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        to_field="staff_unique_id",
-        related_name="trip_plans",
-    )
-
-    # ---- WHAT ------------------------------------------------------
-    property_id = models.ForeignKey(
-        Property,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        db_column="property_id",
-    )
-    sub_property_id = models.ForeignKey(
-        SubProperty,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        db_column="sub_property_id",
-    )
-    waste_type_id = models.ForeignKey(
-        WasteType,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        db_column="waste_type_id",
-    )
-    trip_trigger_weight_kg = models.PositiveIntegerField(
-        help_text="Collected weight (kg) that triggers a trip dispatch.",
-    )
-    max_vehicle_capacity_kg = models.PositiveIntegerField(
-        help_text="Hard ceiling for vehicle load (kg).",
-    )
-
-    # ---- WHEN (default schedule) -----------------------------------
-    scheduled_time = models.TimeField(
-        help_text="Default departure time for trips auto-generated from this plan.",
-    )
-
-    # ---- workflow --------------------------------------------------
-    approval_status = models.CharField(
-        max_length=10,
-        choices=ApprovalStatus.choices,
-        default=ApprovalStatus.PENDING,
-        db_index=True,
-    )
-    status = models.CharField(
-        max_length=10,
-        choices=Status.choices,
-        default=Status.ACTIVE,
-        db_index=True,
-    )
-
-    class Meta:
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["status", "approval_status"]),
-            models.Index(fields=["display_code"]),
-            models.Index(fields=["district_id", "city_id"]),
-        ]
-        constraints = [
-            models.CheckConstraint(
-                check=(
-                    models.Q(panchayat_id__isnull=False, ward_id__isnull=True) |
-                    models.Q(panchayat_id__isnull=True,  ward_id__isnull=False)
-                ),
-                name="trip_plan_panchayat_xor_ward",
-            )
-        ]
-
-    def _generate_display_code(self):
-        driver_name = "DRV"
-        if self.staff_template_id and self.staff_template_id.driver_id:
-            driver_name = (
-                self.staff_template_id.driver_id.employee_name[:6]
-                .upper().replace(" ", "")
-            )
-        vehicle_no = "VEH"
-        if self.vehicle_id:
-            vehicle_no = self.vehicle_id.vehicle_no.upper().replace(" ", "")
-
-        base = f"{driver_name}-{vehicle_no}"
-        last = (
-            TripPlan.objects
-            .filter(display_code__startswith=base)
-            .aggregate(max_code=Max("display_code"))
-            .get("max_code")
-        )
-        seq = 0
-        if last:
-            try:
-                seq = int(last.split("-")[-1])
-            except ValueError:
-                pass
-        return f"{base}-{seq + 1:02d}"
-
-    def save(self, *args, **kwargs):
-        if not self.display_code:
-            self.display_code = self._generate_display_code()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.display_code or self.unique_id
-python# ============================================================
-# 5. trip_plan_collection_point.py  ← NEW
-# ============================================================
-from django.db import models
-from app.utils.base_models import BaseMaster
-from app.utils.comfun import generate_unique_id
-from app.models.transport_masters.trip_plan import TripPlan
-from app.models.assets.collection_point import Collection_point
-from app.models.assets.bins import Bins
-
-
-def generate_tpcp_id():
-    return f"TPCP-{generate_unique_id()}"
-
-
-class TripPlanCollectionPoint(BaseMaster):
-    """
-    Master stop list for a TripPlan.
-
-    Each row = one bin at one collection point that the vehicle
-    must visit on EVERY trip generated from this plan.
-
-    When a DailyTripAssignment is created (manually or via the
-    nightly scheduler), a post_save signal reads these rows and
-    copies them into DailyTripCollectionPoint automatically —
-    one row per active TripPlanCollectionPoint, preserving sequence.
-    """
-
-    unique_id = models.CharField(
-        max_length=30,
-        primary_key=True,
-        default=generate_tpcp_id,
-        editable=False,
-    )
-    trip_plan_id = models.ForeignKey(
-        TripPlan,
-        on_delete=models.CASCADE,
-        to_field="unique_id",
-        related_name="plan_collection_points",
-        db_column="trip_plan_id",
-    )
-    collection_point_id = models.ForeignKey(
-        Collection_point,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plan_cps",
-        db_column="collection_point_id",
-    )
-    bin_id = models.ForeignKey(
-        Bins,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plan_cps",
-        db_column="bin_id",
-    )
-    sequence = models.PositiveIntegerField(
-        help_text="Visit order within the route.",
-    )
-    is_active = models.BooleanField(
-        default=True,
-        help_text="Inactive stops are skipped during auto-assignment.",
-    )
-
-    class Meta:
-        ordering = ["trip_plan_id", "sequence"]
-        indexes = [
-            models.Index(fields=["trip_plan_id", "is_active"]),
-        ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["trip_plan_id", "collection_point_id"],
-                name="uniq_cp_per_trip_plan",
-            ),
-            models.UniqueConstraint(
-                fields=["trip_plan_id", "sequence"],
-                name="uniq_sequence_per_trip_plan",
-            ),
-        ]
-
-    def __str__(self):
-        return (
-            f"{self.trip_plan_id_id} → "
-            f"{self.collection_point_id_id} (seq {self.sequence})"
-        )
-python# ============================================================
-# 6. daily_trip_assignment.py
-# ============================================================
-from django.db import models
-from django.utils import timezone
-from app.utils.base_models import BaseMaster
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.transport_masters.trip_plan import TripPlan
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.stafftemplate import StaffTemplate
-from app.models.user_creations.alternative_staff_template import AlternativeStaffTemplate
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.user_creations.waste_collection_bluetooth import WasteType
-
-
-def _generate_trip_assignment_unique_id(company_id, project_id):
-    today  = timezone.localdate()
-    prefix = f"TRIP-{today.year}-{today.month:02d}"
-    count  = DailyTripAssignment.objects.filter(
-        company_id=company_id,
-        project_id=project_id,
-        unique_id__startswith=f"{prefix}-",
-    ).count()
-    return f"{prefix}-{count + 1:03d}"
-
-
-class DailyTripAssignment(BaseMaster):
-
-    STATUS_SCHEDULED   = "Scheduled"
-    STATUS_IN_PROGRESS = "In Progress"
-    STATUS_COMPLETED   = "Completed"
-    STATUS_CANCELLED   = "Cancelled"
-
-    STATUS_CHOICES = [
-        (STATUS_SCHEDULED,   "Scheduled"),
-        (STATUS_IN_PROGRESS, "In Progress"),
-        (STATUS_COMPLETED,   "Completed"),
-        (STATUS_CANCELLED,   "Cancelled"),
-    ]
-
-    APPROVAL_PENDING  = "Pending"
-    APPROVAL_APPROVED = "Approved"
-    APPROVAL_REJECTED = "Rejected"
-
-    APPROVAL_CHOICES = [
-        (APPROVAL_PENDING,  "Pending"),
-        (APPROVAL_APPROVED, "Approved"),
-        (APPROVAL_REJECTED, "Rejected"),
-    ]
-
-    # ---- identifier ------------------------------------------------
-    unique_id = models.CharField(
-        max_length=50,
-        unique=True,
-        editable=False,
-        db_index=True,
-    )
-
-    # ---- tenancy ---------------------------------------------------
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        db_column="company_id",
-        related_name="daily_trip_assignments",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        db_column="project_id",
-        related_name="daily_trip_assignments",
-    )
-
-    # ---- plan ------------------------------------------------------
-    trip_plan_id = models.ForeignKey(
-        TripPlan,
-        on_delete=models.PROTECT,
-        db_column="trip_plan_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-    )
-
-    # ---- staff -----------------------------------------------------
-    staff_template_id = models.ForeignKey(
-        StaffTemplate,
-        on_delete=models.PROTECT,
-        db_column="staff_template_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-    )
-    alt_staff_template_id = models.ForeignKey(
-        AlternativeStaffTemplate,
-        on_delete=models.PROTECT,
-        db_column="alt_staff_template_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-        null=True,
-        blank=True,
-    )
-
-    # ---- location --------------------------------------------------
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        db_column="panchayat_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-        null=True,
-        blank=True,
-    )
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.PROTECT,
-        db_column="ward_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-        null=True,
-        blank=True,
-    )
-
-    # ---- waste -----------------------------------------------------
-    waste_type_id = models.ForeignKey(
-        WasteType,
-        on_delete=models.PROTECT,
-        db_column="waste_type_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-    )
-
-    # ---- vehicle (overrides trip_plan default when set) ------------
-    vehicle_id = models.ForeignKey(
-        VehicleCreation,
-        on_delete=models.PROTECT,
-        db_column="vehicle_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-        null=True,
-        blank=True,
-    )
-
-    # ---- scheduling ------------------------------------------------
-    trip_date         = models.DateField()
-    scheduled_time    = models.TimeField()
-    actual_start_time = models.TimeField(null=True, blank=True)
-    actual_end_time   = models.TimeField(null=True, blank=True)
-
-    # ---- workflow --------------------------------------------------
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default=STATUS_SCHEDULED,
-        db_index=True,
-    )
-    approval_status = models.CharField(
-        max_length=20,
-        choices=APPROVAL_CHOICES,
-        default=APPROVAL_PENDING,
-        db_index=True,
-    )
-    remarks = models.TextField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["-trip_date", "-scheduled_time"]
-        indexes = [
-            models.Index(fields=["trip_date", "status"]),
-            models.Index(fields=["trip_plan_id", "trip_date"]),
-            models.Index(fields=["panchayat_id", "trip_date"]),
-            models.Index(fields=["ward_id",      "trip_date"]),
-        ]
-        constraints = [
-            models.CheckConstraint(
-                check=(
-                    models.Q(panchayat_id__isnull=False, ward_id__isnull=True) |
-                    models.Q(panchayat_id__isnull=True,  ward_id__isnull=False)
-                ),
-                name="daily_trip_assignment_panchayat_xor_ward",
-            )
-        ]
-
-    def save(self, *args, **kwargs):
-        if not self.unique_id:
-            self.unique_id = _generate_trip_assignment_unique_id(
-                self.company_id, self.project_id
-            )
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.unique_id
-
-    def mark_completed_if_all_cps_collected(self):
-        children = self.trip_collection_points.filter(is_deleted=False)
-        if not children.exists():
-            return False
-        if children.filter(is_collected=False).exists():
-            return False
-        if self.status == self.STATUS_COMPLETED:
-            return True
-        update_fields = ["status", "updated_at"]
-        self.status = self.STATUS_COMPLETED
-        if not self.actual_end_time:
-            self.actual_end_time = timezone.localtime().time()
-            update_fields.append("actual_end_time")
-        self.save(update_fields=update_fields)
-        return True
-python# ============================================================
-# 7. daily_trip_collection_point.py
-# ============================================================
-from django.db import models
-from django.utils import timezone
-from app.utils.base_models import BaseMaster
-from app.utils.comfun import generate_unique_id
-from app.models.assets.bins import Bins
-from app.models.assets.collection_point import Collection_point
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.user_creations.staffcreation import Staffcreation
-
-
-def generate_daily_trip_cp_id():
-    return f"DTCP-{generate_unique_id(length=10)}"
-
-
-class DailyTripCollectionPoint(BaseMaster):
-
-    STATUS_PENDING   = "Pending"
-    STATUS_COLLECTED = "Collected"
-    STATUS_SKIPPED   = "Skipped"
-
-    STATUS_CHOICES = [
-        (STATUS_PENDING,   "Pending"),
-        (STATUS_COLLECTED, "Collected"),
-        (STATUS_SKIPPED,   "Skipped"),
-    ]
-
-    unique_id = models.CharField(
-        max_length=30,
-        primary_key=True,
-        default=generate_daily_trip_cp_id,
-        editable=False,
-    )
-
-    # ---- parent ----------------------------------------------------
-    trip_assignment_id = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.CASCADE,
-        db_column="trip_assignment_id",
-        to_field="unique_id",
-        related_name="trip_collection_points",
-    )
-
-    # ---- stop ------------------------------------------------------
-    collection_point_id = models.ForeignKey(
-        Collection_point,
-        on_delete=models.PROTECT,
-        db_column="collection_point_id",
-        to_field="unique_id",
-        related_name="daily_trip_cps",
-    )
-    bin_id = models.ForeignKey(
-        Bins,
-        on_delete=models.PROTECT,
-        db_column="bin_id",
-        to_field="unique_id",
-        related_name="daily_trip_cps",
-    )
-    sequence = models.PositiveIntegerField(
-        help_text="Visit order copied from TripPlanCollectionPoint.",
-    )
-
-    # ---- collection state ------------------------------------------
-    is_collected        = models.BooleanField(default=False, db_index=True)
-    collected_at        = models.DateTimeField(null=True, blank=True)
-    collected_by        = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        db_column="collected_by",
-        to_field="staff_unique_id",
-        related_name="collected_trip_cps",
-        null=True,
-        blank=True,
-    )
-    collected_weight_kg = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-    )
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default=STATUS_PENDING,
-        db_index=True,
-    )
-
-    class Meta:
-        ordering = ["trip_assignment_id", "sequence"]
-        indexes = [
-            models.Index(fields=["trip_assignment_id", "is_collected"]),
-            models.Index(fields=["trip_assignment_id", "sequence"]),
-        ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["trip_assignment_id", "collection_point_id"],
-                name="uniq_trip_cp_per_assignment",
-            ),
-        ]
-
-    def __str__(self):
-        return f"{self.trip_assignment_id_id}:{self.collection_point_id_id}"
-
-    def mark_collected(self, weight_kg, collected_by, collected_at=None):
-        self.collected_weight_kg = weight_kg
-        self.collected_by        = collected_by
-        self.collected_at        = collected_at or timezone.now()
-        self.is_collected        = True
-        self.status              = self.STATUS_COLLECTED
-        self.save(update_fields=[
-            "collected_weight_kg",
-            "collected_by",
-            "collected_at",
-            "is_collected",
-            "status",
-            "updated_at",
-        ])
-        self.trip_assignment_id.mark_completed_if_all_cps_collected()
-python# ============================================================
-# 8. bin_collection_event.py
-# ============================================================
-from django.db import models
-from app.utils.base_models import BaseMaster
-from app.utils.comfun import generate_unique_id
-from app.models.assets.bins import Bins
-from app.models.assets.collection_point import Collection_point
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.transport_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.waste_collection_bluetooth import WasteType
-
-
-def generate_bin_collection_event_id():
-    return f"BCE-{generate_unique_id(length=10)}"
-
-
-class BinCollectionEvent(BaseMaster):
-    """
-    Permanent append-only audit ledger.
-    One row per operator scan. Never edited after creation.
-    """
-
-    unique_id = models.CharField(
-        max_length=30,
-        primary_key=True,
-        default=generate_bin_collection_event_id,
-        editable=False,
-    )
-
-    # ---- tenancy ---------------------------------------------------
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        db_column="company_id",
-        related_name="bin_collection_events",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        db_column="project_id",
-        related_name="bin_collection_events",
-    )
-
-    # ---- trip context ----------------------------------------------
-    trip_assignment_id = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.PROTECT,
-        db_column="trip_assignment_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-    )
-    trip_collection_point_id = models.OneToOneField(
-        DailyTripCollectionPoint,
-        on_delete=models.PROTECT,
-        db_column="trip_collection_point_id",
-        to_field="unique_id",
-        related_name="bin_collection_event",
-    )
-
-    # ---- location --------------------------------------------------
-    collection_point_id = models.ForeignKey(
-        Collection_point,
-        on_delete=models.PROTECT,
-        db_column="collection_point_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-    )
-    # Denormalized from collection_point for fast filtering
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        db_column="panchayat_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-        null=True,
-        blank=True,
-    )
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.PROTECT,
-        db_column="ward_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-        null=True,
-        blank=True,
-    )
-
-    # ---- asset -----------------------------------------------------
-    bin_id = models.ForeignKey(
-        Bins,
-        on_delete=models.PROTECT,
-        db_column="bin_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-    )
-    waste_type_id = models.ForeignKey(
-        WasteType,
-        on_delete=models.PROTECT,
-        db_column="waste_type_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-    )
-    vehicle_id = models.ForeignKey(
-        VehicleCreation,
-        on_delete=models.PROTECT,
-        db_column="vehicle_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-        null=True,
-        blank=True,
-    )
-
-    # ---- measurement -----------------------------------------------
-    collected_weight_kg = models.DecimalField(max_digits=10, decimal_places=2)
-    driver_latitude     = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    driver_longitude    = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    notes               = models.TextField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["trip_assignment_id", "created_at"]),
-            models.Index(fields=["panchayat_id",       "created_at"]),
-            models.Index(fields=["ward_id",            "created_at"]),
-        ]
-        constraints = [
-            models.CheckConstraint(
-                check=(
-                    models.Q(panchayat_id__isnull=False, ward_id__isnull=True) |
-                    models.Q(panchayat_id__isnull=True,  ward_id__isnull=False)
-                ),
-                name="bin_collection_event_panchayat_xor_ward",
-            )
-        ]
-
-    def save(self, *args, **kwargs):
-        # Auto-derive panchayat/ward from collection_point
-        if self.collection_point_id and not self.panchayat_id and not self.ward_id:
-            cp = self.collection_point_id
-            self.panchayat_id = cp.panchayat_id
-            self.ward_id      = cp.ward_id
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.unique_id
-python# ============================================================
-# 9. daily_trip_log.py
-# ============================================================
-from decimal import Decimal
-from django.core.exceptions import ValidationError
-from django.db import models
-from django.utils import timezone
-from app.utils.base_models import Account, BaseMaster
-from app.utils.comfun import generate_unique_id
-from app.models.assets.bins import Bins
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.user_creations.waste_collection_bluetooth import WasteType
-
-
-def _generate_daily_trip_log_unique_id(company_id, project_id):
-    today  = timezone.localdate()
-    prefix = f"DTL-{today.year}-{today.month:02d}"
-    count  = DailyTripLog.objects.filter(
-        company_id=company_id,
-        project_id=project_id,
-        unique_id__startswith=f"{prefix}-",
-    ).count()
-    return f"{prefix}-{count + 1:03d}"
-
-
-class DailyTripLog(BaseMaster):
-    """
-    One summary log per DailyTripAssignment.
-    Auto-created when the last bin in the trip is scanned.
-    Verified by a supervisor.
-    """
-
-    LOG_STATUS_DRAFT     = "Draft"
-    LOG_STATUS_SUBMITTED = "Submitted"
-    LOG_STATUS_VERIFIED  = "Verified"
-
-    LOG_STATUS_CHOICES = [
-        (LOG_STATUS_DRAFT,     "Draft"),
-        (LOG_STATUS_SUBMITTED, "Submitted"),
-        (LOG_STATUS_VERIFIED,  "Verified"),
-    ]
-
-    # ---- identifier ------------------------------------------------
-    unique_id = models.CharField(
-        max_length=50,
-        unique=True,
-        editable=False,
-        db_index=True,
-    )
-
-    # ---- parent ----------------------------------------------------
-    trip_assignment_id = models.OneToOneField(
-        DailyTripAssignment,
-        on_delete=models.PROTECT,
-        db_column="trip_assignment_id",
-        to_field="unique_id",
-        related_name="daily_trip_log",
-    )
-
-    # ---- tenancy (denormalized) ------------------------------------
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        db_column="company_id",
-        related_name="daily_trip_logs",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        db_column="project_id",
-        related_name="daily_trip_logs",
-    )
-
-    # ---- location (panchayat XOR ward) -----------------------------
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        db_column="panchayat_id",
-        to_field="unique_id",
-        related_name="daily_trip_logs",
-        null=True,
-        blank=True,
-    )
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.PROTECT,
-        db_column="ward_id",
-        to_field="unique_id",
-        related_name="daily_trip_logs",
-        null=True,
-        blank=True,
-    )
-
-    # ---- waste -----------------------------------------------------
-    waste_type_id = models.ForeignKey(
-        WasteType,
-        on_delete=models.PROTECT,
-        db_column="waste_type_id",
-        to_field="unique_id",
-        related_name="daily_trip_logs",
-    )
-
-    # ---- timing ----------------------------------------------------
-    trip_date         = models.DateField()
-    actual_start_time = models.TimeField(null=True, blank=True)
-    actual_end_time   = models.TimeField(null=True, blank=True)
-
-    # ---- staff snapshot --------------------------------------------
-    driver_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column="driver_id",
-        to_field="staff_unique_id",
-        related_name="daily_trip_logs_as_driver",
-    )
-    operator_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column="operator_id",
-        to_field="staff_unique_id",
-        related_name="daily_trip_logs_as_operator",
-    )
-    extra_operator_ids = models.ManyToManyField(
-        Staffcreation,
-        blank=True,
-        related_name="daily_trip_logs_as_extra_operator",
-    )
-
-    # ---- collection summary ----------------------------------------
-    collected_weight_kg = models.DecimalField(max_digits=10, decimal_places=2)
-    vehicle_id = models.ForeignKey(
-        VehicleCreation,
-        on_delete=models.PROTECT,
-        db_column="vehicle_id",
-        to_field="unique_id",
-        related_name="daily_trip_logs",
-    )
-    bin_ids = models.ManyToManyField(
-        Bins,
-        blank=True,
-        related_name="daily_trip_logs",
-    )
-
-    # ---- workflow --------------------------------------------------
-    remarks    = models.TextField(null=True, blank=True)
-    log_status = models.CharField(
-        max_length=20,
-        choices=LOG_STATUS_CHOICES,
-        default=LOG_STATUS_DRAFT,
-        db_index=True,
-    )
-    verified_by = models.ForeignKey(
-        Account,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="verified_by",
-        related_name="verified_daily_trip_logs",
-    )
-    verified_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["-trip_date", "-created_at"]
-        indexes = [
-            models.Index(fields=["trip_date", "log_status"]),
-            models.Index(fields=["company_id", "project_id", "trip_date"]),
-            models.Index(fields=["panchayat_id", "trip_date"]),
-            models.Index(fields=["ward_id",      "trip_date"]),
-        ]
-        constraints = [
-            models.CheckConstraint(
-                check=(
-                    models.Q(panchayat_id__isnull=False, ward_id__isnull=True) |
-                    models.Q(panchayat_id__isnull=True,  ward_id__isnull=False)
-                ),
-                name="daily_trip_log_panchayat_xor_ward",
-            )
-        ]
-
-    def __str__(self):
-        return self.unique_id
-
-    def _resolve_effective_staff_template(self):
-        assignment = self.trip_assignment_id
-        return assignment.alt_staff_template_id or assignment.staff_template_id
-
-    def autofill_from_assignment(self):
-        assignment = self.trip_assignment_id
-        if not assignment:
-            return
-
-        trip_plan = assignment.trip_plan_id
-
-        # Tenancy
-        self.company_id   = assignment.company_id
-        self.project_id   = assignment.project_id
-
-        # Location — cascade: assignment → trip_plan → first CP
-        if not self.panchayat_id and not self.ward_id:
-            if assignment.panchayat_id_id:
-                self.panchayat_id = assignment.panchayat_id
-            elif assignment.ward_id_id:
-                self.ward_id = assignment.ward_id
-            elif trip_plan.panchayat_id_id:
-                self.panchayat_id = trip_plan.panchayat_id
-            elif trip_plan.ward_id_id:
-                self.ward_id = trip_plan.ward_id
-            else:
-                first_cp = (
-                    assignment.trip_collection_points
-                    .filter(is_deleted=False)
-                    .select_related("collection_point_id")
-                    .order_by("sequence")
-                    .first()
-                )
-                if first_cp:
-                    cp = first_cp.collection_point_id
-                    self.panchayat_id = cp.panchayat_id
-                    self.ward_id      = cp.ward_id
-
-        # Waste
-        self.waste_type_id = assignment.waste_type_id
-
-        # Timing
-        self.trip_date         = assignment.trip_date
-        self.actual_start_time = self.actual_start_time or assignment.actual_start_time
-        self.actual_end_time   = self.actual_end_time   or assignment.actual_end_time
-
-        # Staff snapshot — alt takes priority over base
-        staff_template = self._resolve_effective_staff_template()
-        if staff_template:
-            self.driver_id   = staff_template.driver_id
-            self.operator_id = staff_template.operator_id
-
-        # Vehicle — assignment overrides trip_plan default
-        if not getattr(self, "vehicle_id_id", None):
-            if getattr(assignment, "vehicle_id_id", None):
-                self.vehicle_id = assignment.vehicle_id
-            elif getattr(trip_plan, "vehicle_id_id", None):
-                self.vehicle_id = trip_plan.vehicle_id
-
-    def clean(self):
-        super().clean()
-
-        if not self.trip_assignment_id:
-            return
-
-        assignment = self.trip_assignment_id
-
-        if assignment.status == DailyTripAssignment.STATUS_CANCELLED:
-            raise ValidationError("Cannot create a log for a cancelled trip.")
-
-        if self.pk:
-            previous = DailyTripLog.objects.filter(pk=self.pk).first()
-            if previous and previous.log_status == self.LOG_STATUS_VERIFIED:
-                raise ValidationError("Verified trip logs are read-only.")
-
-        if self.collected_weight_kg is not None and self.collected_weight_kg <= 0:
-            raise ValidationError("collected_weight_kg must be greater than 0.")
-
-        if self.panchayat_id and self.ward_id:
-            raise ValidationError(
-                "Log cannot belong to both panchayat and ward."
-            )
-        if not self.panchayat_id and not self.ward_id:
-            raise ValidationError(
-                "Log must belong to either a panchayat or a ward."
-            )
-
-        # Capacity check
-        trip_plan        = assignment.trip_plan_id
-        vehicle_capacity = getattr(self.vehicle_id, "capacity",                None)
-        plan_capacity    = getattr(trip_plan,        "max_vehicle_capacity_kg", None)
-        capacity         = vehicle_capacity or plan_capacity
-
-        if capacity and self.collected_weight_kg is not None:
-            if Decimal(self.collected_weight_kg) > Decimal(capacity):
-                raise ValidationError(
-                    f"collected_weight_kg ({self.collected_weight_kg} kg) "
-                    f"exceeds capacity ({capacity} kg)."
-                )
-
-    def save(self, *args, **kwargs):
-        self.autofill_from_assignment()
-
-        if not self.unique_id:
-            self.unique_id = _generate_daily_trip_log_unique_id(
-                self.company_id, self.project_id
-            )
-
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-        # Mark assignment complete when submitted or verified
-        if self.log_status in {self.LOG_STATUS_SUBMITTED, self.LOG_STATUS_VERIFIED}:
-            assignment = self.trip_assignment_id
-            if assignment.status != DailyTripAssignment.STATUS_COMPLETED:
-                update_fields = ["status", "updated_at"]
-                assignment.status = DailyTripAssignment.STATUS_COMPLETED
-                if not assignment.actual_end_time:
-                    assignment.actual_end_time = (
-                        self.actual_end_time or timezone.localtime().time()
-                    )
-                    update_fields.append("actual_end_time")
-                assignment.save(update_fields=update_fields)
-python# ============================================================
-# signals/daily_trip_assignment_signals.py
-# ============================================================
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.transport_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.transport_masters.trip_plan_collection_point import TripPlanCollectionPoint
-
-
-@receiver(post_save, sender=DailyTripAssignment)
-def auto_populate_collection_points(sender, instance, created, **kwargs):
-    """
-    Fires after every DailyTripAssignment save.
-    On creation: copies active TripPlanCollectionPoint rows into
-    DailyTripCollectionPoint automatically, preserving sequence.
-    Skips silently if stops already exist (safe for re-saves).
-    """
-    if not created:
-        return
-
-    if instance.trip_collection_points.filter(is_deleted=False).exists():
-        return
-
-    plan_cps = (
-        TripPlanCollectionPoint.objects
-        .filter(
-            trip_plan_id=instance.trip_plan_id,
-            is_active=True,
-            is_deleted=False,
-        )
-        .select_related("collection_point_id", "bin_id")
-        .order_by("sequence")
-    )
-
-    if not plan_cps.exists():
-        return
-
-    DailyTripCollectionPoint.objects.bulk_create([
-        DailyTripCollectionPoint(
-            trip_assignment_id=instance,
-            collection_point_id=plan_cp.collection_point_id,
-            bin_id=plan_cp.bin_id,
-            sequence=plan_cp.sequence,
-        )
-        for plan_cp in plan_cps
-    ])
-python# ============================================================
-# tasks/auto_create_daily_trips.py  (Celery beat — runs at midnight)
-# ============================================================
-from django.utils import timezone
-from app.models.transport_masters.trip_plan import TripPlan
-from app.models.transport_masters.daily_trip_assignment import DailyTripAssignment
-
-
-def create_daily_trips_for_today():
-    """
-    For every ACTIVE + APPROVED TripPlan that has no
-    DailyTripAssignment for today, create one.
-    The post_save signal then auto-populates the stops.
-    """
-    today = timezone.localdate()
-
-    active_plans = TripPlan.objects.filter(
-        status=TripPlan.Status.ACTIVE,
-        approval_status=TripPlan.ApprovalStatus.APPROVED,
-        is_deleted=False,
-    ).select_related(
-        "staff_template_id",
-        "vehicle_id",
-        "company_id",
-        "project_id",
-        "panchayat_id",
-        "ward_id",
-        "waste_type_id",
-    )
-
-    for plan in active_plans:
-
-        # Skip if already created for today
-        if DailyTripAssignment.objects.filter(
-            trip_plan_id=plan,
-            trip_date=today,
-            is_deleted=False,
-        ).exists():
-            continue
-
-        # Resolve effective staff — use alt template if active today
-        alt_template = (
-            plan.staff_template_id.alternative_templates
-            .filter(
-                from_date__lte=today,
-                to_date__gte=today,
-                approval_status="APPROVED",
-                is_deleted=False,
-            )
-            .first()
-        )
-
-        DailyTripAssignment.objects.create(
-            company_id        = plan.company_id,
-            project_id        = plan.project_id,
-            trip_plan_id      = plan,
-            staff_template_id = plan.staff_template_id,
-            alt_staff_template_id = alt_template,
-            panchayat_id      = plan.panchayat_id,
-            ward_id           = plan.ward_id,
-            waste_type_id     = plan.waste_type_id,
-            vehicle_id        = plan.vehicle_id,
-            trip_date         = today,
-            scheduled_time    = plan.scheduled_time,
-        )
-        # post_save signal fires here →
-        # DailyTripCollectionPoint rows auto-created from TripPlanCollectionPoint
-
-Complete model summary
-#ModelPurpose1StaffTemplatePermanent driver–operator team pairing2AlternativeStaffTemplateTemporary substitution for a date range3Collection_pointPhysical GPS location, panchayat or ward4TripPlanMaster route blueprint — WHO, WHERE, WHAT, WHEN5TripPlanCollectionPointMaster stop list per plan — copied into every daily trip6DailyTripAssignmentOne scheduled trip on one date7DailyTripCollectionPointIndividual stops for that day's trip — auto-populated from model 58BinCollectionEventImmutable scan audit record per bin9DailyTripLogEnd-of-trip summary, auto-created on last scan
-
-
-i have all the files shattered. Your job is to club the new trip related files to a new master "schedule masters" folder -> like models, viewsets, serializers, seeder,  as mainscreen => 9 submodules
-StaffTemplateapp.models.user_creations.staff_template2AlternativeStaffTemplateapp.models.user_creations.alternative_staff_template3Collection_pointapp.models.assets.collection_point4TripPlanapp.models.transport_masters.trip_plan5TripPlanCollectionPointapp.models.transport_masters.trip_plan_collection_point6DailyTripAssignmentapp.models.transport_masters.daily_trip_assignment7DailyTripCollectionPointapp.models.transport_masters.daily_trip_collection_point8BinCollectionEventapp.models.transport_masters.bin_collection_event9DailyTripLog
-
-
-
-eg:-
-router.register_group("schedule masters", "daily-trip-assigment", DailyTripAssignmentViewset)
+# IWMS Modification Prompts — Section by Section
+
+> Target project: `/home/admin/code/IWMS/iwms-backend`
+> Reference project (golden source for behaviour/UI): `/home/admin/code/TN_Iwms/iwms-government-backend`
+> Framework: Django + Django REST Framework. Follow existing project conventions (CompanyScopedViewSet, TenancyReadSerializerMixin, BaseMaster, soft delete via `is_deleted`, audit mixins, `unique_id` PKs with `to_field="unique_id"`).
+> After every section: run `python manage.py makemigrations && python manage.py migrate`, run project tests, and run `python manage.py check`.
+
+---
+
+## Section 1 — Bin Creation: Ward derived from Zone/Panchayat → Collection Point filtered by Ward
+
+**Requirement:** In bin creation, the ward is currently shown based on the selected collection point (first ward of the collection point's `wards` M2M). Change the flow so that the ward is shown/selected based on the **zone or panchayat** first, and then the collection points shown are filtered by the selected ward.
+
+**Target files (IWMS):**
+- `app/models/assets/bins.py`
+- `app/serializers/masters/waste_masters/bins_serializer.py`
+- `app/viewsets/masters/waste_masters/bins_viewset.py`
+- Ward / Zone / Panchayat / Collection Point list endpoints used by the bin form (verify which viewset serves ward dropdowns, e.g. masters viewsets)
+
+**Detailed changes:**
+1. `Bins` model: stop treating ward as derived only from `collection_point_id.wards.first()`. Add direct nullable FKs `zone_id` and `ward_id` (and keep `panchayat_id` if needed). Keep deriving `district_id`/`city_id` from the collection point, but allow `ward_id` to be set explicitly.
+2. Serializer: expose `zone_id`/`zone_name`, `ward_id`/`ward_name`, `panchayat_id`/`panchayat_name` as writable fields (not SerializerMethodField reading the collection point). Validate that the selected collection point actually belongs to the selected ward (`collection_point.wards.filter(unique_id=ward_id).exists()`).
+3. Viewset/query logic: add query-param filters `zone_id`/`zone` and `ward_id`/`ward` directly on the bin (not via `collection_point_id__wards`), plus `panchayat_id` filter. Keep backward compatibility with existing filters.
+4. Ensure the ward dropdown data source returns wards filtered by zone **or** panchayat (Ward model already enforces XOR of zone/panchayat — reuse `Ward.objects.filter(zone_id=..., panchayat_id=...)`).
+5. Write/update tests for the new filter + validation behaviour.
+
+**Reference (TN_Iwms):** check `app/models/masters/ward.py`, `app/models/core_modules/schedule_setup/collection_point.py` for the zone/panchayat/ward hierarchy shape; follow the same hierarchy semantics.
+
+---
+
+## Section 2 — Staff Template: Remove approved_status and approved_by
+
+**Requirement:** Remove the `approved` status and `approved by` fields from the staff template module (model, serializer, viewset, audit log, and all references).
+
+**Target files (IWMS):**
+- `app/models/schedule_masters/staff_template.py`
+- `app/serializers/core_modules/schedule_setup/staff_template_serializer.py`
+- `app/viewsets/core_modules/schedule_setup/staff_template_viewset.py`
+- `app/models/audits/staff_template_audit_log.py` (remove/neutralise approval audit fields if present)
+- `app/admin.py` and any signals/services referencing `approval_status`/`approved_by`
+- Grep for `approval_status`/`approved_by`/`ApprovalStatus` across `app/` and remove/update references (especially anything that gates trip-plan auto-assign on staff-template approval).
+
+**Detailed changes:**
+1. Remove `approved_by` FK and `approval_status` field from `StaffTemplate`. Keep `status` (Active/Inactive).
+2. Remove the fields from the serializer fields/read_only lists and from the viewset (including any approval actions/transitions).
+3. Update the audit log model/usage so no approval columns are written.
+4. Check `trip_plan` / `daily_trip_generation` / `generate_daily_trips` for any dependency on staff-template `approval_status` and remove that dependency.
+5. Create migration(s) removing the columns (write `RemoveField` operations; preserve data by dropping cleanly).
+6. Run tests and update any test asserting approval behaviour.
+
+**Reference (TN_Iwms):** `app/models/core_modules/schedule_setup/staff_template.py` — verify whether TN_Iwms keeps approval on the staff template; if TN_Iwms does not gate on it, mirror that.
+
+---
+
+## Section 3 — Collection Point: Collection Type = Bin + Bulk only (no Household)
+
+**Requirement:** In the collection point module, show only the collection types **bin collection** and **bulk waste collection** (do NOT show household collection for collection points). Household collection belongs to household stops, not collection points.
+
+**Target files (IWMS):**
+- `app/models/schedule_masters/collection_point.py`
+- `app/serializers/core_modules/schedule_setup/collection_point_serializer.py`
+- `app/viewsets/core_modules/schedule_setup/collection_point_viewset.py`
+- Any dropdown/choice endpoint or hardcoded choice list for `collection_type`
+
+**Detailed changes:**
+1. Add `COLLECTION_TYPE_BULK = "bulk_waste_collection"` choice (label "Bulk Waste Collection") to `Collection_point`.
+2. Restrict the choices exposed for collection point to `bin_collection` and `bulk_waste_collection` only — household remains a valid type only at the household-stop level (`DailyTripHouseholdCollection`), not on `Collection_point`. If existing collection points use household, exclude/flag them in the choice set.
+3. Update serializer (choices validation) and viewset (any `collection_type` filter/dropdown) accordingly.
+4. Update `daily_trip_generation` / `trip_plan` logic that reads `collection_type` so bin + bulk are handled for collection points.
+5. Create migration for the new choice (no schema change needed unless you add a field), update tests.
+
+**Reference (TN_Iwms):** `app/models/core_modules/schedule_setup/collection_point.py` (has `COLLECTION_TYPE_BULK` with `bulk_waste_collection`), and `app/models/core_modules/daily_operations/daily_trip_household_collection.py` for where household stays.
+
+---
+
+## Section 4 — Trip Plan: Auto-assign method + auto-add to daily trip (like TN_Iwms)
+
+**Requirement:** Bring the trip plan module to feature-parity with TN_Iwms: same functionality, same auto-assign method, and same "auto added in the trip" behaviour (auto-generated daily trip assignment + child collection points/household stops when a trip plan is created/approved or on the nightly job).
+
+**Target files (IWMS):**
+- `app/models/schedule_masters/trip_plan.py`
+- `app/models/schedule_masters/trip_plan_collection_point.py`
+- `app/serializers/core_modules/schedule_setup/trip_plan_serializer.py`
+- `app/viewsets/core_modules/schedule_setup/trip_plan_viewset.py`
+- `app/services/daily_trip_generation.py`
+- `app/services/daily_trip_scheduler.py`
+- `app/management/commands/generate_daily_trips.py`
+- `app/signals/trip_plan_signals.py` (if exists; otherwise create signal parity)
+
+**Detailed changes (align with TN_Iwms `run_for_date` in `app/management/commands/generate_daily_trips.py`):**
+1. `TripPlan`: ensure `is_auto_assign`, `repeat_days` (0=Monday..6=Sunday), `collection_type`, and `waste_types` (M2M) exist and behave like TN_Iwms. Keep `waste_type_ids` JSON for backward compatibility but prefer M2M where TN_Iwms uses it.
+2. Auto-add on create/approve: on trip-plan creation (and on approval when `approval_status` is APPROVED), auto-generate the `DailyTripAssignment` for the plan + date and clone `TripPlanCollectionPoint` stops into `DailyTripCollectionPoint` (bin) and household/bulk stops into `DailyTripHouseholdCollection` (get_or_create — idempotent).
+3. Rework `daily_trip_generation.py` to mirror TN_Iwms `run_for_date` semantics: active + `is_auto_assign=True` plans; non-force runs only approved plans + repeat-day weekday check; `force` includes not-yet-approved plans and ignores weekday. Handle bin + bulk + household stop types.
+4. `generate_daily_trips` command: expose `run_for_date(target_date=None, logger=None, force=False)` and return a summary dict; scheduler should call the same path.
+5. Signal parity: implement `sync_daily_assignment_stops_from_plan` / `_create_daily_household_collections` equivalents (see TN_Iwms `app/signals/trip_plan_signals.py`) so post-save of assignment copies stops automatically.
+6. Viewset: add `generate_daily` manual-run action (like TN_Iwms `DailyTripAssignmentViewSet.generate_daily`).
+7. Migrations for any new/changed fields; update tests.
+
+**Reference (TN_Iwms):** `app/models/core_modules/schedule_setup/trip_plan.py`, `app/management/commands/generate_daily_trips.py`, `app/signals/trip_plan_signals.py`, `app/models/core_modules/daily_operations/daily_trip_household_collection.py`, `app/viewsets/core_modules/daily_operations/daily_trip_assignment_viewset.py`.
+
+---
+
+## Section 5 — Daily Trip Plan, Bin Collection Event, Waste Data Collected (like TN_Iwms)
+
+**Requirement:** Implement the same functionality and methods for the daily trip plan (assignment), bin collection event, and waste data collected as TN_Iwms.
+
+**Target files (IWMS):**
+- `app/models/schedule_masters/daily_trip_assignment.py`
+- `app/models/schedule_masters/daily_trip_collection_point.py`
+- `app/models/schedule_masters/daily_trip_household_collection.py`
+- `app/models/schedule_masters/bin_collection_event.py`
+- `app/models/customers/wastecollection.py`
+- `app/serializers/core_modules/daily_operations/*` (daily_trip_assignment, daily_trip_collection_point, daily_trip_household_collection, bin_collection_event, wastecollection)
+- `app/viewsets/core_modules/daily_operations/*` (same set)
+- `app/services/daily_trip_generation.py` (touched by Section 4 — coordinate)
+
+**Detailed changes (align with TN_Iwms):**
+1. `DailyTripAssignment`: add `waste_types` M2M and `household_waste_type_ids` M2M (mirror TN_Iwms); copy geo scope (ward/zone/panchayat) and staff/vehicle from the trip plan on save; keep tenant `company_id`/`project_id`. Keep `mark_completed_if_all_cps_collected` behaviour aligned with TN_Iwms (statuses Collected/Missed).
+2. `DailyTripCollectionPoint`: align status vocabulary with TN_Iwms (Pending/In Progress/Collected/Missed/Collect Later as applicable) and the `mark_collected` flow.
+3. `DailyTripHouseholdCollection`: ensure model/serializer/viewset parity with TN_Iwms (statuses Pending/Collected/Not Available/Collect Later, waste-type breakdown).
+4. `BinCollectionEvent`: add `status` (Collected/Not Collected/Collect Later), `status_reason`, `ward`, geo scope fields, `collection_date`, and auto-copy geo from trip assignment on save (see TN_Iwms `secondary_bin_collection_event.py`).
+5. `WasteCollection` (waste data collected): add `sanitary_waste`, `status` (Pending/Collected/Not Available/Collect Later), `collection_date` (user-editable), `ward`, and flat geo FKs auto-inherited from the customer via `copy_flat_geo`; auto-calculate `total_quantity`.
+6. Serializers/viewsets: expose the new fields and align list/filter behaviour with TN_Iwms operator-mobile and web flows.
+7. Migrations for all schema changes; run tests.
+
+**Reference (TN_Iwms):** `app/models/core_modules/daily_operations/daily_trip_assignment.py`, `daily_trip_collection_point.py`, `daily_trip_household_collection.py`, `secondary_bin_collection_event.py`, `waste_collection.py` + their serializers/viewsets under `app/serializers/core_modules/daily_operations/` and `app/viewsets/core_modules/daily_operations/`.
+
+---
+
+## Section 6 — Daily Trip Log (like TN_Iwms)
+
+**Requirement:** Implement the daily trip log module with the same functionality and methods as TN_Iwms.
+
+**Target files (IWMS):**
+- `app/models/schedule_masters/daily_trip_log.py`
+- `app/serializers/core_modules/daily_operations/daily_trip_log_serializer.py`
+- `app/viewsets/core_modules/daily_operations/daily_trip_log_viewset.py`
+- `app/management/commands/backfill_daily_trip_logs.py` (verify parity)
+
+**Detailed changes (align with TN_Iwms):**
+1. `DailyTripLog`: keep one-to-one link to `DailyTripAssignment`; ensure `autofill_from_assignment` copies company/project, geo (zone/panchayat/ward), staff template (+ alt), driver/operator (+ extra operators), vehicle, waste type, dates, and actual start/end times.
+2. Auto-weight sync: `sync_from_bin_collection_events()` (sum `BinCollectionEvent.collected_weight_kg`) and `sync_from_household_collections()` (sum `WasteCollection.total_quantity`) — only override when records exist.
+3. Status flow: Draft → Submitted → Verified (read-only once Verified); block log creation for cancelled trips; require weight > 0 before submit.
+4. On submit/verify, mark the linked `DailyTripAssignment` as Completed and set `actual_end_time`.
+5. Align serializer/viewset (list, detail, submit, verify actions) with TN_Iwms.
+6. Migrations if any field changes; run tests.
+
+**Reference (TN_Iwms):** `app/models/core_modules/daily_operations/daily_trip_log.py`, `app/serializers/core_modules/daily_operations/daily_trip_log_serializer.py`, `app/viewsets/core_modules/daily_operations/daily_trip_log_viewset.py`.
+
+---
+
+## Section 7 — Frontend: Mirror every backend module change in the IWMS frontend
+
+> Target frontend: `/home/admin/code/IWMS/iwms-frontend`
+> Reference frontend (golden source for UI/behaviour): `/home/admin/code/TN_Iwms/iwms-government-frontend`
+> Stack: React + TypeScript + Vite + React Router, shadcn/ui (`@/components/ui/*`), TanStack DataTable, react-i18next (`t("admin.*")` keys). API helpers live in `src/helpers/admin/index.ts` (`wardApi`, `collectionPointApi`, `tripPlanApi`, `dailyTripAssignmentApi`, `binCollectionEventApi`, `wasteCollectionApi`, `dailyTripLogApi`).
+> Rule: **Each frontend agent F<n> runs in parallel with its backend agent A<n>.** F<n> mirrors the same module change in the IWMS frontend, using the TN frontend as the behaviour/UI source. F<n> should only push API-field-dependent code once the corresponding A<n> serializer contract is known (read `artifacts/A<n>.md` and `session_state.json`); UI scaffolding can start immediately from the TN reference.
+> After every frontend module: run `npx eslint <changed files>`, `npx tsc --noEmit`, and `npm run build` (or the project's lint/typecheck scripts from `package.json`).
+
+### Frontend module map (agent ↔ section ↔ files)
+
+| Agent | Backend Section | IWMS frontend module (target) | TN frontend module (reference) |
+|-------|-----------------|-------------------------------|--------------------------------|
+| F1 | Section 1 — Bin Creation | `src/pages/admin/modules/masters/wasteMasters/bin/` (`BinForm.tsx`, `BinListPage.tsx`, `types.ts`) | `src/pages/admin/modules/masters/wasteMasters/bin/` (`BinForm.tsx`, `BinListPage.tsx`, `types.ts`) |
+| F2 | Section 2 — Staff Template remove approval | `src/pages/admin/modules/core_modules/scheduleSetup/staffTemplate/` (`staffTemplateForm.tsx`, `staffTemplateList.tsx`, `types.ts`) + `src/pages/admin/modules/superadmin/audits/staffTemplateAudit/` | Staff template **keeps** approval in TN — F2 only **removes** the fields, do not copy TN UI here |
+| F3 | Section 3 — Collection Point types | `src/pages/admin/modules/core_modules/scheduleSetup/collectionPoint/` (`CollectionPointForm.tsx`, `CollectionPointListPage.tsx`, `types.ts`) | `src/pages/admin/modules/core_modules/scheduleSetup/collectionPoint/` (same files) |
+| F4 | Section 4 — Trip Plan auto-assign | `src/pages/admin/modules/core_modules/scheduleSetup/tripPlan/` (`tripPlanForm.tsx`, `tripPlanList.tsx`, `types.ts`) + `src/pages/admin/modules/core_modules/dailyOperations/dailyTripAssignment/` (auto-generate bar) | `src/pages/admin/modules/core_modules/scheduleSetup/tripPlan/` + `.../dailyOperations/dailyTripAssignment/` (same files) |
+| F5 | Section 5 — Daily trip / bin collection event / waste data | `src/pages/admin/modules/core_modules/dailyOperations/` `dailyTripAssignment/`, `dailyTripCollectionPoint/`, `dailyTripHouseholdCollection/`, `binCollectionEvent/` + `src/pages/admin/modules/wasteManagementMasters/wasteCollectedData/` | `src/pages/admin/modules/core_modules/dailyOperations/` (same subfolders, incl. `wasteCollectedData/`) |
+| F6 | Section 6 — Daily Trip Log | `src/pages/admin/modules/core_modules/dailyOperations/dailyTripLog/` (`dailyTripLogList.tsx`, `types.ts`) | `src/pages/admin/modules/core_modules/dailyOperations/dailyTripLog/` (incl. `collectionTime.ts`, `DailyTripLogReportPage.tsx`) |
+
+### F1 — Bin Creation (mirror A1)
+
+**Requirement:** Currently the bin form is collection-point-first: the ward is a read-only display auto-filled from the selected collection point's `wards` (`BinForm.tsx:468-495`). Change the flow to **zone/panchayat → ward → collection point filtered by ward** (see TN `BinForm.tsx`, which uses `wardApi` + `wardId` and filters `collectionPoints` by the selected ward).
+
+**Detailed changes:**
+1. `BinForm.tsx`: make Ward an **editable** dropdown. Load wards via `wardApi.readAll()` (TN pattern) and filter them by the selected zone **or** panchayat (`Ward` backend enforces XOR of zone/panchayat). Remove the read-only ward display block (lines ~769-803).
+2. Filter the collection-point dropdown by the selected ward (only CPs whose `wards[]` contains `wardId`), not just by city/district (`collectionPointOptions`, lines ~450-464).
+3. On ward change, clear and reload the collection-point selection; auto-fill panchayat/zone from the selected ward instead of the CP.
+4. Send `ward_id` (and keep `zone_id`/`panchayat_id`) in the submit payload (lines ~557-571).
+5. `types.ts`: add `wardApi`-driven `WardOption` type and the writable `zone_id`/`ward_id`/`panchayat_id` on `BinRecord`.
+6. `BinListPage.tsx`: add `zone_id`/`ward_id` query-param filters (backend A1 adds them) alongside the existing ward/panchayat display columns.
+7. Mirror the TN bin-form drop-down ordering: District → City → (Panchayat XOR Zone) → Ward → Collection Point → Bin details.
+
+### F2 — Staff Template: remove approved_status / approved_by (mirror A2)
+
+**Requirement:** Backend A2 is **COMPLETED** (`artifacts/A2.md`): `approval_status`, `approved_by`, `ApprovalStatus` and the audit index are removed from the API. The IWMS frontend must drop those fields now. **TN keeps approval on staff template — do NOT copy TN's approval UI; only remove.**
+
+**Detailed changes:**
+1. `types.ts`: delete `approval_status`, `approved_by` from `StaffTemplateRecord`, the list-query type, and the filter type (lines 33-34, 57, 69).
+2. `staffTemplateForm.tsx`: remove `approval_status`/`approved_by` from the initial `formData` (lines 30-31), the field-visibility map (lines 41-42), the pre-fill/reset logic (lines ~320-328, 391-399), the load-from-record logic (lines ~428-434), the `approved_by`-related options memo (lines ~622-627), the submit payload (lines ~660-661), and the two form field blocks `showField("approval_status")` / `showField("approved_by")` (lines ~857-880).
+3. `staffTemplateList.tsx`: remove `approval_status` from the column-visibility map (line 284), the filter initial state (line 335), the export/rowmap usage (line 456), the `showCol` list (line 618), and the column render block (lines 679-682). Remove the `approval_status` translation usage.
+4. `superadmin/audits/staffTemplateAudit/`: verify the audit page does not hardcode approval columns (A2 confirmed the audit model never had them; the audit diff is model-driven). If any column/filter references approval, remove it.
+5. Remove `approval_status`/`approved_by` i18n keys only if no other module uses them.
+
+### F3 — Collection Point: Collection Type = Bin + Bulk only (mirror A3)
+
+**Requirement:** Collection point type must expose only **bin_collection** and **bulk_waste_collection** (household stays at household-stop level). IWMS currently offers `bin_collection` / `household_collection` (form state line 185, options lines 897-904, edit normalization lines 387-389).
+
+**Detailed changes (mirror TN `CollectionPointForm.tsx:38-40`):**
+1. `CollectionPointForm.tsx`: replace the type union with `"bin_collection" | "bulk_waste_collection"` (default `"bin_collection"`). Add a `COLLECTION_TYPE_OPTIONS` constant with values `bin_collection` ("Secondary Collection Point") and `bulk_waste_collection` ("Bulk Waste Collection").
+2. Update edit-mode normalization (lines 387-389) so `bulk_waste_collection` is preserved instead of falling back to `bin_collection`; remove `household_collection` handling.
+3. Update the bin/stops section gating (line ~1035 `collectionType === "bin_collection"`) — bulk CPs do not get the per-bin section; align with TN.
+4. `types.ts`: update `collection_type` union (line 36) and any list filter on `collection_type`.
+5. `CollectionPointListPage.tsx`: verify the type column/filter reflects bin + bulk only.
+6. Check `tripPlanForm.tsx` stop rows (IWMS lines 252, 528-529, 768) — household stops at trip-plan level remain valid (household collection is not removed from trip plans, only from collection-point type); do not regress F4.
+
+### F4 — Trip Plan: auto-assign + auto-add to daily trip (mirror A4)
+
+**Requirement:** Bring the trip-plan form/list to parity with TN: expose `is_auto_assign`, `repeat_days` (0=Monday..6=Sunday), and reflect auto-generation of the daily trip assignment on the daily-trip side.
+
+**Detailed changes (mirror TN `tripPlanForm.tsx`):**
+1. `types.ts`: add `is_auto_assign?: boolean`, `repeat_days?: number[]`, `waste_types?: { unique_id; waste_type_name }[]` (already partly present) to the record/form types; keep `waste_type_ids` for payload compatibility.
+2. `tripPlanForm.tsx`: add an **Auto Assign** toggle (`setIsAutoAssign`, TN line 780) and a **Repeat Days** multi-select (`setRepeatDays`, TN line 781) shown only when auto-assign is on. Load both in edit mode (TN lines 780-781). Send `is_auto_assign` and `repeat_days` in the submit payload (TN lines 1010-1011).
+3. Align the "Collection Mode" handling: when no manual stops are entered and auto-assign is on, drive bin/collection mode from the plan (TN lines ~787-794).
+4. `tripPlanList.tsx`: add auto-assign/repeat-day columns + filters if the backend A4 serializer exposes them.
+5. `dailyTripAssignment/dailyTripAssignmentList.tsx`: verify the "Auto Generate Daily Trips" bar (IWMS line 440) still calls the A4 `generate_daily` action with the correct params; add the manual **Generate Daily** button if A4 adds it (TN viewset `DailyTripAssignmentViewSet.generate_daily`).
+
+### F5 — Daily Trip Plan / Bin Collection Event / Waste Data Collected (mirror A5)
+
+**Requirement:** Mirror the A5 backend fields in the daily-operations + waste-data screens.
+
+**Detailed changes (mirror TN):**
+1. `dailyTripAssignment/`: expose `waste_types` M2M (form: `setSelectedWasteTypes` from `record.waste_types_detail`, TN form lines 293-294, 362-363) and the assignment status options (Scheduled/…/Cancelled + status column). Ensure the CP-stop and household-stop tables send `status` + `status_reason` (TN lines 740, 753-756).
+2. `dailyTripCollectionPoint/`: align status badges to TN (`Pending`/`In Progress`/`Collected`/`Missed`/`Collect Later` as applicable — TN list line 20-21) and the `mark_collected` flow in the form.
+3. `dailyTripHouseholdCollection/`: add `waste_types`/household waste-type breakdown + status vocabulary (`Pending`/`Collected`/`Not Available`/`Collect Later`) to list/form, mirroring TN.
+4. `binCollectionEvent/`: add `status` (`Collected`/`Not Collected`/`Collect Later`), `status_reason`, `ward`, and `collection_date` to the form (TN form lines 286-293, 632-636) and list filters/columns. The `collection_date` input already exists in IWMS (line 446); wire the new status/reason/ward fields around it.
+5. `wasteCollectedData/`: add `sanitary_waste` numeric input, `status` dropdown (`Pending`/`Collected`/`Not Available`/`Collect Later`), user-editable `collection_date`, and the auto-calculated `total_quantity` read-out (TN form lines 189-190, 595-596, 799-822; IWMS already computes `total_quantity` at line 293 — add the missing sanitary/status/date fields).
+6. `types.ts` for each of the five modules: extend the record/form types with the new A5 fields.
+
+### F6 — Daily Trip Log (mirror A6)
+
+**Requirement:** Align the daily trip log screen with A6: status flow Draft → Submitted → Verified, submit/verify actions, weight>0 guard, and read-only once Verified.
+
+**Detailed changes:**
+1. `dailyTripLogList.tsx`: verify the status badge map (lines 24-26) and verify-modal flow (lines 132-174) match A6 statuses (`Draft`/`Submitted`/`Verified`). Add a **Submit** action if A6 adds one and a weight>0 client-side guard before submit.
+2. Add the linked-assignment sync indicators (actual start/end time, total weight = sum of bin collection events + household collections) as read-only fields, mirroring TN.
+3. `types.ts`: add `actual_start_time`/`actual_end_time`, total-weight read-only, and any `verify` action payload fields.
+4. If A6 adds `DailyTripLogReportPage`/`collectionTime` parity helpers, mirror them from TN `dailyTripLog/`.
+
+---
+
+## Execution Order & Cross-Section Dependencies
+
+**Backend:**
+- **Independent (can start in parallel first):** Section 1 (bin), Section 2 (staff template), Section 3 (collection point).
+- **Section 4 depends on:** Sections 2 & 3 outputs (staff template field removal, collection type choices).
+- **Section 5 depends on:** Sections 3 & 4 outputs (collection point types, trip plan auto-assign, trip_plan_collection_point).
+- **Section 6 depends on:** Section 5 outputs (bin collection event + waste collection weight sync).
+
+**Frontend (runs in lock-step with the backend, same waves):**
+- **F1, F2, F3 independent — start in Wave 1 with A1/A2/A3.** F2 can complete immediately (A2 backend already done).
+- **F4 starts with A4 (Wave 2)** once F2/F3 removed/renamed the collection-type + approval fields it depends on (trip-plan stop rows reference `household_collection`; do not regress).
+- **F5 starts with A5 (Wave 3)** once F3/F4 land (collection-point types, trip-plan auto-assign → daily-trip screen).
+- **F6 starts with A6 (Wave 4)** once F5 lands (bin-collection-event + waste-data weight sync).
+- Frontend agents must not submit API fields that the backend serializer has not yet merged; coordinate via `artifacts/F<n>.md` + `artifacts/A<n>.md`.
+
+See `AGENT_WORKFLOW.md` for the agent-per-section assignment (backend A1–A6 + frontend F1–F6), parallel execution, dependency handoff, pause/continue and cross-CLI resume rules, plus per-agent token usage / files-modified / risk reporting.

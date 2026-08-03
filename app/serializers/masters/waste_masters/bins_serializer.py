@@ -1,38 +1,42 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 from app.models.assets.bins import Bins
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.ward import Ward
+from app.models.masters.zone import Zone
 from app.validators.unique_name_validator import unique_name_validator
 
 class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    panchayat_name = serializers.CharField(source="collection_point_id.panchayat_id.panchayat_name", read_only=True)
-    panchayat_id = serializers.CharField(source="collection_point_id.panchayat_id.unique_id", read_only=True)
     district_name = serializers.CharField(source="district_id.name", read_only=True)
     city_name = serializers.CharField(source="city_id.name", read_only=True)
     wastetype_name = serializers.CharField(source="wastetype_id.waste_type_name", read_only=True)
     collection_point_name = serializers.CharField(source="collection_point_id.cp_name", read_only=True)
 
-    # Derived from the first ward in the wards M2M on the collection point
-    ward_id = serializers.SerializerMethodField()
-    ward_name = serializers.SerializerMethodField()
-    zone_id = serializers.SerializerMethodField()
-    zone_name = serializers.SerializerMethodField()
+    panchayat_id = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=Panchayat.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
 
-    def get_ward_id(self, obj):
-        w = obj.collection_point_id.wards.first()
-        return w.unique_id if w else None
+    zone_id = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=Zone.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True)
 
-    def get_ward_name(self, obj):
-        w = obj.collection_point_id.wards.first()
-        return w.ward_name if w else None
-
-    def get_zone_id(self, obj):
-        w = obj.collection_point_id.wards.select_related("zone_id").first()
-        return w.zone_id.unique_id if w and w.zone_id else None
-
-    def get_zone_name(self, obj):
-        w = obj.collection_point_id.wards.select_related("zone_id").first()
-        return w.zone_id.zone_name if w and w.zone_id else None
+    ward_id = UniqueIdOrPkField(
+        slug_field="unique_id",
+        queryset=Ward.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    ward_name = serializers.CharField(source="ward_id.ward_name", read_only=True)
 
     class Meta:
         model = Bins
@@ -82,6 +86,26 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
 
     def validate(self, attrs):
+        collection_point = attrs.get(
+            "collection_point_id",
+            getattr(self.instance, "collection_point_id", None),
+        )
+        ward = attrs.get("ward_id", getattr(self.instance, "ward_id", None))
+        zone = attrs.get("zone_id", getattr(self.instance, "zone_id", None))
+        panchayat = attrs.get("panchayat_id", getattr(self.instance, "panchayat_id", None))
+
+        if zone and panchayat:
+            raise serializers.ValidationError(
+                {"zone_id": "A bin cannot belong to both a Zone and a Panchayat."}
+            )
+
+        if ward and collection_point and not collection_point.wards.filter(
+            unique_id=ward.unique_id
+        ).exists():
+            raise serializers.ValidationError(
+                {"ward_id": "Selected ward is not one of the selected collection point's wards."}
+            )
+
         if attrs.get("bin_qr") is None:
             attrs["bin_qr"] = ""
 

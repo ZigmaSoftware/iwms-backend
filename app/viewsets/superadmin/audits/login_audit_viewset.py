@@ -6,6 +6,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class LoginAuditViewSet(CompanyScopedViewSet):
@@ -17,6 +18,7 @@ class LoginAuditViewSet(CompanyScopedViewSet):
         ModelFieldSearchFilter,
         SerializerOrderingFilter,
     ]
+    pagination_class = LimitOffsetWithPage
 
     def get_queryset(self):
         return (

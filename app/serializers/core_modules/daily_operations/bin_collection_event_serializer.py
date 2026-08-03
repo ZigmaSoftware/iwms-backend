@@ -88,6 +88,8 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "display_code",
             "collection_date",
             "collected_weight_kg",
+            "status",
+            "status_reason",
             "driver_latitude",
             "driver_longitude",
             "notes",
@@ -112,9 +114,10 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "created_at",
             "updated_at",
         ]
-        # ward_id is a SerializerMethodField on the serializer (returns nested data)
-        # but also a real FK on the model — it is set in validate() from the assignment,
-        # so it must NOT appear in writable fields.
+        # ward_id/zone_id are SerializerMethodFields on the serializer (return
+        # nested data) but also real FKs on the model — they are set in
+        # validate() from the assignment (or the model's own save() as a
+        # fallback), so they must NOT appear in writable fields.
 
     def validate(self, attrs):
         trip_cp = attrs.get(
@@ -146,13 +149,30 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
                 "Trip collection point does not belong to the selected assignment."
             )
 
-        # Set location from assignment — one of panchayat OR ward will be non-null.
+        # Set location from assignment — panchayat is a direct FK; ward/zone
+        # are resolved from the assignment's wards M2M when it carries
+        # exactly one ward (same rule as BinCollectionEvent.save()).
         attrs["panchayat_id"] = getattr(assignment, "panchayat_id", None)
-        attrs["ward_id"] = getattr(assignment, "ward_id", None)
+        assignment_wards = list(assignment.wards.select_related("zone_id").all()) if assignment else []
+        if len(assignment_wards) == 1:
+            attrs["ward_id"] = assignment_wards[0]
+            attrs["zone_id"] = getattr(assignment_wards[0], "zone_id", None)
         attrs["collection_date"] = (
             attrs.get("collection_date")
             or getattr(assignment, "trip_date", None)
         )
+
+        status_value = attrs.get(
+            "status",
+            getattr(self.instance, "status", BinCollectionEvent.STATUS_COLLECTED),
+        )
+        weight = attrs.get("collected_weight_kg", getattr(self.instance, "collected_weight_kg", None))
+        if status_value == BinCollectionEvent.STATUS_COLLECTED and weight in (None, ""):
+            raise serializers.ValidationError(
+                {"collected_weight_kg": "Collected weight is required when status is Collected."}
+            )
+        if status_value in {BinCollectionEvent.STATUS_NOT_COLLECTED, BinCollectionEvent.STATUS_COLLECT_LATER}:
+            attrs["collected_weight_kg"] = None
 
         # These are intentionally not serializer fields. They are derived only
         # to satisfy the current model while the API exposes nested objects.

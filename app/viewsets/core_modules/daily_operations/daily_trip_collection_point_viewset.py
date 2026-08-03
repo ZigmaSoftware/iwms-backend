@@ -4,7 +4,7 @@ import hashlib
 from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q, Sum
-from rest_framework import status
+from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -20,6 +20,7 @@ from app.serializers.core_modules.daily_operations.daily_trip_collection_point_s
     DailyTripCollectionPointSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
@@ -27,6 +28,10 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = DailyTripCollectionPointSerializer
     lookup_field = "unique_id"
     permission_resource = "DailyTripCollectionPoint"
+
+    filter_backends = [filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    ordering_fields = ["sequence", "status", "collected_at"]
 
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "daily-trip-collection-point"

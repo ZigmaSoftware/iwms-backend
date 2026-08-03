@@ -1,8 +1,9 @@
-from rest_framework import viewsets
+from rest_framework import filters, viewsets
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.masters.district import District
 from app.serializers.masters.district_serializer import DistrictSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 class DistrictViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
@@ -10,6 +11,11 @@ class DistrictViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     serializer_class = DistrictSerializer
     lookup_field = "unique_id"
     permission_resource = "District"
+
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["name"]
+    ordering_fields = ["name", "is_active"]
 
     AUDIT_MODULE = "masters"
     AUDIT_ENDPOINT ="districts"

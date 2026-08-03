@@ -22,6 +22,13 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     district_name = serializers.CharField(source="district_id.name", read_only=True)
     panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
 
+    # Collection points only support bin + bulk. Household collection is
+    # valid only at the household-stop level, so it is rejected here.
+    collection_type = serializers.ChoiceField(
+        choices=Collection_point.COLLECTION_TYPE_CP_CHOICES,
+        default=Collection_point.COLLECTION_TYPE_BIN,
+    )
+
     # wards M2M — write accepts list of ward unique_ids; read returns minimal ward objects
     ward_ids = serializers.ListField(
         child=serializers.CharField(),

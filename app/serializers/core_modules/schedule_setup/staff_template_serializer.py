@@ -35,16 +35,8 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     )
 
 
-    approved_by = UniqueIdOrPkField(
-        slug_field="staff_unique_id",
-        queryset=Staffcreation.objects.filter(is_deleted=False),
-        required=False,
-        allow_null=True
-    )
-
     driver_name = serializers.CharField(source="driver_id.employee_name", read_only=True)
     operator_name = serializers.CharField(source="operator_id.employee_name", read_only=True)
-    approved_by_name = serializers.CharField(source="approved_by.employee_name", read_only=True)
 
     extra_operator_id = CommaSeparatedListField(
         child=serializers.CharField(),
@@ -85,11 +77,7 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "updated_by",
         
 
-            "approved_by",
-            "approved_by_name",
-
             "status",
-            "approval_status",
 
             "created_at",
             "updated_at",
@@ -108,10 +96,4 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "operator_role",
             "created_by_name",
             "updated_by_name",
-            "approved_by_name",
         ]
-
-    def validate_approved_by(self, value):
-        if self.instance and self.instance.approved_by:
-            raise serializers.ValidationError("Approved by cannot be modified")
-        return value

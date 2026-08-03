@@ -1,10 +1,11 @@
 from django.shortcuts import get_object_or_404
 
-from rest_framework import viewsets
+from rest_framework import filters, viewsets
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.role_assigns.userType import UserType
 from app.serializers.superadmin.role_management.usertype_serializer import UserTypeSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class UserTypeViewSet(AuditViewSetMixin,CompanyScopedViewSet):
@@ -16,6 +17,9 @@ class UserTypeViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     AUDIT_ENDPOINT = "user-type"
 
     permission_resource = "UserType"
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["name"]
+    ordering_fields = ["name", "is_active"]
 
     def filter_queryset(self, queryset):
         """

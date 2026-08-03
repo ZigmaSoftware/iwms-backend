@@ -63,6 +63,9 @@ class DailyTripCollectionPointSerializer(
             "collected_by",
             "collected_by_staff",
             "status",
+            "status_reason",
+            "status_latitude",
+            "status_longitude",
             "created_by",
             "updated_by",
             "is_active",
@@ -191,5 +194,14 @@ class DailyTripCollectionPointSerializer(
         if is_collected or collected_at is not None:
             attrs["is_collected"] = True
             attrs["status"] = DailyTripCollectionPoint.STATUS_COLLECTED
+            attrs["status_reason"] = None
+
+        status_value = attrs.get("status", getattr(instance, "status", None))
+        if status_value in {
+            DailyTripCollectionPoint.STATUS_SKIPPED,
+            DailyTripCollectionPoint.STATUS_MISSED,
+        } and not (is_collected or collected_at is not None):
+            attrs["is_collected"] = False
+            attrs["collected_weight_kg"] = None
 
         return attrs

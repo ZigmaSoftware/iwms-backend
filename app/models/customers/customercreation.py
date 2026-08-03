@@ -327,10 +327,13 @@ class CustomerCreation(BaseMaster):
         verbose_name = "Customer"
         verbose_name_plural = "Customers"
         ordering = ["customer_name"]
+        indexes = [
+            models.Index(fields=["is_deleted", "customer_name"], name="custcreation_del_name_idx"),
+        ]
 
     def __str__(self):
         location = (
-            self.zone.name if self.zone else
+            self.zone.zone_name if self.zone else
             self.city.name if self.city else
             self.state.name
         )

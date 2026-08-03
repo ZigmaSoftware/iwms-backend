@@ -7,6 +7,7 @@ from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.utils.waste_type_breakdown import waste_type_breakdown_for_assignment
 
 
 class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -44,10 +45,14 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     trip_assignment = serializers.SerializerMethodField(read_only=True)
     staff_template = serializers.SerializerMethodField(read_only=True)
     panchayat = serializers.SerializerMethodField(read_only=True)
+    zone = serializers.SerializerMethodField(read_only=True)
     ward = serializers.SerializerMethodField(read_only=True)
+    wards_detail = serializers.SerializerMethodField(read_only=True)
+    location = serializers.SerializerMethodField(read_only=True)
     collection_point = serializers.SerializerMethodField(read_only=True)
     collection_points = serializers.SerializerMethodField(read_only=True)
     waste_type = serializers.SerializerMethodField(read_only=True)
+    waste_types_detail = serializers.SerializerMethodField(read_only=True)
     driver = serializers.SerializerMethodField(read_only=True)
     operator = serializers.SerializerMethodField(read_only=True)
     extra_operators = serializers.SerializerMethodField(read_only=True)
@@ -56,6 +61,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     verified_by_name = serializers.SerializerMethodField(read_only=True)
     collection_status = serializers.SerializerMethodField(read_only=True)
     household_collections = serializers.SerializerMethodField(read_only=True)
+    waste_type_breakdown = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = DailyTripLog
@@ -72,12 +78,16 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "project_name",
             "panchayat_id",
             "panchayat",
+            "zone",
             "ward",
+            "wards_detail",
+            "location",
             "collection_point_id",
             "collection_point",
             "collection_points",
             "waste_type_id",
             "waste_type",
+            "waste_types_detail",
             "trip_date",
             "actual_start_time",
             "actual_end_time",
@@ -100,6 +110,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "verified_at",
             "collection_status",
             "household_collections",
+            "waste_type_breakdown",
             "created_by",
             "created_at",
             "updated_at",
@@ -144,6 +155,15 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             ),
         }
 
+    def get_wards_detail(self, obj):
+        assignment = obj.trip_assignment_id
+        if not assignment:
+            return []
+        return [
+            {"unique_id": ward.unique_id, "ward_name": ward.ward_name}
+            for ward in assignment.wards.all()
+        ]
+
     def get_staff_template(self, obj):
         # Fall back to trip assignment's templates for records created before the migration
         assignment = obj.trip_assignment_id
@@ -172,6 +192,9 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         return result
 
     def get_collection_points(self, obj):
+        from django.db.models import Sum
+        from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+
         assignment = obj.trip_assignment_id
         if not assignment:
             return []
@@ -181,17 +204,36 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             .select_related("collection_point_id")
             .order_by("sequence")
         )
+        breakdown_by_stop = {}
+        stop_ids = [tcp.unique_id for tcp in cps]
+        if stop_ids:
+            rows = (
+                BinCollectionEvent.objects.filter(
+                    trip_collection_point_id__in=stop_ids, is_deleted=False,
+                )
+                .values("trip_collection_point_id", "waste_type_id", "waste_type_id__waste_type_name")
+                .annotate(total_weight=Sum("collected_weight_kg"))
+            )
+            for row in rows:
+                if not row["total_weight"]:
+                    continue
+                breakdown_by_stop.setdefault(row["trip_collection_point_id"], []).append({
+                    "waste_type_name": row["waste_type_id__waste_type_name"],
+                    "collected_weight_kg": str(row["total_weight"]),
+                })
         return [
             {
                 "unique_id": tcp.collection_point_id.unique_id,
                 "cp_name": tcp.collection_point_id.cp_name,
                 "sequence": tcp.sequence,
                 "is_collected": tcp.is_collected,
+                "status": tcp.status,
                 "collected_weight_kg": (
                     str(tcp.collected_weight_kg)
                     if tcp.collected_weight_kg is not None
                     else None
                 ),
+                "waste_type_breakdown": breakdown_by_stop.get(tcp.unique_id, []),
             }
             for tcp in cps
             if tcp.collection_point_id
@@ -233,12 +275,28 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         hh_list = (
             DailyTripHouseholdCollection.objects
             .filter(trip_assignment_id=assignment, is_deleted=False)
-            .select_related("customer_id")
+            .select_related("customer_id", "waste_collection_id", "waste_collection_id__customer")
             .order_by("sequence")
         )
         result = []
         for hh in hh_list:
-            customer = hh.customer_id
+            waste = hh.waste_collection_id
+            customer = hh.customer_id or getattr(waste, "customer", None)
+            waste_type_breakdown = []
+            if waste:
+                for column, label in (
+                    ("wet_waste", "Wet Waste"),
+                    ("dry_waste", "Dry Waste"),
+                    ("mixed_waste", "Mixed Waste"),
+                    ("sanitary_waste", "Sanitary Waste"),
+                ):
+                    value = getattr(waste, column, None)
+                    if not value:
+                        continue
+                    waste_type_breakdown.append({
+                        "waste_type_name": label,
+                        "collected_weight_kg": str(value),
+                    })
             result.append({
                 "unique_id": hh.unique_id,
                 "sequence": hh.sequence,
@@ -248,14 +306,40 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
                 "collected_weight_kg": (
                     str(hh.collected_weight_kg) if hh.collected_weight_kg is not None else None
                 ),
+                "wet_waste": str(waste.wet_waste) if waste and waste.wet_waste else None,
+                "dry_waste": str(waste.dry_waste) if waste and waste.dry_waste else None,
+                "mixed_waste": str(waste.mixed_waste) if waste and waste.mixed_waste else None,
+                "sanitary_waste": str(waste.sanitary_waste) if waste and waste.sanitary_waste else None,
+                "waste_type_breakdown": waste_type_breakdown,
                 "collected_at": hh.collected_at.isoformat() if hh.collected_at else None,
                 "status": hh.status,
             })
         return result
 
+    def get_waste_type_breakdown(self, obj):
+        assignment = obj.trip_assignment_id
+        if not assignment:
+            return []
+        rows = waste_type_breakdown_for_assignment(assignment)
+        return [
+            {
+                "waste_type_name": row["waste_type_name"],
+                "collected_weight_kg": str(row["collected_weight_kg"]),
+            }
+            for row in rows
+        ]
+
     def get_panchayat(self, obj):
-        p = obj.panchayat_id
+        assignment = obj.trip_assignment_id
+        trip_plan = getattr(assignment, "trip_plan_id", None)
+        p = obj.panchayat_id or getattr(assignment, "panchayat_id", None) or getattr(trip_plan, "panchayat_id", None)
         return None if not p else {"unique_id": p.unique_id, "panchayat_name": p.panchayat_name}
+
+    def get_zone(self, obj):
+        assignment = obj.trip_assignment_id
+        trip_plan = getattr(assignment, "trip_plan_id", None)
+        z = obj.zone_id or getattr(trip_plan, "zone_id", None)
+        return None if not z else {"unique_id": z.unique_id, "zone_name": z.zone_name}
 
     def get_ward(self, obj):
         assignment = obj.trip_assignment_id
@@ -264,6 +348,22 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         wards = assignment.wards.all()
         return [{"unique_id": w.unique_id, "ward_name": w.ward_name} for w in wards] or None
 
+    def get_location(self, obj):
+        assignment = obj.trip_assignment_id
+        trip_plan = getattr(assignment, "trip_plan_id", None)
+        district = getattr(trip_plan, "district_id", None)
+        city = getattr(trip_plan, "city_id", None)
+        panchayat = obj.panchayat_id or getattr(assignment, "panchayat_id", None) or getattr(trip_plan, "panchayat_id", None)
+        zone = obj.zone_id or getattr(trip_plan, "zone_id", None)
+        return {
+            "district": getattr(district, "name", None),
+            "city": getattr(city, "name", None),
+            "panchayat": getattr(panchayat, "panchayat_name", None),
+            "zone": getattr(zone, "zone_name", None),
+            "local_body_name": getattr(panchayat, "panchayat_name", None) or getattr(zone, "zone_name", None),
+            "local_body_level": "Panchayat" if panchayat else ("Zone" if zone else None),
+        }
+
     def get_collection_point(self, obj):
         cp = obj.collection_point_id
         return None if not cp else {"unique_id": cp.unique_id, "cp_name": cp.cp_name}
@@ -271,6 +371,15 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     def get_waste_type(self, obj):
         wt = obj.waste_type_id
         return None if not wt else {"unique_id": wt.unique_id, "waste_type_name": wt.waste_type_name}
+
+    def get_waste_types_detail(self, obj):
+        assignment = obj.trip_assignment_id
+        if not assignment:
+            return []
+        return [
+            {"unique_id": wt.unique_id, "waste_type_name": wt.waste_type_name}
+            for wt in assignment.waste_types.all()
+        ]
 
     def _staff_dict(self, staff):
         if not staff:

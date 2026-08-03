@@ -47,16 +47,11 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if status_param:
             qs = qs.filter(status=status_param)
 
-        approval_status = self.request.query_params.get("approval_status")
-        if approval_status:
-            qs = qs.filter(approval_status=approval_status)
-
         return qs.select_related(
             "driver_id",
             "operator_id",
             "created_by",
             "updated_by",
-            "approved_by",
         )
 
     def destroy(self, request, *args, **kwargs):
@@ -138,7 +133,6 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         instance = serializer.save(
             created_by=account,
             updated_by=account,
-            approved_by=serializer.validated_data.get("approved_by"),
         )
 
         new_data = self._serialize_instance(instance)
@@ -171,22 +165,10 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         # ✅ FIX: Convert to Account
         account = self._get_account(staff_user, request_user)
 
-        # instance = serializer.save(
-        #     updated_by=account,
-        #     approved_by=serializer.validated_data.get(
-        #         "approved_by",
-        #         serializer.instance.approved_by
-        #     ),
-        # )
-
         previous_data = self._serialize_instance(serializer.instance)
 
         instance = serializer.save(
             updated_by=account,
-            approved_by=serializer.validated_data.get(
-                "approved_by",
-                serializer.instance.approved_by
-            ),
         )
 
         new_data = self._serialize_instance(instance)

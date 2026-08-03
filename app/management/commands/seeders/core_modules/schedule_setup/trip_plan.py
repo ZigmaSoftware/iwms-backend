@@ -47,7 +47,7 @@ class TripPlanSeeder(BaseSeeder):
             return
 
         staff_templates = list(StaffTemplate.objects.filter(
-            is_deleted=False, status="ACTIVE", approval_status="APPROVED"
+            is_deleted=False, status="ACTIVE"
         ).order_by("created_at"))
 
         vehicles = list(VehicleCreation.objects.filter(

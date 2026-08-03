@@ -14,12 +14,17 @@ from app.models.schedule_masters.trip_plan import TripPlan
 from app.models.schedule_masters.trip_plan_collection_point import (
     TripPlanCollectionPoint,
 )
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.schedule_masters.staff_template import StaffTemplate
 from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
+from app.signals.trip_plan_signals import (
+    _customers_for_household_stop,
+    sync_daily_assignment_stops_from_plan,
+)
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 
@@ -47,6 +52,14 @@ class TripPlanStopInputSerializer(serializers.Serializer):
     )
     sequence = serializers.IntegerField(min_value=1)
     is_active = serializers.BooleanField(default=True)
+
+
+# Sentinel row used for Household/Bulk trip plans: no explicit customer_id,
+# meaning "every matching customer in the plan's ward/panchayat scope" —
+# expanded server-side (see trip_plan_signals._customers_for_household_stop)
+# rather than listed as individual stops. The frontend Collection Mode UI
+# sends exactly one of these when auto-assign mode is Household or Bulk.
+AUTO_ASSIGN_STOP_SEQUENCE = 1
 
 
 class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -142,6 +155,15 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         required=False,
     )
 
+    collection_type = serializers.ChoiceField(
+        choices=TripPlan.COLLECTION_TYPE_CHOICES,
+        required=False,
+        default=TripPlan.COLLECTION_TYPE_BIN,
+        help_text="Collection Mode: bin_collection (manual stops) or "
+        "household_collection/bulk_waste_collection (auto-assigned to every "
+        "matching customer in the plan's ward/panchayat scope).",
+    )
+
     is_auto_assign = serializers.BooleanField(required=False)
     repeat_days = serializers.ListField(
         child=serializers.IntegerField(min_value=0, max_value=6),
@@ -163,6 +185,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
     waste_types = serializers.SerializerMethodField()
     start_time = serializers.SerializerMethodField()
     plan_collection_points = serializers.SerializerMethodField()
+    stop_count = serializers.SerializerMethodField()
 
     class Meta:
         model = TripPlan
@@ -207,8 +230,10 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
                 "repeat_days",
             "approval_status",
             "status",
+            "collection_type",
             "collection_points",
             "plan_collection_points",
+            "stop_count",
             "created_at",
             "updated_at",
         ]
@@ -337,6 +362,27 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             })
         return result
 
+    def get_stop_count(self, obj):
+        stops = obj.plan_collection_points.filter(
+            is_deleted=False,
+            is_active=True,
+        ).select_related("collection_point_id", "bin_id", "customer_id")
+        if obj.collection_type == TripPlan.COLLECTION_TYPE_BIN:
+            return stops.count()
+
+        customer_ids = set()
+        for stop in stops:
+            if stop.collection_type not in {
+                TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
+                TripPlanCollectionPoint.COLLECTION_TYPE_BULK,
+            }:
+                continue
+            customer_ids.update(
+                _customers_for_household_stop(stop, wards=obj.wards)
+                .values_list("unique_id", flat=True)
+            )
+        return len(customer_ids)
+
     def validate(self, attrs):
         attrs.pop("company_id_input", None)
         attrs.pop("project_id_input", None)
@@ -401,6 +447,11 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
                 {"waste_type_ids": "Select at least one waste type."}
             )
 
+        plan_collection_type = attrs.get(
+            "collection_type",
+            getattr(instance, "collection_type", TripPlan.COLLECTION_TYPE_BIN),
+        )
+
         stops = attrs.get("collection_points")
         if stops is not None:
             sequences = [stop["sequence"] for stop in stops]
@@ -411,11 +462,16 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
 
             bin_stop_keys = set()
             household_stop_keys = set()
+            saw_auto_assign_stop = False
             for stop in stops:
                 collection_type = stop.get(
                     "collection_type",
                     TripPlanCollectionPoint.COLLECTION_TYPE_BIN,
                 )
+                if collection_type != plan_collection_type:
+                    raise serializers.ValidationError(
+                        {"collection_points": "Stop type must match the trip plan's Collection Mode."}
+                    )
                 collection_point_id = stop.get("collection_point_id")
                 bin_id = stop.get("bin_id")
                 customer_id = stop.get("customer_id")
@@ -453,11 +509,32 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
                         raise serializers.ValidationError(
                             {"collection_points": "Selected bin does not belong to the collection point."}
                         )
-                elif collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD:
-                    if not customer_id:
+                    reserved_bins = TripPlanCollectionPoint.objects.filter(
+                        bin_id=bin_obj,
+                        trip_plan_id__is_deleted=False,
+                    )
+                    if instance:
+                        reserved_bins = reserved_bins.exclude(trip_plan_id=instance)
+                    if reserved_bins.exists():
                         raise serializers.ValidationError(
-                            {"collection_points": "Customer is required for household collection."}
+                            {"collection_points": "This bin is already assigned to another Trip Plan."}
                         )
+                elif collection_type in (
+                    TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
+                    TripPlanCollectionPoint.COLLECTION_TYPE_BULK,
+                ):
+                    if not customer_id:
+                        # No customer_id = the auto-assign catch-all stop: every
+                        # customer in the plan's ward/panchayat scope is expanded
+                        # server-side (trip_plan_signals._customers_for_household_stop)
+                        # rather than listed individually here. Only one such
+                        # placeholder row is meaningful per plan.
+                        if saw_auto_assign_stop:
+                            raise serializers.ValidationError(
+                                {"collection_points": "Only one auto-assign stop is allowed per trip plan."}
+                            )
+                        saw_auto_assign_stop = True
+                        continue
                     if customer_id in household_stop_keys:
                         raise serializers.ValidationError(
                             {"collection_points": "Customer rows must be unique per trip plan."}
@@ -507,15 +584,34 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
                 first_ward = cp.wards.select_related("zone_id").first()
                 ward = first_ward
                 zone = first_ward.zone_id if first_ward else None
-            elif collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD:
-                customer = CustomerCreation.objects.select_related(
-                    "panchayat_id",
-                    "ward",
-                    "zone",
-                ).get(unique_id=stop["customer_id"])
-                panchayat = getattr(customer, "panchayat_id", None)
-                ward = getattr(customer, "ward", None)
-                zone = getattr(customer, "zone", None)
+            elif collection_type in (
+                TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
+                TripPlanCollectionPoint.COLLECTION_TYPE_BULK,
+            ):
+                customer_id = stop.get("customer_id")
+                if customer_id:
+                    customer = CustomerCreation.objects.select_related(
+                        "panchayat_id",
+                        "ward",
+                        "zone",
+                    ).get(unique_id=customer_id)
+                    panchayat = getattr(customer, "panchayat_id", None)
+                    ward = getattr(customer, "ward", None)
+                    zone = getattr(customer, "zone", None)
+                else:
+                    # The auto-assign catch-all stop: no single customer, so
+                    # geo comes straight from the trip plan itself. bulk_create
+                    # below bypasses TripPlanCollectionPoint.save() (and thus
+                    # its copy_flat_geo(self, self.trip_plan_id) fallback), so
+                    # copy it explicitly here. trip_plan_signals'
+                    # _customers_for_household_stop() reads this same
+                    # panchayat/zone (falling back to the plan's own geo) to
+                    # expand this single row into one
+                    # DailyTripHouseholdCollection per matching customer in
+                    # scope at daily-trip-generation time (not here).
+                    panchayat = trip_plan.panchayat_id
+                    zone = trip_plan.zone_id
+                    ward = None
 
             new_stops.append(TripPlanCollectionPoint(
                 company_id=trip_plan.company_id,
@@ -540,6 +636,14 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         wards = Ward.objects.filter(unique_id__in=ward_ids, is_deleted=False)
         trip_plan.wards.set(wards)
 
+    def _resync_daily_assignments(self, trip_plan):
+        assignments = DailyTripAssignment.objects.filter(
+            trip_plan_id=trip_plan,
+            is_deleted=False,
+        ).exclude(status=DailyTripAssignment.STATUS_CANCELLED).prefetch_related("wards")
+        for assignment in assignments:
+            sync_daily_assignment_stops_from_plan(assignment)
+
     def create(self, validated_data):
         stops = validated_data.pop("collection_points", None)
         ward_ids = validated_data.pop("ward_ids", [])
@@ -563,4 +667,5 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
                 trip_plan.save(update_fields=["display_code"])
             self._sync_wards(trip_plan, ward_ids)
             self._sync_stops(trip_plan, stops)
+            self._resync_daily_assignments(trip_plan)
         return trip_plan

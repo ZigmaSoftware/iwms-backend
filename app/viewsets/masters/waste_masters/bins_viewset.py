@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import filters, viewsets, status
 from rest_framework.response import Response
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.assets.bins import Bins
@@ -8,6 +8,7 @@ import os
 import datetime
 from django.conf import settings
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 def save_uploaded_file(file, folder_name):
     """
@@ -48,6 +49,11 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
     permission_resource = "Bin"
 
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["bin_name", "ward_id__ward_name", "wastetype_id__waste_type_name"]
+    ordering_fields = ["bin_name", "bin_capacity", "is_active"]
+
     AUDIT_MODULE = "assets"
     AUDIT_ENDPOINT ="bins"
 
@@ -70,14 +76,14 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         queryset = Bins.objects.select_related(
             "district_id",
             "city_id",
+            "panchayat_id",
+            "zone_id",
+            "ward_id",
             "collection_point_id",
             "collection_point_id__panchayat_id",
             "wastetype_id",
             "company_id",
             "project_id",
-        ).prefetch_related(
-            "collection_point_id__wards",
-            "collection_point_id__wards__zone_id",
         ).filter(is_deleted=False)
 
         company_uid = self.request.query_params.get("company_id")
@@ -105,13 +111,13 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             queryset = queryset.filter(city_id__unique_id=city_uid)
 
         if panchayat_uid:
-            queryset = queryset.filter(collection_point_id__panchayat_id__unique_id=panchayat_uid)
+            queryset = queryset.filter(panchayat_id__unique_id=panchayat_uid)
 
         if ward_uid:
-            queryset = queryset.filter(collection_point_id__wards__unique_id=ward_uid).distinct()
+            queryset = queryset.filter(ward_id__unique_id=ward_uid)
 
         if zone_uid:
-            queryset = queryset.filter(collection_point_id__wards__zone_id__unique_id=zone_uid).distinct()
+            queryset = queryset.filter(zone_id__unique_id=zone_uid)
 
         if collection_point_uid:
             queryset = queryset.filter(collection_point_id__unique_id=collection_point_uid)

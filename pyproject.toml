@@ -53,6 +53,8 @@ addopts = [
     "--tb=short",
     "--strict-markers",
     "-q",
+    "-p",
+    "tests.scheduler_guard_plugin",
 ]
 
 # Coverage configuration

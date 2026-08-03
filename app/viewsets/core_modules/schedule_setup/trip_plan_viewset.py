@@ -13,6 +13,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -42,6 +43,7 @@ class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         ModelFieldSearchFilter,
         SerializerOrderingFilter,
     ]
+    pagination_class = LimitOffsetWithPage
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "trip-plans"
 

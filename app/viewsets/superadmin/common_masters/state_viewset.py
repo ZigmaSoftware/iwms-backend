@@ -1,7 +1,8 @@
-from rest_framework import viewsets
+from rest_framework import filters, viewsets
 from app.models.common_masters.state import State
 from app.serializers.superadmin.common_masters.state_serializer import StateSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class StateViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
@@ -10,6 +11,11 @@ class StateViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
     lookup_field = "unique_id"
 
     permission_resource = "State"
+
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["name"]
+    ordering_fields = ["name"]
 
     AUDIT_MODULE = "common-masters"
     AUDIT_ENDPOINT = "states"
