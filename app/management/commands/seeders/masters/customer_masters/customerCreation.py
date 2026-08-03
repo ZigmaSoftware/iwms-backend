@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
+from django.db.models import Q
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
@@ -44,10 +45,25 @@ CUSTOMER_DATA = [
 ]
 
 
+def backfill_missing_customer_ids():
+    missing_customers = CustomerCreation.objects.filter(
+        Q(customer_id__isnull=True) | Q(customer_id="")
+    ).order_by("company_id_id", "project_id_id", "unique_id")
+    repaired_count = 0
+    for customer in missing_customers.iterator():
+        customer.save(update_fields=["customer_id"])
+        repaired_count += 1
+    return repaired_count
+
+
 class CustomerCreationSeeder(BaseSeeder):
     name = "customer_creation"
 
     def run(self):
+        repaired_count = backfill_missing_customer_ids()
+        if repaired_count:
+            self.log(f"Backfilled customer IDs for {repaired_count} customers.")
+
         country = Country.objects.filter(name="India").first()
         state = State.objects.filter(name="Tamil Nadu").first()
         district = District.objects.filter(name="Chennai").first()
@@ -112,6 +128,8 @@ class CustomerCreationSeeder(BaseSeeder):
                 for idx in range(1, int(entry["member_count"]) + 1)
             ]
             customer, created = CustomerCreation.objects.update_or_create(
+                company_id=company,
+                project_id=project,
                 id_no=entry["id_no"],
                 defaults={
                     "customer_name": entry["customer_name"],
@@ -140,8 +158,6 @@ class CustomerCreationSeeder(BaseSeeder):
                     "family_members": family_members,
                     "property_ref": property_obj,
                     "sub_property": sub_property_obj,
-                    "company_id": company,
-                    "project_id": project,
                     "user_type_id": customer_type,
                     "is_active": True,
                     "is_deleted": False,
@@ -153,7 +169,14 @@ class CustomerCreationSeeder(BaseSeeder):
             else:
                 updated_count += 1
             action = "Created" if created else "Exists"
-            self.log(f"Customer {action}: {customer.customer_name}")
+            self.log(
+                f"Customer {action}: {customer.customer_name} "
+                f"[unique_id={customer.unique_id}, customer_id={customer.customer_id}]"
+            )
             UserModel.objects.filter(customer_id_id=customer.unique_id).delete()
 
         self.log(f"---Customers seeded ({created_count} created, {updated_count} updated)---")
+
+        repaired_count = backfill_missing_customer_ids()
+        if repaired_count:
+            self.log(f"Backfilled customer IDs for {repaired_count} customers.")

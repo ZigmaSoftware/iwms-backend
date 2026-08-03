@@ -6,7 +6,7 @@ from app.models.schedule_masters.daily_trip_collection_point import DailyTripCol
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
-TARGET = 15
+TARGET = 30
 
 # Simulate realistic GPS coordinates (Chennai area)
 GPS_SAMPLES = [

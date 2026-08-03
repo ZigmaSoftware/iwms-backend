@@ -152,6 +152,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         model = CustomerCreation
         fields = [
             "unique_id",
+            "customer_id",
             "company_id",
             "company_name",
             "project_id",
@@ -208,7 +209,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "is_bulkwaste_generator",
             "qr_code",
         ]
-        read_only_fields = ["unique_id", "password_crt_date", "created_at"]
+        read_only_fields = ["unique_id", "customer_id", "password_crt_date", "created_at"]
         validators = []
 
     def to_representation(self, instance):
