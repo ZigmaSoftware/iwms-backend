@@ -14,6 +14,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 class MainScreenTypeViewSet(CompanyScopedViewSet):
     serializer_class = MainScreenTypeSerializer
@@ -24,6 +25,7 @@ class MainScreenTypeViewSet(CompanyScopedViewSet):
         ModelFieldSearchFilter,
         SerializerOrderingFilter,
     ]
+    pagination_class = LimitOffsetWithPage
 
     def get_queryset(self):
         queryset = super().get_queryset()

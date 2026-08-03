@@ -1,10 +1,11 @@
-from rest_framework import viewsets, status
+from rest_framework import filters, viewsets, status
 from app.models.schedule_masters.collection_point import Collection_point
 from app.serializers.core_modules.schedule_setup.collection_point_serializer import CollectionPointSerializer
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class CollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -12,6 +13,11 @@ class CollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     lookup_field = "unique_id"
 
     permission_resource = "CollectionPoint"
+
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["cp_name"]
+    ordering_fields = ["cp_name", "collection_type", "is_active"]
 
     AUDIT_MODULE = "assets"
     AUDIT_ENDPOINT = "collection-point"

@@ -12,6 +12,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class DailyTripHouseholdCollectionViewSet(CompanyScopedViewSet):
@@ -23,6 +24,8 @@ class DailyTripHouseholdCollectionViewSet(CompanyScopedViewSet):
         ModelFieldSearchFilter,
         SerializerOrderingFilter,
     ]
+    pagination_class = LimitOffsetWithPage
+    ordering_fields = ["sequence", "status", "collected_at"]
 
     def get_queryset(self):
         queryset = (

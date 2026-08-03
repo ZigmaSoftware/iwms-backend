@@ -3,6 +3,7 @@ from rest_framework.response import Response
 
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 from app.serializers.masters.leader_management.panchayat_leader_serializer import PanchayatLeaderLoginSerializer
 
@@ -22,6 +23,7 @@ class PanchayatLeaderLoginViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     AUDIT_ENDPOINT = "panchayat-leaders"
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
     search_fields = ["username", "leader_name", "email", "panchayat_id__panchayat_name"]
     ordering_fields = ["username", "created_at"]
 

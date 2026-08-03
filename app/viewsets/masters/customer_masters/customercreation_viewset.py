@@ -4,7 +4,7 @@ import io
 
 from django.db.models import Q, Count, Prefetch
 from django.db.models.functions import Upper
-from rest_framework import status
+from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -23,6 +23,7 @@ from app.serializers.masters.customer_masters.customercreation_serializer import
 
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.customer_qr import generate_customer_qr_content, generate_apartment_qr_data
+from app.utils.pagination import LimitOffsetWithPage
 
 
 from app.models.masters.ward import Ward
@@ -117,6 +118,11 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = CustomerCreationSerializer
     lookup_field = "unique_id"
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["customer_name", "contact_no", "apartment_name", "flat_no"]
+    ordering_fields = ["customer_name", "is_active"]
 
     AUDIT_MODULE = "customer-masters"
     AUDIT_ENDPOINT = "customercreations"

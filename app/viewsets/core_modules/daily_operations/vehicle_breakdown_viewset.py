@@ -18,6 +18,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
@@ -45,6 +46,8 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     lookup_field = "unique_id"
     permission_resource = "VehicleBreakdown"
     filter_backends = [ModelFieldQueryFilter, ModelFieldSearchFilter, SerializerOrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    ordering_fields = ["breakdown_time", "status", "approval_status"]
 
     AUDIT_MODULE = "schedule-masters"
     AUDIT_ENDPOINT = "vehicle-breakdowns"

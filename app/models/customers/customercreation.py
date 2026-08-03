@@ -327,6 +327,9 @@ class CustomerCreation(BaseMaster):
         verbose_name = "Customer"
         verbose_name_plural = "Customers"
         ordering = ["customer_name"]
+        indexes = [
+            models.Index(fields=["is_deleted", "customer_name"], name="custcreation_del_name_idx"),
+        ]
 
     def __str__(self):
         location = (

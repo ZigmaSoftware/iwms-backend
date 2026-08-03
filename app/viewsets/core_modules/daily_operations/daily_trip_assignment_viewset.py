@@ -22,8 +22,10 @@ from app.serializers.core_modules.daily_operations.daily_trip_assignment_seriali
     DailyTripAssignmentStatusSerializer,
     DailyTripAssignmentApprovalSerializer,
 )
+from rest_framework import filters
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -86,6 +88,11 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = DailyTripAssignmentSerializer
     lookup_field = "unique_id"
     permission_resource = "DailyTripAssignment"
+
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["unique_id", "vehicle_id__vehicle_no", "staff_template_id__driver_id__employee_name"]
+    ordering_fields = ["trip_date", "scheduled_time", "status", "approval_status"]
 
     AUDIT_MODULE = "trip-assignments"
     AUDIT_ENDPOINT = "daily-trip-assignments"

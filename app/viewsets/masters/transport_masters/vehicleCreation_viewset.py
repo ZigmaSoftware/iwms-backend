@@ -22,6 +22,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     queryset = VehicleCreation.objects.filter(is_deleted=False)
@@ -32,6 +33,8 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         ModelFieldSearchFilter,
         SerializerOrderingFilter,
     ]
+    pagination_class = LimitOffsetWithPage
+    ordering_fields = ["vehicle_no", "is_active"]
 
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "vehicles"
