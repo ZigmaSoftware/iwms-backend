@@ -90,9 +90,17 @@ class AuthUserSeeder(BaseSeeder):
                 "login_enabled": True,
             }
 
-            staff = Staffcreation.objects.filter(username=username).first()
+            staff = Staffcreation.objects.filter(
+                company_id=company,
+                project_id=project,
+                username=username,
+            ).first()
             if not staff:
-                staff = Staffcreation.objects.filter(employee_name=username).first()
+                staff = Staffcreation.objects.filter(
+                    company_id=company,
+                    project_id=project,
+                    employee_name=username,
+                ).first()
 
             if not staff:
                 Staffcreation.objects.create(**defaults)

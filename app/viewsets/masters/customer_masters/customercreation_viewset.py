@@ -121,8 +121,10 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     pagination_class = LimitOffsetWithPage
-    search_fields = ["customer_name", "contact_no", "apartment_name", "flat_no"]
-    ordering_fields = ["customer_name", "is_active"]
+    search_fields = [
+        "customer_id", "customer_name", "contact_no", "apartment_name", "flat_no"
+    ]
+    ordering_fields = ["customer_id", "customer_name", "is_active"]
 
     AUDIT_MODULE = "customer-masters"
     AUDIT_ENDPOINT = "customercreations"

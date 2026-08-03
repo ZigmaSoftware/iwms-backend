@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.db.models import Q
 
 from app.models.masters.department import Department
 from app.models.masters.designation import Designation
@@ -15,6 +16,17 @@ from app.utils.password_encryption import encrypt_password
 
 
 DEFAULT_STAFF_PASSWORD = "Staff123"
+
+
+def backfill_missing_staff_ids():
+    missing_staff = Staffcreation.objects.filter(
+        Q(staff_id__isnull=True) | Q(staff_id="")
+    ).order_by("company_id_id", "project_id_id", "staff_unique_id")
+    repaired_count = 0
+    for staff in missing_staff.iterator():
+        staff.save(update_fields=["staff_id"])
+        repaired_count += 1
+    return repaired_count
 
 
 def _get_dept(company, project, code):
@@ -36,6 +48,10 @@ class StaffOfficeSeeder:
     group = "user-creation"
 
     def run(self):
+        repaired_count = backfill_missing_staff_ids()
+        if repaired_count:
+            print(f"  Backfilled staff IDs for {repaired_count} staff members")
+
         company = Company.objects.filter(is_deleted=False).first()
         if not company:
             company, _ = Company.objects.get_or_create(
@@ -157,7 +173,11 @@ class StaffOfficeSeeder:
             raw_password = staff_data.pop("password", None) or DEFAULT_STAFF_PASSWORD
             encrypted_password = encrypt_password(raw_password)
 
-            staff = Staffcreation.objects.filter(employee_name=staff_data["employee_name"]).first()
+            staff = Staffcreation.objects.filter(
+                company_id=company,
+                project_id=project,
+                employee_name=staff_data["employee_name"],
+            ).first()
 
             if staff:
                 for key, value in staff_data.items():
@@ -177,6 +197,14 @@ class StaffOfficeSeeder:
                 staff.save(update_fields=["password", "password_crt_date"])
 
             action = "Created" if created else "Updated"
-            print(f"  Staff '{staff.employee_name}' ({action})")
+            print(
+                f"  Staff '{staff.employee_name}' "
+                f"[unique_id={staff.staff_unique_id}, staff_id={staff.staff_id}] "
+                f"({action})"
+            )
+
+        repaired_count = backfill_missing_staff_ids()
+        if repaired_count:
+            print(f"  Backfilled staff IDs for {repaired_count} staff members")
 
         print("---Staffcreation seeded---")

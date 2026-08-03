@@ -20,6 +20,16 @@ class TestStaffCreationCreate:
     def test_unique_id_prefix(self, staff):
         assert staff.staff_unique_id.startswith("STC-")
 
+    def test_staff_id_starts_at_one(self, staff):
+        assert staff.staff_id == "STF0001"
+
+    def test_staff_id_is_exposed_by_serializer(self, staff):
+        from app.serializers.superadmin.staff_management.staffcreation_serializer import (
+            StaffcreationSerializer,
+        )
+
+        assert StaffcreationSerializer(staff).data["staff_id"] == "STF0001"
+
     def test_str_contains_name(self, staff):
         assert "John Driver" in str(staff)
 
@@ -37,6 +47,18 @@ class TestStaffCreationCreate:
             project_id=project,
         )
         assert staff.staff_unique_id != s2.staff_unique_id
+        assert s2.staff_id == "STF0002"
+
+    def test_staff_id_restarts_for_another_project(self, staff, company):
+        from app.models.superadmin_masters.project import Project
+
+        other_project = Project.objects.create(name="Other Project", company_id=company)
+        s2 = StaffcreationOfficeDetails.objects.create(
+            employee_name="Other Project Driver",
+            company_id=company,
+            project_id=other_project,
+        )
+        assert s2.staff_id == "STF0001"
 
 
 @pytest.mark.django_db
@@ -69,3 +91,12 @@ class TestStaffCreationUpdate:
         staff.save()
         staff.refresh_from_db()
         assert staff.employee_name == "Updated Name"
+
+    def test_update_repairs_missing_staff_id(self, staff):
+        StaffcreationOfficeDetails.objects.filter(pk=staff.pk).update(staff_id="")
+        staff.refresh_from_db()
+        staff.employee_name = "Repaired Staff"
+        staff.save(update_fields=["employee_name"])
+        staff.refresh_from_db()
+
+        assert staff.staff_id == "STF0001"

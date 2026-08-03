@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db import models
+from django.db import models, transaction
 from app.utils.base_models import BaseMaster
 from app.models.common_masters.country import Country
 from app.models.common_masters.state import State
@@ -23,6 +23,7 @@ from app.utils.customer_qr import (
     generate_qr_data as build_customer_qr_data,
     resolve_subproperty_type,
 )
+from app.utils.scoped_display_id import lock_tenant_scope, next_scoped_display_id
 
 
 def generate_customer_id():
@@ -131,6 +132,12 @@ class CustomerCreation(BaseMaster):
         primary_key=True,
         default=generate_customer_id,
         editable=False,
+    )
+
+    customer_id = models.CharField(
+        max_length=20,
+        editable=False,
+        db_index=True,
     )
 
     customer_name = models.CharField(max_length=100)
@@ -330,6 +337,12 @@ class CustomerCreation(BaseMaster):
         indexes = [
             models.Index(fields=["is_deleted", "customer_name"], name="custcreation_del_name_idx"),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company_id", "project_id", "customer_id"],
+                name="uniq_customer_id_per_company_project",
+            ),
+        ]
 
     def __str__(self):
         location = (
@@ -443,7 +456,28 @@ class CustomerCreation(BaseMaster):
             merged_update_fields.add("group_qr_id")
             kwargs["update_fields"] = list(merged_update_fields)
 
-        super().save(*args, **kwargs)
+        if not self.customer_id:
+            with transaction.atomic():
+                lock_tenant_scope(
+                    company_model=Company,
+                    project_model=Project,
+                    company_id=self.company_id_id,
+                    project_id=self.project_id_id,
+                )
+                self.customer_id = next_scoped_display_id(
+                    model=CustomerCreation,
+                    field_name="customer_id",
+                    prefix="CUST",
+                    company_id=self.company_id_id,
+                    project_id=self.project_id_id,
+                )
+                if requested_update_fields is not None:
+                    repaired_update_fields = set(kwargs["update_fields"])
+                    repaired_update_fields.add("customer_id")
+                    kwargs["update_fields"] = list(repaired_update_fields)
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
         if qr_refresh_required:
             self._regenerate_qr_code()

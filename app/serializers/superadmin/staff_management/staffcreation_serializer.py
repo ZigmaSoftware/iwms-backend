@@ -202,6 +202,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         model = Staffcreation
         fields = [
             "unique_id",
+            "staff_id",
             "company_id",
             "company_name",
             "project_id",
@@ -270,6 +271,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
         read_only_fields = [
             "unique_id",
+            "staff_id",
             "qr_code",
             "approval_status",
             "approved_by",

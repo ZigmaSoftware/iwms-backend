@@ -47,6 +47,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         SerializerOrderingFilter,
     ]
     search_fields = [
+        "staff_id",
         "employee_name",
         "staff_unique_id",
         "site_name",
@@ -57,7 +58,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         "designation_id__designation_name",
         "designation_id__designation_group",
     ]
-    ordering_fields = ["staff_unique_id", "employee_name", "created_at"]
+    ordering_fields = ["staff_id", "staff_unique_id", "employee_name", "created_at"]
 
     approval_action_names = {"approve", "reject", "suspend", "reactivate"}
 
