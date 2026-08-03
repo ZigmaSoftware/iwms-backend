@@ -8,7 +8,9 @@ from app.utils.audit_mixin import AuditViewSetMixin
 class CityViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
 
-    queryset = City.objects.filter(is_deleted=False)
+    queryset = City.objects.filter(is_deleted=False).select_related(
+        "continent_id", "country_id", "state_id", "district_id", "company_id", "project_id"
+    )
     serializer_class = CitySerializer
     lookup_field = "unique_id"
 
@@ -18,7 +20,9 @@ class CityViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     AUDIT_ENDPOINT ="cities"
 
     def get_queryset(self):
-        queryset = City.objects.filter(is_deleted=False)
+        queryset = City.objects.filter(is_deleted=False).select_related(
+            "continent_id", "country_id", "state_id", "district_id", "company_id", "project_id"
+        )
 
         company_uid = self.request.query_params.get("company_id")
         project_uid = self.request.query_params.get("project_id")

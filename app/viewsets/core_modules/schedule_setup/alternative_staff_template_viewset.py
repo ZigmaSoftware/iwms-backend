@@ -15,11 +15,12 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 
 
 class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
-    pagination_class = None
+    pagination_class = LimitOffsetWithPage
     """
     API Contract:
     - Create alternative staff mapping
@@ -31,6 +32,8 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         "staff_template",
         "driver_id",
         "operator_id",
+        "company_id",
+        "project_id",
     )
     serializer_class = AlternativeStaffTemplateSerializer
 
@@ -73,6 +76,8 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             "operator_id",
             # "requested_by",
             "approved_by",
+            "company_id",
+            "project_id",
         )
 
     # --------------------------------------------------

@@ -25,7 +25,9 @@ from app.utils.filters import (
 from app.utils.pagination import LimitOffsetWithPage
 
 class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
-    queryset = VehicleCreation.objects.filter(is_deleted=False)
+    queryset = VehicleCreation.objects.filter(is_deleted=False).select_related(
+        "vehicle_type", "fuel_type", "company_id", "project_id"
+    )
     serializer_class = VehicleCreationSerializer
     lookup_field = "unique_id"
     filter_backends = [

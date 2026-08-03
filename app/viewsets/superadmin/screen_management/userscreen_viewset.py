@@ -17,7 +17,9 @@ from app.utils.filters import (
 
 class UserScreenViewSet(CompanyScopedViewSet):
     serializer_class = UserScreenSerializer
-    queryset = UserScreen.objects.filter(is_deleted=False)
+    queryset = UserScreen.objects.filter(is_deleted=False).select_related(
+        "mainscreen_id", "mainscreen_id__mainscreentype_id", "company_id", "project_id"
+    )
     lookup_field = "unique_id"
     filter_backends = [
         ModelFieldQueryFilter,
