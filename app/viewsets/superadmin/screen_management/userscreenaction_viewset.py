@@ -22,7 +22,7 @@ class UserScreenActionViewSet(CompanyScopedViewSet):
     serializer_class = UserScreenActionSerializer
     queryset = UserScreenAction.objects.filter(is_deleted=False).exclude(
         Q(action_name__iexact="show") | Q(variable_name__iexact="show")
-    )
+    ).select_related("company_id", "project_id")
     lookup_field = "unique_id"
     filter_backends = [
         ModelFieldQueryFilter,

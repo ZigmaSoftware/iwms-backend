@@ -2,10 +2,13 @@ from rest_framework import filters, viewsets
 from app.models.common_masters.state import State
 from app.serializers.superadmin.common_masters.state_serializer import StateSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 
 
-class StateViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
+class StateViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.ModelViewSet):
+    location_scope_field = "states"
+    location_scope_lookup = "unique_id"
     queryset = State.objects.all()   # REQUIRED for DRF basename detection
     serializer_class = StateSerializer
     lookup_field = "unique_id"
@@ -37,7 +40,7 @@ class StateViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
                 continent_id__unique_id=continent_uid
             )
 
-        return queryset
+        return self.filter_queryset_by_location_scope(queryset)
 
     def perform_destroy(self, instance):
         instance.delete()

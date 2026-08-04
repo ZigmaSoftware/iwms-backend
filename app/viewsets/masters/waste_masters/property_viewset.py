@@ -6,7 +6,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 
 class PropertyViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    queryset = Property.objects.filter(is_deleted=False)
+    queryset = Property.objects.filter(is_deleted=False).select_related("company_id", "project_id")
     serializer_class = PropertySerializer
     lookup_field = "unique_id"
 
@@ -19,7 +19,7 @@ class PropertyViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     AUDIT_ENDPOINT = "properties"
 
     def get_queryset(self):
-        queryset = Property.objects.filter(is_deleted=False)
+        queryset = Property.objects.filter(is_deleted=False).select_related("company_id", "project_id")
         project_id = self.request.query_params.get("project_id")
         if project_id:
             queryset = queryset.filter(project_id__unique_id=project_id)

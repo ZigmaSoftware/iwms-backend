@@ -4,10 +4,14 @@ from app.serializers.masters.panchayat_serializer import PanchayatSerializer
 from rest_framework.response import Response
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 
 
-class PanhayatViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class PanhayatViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+    location_scope_field = "panchayats"
+    location_scope_lookup = "unique_id"
+
     serializer_class = PanchayatSerializer
     lookup_field = "unique_id"
     permission_resource = "Panchayat"
@@ -45,7 +49,7 @@ class PanhayatViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if state_uid:
             queryset = queryset.filter(state_id__unique_id=state_uid)
 
-        return queryset
+        return self.filter_queryset_by_location_scope(queryset)
 
     def perform_destroy(self, instance):
         instance.delete()
