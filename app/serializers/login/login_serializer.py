@@ -304,6 +304,7 @@ class LoginSerializer(serializers.Serializer):
         projects_queryset = Project.objects.filter(**project_filter).values(
             "unique_id", "name",
             "gps_api_url",
+            "gps_vehicle_history_api", "gps_vehicle_tracking_api", "gps_trip_summary_api",
             "gps_user_id", "gps_group_name", "gps_provider_name", "gps_fcode", "gps_trip_user_id",
             "weighment_api_url", "day_wise_weighment_api_url",
         )
@@ -551,6 +552,9 @@ class LoginSerializer(serializers.Serializer):
                 "unique_id": project.unique_id,
                 "name": project.name,
                 "gps_api_url": getattr(project, "gps_api_url", None),
+                "gps_vehicle_history_api": getattr(project, "gps_vehicle_history_api", None),
+                "gps_vehicle_tracking_api": getattr(project, "gps_vehicle_tracking_api", None),
+                "gps_trip_summary_api": getattr(project, "gps_trip_summary_api", None),
                 "weighment_api_url": getattr(project, "weighment_api_url", None),
             }]
         elif company:
@@ -559,7 +563,11 @@ class LoginSerializer(serializers.Serializer):
                     company_id=company,
                     is_active=True,
                     is_deleted=False,
-                ).values("unique_id", "name", "gps_api_url", "weighment_api_url")
+                ).values(
+                    "unique_id", "name", "gps_api_url",
+                    "gps_vehicle_history_api", "gps_vehicle_tracking_api", "gps_trip_summary_api",
+                    "weighment_api_url",
+                )
             )
 
         return {

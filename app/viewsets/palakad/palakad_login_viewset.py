@@ -176,7 +176,9 @@ class PalakadLoginViewSet(ViewSet):
                 is_deleted=False,
             ).values(
                 "unique_id", "name",
-                "gps_api_url", "gps_user_id", "gps_group_name",
+                "gps_api_url",
+                "gps_vehicle_history_api", "gps_vehicle_tracking_api", "gps_trip_summary_api",
+                "gps_user_id", "gps_group_name",
                 "gps_provider_name", "gps_fcode", "gps_trip_user_id",
                 "weighment_api_url", "day_wise_weighment_api_url",
             )
