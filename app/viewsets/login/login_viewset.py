@@ -48,9 +48,6 @@ class LoginViewSet(ViewSet):
 
         user = serializer.validated_data["user"]
         permissions = serializer.validated_data["permissions"]
-        permission_details = serializer.validated_data.get("permission_details", {})
-        column_permissions = serializer.validated_data.get("column_permissions", {})
-        module_access = serializer.validated_data.get("module_access", [])
         app_surfaces = serializer.validated_data.get("app_surfaces", [])
         landing = serializer.validated_data.get("landing")
         permission_version = serializer.validated_data.get("permission_version")
@@ -62,6 +59,14 @@ class LoginViewSet(ViewSet):
         staffusertype_unique_id = serializer.validated_data.get("staffusertype_id")
         contractorusertype_unique_id = serializer.validated_data.get("contractorusertype_id")
         projects = serializer.validated_data.get("projects", [])
+        continents = serializer.validated_data.get("continents", [])
+        countries = serializer.validated_data.get("countries", [])
+        states = serializer.validated_data.get("states", [])
+        districts = serializer.validated_data.get("districts", [])
+        cities = serializer.validated_data.get("cities", [])
+        zones = serializer.validated_data.get("zones", [])
+        panchayats = serializer.validated_data.get("panchayats", [])
+        wards = serializer.validated_data.get("wards", [])
 
         # -------------------------
         # ROLE RESOLUTION
@@ -262,9 +267,6 @@ class LoginViewSet(ViewSet):
         access["name"] = name
         access["role"] = role
         access["email"] = email
-        # access["permissions"] = permissions
-        # access["permission_details"] = permission_details
-        # access["column_permissions"] = column_permissions
         access["emp_id"] = emp_id
         access["employee_id"] = employee_id
         access["company_unique_id"] = company_unique_id
@@ -315,9 +317,6 @@ class LoginViewSet(ViewSet):
                 "name": name,
                 "role": role,
                 "permissions": permissions,
-                "permission_details": permission_details,
-                "column_permissions": column_permissions,
-                "module_access": module_access,
                 "app_surfaces": app_surfaces,
                 "landing": landing,
                 "permission_version": permission_version,
@@ -331,6 +330,14 @@ class LoginViewSet(ViewSet):
                 "company_unique_id": company_unique_id,
                 "company_name": company_name,
                 "projects": projects,
+                "continents": continents,
+                "countries": countries,
+                "states": states,
+                "districts": districts,
+                "cities": cities,
+                "zones": zones,
+                "panchayats": panchayats,
+                "wards": wards,
                 "profile": profile_payload,
                 "password_expired": password_expired,
             },

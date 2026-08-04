@@ -7,9 +7,13 @@ from rest_framework.viewsets import ModelViewSet
 from app.models.masters.zone import Zone
 from app.serializers.masters.zone_serializer import ZoneSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 
 
-class ZoneViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class ZoneViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+    location_scope_field = "zones"
+    location_scope_lookup = "unique_id"
+
     queryset = Zone.objects.filter(is_deleted=False)
     serializer_class = ZoneSerializer
     lookup_field = "unique_id"
@@ -45,7 +49,7 @@ class ZoneViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if state_uid:
             queryset = queryset.filter(state_id__unique_id=state_uid)
 
-        return queryset
+        return self.filter_queryset_by_location_scope(queryset)
 
     def perform_destroy(self, instance):
         instance.delete()

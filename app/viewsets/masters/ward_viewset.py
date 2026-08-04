@@ -4,10 +4,14 @@ from app.models.masters.ward import Ward
 from app.serializers.masters.ward_serializer import WardSerializer
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 
 
-class WardViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class WardViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+    location_scope_field = "wards"
+    location_scope_lookup = "unique_id"
+
     queryset = Ward.objects.filter(is_deleted=False)
     serializer_class = WardSerializer
     lookup_field = "unique_id"
@@ -55,7 +59,7 @@ class WardViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if state_uid:
             queryset = queryset.filter(state_id__unique_id=state_uid)
 
-        return queryset
+        return self.filter_queryset_by_location_scope(queryset)
 
     def perform_destroy(self, instance):
         instance.delete()

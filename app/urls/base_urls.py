@@ -61,7 +61,6 @@ from ..viewsets.superadmin.staff_management.unassigned_staff_pool_viewset import
 
 # Authentication
 from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
-from ..viewsets.login.permission_viewset import PermissionViewSet
 from ..viewsets.auth.forgot_password_viewset import (
     ForgotPasswordView,
     VerifyOTPView,
@@ -222,7 +221,6 @@ router.register_group(
 # GROUP: AUTHENTICATION
 # ============================================================
 router.register_group("login", "login-user",      DesktopLoginViewSet)
-router.register_group("login", "my-permissions",     PermissionViewSet, basename="user-permissions")
 
 # ============================================================
 # GROUP: CUSTOMER MODULES
