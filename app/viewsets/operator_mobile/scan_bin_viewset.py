@@ -75,7 +75,13 @@ class ScanBinViewSet(viewsets.ViewSet):
                     collection_point_id=ctx.bin.collection_point_id,
                     bin_id=ctx.bin,
                     panchayat_id=ctx.assignment.panchayat_id,
-                    waste_type_id=ctx.assignment.waste_type_id,
+                    # The scanned bin's own waste type — already validated in
+                    # `validate_bin_against_assignment` to be one of the
+                    # trip's `waste_types`, and unlike
+                    # `assignment.primary_waste_type` it's the exact type
+                    # actually collected for this event, not just the first
+                    # of possibly several on the trip.
+                    waste_type_id=ctx.bin.wastetype_id,
                     vehicle_id=ctx.assignment.vehicle_id,
                     operator_id=operator,
                     driver_id=maybe_resolve_driver(ctx.assignment),

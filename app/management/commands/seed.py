@@ -32,6 +32,7 @@ from app.management.commands.seeders.superadmin.role_management import ROLE_ASSI
 
 # user-creations (router: user-creations/staffcreation, supervisor-zone-map, ...)
 from app.management.commands.seeders.superadmin.staff_management.auth_user_seeder import AuthUserSeeder
+from app.management.commands.seeders.superadmin.staff_management.supervisor_user import SupervisorUserSeeder
 from app.management.commands.seeders.superadmin.staff_management.staff_office import StaffOfficeSeeder
 from app.management.commands.seeders.superadmin.staff_management.staff_personal import StaffPersonalSeeder
 
@@ -67,7 +68,10 @@ from app.management.commands.seeders.masters.customer_masters import CUSTOMER_SE
 
 # complaint-ticket (router: complaint-ticket/tickets, categories, subcategories —
 # renamed from the legacy "grivences" group)
-from app.management.commands.seeders.core_modules.complaint_management import GRIEVANCE_SEEDERS
+from app.management.commands.seeders.core_modules.complaint_management import (
+    GRIEVANCE_SEEDERS,
+    TICKET_SEEDERS,
+)
 
 # audits (router: audits/vehicle-trip-audit, trip-exception-log, ...)
 
@@ -159,6 +163,9 @@ SCHEDULE_OPERATIONS_SEEDERS = [
     DailyTripLogSeeder,             # 3. daily-trip-logs
     TripAttendanceSeeder,
     BinCollectionEventSeeder,       # 4. bin-collection-events
+    # Depends on driver_user (user-creations) AND today's DailyTripAssignment
+    # rows (above) both existing — must run last in this group.
+    SupervisorUserSeeder,
 ]
 
 # Legacy alias — `schedule-masters` used to cover both of the above before it was
@@ -184,6 +191,7 @@ CUSTOMER_MASTERS_SEEDERS = [
 
 COMPLAINT_TICKET_SEEDERS = [
     *GRIEVANCE_SEEDERS,
+    *TICKET_SEEDERS,
 ]
 
 
@@ -242,6 +250,10 @@ SEED_GROUPS = {
     "bin-collection-events": [BinCollectionEventSeeder],
     "trip-logs":          [DailyTripLogSeeder],
     "blue-planet":        [BluePlanetSeeder],
+    "ticket-masters":     TICKET_SEEDERS,  # complaint-ticket/grievance-tickets masters only
+    # Requires driver_user + today's DailyTripAssignment rows to already
+    # exist (run `user-creations` and `schedule-operations` first, or `all`).
+    "supervisor-user":    [SupervisorUserSeeder],
 }
 
 # ============================================================

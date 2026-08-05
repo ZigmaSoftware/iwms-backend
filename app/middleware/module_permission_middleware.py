@@ -49,6 +49,16 @@ AUTH_ONLY_SUFFIXES = (
     "attendance-list/",
     "localbody/",        # panchayat leader portal — auth only, no module permission check
     "district/",         # district portal — auth only, no module permission check
+    "register-fcm-token/",  # staff + citizen FCM device token self-registration
+    "attendance/daily-attendance/",  # driver/operator/supervisor attendance screens
+    "attendance/staff-profile/",     # same screens' profile calls
+)
+
+# Citizen-scoped grievance API — self-service, no module-permission check;
+# every query inside the viewset is hard-scoped to the logged-in citizen.
+CITIZEN_PREFIXES = tuple(
+    prefix + "citizen/"
+    for prefix in API_AUTH_PREFIXES
 )
 
 AUTH_ONLY_PREFIXES = tuple(
@@ -140,19 +150,22 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Complaint",
         "MainCategory",
         "SubCategory",
-        # stub sub-resources — see complaint_ticket_stub_viewsets.py
+        # ticketed complaint workflow (app.models.complaint_management)
         "ComplaintModule",
         "ComplaintPriority",
         "ComplaintStatus",
         "ComplaintSource",
         "ComplaintLanguage",
         "ComplaintTeam",
+        "ComplaintCategory",
+        "ComplaintSubcategory",
         "ComplaintSlaRule",
         "ComplaintRoutingRule",
         "ComplaintFeedback",
         "ComplaintReopenHistory",
         "ComplaintNotification",
         "ComplaintAddressChange",
+        "ComplaintTicket",
     },
     "transport-masters": {
         "VehicleTypeCreation",
@@ -174,6 +187,8 @@ MODULE_RESOURCE_ALLOWLIST = {
         "BinCollectionEvent",
         "DailyTripLog",
         "WasteCollection",
+        "VehicleBreakdown",
+        "StaffNotification",
     },
     "schedule-masters": {
         # legacy name — kept alive only for the reporting sub-resources
@@ -401,6 +416,10 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return auth_error
 
         if any(request.path.startswith(p) for p in AUTH_ONLY_PREFIXES):
+            auth_error = _authenticate_request(request)
+            return auth_error
+
+        if any(request.path.startswith(p) for p in CITIZEN_PREFIXES):
             auth_error = _authenticate_request(request)
             return auth_error
 

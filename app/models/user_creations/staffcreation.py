@@ -138,6 +138,11 @@ class StaffcreationOfficeDetails(BaseMaster):
         help_text="Previous encrypted password for reuse prevention"
     )
 
+    # Firebase device token for the driver/operator/supervisor apps,
+    # registered on login and refreshed on rotation. Mirrors
+    # `CustomerCreation.fcm_token` for the citizen app.
+    fcm_token = models.CharField(max_length=255, null=True, blank=True)
+
     is_staff = models.BooleanField(
         default=False,
         help_text="Django admin-site access flag (not a business role).",

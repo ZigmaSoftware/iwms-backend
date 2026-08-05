@@ -52,6 +52,9 @@ class AuthUserSeeder(BaseSeeder):
 
         # 7 driver-operator pairs + 1 approver = 15 entries
         # Passwords: min 6 chars, uppercase + lowercase + digit
+        # NOTE: supervisor_user is NOT seeded here — see SupervisorUserSeeder,
+        # which wires it to driver_user's real trip plan(s) and complaint
+        # teams rather than creating a bare, data-less login.
         seed_staff = [
             ("driver_user",   "driver1@demo.local",   "Driver123",   driver_role),
             ("operator_user", "operator1@demo.local",  "Operator123", operator_role),

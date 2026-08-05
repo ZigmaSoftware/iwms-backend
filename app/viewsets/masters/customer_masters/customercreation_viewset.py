@@ -256,6 +256,31 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         return None, normalized
 
     # -----------------------------------------------------
+    # FCM device token registration (push notifications)
+    # Exempted from module-permission checks via
+    # ModulePermissionMiddleware.AUTH_ONLY_SUFFIXES ("register-fcm-token/").
+    # -----------------------------------------------------
+
+    @action(detail=False, methods=["post"], url_path="register-fcm-token")
+    def register_fcm_token(self, request):
+        """Citizen app calls this after login (and on token refresh) to
+        register its Firebase device token, so the backend can push instant
+        notifications to this customer. Always acts on the authenticated
+        caller's own record."""
+        customer = request.user
+        if not isinstance(customer, CustomerCreation):
+            return Response(
+                {"error": "Only a citizen account can register a device token."},
+                status=403,
+            )
+        token = (request.data.get("fcm_token") or "").strip()
+        if not token:
+            return Response({"error": "fcm_token is required"}, status=400)
+        customer.fcm_token = token
+        customer.save(update_fields=["fcm_token"])
+        return Response({"status": "ok"})
+
+    # -----------------------------------------------------
     # Apartment Count
     # -----------------------------------------------------
 

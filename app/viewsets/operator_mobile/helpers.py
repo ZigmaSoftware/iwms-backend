@@ -48,12 +48,12 @@ def find_active_assignment_for_operator(staff: Staffcreation) -> DailyTripAssign
         .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
         .select_related(
             "panchayat_id",
-            "waste_type_id",
             "vehicle_id",
             "staff_template_id",
             "staff_template_id__driver_id",
             "staff_template_id__operator_id",
         )
+        .prefetch_related("waste_types")
     )
 
     assignment = base.filter(staff_template_id__operator_id=staff).first()
@@ -93,12 +93,17 @@ def resolve_bin_from_qr(bin_qr: str) -> Bins:
 def validate_bin_against_assignment(
     bin_obj: Bins, assignment: DailyTripAssignment
 ) -> DailyTripCollectionPoint:
-    if str(bin_obj.wastetype_id_id) != str(assignment.waste_type_id_id):
+    # A trip can carry multiple waste types (`waste_types` M2M); a bin
+    # matches if its single waste type is any one of them.
+    trip_waste_type_ids = set(assignment.waste_types.values_list("unique_id", flat=True))
+    if str(bin_obj.wastetype_id_id) not in trip_waste_type_ids:
         bin_waste = getattr(bin_obj.wastetype_id, "waste_type_name", "unknown")
-        trip_waste = getattr(assignment.waste_type_id, "waste_type_name", "unknown")
+        trip_waste_names = ", ".join(
+            assignment.waste_types.values_list("waste_type_name", flat=True)
+        ) or "unknown"
         raise OperatorFlowError(
             "WRONG_WASTE_TYPE",
-            f"This bin is {bin_waste}; your trip collects {trip_waste}.",
+            f"This bin is {bin_waste}; your trip collects {trip_waste_names}.",
         )
 
     cp = bin_obj.collection_point_id
@@ -192,7 +197,7 @@ def serialize_trip_cp_brief(trip_cp: DailyTripCollectionPoint) -> dict:
 
 def serialize_assignment_brief(assignment: DailyTripAssignment) -> dict:
     panchayat = assignment.panchayat_id
-    waste_type = assignment.waste_type_id
+    waste_type = assignment.primary_waste_type
     vehicle = assignment.vehicle_id
     return {
         "unique_id": assignment.unique_id,
@@ -202,10 +207,14 @@ def serialize_assignment_brief(assignment: DailyTripAssignment) -> dict:
             "unique_id": panchayat.unique_id,
             "name": panchayat.panchayat_name,
         },
-        "waste_type": {
-            "unique_id": waste_type.unique_id,
-            "name": waste_type.waste_type_name,
-        },
+        "waste_type": (
+            {
+                "unique_id": waste_type.unique_id,
+                "name": waste_type.waste_type_name,
+            }
+            if waste_type
+            else None
+        ),
         "vehicle": (
             {
                 "unique_id": vehicle.unique_id,
