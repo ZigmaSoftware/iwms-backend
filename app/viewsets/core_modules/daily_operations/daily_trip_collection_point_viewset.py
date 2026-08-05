@@ -205,13 +205,59 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "remarks": remarks,
             },
         )
-        if created or log.log_status == DailyTripLog.LOG_STATUS_VERIFIED:
+        if created:
             return
 
+        # Always resync the real collected weight, even once the log has
+        # been Verified — verification approves the trip, it doesn't freeze
+        # the weight against collection points recorded/updated afterwards.
         log.collected_weight_kg = total_weight
-        log.log_status = log_status
-        log.remarks = log.remarks or remarks
+        if log.log_status != DailyTripLog.LOG_STATUS_VERIFIED:
+            log.log_status = log_status
+            log.remarks = log.remarks or remarks
         log.save()
+
+    def _sync_bin_collection_event(self, instance):
+        """Keep a BinCollectionEvent in sync with this stop's recorded weight.
+
+        Waste-type reports (waste_type_breakdown.py) attribute weight by
+        waste type from BinCollectionEvent rows only. Weight recorded here
+        (e.g. via admin/manual entry rather than the mobile bin-scan flow)
+        would otherwise never appear under its real waste type and fall
+        into the "Unclassified" bucket despite being live/correct at the
+        DailyTripLog total level.
+        """
+        if not instance.is_collected or not instance.collected_weight_kg:
+            return
+        assignment = instance.trip_assignment_id
+        waste_type = getattr(instance.bin_id, "wastetype_id", None)
+        if not waste_type:
+            return
+        field_values = {
+            "company_id": instance.company_id or assignment.company_id,
+            "project_id": instance.project_id or assignment.project_id,
+            "trip_assignment_id": assignment,
+            "collection_point_id": instance.collection_point_id,
+            "bin_id": instance.bin_id,
+            "panchayat_id": instance.panchayat_id,
+            "ward_id": instance.ward_id,
+            "zone_id": instance.zone_id,
+            "waste_type_id": waste_type,
+            "vehicle_id": getattr(assignment, "vehicle_id", None),
+            "collected_weight_kg": instance.collected_weight_kg,
+            "collection_date": assignment.trip_date,
+        }
+        existing = BinCollectionEvent.objects.filter(
+            trip_collection_point_id=instance, is_deleted=False,
+        ).order_by("-created_at").first()
+        if existing:
+            for field, value in field_values.items():
+                setattr(existing, field, value)
+            existing.save()
+        else:
+            BinCollectionEvent.objects.create(
+                trip_collection_point_id=instance, **field_values
+            )
 
     def _sync_assignment_and_log(self, instance):
         if not instance:
@@ -219,6 +265,7 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         assignment = instance.trip_assignment_id
         if instance.is_collected:
             assignment.mark_completed_if_all_cps_collected()
+        self._sync_bin_collection_event(instance)
         self._upsert_trip_log_for_assignment(assignment)
 
     def get_queryset(self):
