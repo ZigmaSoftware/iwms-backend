@@ -1,4 +1,4 @@
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.utils import timezone
@@ -13,7 +13,7 @@ from app.utils.base_models import Account
 
 class DailyTripLogSeeder(BaseSeeder):
     name = "daily_trip_log"
-    target = 30
+    target = 90
 
     def run(self):
         assignments = (
@@ -82,13 +82,28 @@ class DailyTripLogSeeder(BaseSeeder):
                 capacity_decimal - Decimal("1"),
             ).quantize(Decimal("0.01"))
             log_status = statuses[idx % len(statuses)]
-            start_time = assignment.actual_start_time or time(7 + (idx % 3), 30)
-            end_time = assignment.actual_end_time or time(10 + (idx % 4), 15)
+
+            # Stamp REAL timestamps on the assignment itself (idempotent —
+            # a no-op if it already started/ended) rather than fabricating
+            # start/end times directly on the log: that used to leave a log
+            # with times that had nothing to do with the assignment's own
+            # actual_start_at/actual_end_at, which broke the Verify gate
+            # (Verify requires the trip to have actually ended).
+            start_at = timezone.make_aware(
+                datetime.combine(assignment.trip_date, time(7 + (idx % 3), 30))
+            )
+            end_at = timezone.make_aware(
+                datetime.combine(assignment.trip_date, time(10 + (idx % 4), 15))
+            )
+            assignment.mark_started(at=start_at)
+            assignment.mark_ended(at=end_at)
 
             log = DailyTripLog.objects.create(
                 trip_assignment_id=assignment,
-                actual_start_time=start_time,
-                actual_end_time=end_time,
+                # actual_start_time/actual_end_time deliberately omitted —
+                # autofill_from_assignment() (called from save()) mirrors
+                # them from the assignment above, so log and assignment can
+                # never disagree.
                 collected_weight_kg=collected_weight,
                 remarks=f"Seeder demo {log_status.lower()} trip log for {assignment.unique_id}",
                 log_status=log_status,

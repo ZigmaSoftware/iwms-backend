@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import connection, models, transaction
 from django.utils import timezone
 
@@ -199,8 +201,21 @@ class DailyTripAssignment(BaseMaster):
 
     trip_date = models.DateField()
     scheduled_time = models.TimeField()
+
+    # Wall-clock times kept for backward compatibility — dashboards, the
+    # DailyTripLog mirror and the mobile serializer all still read these. They
+    # are DERIVED from the `_at` datetimes below; never stamp them directly,
+    # use mark_started() / mark_ended().
     actual_start_time = models.TimeField(null=True, blank=True)
     actual_end_time = models.TimeField(null=True, blank=True)
+
+    # The authoritative timestamps. TimeField alone cannot express a trip that
+    # crosses midnight (end < start reads as a negative duration) and carries no
+    # timezone — the viewset's update_status action used to stamp
+    # `timezone.now().time()` (UTC) while other callers used `localtime()`
+    # (IST), so the same column held values 5h30m apart depending on the caller.
+    actual_start_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    actual_end_at = models.DateTimeField(null=True, blank=True)
 
     # ------------------------------------------------------------------
     # STATUS & APPROVAL
@@ -240,12 +255,16 @@ class DailyTripAssignment(BaseMaster):
             models.Index(fields=["trip_plan_id", "trip_date"]),
             models.Index(fields=["panchayat_id", "trip_date"]),
         ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["trip_plan_id", "trip_date"],
-                name="uniq_daily_trip_plan_per_date",
-            ),
-        ]
+        # No uniqueness on (trip_plan_id, trip_date): a Re-Trip continuation
+        # (see app/services/retrip_service.py) is deliberately a second
+        # assignment on the SAME plan and date as the source it closes out,
+        # carrying the leftover stops. A DB-level UniqueConstraint here
+        # (removed in migration 0006) made every Re-Trip approval crash with
+        # an IntegrityError — mirrors government's schema, which never had
+        # this constraint. Callers that fetch "the" assignment for a
+        # (plan, date) must not assume at most one row exists — see
+        # RetripDemoSeeder._get_or_create_today_assignment and
+        # generate_assignment_for_plan for the safe pattern.
 
     # ------------------------------------------------------------------
     # UNIQUE_ID GENERATION
@@ -300,6 +319,101 @@ class DailyTripAssignment(BaseMaster):
             is_deleted=False,
         ).first()
 
+    def pending_bin_stops(self):
+        """Bin collection points still awaiting the driver."""
+        from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+
+        return self.trip_collection_points.filter(is_deleted=False).exclude(
+            status__in=(
+                DailyTripCollectionPoint.STATUS_COLLECTED,
+                DailyTripCollectionPoint.STATUS_MISSED,
+            )
+        )
+
+    def pending_household_stops(self):
+        """Household stops still awaiting the driver."""
+        from app.models.schedule_masters.daily_trip_household_collection import (
+            DailyTripHouseholdCollection,
+        )
+
+        return self.trip_household_collections.filter(is_deleted=False).exclude(
+            status__in=(
+                DailyTripHouseholdCollection.STATUS_COLLECTED,
+                DailyTripHouseholdCollection.STATUS_MISSED,
+            )
+        )
+
+    def has_pending_stops(self):
+        return self.pending_bin_stops().exists() or self.pending_household_stops().exists()
+
+    def mark_started(self, at=None):
+        """Put the trip In Progress and stamp the start timestamps.
+
+        Idempotent: calling it on an already-started trip is a no-op, so the
+        explicit driver action and the implicit first-scan path can both call
+        it without fighting over the timestamp. Also backfills a start time
+        for a trip that was forced In Progress without one (e.g. the vehicle
+        breakdown replacement path).
+        """
+        if self.status in (self.STATUS_COMPLETED, self.STATUS_CANCELLED):
+            return False
+
+        started_at = at or timezone.localtime()
+        update_fields = ["updated_at"]
+
+        if self.status != self.STATUS_IN_PROGRESS:
+            self.status = self.STATUS_IN_PROGRESS
+            update_fields.append("status")
+
+        if not self.actual_start_at:
+            self.actual_start_at = started_at
+            self.actual_start_time = timezone.localtime(started_at).time()
+            update_fields += ["actual_start_at", "actual_start_time"]
+
+        if len(update_fields) == 1:  # nothing but updated_at — already started
+            return False
+
+        self.save(update_fields=update_fields)
+        return True
+
+    def mark_ended(self, at=None):
+        """Close the trip and stamp the end timestamps. Idempotent."""
+        if self.status == self.STATUS_COMPLETED:
+            return False
+
+        ended_at = at or timezone.localtime()
+        update_fields = ["status", "updated_at"]
+        self.status = self.STATUS_COMPLETED
+
+        if not self.actual_end_at:
+            self.actual_end_at = ended_at
+            self.actual_end_time = timezone.localtime(ended_at).time()
+            update_fields += ["actual_end_at", "actual_end_time"]
+
+        # A trip can be completed without ever having been explicitly started
+        # (all work done through scans before this feature existed). Backfill
+        # so duration math never sees a null start against a real end.
+        if not self.actual_start_at:
+            self.actual_start_at = ended_at
+            self.actual_start_time = timezone.localtime(ended_at).time()
+            update_fields += ["actual_start_at", "actual_start_time"]
+
+        self.save(update_fields=update_fields)
+        return True
+
+    @property
+    def total_trip_time(self):
+        """Wall-clock duration from `actual_start_at` to `actual_end_at`, or to
+        now while still In Progress. `None` until the trip has been started —
+        never derived from the legacy `actual_start_time`/`actual_end_time`
+        TimeFields, which carry no date and (historically) mixed timezones.
+        """
+        if not self.actual_start_at:
+            return None
+        end = self.actual_end_at or timezone.localtime()
+        diff = end - self.actual_start_at
+        return diff if diff.total_seconds() >= 0 else timedelta(0)
+
     def mark_completed_if_all_cps_collected(self):
         children = self.trip_collection_points.filter(is_deleted=False)
         if not children.exists():
@@ -318,10 +432,5 @@ class DailyTripAssignment(BaseMaster):
         if self.status == self.STATUS_COMPLETED:
             return True
 
-        update_fields = ["status", "updated_at"]
-        self.status = self.STATUS_COMPLETED
-        if not self.actual_end_time:
-            self.actual_end_time = timezone.localtime().time()
-            update_fields.append("actual_end_time")
-        self.save(update_fields=update_fields)
+        self.mark_ended()
         return True

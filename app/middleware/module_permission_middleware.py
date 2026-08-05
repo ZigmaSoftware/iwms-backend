@@ -174,6 +174,8 @@ MODULE_RESOURCE_ALLOWLIST = {
         "BinCollectionEvent",
         "DailyTripLog",
         "WasteCollection",
+        "VehicleBreakdown",
+        "TripRetripRequest",
     },
     "schedule-masters": {
         # legacy name — kept alive only for the reporting sub-resources

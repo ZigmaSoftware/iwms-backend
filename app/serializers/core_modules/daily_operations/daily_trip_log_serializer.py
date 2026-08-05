@@ -456,6 +456,10 @@ class DailyTripLogVerifySerializer(serializers.Serializer):
         instance = self.context.get("instance")
         if instance and instance.log_status == DailyTripLog.LOG_STATUS_VERIFIED:
             raise serializers.ValidationError("Trip log is already verified.")
+        if instance and not instance.actual_end_time:
+            raise serializers.ValidationError(
+                "This trip hasn't ended yet — actual end time is required before it can be verified."
+            )
         return attrs
 
     def save(self, **kwargs):

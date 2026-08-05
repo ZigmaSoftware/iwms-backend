@@ -173,6 +173,11 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     household_collection_points = serializers.SerializerMethodField(read_only=True)
     start_time = serializers.SerializerMethodField(read_only=True)
     breakdown_info = serializers.SerializerMethodField(read_only=True)
+    retrip_info = serializers.SerializerMethodField(read_only=True)
+    # Total time on the trip (actual_start_at -> actual_end_at, or -> now while
+    # In Progress), in whole seconds — the client formats it however it needs.
+    # Null until the trip has been started.
+    total_trip_time_seconds = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
         write_only=True,
@@ -218,10 +223,12 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "scheduled_time",
             "actual_start_time",
             "actual_end_time",
+            "total_trip_time_seconds",
             "status",
             "approval_status",
             "remarks",
             "breakdown_info",
+            "retrip_info",
             "created_at",
             "updated_at",
         ]
@@ -231,9 +238,28 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "actual_end_time",
             "approval_status",
             "breakdown_info",
+            "retrip_info",
             "created_at",
             "updated_at",
         ]
+
+    def get_total_trip_time_seconds(self, obj):
+        duration = obj.total_trip_time
+        return int(duration.total_seconds()) if duration is not None else None
+
+    def get_retrip_info(self, obj):
+        # `.all()` (not `.filter()`) so this reads the Prefetch queryset the
+        # viewset already ordered/filtered, instead of issuing a fresh query
+        # per row.
+        prefetched = list(obj.retrip_requests.all())
+        latest = prefetched[0] if prefetched else None
+        if not latest:
+            return None
+        return {
+            "unique_id": latest.unique_id,
+            "status": latest.status,
+            "new_assignment_id": getattr(latest.new_assignment, "unique_id", None),
+        }
 
     def get_breakdown_info(self, obj):
         try:

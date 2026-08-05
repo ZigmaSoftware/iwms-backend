@@ -48,6 +48,7 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     original_driver_detail = serializers.SerializerMethodField(read_only=True)
     original_operator_detail = serializers.SerializerMethodField(read_only=True)
     approved_by_detail = serializers.SerializerMethodField(read_only=True)
+    photos = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = VehicleBreakdown
@@ -83,6 +84,7 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
             "approved_by_detail",
             "approved_at",
             "rejection_remarks",
+            "photos",
             "created_at",
             "updated_at",
         ]
@@ -213,6 +215,16 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     def get_approved_by_detail(self, obj):
         return self._staff_dict(obj.approved_by)
 
+    def get_photos(self, obj):
+        request = self.context.get("request")
+        photos = []
+        for photo in obj.photos.all():
+            url = photo.photo.url if photo.photo else None
+            if url and request is not None:
+                url = request.build_absolute_uri(url)
+            photos.append({"id": photo.pk, "photo": url, "uploaded_at": photo.uploaded_at})
+        return photos
+
 
 class VehicleBreakdownVerifySerializer(serializers.Serializer):
     """Used for PATCH /{id}/verify/ — approves the breakdown and wires the replacement."""
@@ -291,6 +303,25 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
                 updated_at=now,
             )
 
+        from app.models.notifications.staff_notification import StaffNotification
+        from app.services.staff_notification_service import notify_staff
+
+        driver = instance.replacement_driver_id
+        if driver is not None:
+            notify_staff(
+                driver,
+                StaffNotification.TYPE_VEHICLE_REPLACEMENT_APPROVED,
+                title="Vehicle replaced",
+                body=(
+                    f"Your vehicle on trip {instance.trip_assignment_id.unique_id} "
+                    f"has been replaced with {getattr(instance.replacement_vehicle_id, 'vehicle_no', 'a new vehicle')}."
+                ),
+                data={
+                    "vehicle_breakdown_id": instance.unique_id,
+                    "trip_assignment_id": instance.trip_assignment_id.unique_id,
+                },
+            )
+
         return instance
 
 
@@ -314,4 +345,29 @@ class VehicleBreakdownRejectSerializer(serializers.Serializer):
             updated_at=now,
         )
         instance.refresh_from_db()
+
+        from app.models.notifications.staff_notification import StaffNotification
+        from app.services.staff_notification_service import notify_staff
+
+        # Notify the assignment's current driver — the replacement request
+        # never went through, so the original vehicle/crew stands.
+        assignment = instance.trip_assignment_id
+        template = assignment.alt_staff_template_id or assignment.staff_template_id
+        driver = getattr(template, "driver_id", None)
+        if driver is not None:
+            notify_staff(
+                driver,
+                StaffNotification.TYPE_VEHICLE_REPLACEMENT_REJECTED,
+                title="Vehicle replacement rejected",
+                body=(
+                    f"Your vehicle replacement request on trip "
+                    f"{assignment.unique_id} was rejected"
+                    f"{': ' + instance.rejection_remarks if instance.rejection_remarks else '.'}"
+                ),
+                data={
+                    "vehicle_breakdown_id": instance.unique_id,
+                    "trip_assignment_id": assignment.unique_id,
+                },
+            )
+
         return instance

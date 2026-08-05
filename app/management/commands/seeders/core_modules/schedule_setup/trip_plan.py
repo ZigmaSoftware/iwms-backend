@@ -8,6 +8,7 @@ from app.models.masters.ward import Ward
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.schedule_masters.trip_plan import TripPlan
+from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.schedule_masters.staff_template import StaffTemplate
@@ -171,7 +172,50 @@ class TripPlanSeeder(BaseSeeder):
             if created:
                 pan_created += 1
 
+        # ------------------------------------------------------------------
+        # Household-collection trip plan
+        # No seeder had ever created a household-collection TripPlan before —
+        # every plan above defaults to bin_collection — so the
+        # WasteCollection ("Household Collections") screen had no source
+        # data. Scoped to "Ward 1" to match CustomerCreationSeeder, whose
+        # 15 demo customers all live in that ward.
+        # ------------------------------------------------------------------
+        household_ward = Ward.objects.filter(ward_name="Ward 1").first()
+        household_created = False
+        if household_ward and staff_templates and vehicles:
+            household_staff_template = staff_templates[-1]
+            household_vehicle = vehicles[-1]
+            household_waste_type = waste_types.get("wet") or fallback_waste
+
+            household_plan, household_created = TripPlan.objects.update_or_create(
+                company_id=company,
+                project_id=project,
+                staff_template_id=household_staff_template,
+                vehicle_id=household_vehicle,
+                waste_type_id=household_waste_type,
+                panchayat_id=None,
+                scheduled_time=time(9, 0),
+                collection_type=TripPlan.COLLECTION_TYPE_HOUSEHOLD,
+                defaults={
+                    **common_defaults,
+                    "zone_id": household_ward.zone_id,
+                    "waste_type_ids": waste_id_list(household_waste_type),
+                },
+            )
+            household_plan.wards.set([household_ward])
+            TripPlanCollectionPoint.objects.get_or_create(
+                trip_plan_id=household_plan,
+                sequence=1,
+                defaults={
+                    "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
+                    "is_active": True,
+                },
+            )
+        else:
+            self.log("Household trip plan skipped (missing 'Ward 1', staff templates, or vehicles).")
+
         self.log(
             f"---TripPlan seeded | ward plans created={ward_created}/{len(wards)} skipped={ward_skipped}"
-            f" | panchayat plans created={pan_created}/{len(panchayats)} skipped={pan_skipped}---"
+            f" | panchayat plans created={pan_created}/{len(panchayats)} skipped={pan_skipped}"
+            f" | household plan created={household_created}---"
         )
