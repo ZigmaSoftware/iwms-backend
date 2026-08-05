@@ -32,12 +32,17 @@ class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):
         queryset = self.filter_queryset(queryset)
 
         month_value = request.query_params.get("month")
+        date_filter = None
         if month_value:
             try:
                 year, month = month_value.split("-")
                 queryset = queryset.filter(
                     trip_date__year=int(year), trip_date__month=int(month)
                 )
+                date_filter = {
+                    "collection_date__year": int(year),
+                    "collection_date__month": int(month),
+                }
             except (TypeError, ValueError):
                 pass
 
@@ -57,5 +62,9 @@ class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):
             sort=request.query_params.get("sort", "weight").lower(),
             page=request.query_params.get("page"),
             limit=request.query_params.get("limit"),
+            company_id=request.query_params.get("company_id"),
+            project_id=request.query_params.get("project_id"),
+            panchayat_ids=panchayat_ids or None,
+            date_filter=date_filter,
         )
         return Response(payload)
