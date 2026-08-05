@@ -115,6 +115,7 @@ from ..viewsets.core_modules.daily_operations.daily_trip_log_viewset import Dail
 from ..viewsets.reports.waste_reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
 from ..viewsets.reports.waste_reports.daily_waste_comparison_viewset import DailyWasteComparisonViewSet
 from ..viewsets.core_modules.daily_operations.vehicle_breakdown_viewset import VehicleBreakdownViewSet
+from ..viewsets.core_modules.daily_operations.trip_retrip_viewset import TripRetripRequestViewSet
 
 # Audits
 from ..viewsets.superadmin.audits.login_audit_viewset import LoginAuditViewSet
@@ -283,6 +284,7 @@ router.register_group("schedule-operations", "bin-collection-events", BinCollect
 router.register_group("schedule-operations", "daily-trip-logs", DailyTripLogViewSet)
 router.register_group("schedule-operations", "wastecollections", WasteCollectionViewSet)
 router.register_group("schedule-operations", "vehicle-breakdowns", VehicleBreakdownViewSet)
+router.register_group("schedule-operations", "retrip-requests", TripRetripRequestViewSet)
 
 # ============================================================
 # GROUP: SCHEDULE MASTERS (legacy name — kept alive only for the

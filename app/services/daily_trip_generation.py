@@ -104,7 +104,14 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
     clone its stops via the single authoritative cloning path
     (sync_daily_assignment_stops_from_plan), then top up any bin/bulk stops
     via ensure_assignment_collection_points (idempotent, so this never
-    duplicates rows the signal already created)."""
+    duplicates rows the signal already created).
+
+    Not a plain get_or_create(): a Re-Trip continuation (see
+    app/services/retrip_service.py) is deliberately a second assignment on
+    the same (trip_plan_id, trip_date) as the source it closes out, so more
+    than one row can legitimately exist for that pair — get_or_create()'s
+    implicit .get() would raise MultipleObjectsReturned once that happens.
+    Treat the oldest row as "the" assignment for this plan/date instead."""
     from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
 
     defaults = {
@@ -114,13 +121,25 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
         "panchayat_id": plan.panchayat_id,
         "scheduled_time": plan.scheduled_time,
     }
-    assignment, created = DailyTripAssignment.objects.get_or_create(
-        company_id=plan.company_id,
-        project_id=plan.project_id,
-        trip_plan_id=plan,
-        trip_date=target_date,
-        defaults=defaults,
+    assignment = (
+        DailyTripAssignment.objects.filter(
+            company_id=plan.company_id,
+            project_id=plan.project_id,
+            trip_plan_id=plan,
+            trip_date=target_date,
+        )
+        .order_by("created_at")
+        .first()
     )
+    created = assignment is None
+    if created:
+        assignment = DailyTripAssignment.objects.create(
+            company_id=plan.company_id,
+            project_id=plan.project_id,
+            trip_plan_id=plan,
+            trip_date=target_date,
+            **defaults,
+        )
     if not created:
         update_fields = []
         if not assignment.waste_type_ids:

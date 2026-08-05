@@ -55,6 +55,9 @@ from app.management.commands.seeders.core_modules.daily_operations.daily_trip_as
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPointSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_log import DailyTripLogSeeder
 from app.management.commands.seeders.core_modules.daily_operations.bin_collection_event import BinCollectionEventSeeder
+from app.management.commands.seeders.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdownSeeder
+from app.management.commands.seeders.core_modules.daily_operations.waste_collection import WasteCollectionSeeder
+from app.management.commands.seeders.core_modules.daily_operations.retrip_demo import RetripDemoSeeder
 
 # screen-managements (router: screen-managements/...)
 from app.management.commands.seeders.superadmin.screen_management import PERMISSION_SEEDERS
@@ -158,7 +161,8 @@ SCHEDULE_OPERATIONS_SEEDERS = [
     DailyTripCollectionPointSeeder, # 2. daily-trip-collection-points
     DailyTripLogSeeder,             # 3. daily-trip-logs
     TripAttendanceSeeder,
-    BinCollectionEventSeeder,       # 4. bin-collection-events
+    BinCollectionEventSeeder,       # 4. bin-collection-events (secondary bin collection events)
+    VehicleBreakdownSeeder,         # 5. vehicle-breakdowns
 ]
 
 # Legacy alias — `schedule-masters` used to cover both of the above before it was
@@ -180,6 +184,12 @@ COLLECTIONS_SEEDERS = [
 
 CUSTOMER_MASTERS_SEEDERS = [
     *CUSTOMER_SEEDERS,
+    # Household waste-collection records depend on customers (this group) and
+    # on daily trip assignments (already seeded in schedule-operations).
+    WasteCollectionSeeder,
+    # Re-Trip demo scenarios also need customers (household stops) + daily
+    # trip assignments (schedule-operations) to already exist.
+    RetripDemoSeeder,
 ]
 
 COMPLAINT_TICKET_SEEDERS = [
@@ -241,6 +251,9 @@ SEED_GROUPS = {
     # Single-seeder shortcuts
     "bin-collection-events": [BinCollectionEventSeeder],
     "trip-logs":          [DailyTripLogSeeder],
+    "vehicle-breakdowns": [VehicleBreakdownSeeder],
+    "waste-collections":  [WasteCollectionSeeder],
+    "retrip-demo":        [RetripDemoSeeder],
     "blue-planet":        [BluePlanetSeeder],
 }
 

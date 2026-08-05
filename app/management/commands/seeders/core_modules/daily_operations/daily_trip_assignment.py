@@ -18,9 +18,12 @@ class DailyTripAssignmentSeeder(BaseSeeder):
             "skipped": 0,
             "errors": [],
         }
-        # Two dates yield 30 panchayat assignments (15 per seeded date),
-        # enough source rows for both comparison dashboards.
-        for target_date in (today - timedelta(days=1), today):
+        # A week of history (15 panchayat assignments per seeded date) gives
+        # downstream seeders (BinCollectionEvent/WasteCollection/DailyTripLog)
+        # enough source rows to show a realistic volume of data, while still
+        # reserving today for RetripDemoSeeder's own hand-curated scenarios.
+        date_range = [today - timedelta(days=offset) for offset in range(6, -1, -1)]
+        for target_date in date_range:
             result = generate_daily_trips_for_date(target_date, force=True)
             for key in (
                 "assignments_created",
@@ -33,7 +36,7 @@ class DailyTripAssignmentSeeder(BaseSeeder):
 
         self.log(
             "---DailyTripAssignment seeded | "
-            f"dates={today - timedelta(days=1)}..{today} "
+            f"dates={date_range[0]}..{date_range[-1]} "
             f"created={totals['assignments_created']} "
             f"existing={totals['assignments_existing']} "
             f"collection_points={totals['collection_points_created']} "

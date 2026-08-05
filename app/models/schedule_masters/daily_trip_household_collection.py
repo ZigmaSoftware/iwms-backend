@@ -164,6 +164,18 @@ class DailyTripHouseholdCollection(BaseMaster):
         max_digits=9, decimal_places=6, null=True, blank=True,
     )
 
+    # Set by the Re-Trip flow (app/services/retrip_service.py) when this stop
+    # was still pending and got moved to a continuation trip.
+    carried_to_assignment = models.ForeignKey(
+        DailyTripAssignment,
+        on_delete=models.SET_NULL,
+        db_column="carried_to_assignment_id",
+        to_field="unique_id",
+        related_name="carried_in_household_stops",
+        null=True,
+        blank=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -79,13 +79,31 @@ def run_for_date(target_date=None, logger=None, force=False):
         }
 
         with transaction.atomic():
-            assignment, created = DailyTripAssignment.objects.get_or_create(
-                company_id=plan.company_id,
-                project_id=plan.project_id,
-                trip_plan_id=plan,
-                trip_date=today,
-                defaults=defaults,
+            # Not a plain get_or_create(): a Re-Trip continuation (see
+            # app/services/retrip_service.py) is deliberately a second
+            # assignment on this SAME (trip_plan, trip_date) pair, so more
+            # than one row can legitimately exist here — get_or_create()'s
+            # implicit .get() would raise MultipleObjectsReturned once that
+            # happens. Treat the oldest row as "the" assignment instead.
+            assignment = (
+                DailyTripAssignment.objects.filter(
+                    company_id=plan.company_id,
+                    project_id=plan.project_id,
+                    trip_plan_id=plan,
+                    trip_date=today,
+                )
+                .order_by("created_at")
+                .first()
             )
+            created = assignment is None
+            if created:
+                assignment = DailyTripAssignment.objects.create(
+                    company_id=plan.company_id,
+                    project_id=plan.project_id,
+                    trip_plan_id=plan,
+                    trip_date=today,
+                    **defaults,
+                )
 
             if not created:
                 # Duplicate prevention: assignment already exists for this

@@ -193,3 +193,26 @@ class VehicleBreakdown(BaseMaster):
 
     def __str__(self):
         return self.unique_id
+
+
+def vehicle_breakdown_photo_upload_path(instance, filename):
+    return f"uploads/vehicle_breakdown/{instance.breakdown_id}/{filename}"
+
+
+class VehicleBreakdownPhoto(models.Model):
+    """Photo evidence attached when a breakdown is reported (e.g. the flat
+    tyre, the accident scene). Optional — a breakdown can have zero, one, or
+    several."""
+
+    breakdown = models.ForeignKey(
+        VehicleBreakdown,
+        on_delete=models.CASCADE,
+        to_field="unique_id",
+        db_column="breakdown_id",
+        related_name="photos",
+    )
+    photo = models.ImageField(upload_to=vehicle_breakdown_photo_upload_path)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.breakdown_id} photo #{self.pk}"
