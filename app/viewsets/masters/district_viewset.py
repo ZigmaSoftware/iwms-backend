@@ -3,9 +3,12 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 from app.models.masters.district import District
 from app.serializers.masters.district_serializer import DistrictSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 
-class DistrictViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class DistrictViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+    location_scope_field = "districts"
+    location_scope_lookup = "unique_id"
 
     queryset = District.objects.filter(is_deleted=False)
     serializer_class = DistrictSerializer
@@ -45,7 +48,7 @@ class DistrictViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if continent_uid:
             queryset = queryset.filter(continent_id__unique_id=continent_uid)
 
-        return queryset
+        return self.filter_queryset_by_location_scope(queryset)
 
     def perform_destroy(self, instance):
         instance.delete()

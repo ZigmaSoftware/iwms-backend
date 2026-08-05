@@ -61,7 +61,6 @@ from ..viewsets.superadmin.staff_management.unassigned_staff_pool_viewset import
 
 # Authentication
 from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
-from ..viewsets.login.permission_viewset import PermissionViewSet
 from ..viewsets.auth.forgot_password_viewset import (
     ForgotPasswordView,
     VerifyOTPView,
@@ -137,6 +136,8 @@ from ..viewsets.palakad.palakad_login_viewset import PalakadLoginViewSet
 from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardViewSet
 # District dashboard
 from ..viewsets.district.district_dashboard_viewset import DistrictDashboardViewSet
+# Company/project-scoped dashboard summary
+from ..viewsets.dashboard.dashboard_summary_viewset import DashboardSummaryViewSet
 
 # Operator mobile
 from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet, MyTripsTodayViewSet
@@ -232,7 +233,6 @@ router.register_group(
 # GROUP: AUTHENTICATION
 # ============================================================
 router.register_group("login", "login-user",      DesktopLoginViewSet)
-router.register_group("login", "my-permissions",     PermissionViewSet, basename="user-permissions")
 
 # ============================================================
 # GROUP: CUSTOMER MODULES
@@ -355,6 +355,11 @@ router.register_group("localbody", "dashboard", LocalBodyDashboardViewSet, basen
 # GROUP: DISTRICT (district member portal)
 # ============================================================
 router.register_group("district", "dashboard", DistrictDashboardViewSet, basename="district-dashboard")
+
+# ============================================================
+# GROUP: DASHBOARD (company/project-scoped dashboard summary)
+# ============================================================
+router.register_group("dashboard", "summary", DashboardSummaryViewSet, basename="dashboard-summary")
 
 # ============================================================
 # GROUP: OPERATOR MOBILE

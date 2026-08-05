@@ -19,10 +19,11 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
-    pagination_class = None
+    pagination_class = LimitOffsetWithPage
     """
     Staff Template API
     """
@@ -52,6 +53,8 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             "operator_id",
             "created_by",
             "updated_by",
+            "company_id",
+            "project_id",
         )
 
     def destroy(self, request, *args, **kwargs):

@@ -220,11 +220,29 @@ MODULE_PERMISSION_ALIASES = {
     # rows already seeded/granted under the old "grivences" module name keep
     # authorizing it without needing to be re-granted.
     "complaint-ticket": "grivences",
-    # "schedule-setup"/"schedule-operations" are a pure split of the legacy
-    # "schedule-masters" module — same bridge, so existing granted
-    # "schedule-masters" permissions keep authorizing both halves.
-    "schedule-setup": "schedule-masters",
-    "schedule-operations": "schedule-masters",
+}
+
+# "schedule-setup"/"schedule-operations" are a pure split of the legacy
+# "schedule-masters" module, and Bin/WasteType route under "waste-types" but
+# were split out of the legacy "assets" module — in both cases the target
+# module also has resources genuinely seeded there natively (e.g. TripPlan
+# under schedule-setup, Property under waste-types), so a blanket
+# MODULE_PERMISSION_ALIASES entry would shadow those. Instead, each listed
+# resource's action lookup additionally falls back to the named legacy
+# module only when the primary (current) module has no entry for it — see
+# _resolve_allowed_actions below.
+RESOURCE_MODULE_FALLBACKS = {
+    "Bin": "assets",
+    "WasteType": "assets",
+    "StaffTemplateCreation": "schedule-masters",
+    "AlternativeStaffTemplate": "schedule-masters",
+    "CollectionPoint": "schedule-masters",
+    "TripPlan": "schedule-masters",
+    "DailyTripAssignment": "schedule-masters",
+    "DailyTripCollectionPoint": "schedule-masters",
+    "BinCollectionEvent": "schedule-masters",
+    "DailyTripLog": "schedule-masters",
+    "WasteCollection": "schedule-masters",
 }
 
 RESOURCE_PERMISSION_ALIASES = {
@@ -476,12 +494,29 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return JsonResponse({"detail": "Invalid HTTP method"}, status=405)
 
         permissions = _resolve_permissions_for_request(request)
-        permission_module = MODULE_PERMISSION_ALIASES.get(module, module)
         allowed_actions = self._resolve_allowed_actions(
-            permissions.get(permission_module, {}),
+            permissions.get(module, {}),
             permission_resource,
             route_resource,
         )
+
+        if not allowed_actions:
+            alias_module = MODULE_PERMISSION_ALIASES.get(module)
+            if alias_module:
+                allowed_actions = self._resolve_allowed_actions(
+                    permissions.get(alias_module, {}),
+                    permission_resource,
+                    route_resource,
+                )
+
+        if not allowed_actions:
+            fallback_module = RESOURCE_MODULE_FALLBACKS.get(permission_resource)
+            if fallback_module:
+                allowed_actions = self._resolve_allowed_actions(
+                    permissions.get(fallback_module, {}),
+                    permission_resource,
+                    route_resource,
+                )
 
         if action not in allowed_actions:
             # A GET is also satisfied by "use" — a lighter-weight grant meant

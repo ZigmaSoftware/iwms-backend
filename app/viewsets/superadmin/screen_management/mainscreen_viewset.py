@@ -10,7 +10,9 @@ from app.serializers.superadmin.screen_management.mainscreen_serializer import M
 
 class MainScreenViewSet(viewsets.ModelViewSet):
     serializer_class = MainScreenSerializer
-    queryset = MainScreen.objects.filter(is_deleted=False)
+    queryset = MainScreen.objects.filter(is_deleted=False).select_related(
+        "mainscreentype_id", "company_id", "project_id"
+    )
     lookup_field = "unique_id"
 
     def create(self, request, *args, **kwargs):

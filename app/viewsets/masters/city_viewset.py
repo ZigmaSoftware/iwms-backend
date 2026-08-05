@@ -3,12 +3,16 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 from app.models.masters.city import City
 from app.serializers.masters.city_serializer import CitySerializer
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 
 
-class CityViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class CityViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+    location_scope_field = "cities"
+    location_scope_lookup = "unique_id"
 
-
-    queryset = City.objects.filter(is_deleted=False)
+    queryset = City.objects.filter(is_deleted=False).select_related(
+        "continent_id", "country_id", "state_id", "district_id", "company_id", "project_id"
+    )
     serializer_class = CitySerializer
     lookup_field = "unique_id"
 
@@ -18,7 +22,9 @@ class CityViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     AUDIT_ENDPOINT ="cities"
 
     def get_queryset(self):
-        queryset = City.objects.filter(is_deleted=False)
+        queryset = City.objects.filter(is_deleted=False).select_related(
+            "continent_id", "country_id", "state_id", "district_id", "company_id", "project_id"
+        )
 
         company_uid = self.request.query_params.get("company_id")
         project_uid = self.request.query_params.get("project_id")
@@ -42,7 +48,7 @@ class CityViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if country_uid:
             queryset = queryset.filter(country_id__unique_id=country_uid)
 
-        return queryset
+        return self.filter_queryset_by_location_scope(queryset)
 
     def perform_destroy(self, instance):
         instance.delete()

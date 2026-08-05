@@ -11,6 +11,12 @@ from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.district_leader_login import DistrictLeaderLogin
 
 from app.models.superadmin_masters.project import Project
+from app.models.common_masters.state import State
+from app.models.masters.district import District
+from app.models.masters.city import City
+from app.models.masters.zone import Zone
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.ward import Ward
 from app.models.user_creations.staff_access_configuration import StaffAccessConfiguration
 from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
 from app.utils.password_encryption import decrypt_password
@@ -150,6 +156,93 @@ class LoginSerializer(serializers.Serializer):
 
         return permissions
 
+    def _resolve_location_scope(self, access_config, company, project_ids):
+        """Mirror the company/project scoping convention for the geo levels:
+        an empty selection on StaffAccessConfiguration means "unrestricted"
+        at that level (every record under the resolved parent scope),
+        while an explicit selection restricts to just those records.
+
+        Each level narrows the next: states -> districts -> cities ->
+        wards, all additionally scoped to the resolved company (and
+        project(s), where applicable). Zone/Panchayat are the exception —
+        see the comment at their resolution below.
+        """
+        base_project_filter = {"project_id_id__in": project_ids} if project_ids else {}
+
+        scoped_states = access_config.states.all() if access_config else State.objects.none()
+        if scoped_states.exists():
+            states_qs = scoped_states
+        else:
+            states_qs = State.objects.filter(is_deleted=False)
+        state_ids = list(states_qs.values_list("unique_id", flat=True))
+
+        scoped_districts = access_config.districts.all() if access_config else District.objects.none()
+        if scoped_districts.exists():
+            districts_qs = scoped_districts
+        else:
+            districts_qs = District.objects.filter(
+                company_id=company, is_deleted=False, state_id_id__in=state_ids, **base_project_filter
+            )
+        district_ids = list(districts_qs.values_list("unique_id", flat=True))
+
+        scoped_cities = access_config.cities.all() if access_config else City.objects.none()
+        if scoped_cities.exists():
+            cities_qs = scoped_cities
+        else:
+            cities_qs = City.objects.filter(
+                company_id=company, is_deleted=False, district_id_id__in=district_ids, **base_project_filter
+            )
+        city_ids = list(cities_qs.values_list("unique_id", flat=True))
+
+        # Zone and Panchayat are mutually-independent siblings under City,
+        # not a strict narrowing chain like state->district->city->ward: a
+        # staff may be assigned one, the other, both, or neither. So unlike
+        # the other levels, an empty selection here does NOT fall back to
+        # "every zone/panchayat under the city" — that would silently grant
+        # a level Super Admin never assigned. The unrestricted-parent
+        # fallback only applies when there's no access config at all (e.g.
+        # legacy staff with no Data Scope configured yet).
+        if access_config:
+            zones_qs = access_config.zones.all()
+            panchayats_qs = access_config.panchayats.all()
+        else:
+            zones_qs = Zone.objects.filter(
+                company_id=company, is_deleted=False, city_id_id__in=city_ids, **base_project_filter
+            )
+            panchayats_qs = Panchayat.objects.filter(
+                company_id=company, is_deleted=False, city_id_id__in=city_ids, **base_project_filter
+            )
+
+        scoped_wards = access_config.wards.all() if access_config else Ward.objects.none()
+        if scoped_wards.exists():
+            wards_qs = scoped_wards
+        else:
+            wards_qs = Ward.objects.filter(
+                company_id=company, is_deleted=False, city_id_id__in=city_ids, **base_project_filter
+            )
+
+        # Continent/Country are not independently assignable — they're
+        # derived from whichever states are in scope, same as the
+        # StaffAccessConfigurationSerializer admin API already does.
+        continents = {}
+        countries = {}
+        for state in states_qs.select_related("continent_id", "country_id"):
+            if state.continent_id and state.continent_id.unique_id not in continents:
+                continents[state.continent_id.unique_id] = state.continent_id.name
+            if state.country_id and state.country_id.unique_id not in countries:
+                countries[state.country_id.unique_id] = state.country_id.name
+
+        return {
+            "continents": [{"unique_id": k, "name": v} for k, v in continents.items()],
+            "countries": [{"unique_id": k, "name": v} for k, v in countries.items()],
+            "states": list(states_qs.values("unique_id", "name")),
+            "districts": list(districts_qs.values("unique_id", "name")),
+            "cities": list(cities_qs.values("unique_id", "name")),
+            "zones": list(zones_qs.values("unique_id", "zone_name")),
+            "panchayats": list(panchayats_qs.values("unique_id", "panchayat_name")),
+            "wards": list(wards_qs.values("unique_id", "ward_name")),
+        }
+
     def _build_staff_payload(self, staff_record, login_user=None):
         login_user = login_user or staff_record
 
@@ -176,19 +269,21 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Staff role not assigned")
 
         # Staff Access Configuration (the "Data Scope" tab) is the source of
-        # truth for which company/projects a staff can operate under, once
-        # one exists for them — it supports multiple projects and treats an
-        # empty project selection as "every project under the company"
-        # (see app/utils/staff_scope.py:resolve_staff_scope_ids). Forms should
-        # show company/project data from this scope regardless of whether
-        # the staff was separately granted "view" on Company/Project as
-        # screens — that permission only governs the Company/Project admin
-        # management screens' own sidebar visibility.
+        # truth for which company/projects/locations a staff can operate
+        # under, once one exists for them — it supports multiple projects
+        # and treats an empty selection at any level (project, state,
+        # district, city, zone, panchayat, ward) as "everything under the
+        # parent scope". Forms should show company/project/location data
+        # from this scope regardless of whether the staff was separately
+        # granted "view" on those as screens — that permission only governs
+        # the admin management screens' own sidebar visibility.
         access_config = StaffAccessConfiguration.objects.filter(
             staff_id_id=getattr(staff_record, "staff_unique_id", None),
             is_active=True,
             is_deleted=False,
-        ).select_related("company_id").prefetch_related("projects").first()
+        ).select_related("company_id").prefetch_related(
+            "projects", "states", "districts", "cities", "zones", "panchayats", "wards",
+        ).first()
 
         if access_config and access_config.company_id:
             company = access_config.company_id
@@ -209,11 +304,14 @@ class LoginSerializer(serializers.Serializer):
         projects_queryset = Project.objects.filter(**project_filter).values(
             "unique_id", "name",
             "gps_api_url",
+            "gps_vehicle_history_api", "gps_vehicle_tracking_api", "gps_trip_summary_api",
             "gps_user_id", "gps_group_name", "gps_provider_name", "gps_fcode", "gps_trip_user_id",
             "weighment_api_url", "day_wise_weighment_api_url",
         )
 
         projects = list(projects_queryset)
+        resolved_project_ids = [p["unique_id"] for p in projects]
+        location_scope = self._resolve_location_scope(access_config, company, resolved_project_ids)
 
         permission_payload = self._resolve_permission_payload(
             company_unique_id=company.unique_id,
@@ -256,6 +354,14 @@ class LoginSerializer(serializers.Serializer):
             "contractorusertype_id": contractor_usertype.unique_id if contractor_usertype else None,
             "company_unique_id": company.unique_id,
             "projects": projects,
+            "continents": location_scope["continents"],
+            "countries": location_scope["countries"],
+            "states": location_scope["states"],
+            "districts": location_scope["districts"],
+            "cities": location_scope["cities"],
+            "zones": location_scope["zones"],
+            "panchayats": location_scope["panchayats"],
+            "wards": location_scope["wards"],
             "profile_object": staff_record,
             "profile": profile_payload,
             "password_expired": password_expired,
@@ -446,6 +552,9 @@ class LoginSerializer(serializers.Serializer):
                 "unique_id": project.unique_id,
                 "name": project.name,
                 "gps_api_url": getattr(project, "gps_api_url", None),
+                "gps_vehicle_history_api": getattr(project, "gps_vehicle_history_api", None),
+                "gps_vehicle_tracking_api": getattr(project, "gps_vehicle_tracking_api", None),
+                "gps_trip_summary_api": getattr(project, "gps_trip_summary_api", None),
                 "weighment_api_url": getattr(project, "weighment_api_url", None),
             }]
         elif company:
@@ -454,7 +563,11 @@ class LoginSerializer(serializers.Serializer):
                     company_id=company,
                     is_active=True,
                     is_deleted=False,
-                ).values("unique_id", "name", "gps_api_url", "weighment_api_url")
+                ).values(
+                    "unique_id", "name", "gps_api_url",
+                    "gps_vehicle_history_api", "gps_vehicle_tracking_api", "gps_trip_summary_api",
+                    "weighment_api_url",
+                )
             )
 
         return {

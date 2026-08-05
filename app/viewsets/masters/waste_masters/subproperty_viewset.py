@@ -7,7 +7,7 @@ from app.utils.pagination import LimitOffsetWithPage
 
 class SubPropertyViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     queryset = SubProperty.objects.filter(is_deleted=False)\
-        .select_related("property_id")\
+        .select_related("property_id", "company_id", "project_id")\
         .order_by("sub_property_name")
 
     serializer_class = SubPropertySerializer

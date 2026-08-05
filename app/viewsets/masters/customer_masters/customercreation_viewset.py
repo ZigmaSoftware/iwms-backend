@@ -159,7 +159,10 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         district_id = self.request.query_params.get("district_id")
         state_id = self.request.query_params.get("state_id")
         waste_type_param = self.request.query_params.get("waste_type_id")
+        active_status = self.request.query_params.get("active_status")
 
+        if active_status in ("0", "1"):
+            queryset = queryset.filter(is_active=active_status == "1")
         if company_id:
             queryset = queryset.filter(company_id__unique_id=company_id)
         if project_id:
