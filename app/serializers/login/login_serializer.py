@@ -232,7 +232,29 @@ class LoginSerializer(serializers.Serializer):
             if state.country_id and state.country_id.unique_id not in countries:
                 countries[state.country_id.unique_id] = state.country_id.name
 
+        # The narrowest level the admin actually assigned a grant at, in the
+        # same narrowest-to-broadest order the rest of this method resolves
+        # in. Zone/Panchayat are siblings (see comment above) so either one
+        # being assigned counts as "ward"-adjacent granularity; whichever of
+        # the two was actually granted is reported. "company" means no
+        # geo-level grant at all — unrestricted down to the whole company.
+        scope_level = "company"
+        if access_config:
+            if scoped_wards.exists():
+                scope_level = "ward"
+            elif access_config.zones.exists():
+                scope_level = "zone"
+            elif access_config.panchayats.exists():
+                scope_level = "panchayat"
+            elif scoped_cities.exists():
+                scope_level = "city"
+            elif scoped_districts.exists():
+                scope_level = "district"
+            elif scoped_states.exists():
+                scope_level = "state"
+
         return {
+            "scope_level": scope_level,
             "continents": [{"unique_id": k, "name": v} for k, v in continents.items()],
             "countries": [{"unique_id": k, "name": v} for k, v in countries.items()],
             "states": list(states_qs.values("unique_id", "name")),
@@ -354,6 +376,7 @@ class LoginSerializer(serializers.Serializer):
             "contractorusertype_id": contractor_usertype.unique_id if contractor_usertype else None,
             "company_unique_id": company.unique_id,
             "projects": projects,
+            "scope_level": location_scope["scope_level"],
             "continents": location_scope["continents"],
             "countries": location_scope["countries"],
             "states": location_scope["states"],

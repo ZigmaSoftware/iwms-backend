@@ -7,8 +7,11 @@ from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 
 
 class CityViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
-    location_scope_field = "cities"
-    location_scope_lookup = "unique_id"
+    location_scope_chain = [
+        ("cities", "unique_id"),
+        ("districts", "district_id__unique_id"),
+        ("states", "state_id__unique_id"),
+    ]
 
     queryset = City.objects.filter(is_deleted=False).select_related(
         "continent_id", "country_id", "state_id", "district_id", "company_id", "project_id"
