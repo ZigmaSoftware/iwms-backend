@@ -150,12 +150,16 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "remarks": remarks,
             },
         )
-        if created or log.log_status == DailyTripLog.LOG_STATUS_VERIFIED:
+        if created:
             return
 
+        # Always resync the real collected weight, even once the log has
+        # been Verified — verification approves the trip, it doesn't freeze
+        # the weight against collection points recorded/updated afterwards.
         log.collected_weight_kg = stored_weight
-        log.log_status = log_status
-        log.remarks = log.remarks or remarks
+        if log.log_status != DailyTripLog.LOG_STATUS_VERIFIED:
+            log.log_status = log_status
+            log.remarks = log.remarks or remarks
         log.save()
 
     def _sync_trip_cp_from_event(self, event):

@@ -193,7 +193,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "DailyTripLog",
         "WasteCollection",
         "VehicleBreakdown",
-        "StaffNotification",
+        "TripRetripRequest",
     },
     "schedule-masters": {
         # legacy name — kept alive only for the reporting sub-resources

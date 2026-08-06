@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
@@ -6,7 +8,7 @@ from app.models.schedule_masters.daily_trip_collection_point import DailyTripCol
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
-TARGET = 30
+TARGET = 60
 
 # Simulate realistic GPS coordinates (Chennai area)
 GPS_SAMPLES = [
@@ -58,6 +60,10 @@ class BinCollectionEventSeeder(BaseSeeder):
                 )
             )
             .exclude(trip_assignment_id__status=DailyTripAssignment.STATUS_CANCELLED)
+            # Today is reserved for RetripDemoSeeder's own hand-curated
+            # partial-completion scenarios — resolving all of today's stops
+            # here would leave nothing pending for the Re-Trip demo to act on.
+            .exclude(trip_assignment_id__trip_date=timezone.localdate())
             .select_related(
                 "trip_assignment_id",
                 "trip_assignment_id__company_id",

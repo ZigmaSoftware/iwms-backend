@@ -13,7 +13,15 @@ class TripPlanCollectionPointSeeder(BaseSeeder):
 
     def run(self):
         total_created = 0
-        plans = TripPlan.objects.filter(is_deleted=False, status=TripPlan.Status.ACTIVE)
+        # Bin-only: this seeder exclusively looks up Collection_point/Bins,
+        # so it must not run against household/bulk plans (see TripPlanSeeder's
+        # household-collection block) — those get their single HOUSEHOLD-type
+        # stop created directly by TripPlanSeeder instead.
+        plans = TripPlan.objects.filter(
+            is_deleted=False,
+            status=TripPlan.Status.ACTIVE,
+            collection_type=TripPlan.COLLECTION_TYPE_BIN,
+        )
 
         for plan in plans:
             cps = Collection_point.objects.filter(

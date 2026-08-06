@@ -184,6 +184,10 @@ class PermissionSeeder(BaseSeeder):
                 "bin-collection-events",
                 "daily-trip-logs",
                 "wastecollections",
+                # registered in base_urls.py but previously missing here, so no
+                # UserScreen/permission row was ever seeded for them
+                "vehicle-breakdowns",
+                "retrip-requests",
             ],
             "schedule-masters": [
                 # legacy name — kept alive only for the reporting

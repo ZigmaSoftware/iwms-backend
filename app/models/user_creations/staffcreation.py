@@ -375,6 +375,7 @@ class StaffPersonalDetails(models.Model):
     )
     marital_status = models.CharField(max_length=50, blank=True, null=True)
     dob = models.DateField(blank=True, null=True)
+    age = models.PositiveSmallIntegerField(blank=True, null=True)
     blood_group = models.CharField(max_length=20, blank=True, null=True)
     gender = models.CharField(max_length=20, blank=True, null=True)
     physically_challenged = models.CharField(max_length=20, blank=True, null=True)

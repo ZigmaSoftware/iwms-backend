@@ -223,6 +223,11 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 {"detail": f"Log is already in '{new_status}' status."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if new_status == DailyTripLog.LOG_STATUS_VERIFIED and not instance.actual_end_time:
+            return Response(
+                {"detail": "This trip hasn't ended yet — actual end time is required before it can be verified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         previous_data = self._serialize_instance(instance)
         account = self._get_account()

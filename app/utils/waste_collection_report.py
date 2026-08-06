@@ -5,6 +5,11 @@ from django.db.models import Count, DecimalField, ExpressionWrapper, F, Sum, Val
 from django.db.models.functions import Coalesce
 
 from app.utils.waste_type_breakdown import bulk_waste_type_rows_for_trip_assignments
+from app.utils.household_waste_breakdown import (
+    household_only_location_rows,
+    household_only_type_rows,
+)
+from app.models.schedule_masters.daily_trip_log import DailyTripLog
 
 
 ZERO = Decimal("0")
@@ -76,6 +81,10 @@ def build_waste_collection_report(
     sort="weight",
     page=None,
     limit=None,
+    company_id=None,
+    project_id=None,
+    panchayat_ids=None,
+    date_filter=None,
 ):
     """Build collection analytics without multiplying trip-level metrics."""
     source = source if source in {"bin", "household", "all"} else "bin"
@@ -128,6 +137,32 @@ def build_waste_collection_report(
         bucket["trips"] += int(raw["total_trips"] or 0)
         bucket["points"] += int(raw["collection_points_covered"] or 0)
 
+    # Standalone household collections (no trip_assignment_id) have no
+    # DailyTripLog row and are otherwise invisible to this report.
+    if source in ("household", "all"):
+        for hh in household_only_location_rows(
+            monthly=monthly,
+            company_id=company_id,
+            project_id=project_id,
+            panchayat_ids=panchayat_ids,
+            date_filter=date_filter,
+        ):
+            key = (hh["period"], hh["company_id"], hh["project_id"], hh["panchayat_id"])
+            bucket = locations.setdefault(key, {
+                "period": hh["period"],
+                "company_id": hh["company_id"],
+                "company_name": hh["company_name"],
+                "project_id": hh["project_id"],
+                "project_name": hh["project_name"],
+                "panchayat_id": hh["panchayat_id"],
+                "panchayat_name": hh["panchayat_name"],
+                "weight": ZERO,
+                "trips": 0,
+                "points": 0,
+            })
+            bucket["weight"] += hh["weight"]
+            bucket["trips"] += hh["trips"]
+
     trip_info_rows = list(queryset.values(
         "trip_assignment_id_id",
         "trip_date",
@@ -140,6 +175,7 @@ def build_waste_collection_report(
         "collection_point_id",
         "collected_weight_kg",
         "household_collected_weight_kg",
+        "log_status",
     ))
     info_by_assignment = {
         row["trip_assignment_id_id"]: row for row in trip_info_rows
@@ -184,11 +220,14 @@ def build_waste_collection_report(
             "weight": ZERO,
             "assignments": set(),
             "points": set(),
+            "all_verified": True,
         })
         bucket["weight"] += decimal_value(weight)
         bucket["assignments"].add(assignment_id)
         if info["collection_point_id"]:
             bucket["points"].add(info["collection_point_id"])
+        if info.get("log_status") != DailyTripLog.LOG_STATUS_VERIFIED:
+            bucket["all_verified"] = False
 
     for waste_row in waste_rows:
         assignment_id = waste_row["trip_assignment_id"]
@@ -222,6 +261,39 @@ def build_waste_collection_report(
                 weight,
                 assignment_id,
             )
+
+    if source in ("household", "all"):
+        for hh in household_only_type_rows(
+            monthly=monthly,
+            waste_type_id=waste_type_id,
+            company_id=company_id,
+            project_id=project_id,
+            panchayat_ids=panchayat_ids,
+            date_filter=date_filter,
+        ):
+            key = (
+                hh["period"], hh["company_id"], hh["project_id"],
+                hh["panchayat_id"], hh["waste_type_id"],
+            )
+            bucket = type_buckets.setdefault(key, {
+                "period": hh["period"],
+                "company_id": hh["company_id"],
+                "company_name": hh["company_name"],
+                "project_id": hh["project_id"],
+                "project_name": hh["project_name"],
+                "panchayat_id": hh["panchayat_id"],
+                "panchayat_name": hh["panchayat_name"],
+                "waste_type_id": hh["waste_type_id"],
+                "waste_type": hh["waste_type"],
+                "weight": ZERO,
+                "assignments": set(),
+                "points": set(),
+                "all_verified": True,
+            })
+            bucket["weight"] += hh["weight"]
+            # No trip_assignment_id exists for these rows — count each
+            # (period, panchayat, waste_type) bucket itself as one visit.
+            bucket["assignments"].add(key)
 
     rows = []
     for bucket in type_buckets.values():
@@ -259,6 +331,7 @@ def build_waste_collection_report(
                 **common,
             })
         else:
+            verification_status = "Verified" if bucket.get("all_verified", True) else "Unverified"
             rows.append({
                 "unique_id": f"DWC-{bucket['period']}-{bucket['panchayat_id']}-{bucket['waste_type_id']}",
                 "collection_date": bucket["period"],
@@ -269,7 +342,8 @@ def build_waste_collection_report(
                 "variance_percent": 0.0,
                 "collection_efficiency_percent": 0.0,
                 "coverage_efficiency_percent": 0.0,
-                "report_status": "Collected",
+                "report_status": verification_status,
+                "verification_status": verification_status,
                 **common,
             })
 
@@ -360,6 +434,15 @@ def build_waste_collection_report(
     total_weight = sum((item["weight"] for item in locations.values()), ZERO)
     total_trips = sum(item["trips"] for item in locations.values())
     total_points = sum(item["points"] for item in locations.values())
+    overall_status = (
+        "Collected"
+        if monthly
+        else (
+            "Verified"
+            if rows and all(row["verification_status"] == "Verified" for row in rows)
+            else "Unverified"
+        )
+    )
     kpis = {
         "total_actual_weight_kg": float(rounded(total_weight)),
         "total_actual_weight": float(rounded(total_weight)),
@@ -377,7 +460,8 @@ def build_waste_collection_report(
         "variance_kg": float(rounded(total_weight)),
         "collection_efficiency_percent": 0.0,
         "coverage_efficiency_percent": float(percent(total_points, total_trips)),
-        "report_status": "Collected",
+        "report_status": overall_status,
+        **({} if monthly else {"verification_status": overall_status}),
     }
 
     return {

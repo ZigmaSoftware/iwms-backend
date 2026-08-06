@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.core.validators import RegexValidator
 from django.db import models, transaction
 from app.utils.base_models import BaseMaster
 from app.models.common_masters.country import Country
@@ -153,7 +154,10 @@ class CustomerCreation(BaseMaster):
     state = models.ForeignKey(State, on_delete=models.PROTECT, related_name='customer_creation')
     country = models.ForeignKey(Country, on_delete=models.PROTECT, related_name='customer_creation')
 
-    pincode = models.CharField(max_length=10)
+    pincode = models.CharField(
+        max_length=6,
+        validators=[RegexValidator(r"^\d{6}$", "Enter a valid 6-digit pincode.")],
+    )
     latitude = models.CharField(max_length=100)
     longitude = models.CharField(max_length=100)
 

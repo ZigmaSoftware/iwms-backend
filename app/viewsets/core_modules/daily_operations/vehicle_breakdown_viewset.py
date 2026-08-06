@@ -2,9 +2,10 @@ from django.db.models import Q
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
+from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown, VehicleBreakdownPhoto
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.serializers.core_modules.daily_operations.vehicle_breakdown_serializer import (
@@ -23,6 +24,7 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 
 
 class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     queryset = (
         VehicleBreakdown.objects.select_related(
             "company_id",
@@ -306,12 +308,38 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def perform_create(self, serializer):
         super().perform_create(serializer)
         instance = serializer.instance
+
+        photos = self.request.FILES.getlist("photos")
+        for photo in photos:
+            VehicleBreakdownPhoto.objects.create(breakdown=instance, photo=photo)
+
         self.log_audit(
             self.request,
             instance=instance,
             previous_data=None,
             new_data=self._serialize_instance(instance),
         )
+
+        from app.models.notifications.staff_notification import StaffNotification
+        from app.services.staff_notification_service import notify_staff
+
+        assignment = instance.trip_assignment_id
+        trip_plan = getattr(assignment, "trip_plan_id", None)
+        supervisor = getattr(trip_plan, "supervisor_id", None)
+        if supervisor is not None:
+            vehicle_no = getattr(instance.breakdown_vehicle_id, "vehicle_no", "A vehicle")
+            notify_staff(
+                supervisor,
+                StaffNotification.TYPE_VEHICLE_BREAKDOWN_REPORTED,
+                title="Vehicle breakdown reported",
+                body=f"{vehicle_no} broke down on trip {assignment.unique_id}.",
+                data={
+                    "vehicle_breakdown_id": instance.unique_id,
+                    "trip_assignment_id": assignment.unique_id,
+                    "latitude": str(instance.breakdown_lat or ""),
+                    "longitude": str(instance.breakdown_lng or ""),
+                },
+            )
 
     def perform_update(self, serializer):
         previous_data = self._serialize_instance(serializer.instance)
