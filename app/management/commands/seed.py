@@ -33,6 +33,9 @@ from app.management.commands.seeders.superadmin.role_management import ROLE_ASSI
 # user-creations (router: user-creations/staffcreation, supervisor-zone-map, ...)
 from app.management.commands.seeders.superadmin.staff_management.auth_user_seeder import AuthUserSeeder
 from app.management.commands.seeders.superadmin.staff_management.supervisor_user import SupervisorUserSeeder
+from app.management.commands.seeders.core_modules.daily_operations.driver_palakkad_trips import (
+    DriverPalakkadTripsSeeder,
+)
 from app.management.commands.seeders.superadmin.staff_management.staff_office import StaffOfficeSeeder
 from app.management.commands.seeders.superadmin.staff_management.staff_personal import StaffPersonalSeeder
 
@@ -166,6 +169,11 @@ SCHEDULE_OPERATIONS_SEEDERS = [
     # Depends on driver_user (user-creations) AND today's DailyTripAssignment
     # rows (above) both existing — must run last in this group.
     SupervisorUserSeeder,
+    # Builds driver_user's own bin + household trips under Blue Planet /
+    # Palakkad BP (the stock plans above sit under the IWMS company, which
+    # CompanyScopedViewSet hides from driver_user). Runs after
+    # SupervisorUserSeeder so supervisor_user exists to own the plans.
+    DriverPalakkadTripsSeeder,
 ]
 
 # Legacy alias — `schedule-masters` used to cover both of the above before it was
@@ -254,6 +262,8 @@ SEED_GROUPS = {
     # Requires driver_user + today's DailyTripAssignment rows to already
     # exist (run `user-creations` and `schedule-operations` first, or `all`).
     "supervisor-user":    [SupervisorUserSeeder],
+    # driver_user's bin + household trips under Blue Planet / Palakkad BP.
+    "driver-trips":       [DriverPalakkadTripsSeeder],
 }
 
 # ============================================================

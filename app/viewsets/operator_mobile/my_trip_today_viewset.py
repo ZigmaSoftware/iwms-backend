@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.response import Response
@@ -29,7 +30,7 @@ class MyTripTodayViewSet(viewsets.ViewSet):
                 status=exc.http_status,
             )
 
-        data = MyTripTodaySerializer(assignment).data
+        data = MyTripTodaySerializer(assignment, context={"request": request}).data
         return Response(data, status=status.HTTP_200_OK)
 
 
@@ -62,19 +63,35 @@ class MyTripsTodayViewSet(viewsets.ViewSet):
             .select_related(
                 "panchayat_id",
                 "vehicle_id",
+                "trip_plan_id",
+                "alt_staff_template_id",
                 "staff_template_id",
                 "staff_template_id__driver_id",
+                "staff_template_id__driver_id__staffusertype_id",
+                "staff_template_id__driver_id__personal_details",
                 "staff_template_id__operator_id",
+                "staff_template_id__operator_id__staffusertype_id",
+                "staff_template_id__operator_id__personal_details",
             )
-            .prefetch_related("waste_types")
+            .prefetch_related("waste_types", "wards")
         )
 
-        assignments = list(base.filter(staff_template_id__operator_id=operator))
+        # Driver ("captain") and operator apps are merged, so match either
+        # slot on the staff template — same rule as
+        # helpers.find_active_assignment_for_operator.
+        assignments = list(
+            base.filter(
+                Q(staff_template_id__operator_id=operator)
+                | Q(staff_template_id__driver_id=operator)
+            )
+        )
         if not assignments:
             for candidate in base:
                 extras = getattr(candidate.staff_template_id, "extra_operator_id", None) or []
                 if operator.staff_unique_id in extras:
                     assignments.append(candidate)
 
-        data = MyTripTodaySerializer(assignments, many=True).data
+        data = MyTripTodaySerializer(
+            assignments, many=True, context={"request": request}
+        ).data
         return Response({"results": data}, status=status.HTTP_200_OK)

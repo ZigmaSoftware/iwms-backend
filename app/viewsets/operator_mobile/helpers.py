@@ -49,14 +49,26 @@ def find_active_assignment_for_operator(staff: Staffcreation) -> DailyTripAssign
         .select_related(
             "panchayat_id",
             "vehicle_id",
+            "trip_plan_id",
+            "alt_staff_template_id",
             "staff_template_id",
             "staff_template_id__driver_id",
+            "staff_template_id__driver_id__staffusertype_id",
+            "staff_template_id__driver_id__personal_details",
             "staff_template_id__operator_id",
+            "staff_template_id__operator_id__staffusertype_id",
+            "staff_template_id__operator_id__personal_details",
         )
-        .prefetch_related("waste_types")
+        .prefetch_related("waste_types", "wards")
     )
 
-    assignment = base.filter(staff_template_id__operator_id=staff).first()
+    # The driver ("captain") and operator apps were merged — one phone per
+    # vehicle — so a trip belongs to this staff member whether they are the
+    # template's driver OR its operator. Mirrors IsOperatorRole, which accepts
+    # both roles.
+    assignment = base.filter(
+        Q(staff_template_id__operator_id=staff) | Q(staff_template_id__driver_id=staff)
+    ).first()
     if assignment is None:
         # Extra-operator fallback: walk staff_templates and check JSON membership in Python
         # (avoids SQLite-incompatible JSON __contains lookups).

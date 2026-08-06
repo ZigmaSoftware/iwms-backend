@@ -1,6 +1,7 @@
 # api/views/desktopView/users/login_viewset.py
 
 from rest_framework.viewsets import ViewSet
+from rest_framework.decorators import action as drf_action
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -9,7 +10,9 @@ from django.utils import timezone
 
 from app.models.user_creations.loginAudit import LoginAudit
 from app.models.user_creations.staffcreation import Staffcreation
+from app.models.customers.customercreation import CustomerCreation
 from app.serializers.login.login_serializer import LoginSerializer
+from app.utils.permission_response import resolve_permission_payload
 
 
 def _client_ip(request):
@@ -342,4 +345,64 @@ class LoginViewSet(ViewSet):
                 "password_expired": password_expired,
             },
             status=status.HTTP_200_OK
+        )
+
+    # ----------------------------------------------------------
+    # GET /api/v1/login/my-permissions/
+    # ----------------------------------------------------------
+    @drf_action(detail=False, methods=["get"], url_path="my-permissions")
+    def my_permissions(self, request):
+        """Re-resolve the authenticated caller's permission bundle.
+
+        The mobile app calls this in the background to pick up permission
+        changes without forcing a re-login. Returns the exact same bundle
+        shape as the login response (see PermissionBundle.fromApi), built
+        from the same resolver the permission middleware authorizes against,
+        so what the app is told it can do always matches what it can do.
+        """
+        user = getattr(request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            return Response(
+                {"detail": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        company = getattr(user, "company_id", None)
+        company_unique_id = getattr(company, "unique_id", None)
+
+        if isinstance(user, CustomerCreation):
+            payload = resolve_permission_payload(
+                company_unique_id=company_unique_id,
+                role_name="customer",
+                user_type="customer",
+            )
+        else:
+            role_obj = (
+                getattr(user, "staffusertype_id", None)
+                or getattr(user, "contractorusertype_id", None)
+            )
+            payload = resolve_permission_payload(
+                company_unique_id=company_unique_id,
+                staff_unique_id=getattr(user, "staff_unique_id", None),
+                role_name=getattr(role_obj, "name", None),
+                user_type=(
+                    "contractor"
+                    if getattr(user, "contractorusertype_id", None)
+                    else "staff"
+                ),
+            )
+
+        return Response(
+            {
+                "permissions": payload["permissions"],
+                "permission_details": payload["permission_details"],
+                "column_permissions": payload["column_permissions"],
+                "module_access": payload["module_access"],
+                "app_surfaces": payload["app_surfaces"],
+                "landing": payload["landing"],
+                "permission_version": payload["permission_version"],
+                "generated_at": payload["generated_at"],
+                "source": "my-permissions",
+            },
+            status=status.HTTP_200_OK,
         )

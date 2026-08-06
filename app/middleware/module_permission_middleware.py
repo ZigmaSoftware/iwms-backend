@@ -52,6 +52,10 @@ AUTH_ONLY_SUFFIXES = (
     "register-fcm-token/",  # staff + citizen FCM device token self-registration
     "attendance/daily-attendance/",  # driver/operator/supervisor attendance screens
     "attendance/staff-profile/",     # same screens' profile calls
+    # Self-service permission refresh — authenticate the caller (so the
+    # viewset can resolve *their* bundle) but skip the module-permission
+    # check, since asking for your own permissions can't itself require one.
+    "login/my-permissions/",
 )
 
 # Citizen-scoped grievance API — self-service, no module-permission check;
@@ -184,6 +188,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         # split from the legacy "schedule-masters" module — operational resources
         "DailyTripAssignment",
         "DailyTripCollectionPoint",
+        "DailyTripHouseholdCollection",
         "BinCollectionEvent",
         "DailyTripLog",
         "WasteCollection",
@@ -380,9 +385,19 @@ def _permission_filters_for_user(user):
     if not company_unique_id or not staff_unique_id:
         return None
 
+    # role_name is required so staff with no explicit StaffAccessConfiguration
+    # rows still resolve their role's baseline grants (see
+    # ROLE_DEFAULT_PERMISSIONS) — otherwise the login response would hand the
+    # app permissions that every subsequent request then 403s against.
+    role_obj = (
+        getattr(user, "staffusertype_id", None)
+        or getattr(user, "contractorusertype_id", None)
+    )
+
     return {
         "company_unique_id": company_unique_id,
         "staff_unique_id": staff_unique_id,
+        "role_name": getattr(role_obj, "name", None),
     }
 
 
@@ -398,7 +413,8 @@ def _resolve_permissions_for_request(request):
     cache_key = (
         "module-permissions:"
         f"{filters['staff_unique_id']}:"
-        f"{filters['company_unique_id']}"
+        f"{filters['company_unique_id']}:"
+        f"{filters.get('role_name') or '-'}"
     )
 
     permissions = cache.get(cache_key)
