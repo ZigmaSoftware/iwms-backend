@@ -28,6 +28,9 @@ class StaffNotification(BaseMaster):
     TYPE_RETRIP_APPROVED = "RETRIP_APPROVED"
     TYPE_RETRIP_REJECTED = "RETRIP_REJECTED"
 
+    TYPE_TICKET_ESCALATED_TO = "TICKET_ESCALATED_TO"
+    TYPE_TICKET_ESCALATED = "TICKET_ESCALATED"
+
     TYPE_CHOICES = [
         (TYPE_VEHICLE_BREAKDOWN_REPORTED, "Vehicle Breakdown Reported"),
         (TYPE_VEHICLE_REPLACEMENT_APPROVED, "Vehicle Replacement Approved"),
@@ -37,6 +40,8 @@ class StaffNotification(BaseMaster):
         (TYPE_RETRIP_REQUESTED, "Re-Trip Requested"),
         (TYPE_RETRIP_APPROVED, "Re-Trip Approved"),
         (TYPE_RETRIP_REJECTED, "Re-Trip Rejected"),
+        (TYPE_TICKET_ESCALATED_TO, "Ticket Escalated To You"),
+        (TYPE_TICKET_ESCALATED, "Ticket Escalated"),
     ]
 
     unique_id = models.CharField(

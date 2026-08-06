@@ -87,6 +87,16 @@ PAL_CUSTOMERS = [
 
 
 class DriverPalakkadTripsSeeder(BaseSeeder):
+    """`driver_user` is bin-collection only — the app has no household/bulk
+    collection UI, so this seeder no longer creates a household or bulk
+    TripPlan for them at all (previously it did, then a separate
+    `driver-bin-only` seed group deactivated them after the fact — that
+    left a re-run of this seeder resurrecting them every time). Any
+    household/bulk plan or assignment from an older run of this seeder is
+    cleaned up on every run, so re-running it is enough to fully undo that
+    old behaviour without needing the `driver-bin-only` group afterwards.
+    """
+
     name = "driver_palakkad_trips"
 
     # ------------------------------------------------------------------
@@ -95,43 +105,22 @@ class DriverPalakkadTripsSeeder(BaseSeeder):
         if ctx is None:
             return
 
-        customers = self._seed_customers(ctx)
-        if not customers:
-            self.log("No customers available — aborting before trip plans.")
-            return
-
         template = self._seed_staff_template(ctx)
         if template is None:
             return
 
-        # One plan yields exactly ONE collection type — the sync signal filters
-        # plan stops by `plan.collection_type` — so bulk waste needs its own
-        # plan rather than an extra stop on the household plan.
         bin_plan = self._seed_trip_plan(
             ctx, template, TripPlan.COLLECTION_TYPE_BIN, "DRIVERUSER-PAL-BIN-01",
             time(7, 0),
         )
-        household_plan = self._seed_trip_plan(
-            ctx, template, TripPlan.COLLECTION_TYPE_HOUSEHOLD, "DRIVERUSER-PAL-HH-01",
-            time(9, 0),
-        )
-        bulk_plan = self._seed_trip_plan(
-            ctx, template, TripPlan.COLLECTION_TYPE_BULK, "DRIVERUSER-PAL-BULK-01",
-            time(14, 0),
-        )
-        if bin_plan is None or household_plan is None or bulk_plan is None:
+        if bin_plan is None:
             return
 
         self._seed_bin_stops(ctx, bin_plan)
-        self._seed_geo_household_stop(
-            ctx, household_plan, TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD
-        )
-        self._seed_geo_household_stop(
-            ctx, bulk_plan, TripPlanCollectionPoint.COLLECTION_TYPE_BULK
-        )
+        self._retire_household_and_bulk(ctx, template)
 
         self._generate_assignments()
-        self._report(ctx, [bin_plan, household_plan, bulk_plan])
+        self._report(ctx, [bin_plan])
 
     # ------------------------------------------------------------------
     def _resolve_context(self):
@@ -358,6 +347,60 @@ class DriverPalakkadTripsSeeder(BaseSeeder):
             f"Geo stop on {plan.unique_id} [{collection_type}] — "
             f"expanded per customer by the trip-plan signal."
         )
+
+    # ------------------------------------------------------------------
+    def _retire_household_and_bulk(self, ctx, template):
+        """Permanently deactivate any household/bulk TripPlan this seeder
+        created in an older run, and cancel today's (or any future)
+        DailyTripAssignment already generated from one.
+
+        This makes re-running the seeder itself enough to undo the old
+        household/bulk plans — no separate `driver-bin-only` seed group
+        needed afterwards.
+        """
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+
+        plans = TripPlan.objects.filter(
+            company_id=ctx["company"],
+            project_id=ctx["project"],
+            staff_template_id=template,
+            collection_type__in=[
+                TripPlan.COLLECTION_TYPE_HOUSEHOLD,
+                TripPlan.COLLECTION_TYPE_BULK,
+            ],
+        )
+        plan_count = plans.filter(is_deleted=False).update(
+            is_active=False, status=TripPlan.Status.INACTIVE
+        )
+
+        today = timezone.localdate()
+        assignments = DailyTripAssignment.objects.filter(
+            trip_plan_id__in=TripPlan.objects.filter(
+                company_id=ctx["company"],
+                project_id=ctx["project"],
+                staff_template_id=template,
+                collection_type__in=[
+                    TripPlan.COLLECTION_TYPE_HOUSEHOLD,
+                    TripPlan.COLLECTION_TYPE_BULK,
+                ],
+            ),
+            trip_date__gte=today,
+            is_deleted=False,
+        ).exclude(status=DailyTripAssignment.STATUS_CANCELLED)
+
+        cancelled = 0
+        for assignment in assignments:
+            if assignment.status == DailyTripAssignment.STATUS_COMPLETED:
+                continue
+            assignment.status = DailyTripAssignment.STATUS_CANCELLED
+            assignment.save(update_fields=["status", "updated_at"])
+            cancelled += 1
+
+        if plan_count or cancelled:
+            self.log(
+                f"Retired {plan_count} old household/bulk TripPlan(s) and "
+                f"cancelled {cancelled} pending assignment(s) for {DRIVER_USERNAME}."
+            )
 
     # ------------------------------------------------------------------
     def _generate_assignments(self):

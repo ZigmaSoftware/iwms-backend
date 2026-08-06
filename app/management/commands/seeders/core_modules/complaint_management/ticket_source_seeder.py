@@ -11,6 +11,11 @@ class ComplaintSourceSeeder(BaseSeeder):
         ("CALL_CENTER", "Call Center"),
         ("ADMIN", "Admin"),
         ("WHATSAPP", "WhatsApp"),
+        # Also get_or_create'd lazily by PublicGrievanceViewSet.create on
+        # first submission — seeded here too so `ComplaintTicketViewSet
+        # .counts`'s "public" bucket exists (and reads as a real 0, not
+        # "not configured yet") even before anyone has submitted one.
+        ("PUBLIC_GRIEVANCE", "Public Grievance"),
     ]
 
     def run(self):

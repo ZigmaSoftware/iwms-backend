@@ -3,10 +3,9 @@
 Ported from the government backend's `ticket_viewset.py`
 (`ComplaintTicketViewSet`). Scoping follows this project's model:
 Company/Project tenancy (via `CompanyScopedViewSet`) plus Zone/Ward instead
-of government's District + five-local-body hierarchy. Push-notification
-sends and the routing/SLA engine are not ported (see
-`iwms-private-vs-government-divergence` memory) - assignment stays manual
-and status changes are recorded but do not push to the citizen device yet.
+of government's District + five-local-body hierarchy. Assignment
+notifications go through this project's `staff_notification_service`
+(in-app only — no push-to-citizen-device yet).
 """
 
 from django.contrib.auth import get_user_model
@@ -17,6 +16,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from app.models.complaint_management import (
+    ComplaintAssignmentHistory,
     ComplaintAttachment,
     ComplaintComment,
     ComplaintFeedback,
@@ -26,6 +26,8 @@ from app.models.complaint_management import (
     ComplaintTeam,
     ComplaintTicket,
 )
+from app.models.notifications.staff_notification import StaffNotification
+from app.models.user_creations.staffcreation import Staffcreation, StaffcreationOfficeDetails
 from app.serializers.core_modules.complaint_management.ticket_serializers import (
     ComplaintAttachmentSerializer,
     ComplaintCommentSerializer,
@@ -33,6 +35,7 @@ from app.serializers.core_modules.complaint_management.ticket_serializers import
     ComplaintTicketDetailSerializer,
     ComplaintTicketSerializer,
 )
+from app.services.staff_notification_service import notify_staff
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
@@ -396,3 +399,95 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             },
         )
         return Response(ComplaintFeedbackSerializer(feedback).data, status=http_status.HTTP_201_CREATED)
+
+    # ---- POST /tickets/{id}/assign/ ----
+    @action(detail=True, methods=["post"], url_path="assign")
+    @transaction.atomic
+    def assign(self, request, unique_id=None):
+        ticket = self.get_object()
+        team_id = request.data.get("team")
+        staff_id = request.data.get("staff")
+
+        from_team = ticket.assigned_team
+        from_staff = ticket.assigned_staff
+
+        new_team = from_team
+        if team_id:
+            new_team = ComplaintTeam.objects.filter(unique_id=team_id, is_deleted=False).first()
+            if not new_team:
+                return Response({"team": "Invalid team."}, status=http_status.HTTP_400_BAD_REQUEST)
+
+        # Resolve target staff: explicit staff param, else the team's lead, else unchanged.
+        new_staff = from_staff
+        if staff_id:
+            new_staff = StaffcreationOfficeDetails.objects.filter(staff_unique_id=staff_id).first()
+            if not new_staff:
+                return Response({"staff": "Invalid staff."}, status=http_status.HTTP_400_BAD_REQUEST)
+        elif team_id and new_team and new_team.lead_staff_id:
+            new_staff = new_team.lead_staff
+
+        ticket.assigned_team = new_team
+        ticket.assigned_staff = new_staff
+        ticket.save(update_fields=["assigned_team", "assigned_staff"])
+
+        ComplaintAssignmentHistory.objects.create(
+            ticket=ticket,
+            from_team=from_team,
+            to_team=new_team,
+            from_staff=from_staff,
+            to_staff=new_staff,
+            assigned_by=_actor_user(request),
+            assignment_reason=request.data.get("reason"),
+        )
+        if new_staff and (not from_staff or new_staff.staff_unique_id != from_staff.staff_unique_id):
+            notify_staff(
+                new_staff,
+                StaffNotification.TYPE_TICKET_ESCALATED_TO,
+                "Ticket assigned to you",
+                f"Ticket {ticket.ticket_no} ({ticket.title or ticket.category.category_name}) has been assigned to you.",
+                data={"event": "ticket_assigned", "ticket_id": str(ticket.unique_id)},
+            )
+        return Response(self.get_serializer(ticket).data)
+
+    # ---- GET /tickets/{id}/assignable-staff/ ----
+    @action(detail=True, methods=["get"], url_path="assignable-staff")
+    def assignable_staff(self, request, unique_id=None):
+        """Staff options for the Assign dialog, scoped to a zone/ward.
+
+        Defaults to the ticket's own zone/ward; the caller may override with
+        `?zone=<zone id>` and/or `?ward=<ward id>` to browse a different area
+        before assigning. A staff member tagged to the zone still shows up
+        when the caller drills into one ward inside it (coarser scope
+        matches finer scope, and vice versa).
+        """
+        ticket = self.get_object()
+        params = request.query_params
+        zone_id = params.get("zone") or ticket.zone_id
+        ward_id = params.get("ward") or ticket.ward_id
+
+        qs = Staffcreation.objects.filter(is_deleted=False, is_active=True)
+
+        if zone_id or ward_id:
+            scope = models.Q()
+            if zone_id:
+                scope |= models.Q(zone_id=zone_id)
+            if ward_id:
+                scope |= models.Q(ward_id=ward_id)
+            qs = qs.filter(scope)
+
+        role_name = params.get("role")
+        if role_name:
+            qs = qs.filter(staffusertype_id__name__icontains=role_name)
+
+        qs = qs.select_related("staffusertype_id", "zone_id", "ward_id").order_by("employee_name")
+
+        return Response([
+            {
+                "staff_unique_id": s.staff_unique_id,
+                "employee_name": s.employee_name,
+                "role": getattr(s.staffusertype_id, "name", None),
+                "zone": getattr(s.zone_id, "zone_name", None),
+                "ward": getattr(s.ward_id, "ward_name", None),
+            }
+            for s in qs
+        ])

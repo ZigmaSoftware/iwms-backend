@@ -36,6 +36,12 @@ from app.management.commands.seeders.superadmin.staff_management.supervisor_user
 from app.management.commands.seeders.core_modules.daily_operations.driver_palakkad_trips import (
     DriverPalakkadTripsSeeder,
 )
+from app.management.commands.seeders.core_modules.daily_operations.driver_bin_only import (
+    DriverBinOnlySeeder,
+)
+from app.management.commands.seeders.core_modules.daily_operations.driver_extra_collection_points import (
+    DriverExtraCollectionPointsSeeder,
+)
 from app.management.commands.seeders.superadmin.staff_management.staff_office import StaffOfficeSeeder
 from app.management.commands.seeders.superadmin.staff_management.staff_personal import StaffPersonalSeeder
 
@@ -276,6 +282,13 @@ SEED_GROUPS = {
     "supervisor-user":    [SupervisorUserSeeder],
     # driver_user's bin + household trips under Blue Planet / Palakkad BP.
     "driver-trips":       [DriverPalakkadTripsSeeder],
+    # Narrows driver_user back down to bin collection only — run AFTER
+    # driver-trips (and anything else that might regenerate household/bulk
+    # plans for driver_user's StaffTemplate).
+    "driver-bin-only":    [DriverBinOnlySeeder],
+    # 10 more collectable collection points (+ bins) appended to driver_user's
+    # bin-collection TripPlan.
+    "driver-extra-cps":   [DriverExtraCollectionPointsSeeder],
 }
 
 # ============================================================

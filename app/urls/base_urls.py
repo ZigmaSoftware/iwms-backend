@@ -102,6 +102,9 @@ from ..viewsets.core_modules.complaint_management.ticket_master_viewsets import 
 from ..viewsets.core_modules.complaint_management.citizen_ticket_viewset import (
     CitizenComplaintTicketViewSet,
 )
+from ..viewsets.core_modules.complaint_management.public_grievance_viewset import (
+    PublicGrievanceViewSet,
+)
 from ..viewsets.core_modules.complaint_management.ticket_viewset import ComplaintTicketViewSet
 from ..viewsets.core_modules.notifications.staff_notification_viewset import StaffNotificationViewSet
 
@@ -145,6 +148,7 @@ from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet,
 from ..viewsets.operator_mobile.validate_bin_qr_viewset import ValidateBinQrViewSet
 from ..viewsets.operator_mobile.scan_bin_viewset import ScanBinViewSet
 from ..viewsets.operator_mobile.trip_history_viewset import TripHistoryViewSet
+from ..viewsets.operator_mobile.trip_lifecycle_viewset import TripLifecycleViewSet
 
 # Waste bluetooth
 from ..viewsets.waste_collection_bluetooth.waste_bluetooth_viewset import WasteCollectionBluetoothViewSet
@@ -279,6 +283,18 @@ router.register_group("complaint-ticket", "grievance-tickets", ComplaintTicketVi
 router.register_group("citizen", "complaint-tickets", CitizenComplaintTicketViewSet, basename="citizen-complaint-tickets")
 
 # ============================================================
+# GROUP: PUBLIC (no login, no module permission check — see
+# AUTH_EXEMPT_PREFIXES in module_permission_middleware.py)
+# ============================================================
+router.register_group(
+    "public",
+    "publicgrievance",
+    PublicGrievanceViewSet,
+    basename="publicgrievance",
+    include_group_in_prefix=False,
+)
+
+# ============================================================
 # GROUP: STAFF NOTIFICATIONS (shared by driver/operator/supervisor apps)
 # ============================================================
 router.register_group("schedule-operations", "staff-notifications", StaffNotificationViewSet, basename="schedule-operations-staff-notifications")
@@ -395,6 +411,12 @@ router.register_group(
     "trip-history",
     TripHistoryViewSet,
     basename="operator-mobile-trip-history",
+)
+router.register_group(
+    "operator-mobile",
+    "trip-lifecycle",
+    TripLifecycleViewSet,
+    basename="operator-mobile-trip-lifecycle",
 )
 
 # ============================================================

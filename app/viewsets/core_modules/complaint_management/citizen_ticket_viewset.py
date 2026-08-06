@@ -1,10 +1,10 @@
 """Citizen-facing complaint ticket endpoints for the mobile app.
 
 Ported from the government backend's `citizen_viewset.py`
-(`CitizenComplaintTicketViewSet` only — the public/no-login grievance intake
-and the local-body picker actions are not ported here: this project has no
-public grievance form and no Corporation/Municipality/TownPanchayat local
-bodies to offer).
+(`CitizenComplaintTicketViewSet`). The public/no-login grievance intake and
+the local-body picker actions live separately in `public_grievance_viewset.py`
+(this project has no Corporation/Municipality/TownPanchayat local bodies to
+offer, so its geo pickers are state/district/panchayat/zone/ward instead).
 
 Registered under the `citizen/` URL group, which
 `ModulePermissionMiddleware.AUTH_ONLY_SUFFIXES` exempts from module
@@ -12,10 +12,9 @@ permission checks - access is gated purely by JWT authentication, and every
 query is hard-scoped to the logged-in citizen so a citizen can only ever
 see/raise their own tickets.
 
-Routing/SLA auto-assignment (`apply_routing_and_sla` on the government
-backend) is intentionally NOT ported yet - tickets are created unassigned
-and staff pick them up manually. See `iwms-private-vs-government-divergence`
-memory for why.
+Routing/SLA auto-assignment now runs via
+`app.services.complaint_ticket_routing.apply_routing_and_sla` right after a
+ticket is created, same as the public grievance intake.
 """
 
 from django.db import transaction
@@ -41,6 +40,7 @@ from app.serializers.core_modules.complaint_management.ticket_serializers import
     ComplaintTicketDetailSerializer,
     ComplaintTicketSerializer,
 )
+from app.services.complaint_ticket_routing import apply_routing_and_sla
 
 # Statuses that count as "final" for feedback purposes - a citizen should be
 # able to rate a ticket as soon as it is resolved, not only once staff
@@ -143,8 +143,8 @@ class CitizenComplaintTicketViewSet(viewsets.ViewSet):
             for ticket_field, customer_attr in CUSTOMER_GEO_FIELDS
         }
         ticket = ComplaintTicket.objects.create(
-            company_id=getattr(customer, "company_id_id", None),
-            project_id=getattr(customer, "project_id_id", None),
+            company_id_id=getattr(customer, "company_id_id", None),
+            project_id_id=getattr(customer, "project_id_id", None),
             customer=customer,
             category=category,
             subcategory=subcategory,
@@ -167,6 +167,7 @@ class CitizenComplaintTicketViewSet(viewsets.ViewSet):
             remarks="Raised via mobile app",
             visible_to_citizen=True,
         )
+        apply_routing_and_sla(ticket, save=True)
         return Response(
             ComplaintTicketDetailSerializer(ticket, context={"request": request}).data,
             status=http_status.HTTP_201_CREATED,

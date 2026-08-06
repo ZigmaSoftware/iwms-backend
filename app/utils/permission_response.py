@@ -570,6 +570,19 @@ ROLE_DEFAULT_PERMISSIONS = {
             "daily-trip-logs": ["view", "add", "edit"],
             "vehicle-breakdowns": ["view", "add"],
             "staff-notifications": ["view", "edit"],
+            # Read-only: the driver app shows its own Re-Trip request's
+            # status while a supervisor decides it, but never approves/
+            # rejects/creates one directly — that's all via retrip_service.
+            "retrip-requests": ["view"],
+        },
+        "schedule-setup": {
+            "collection-points": ["view"],
+        },
+        # The trip header shows the assigned vehicle, and the breakdown flow
+        # reads the vehicle detail before reporting against it.
+        "transport-masters": {
+            "vehicle-creation": ["view"],
+            "vehicle-type": ["view"],
         },
     },
     "operator": {
@@ -587,6 +600,16 @@ ROLE_DEFAULT_PERMISSIONS = {
             "daily-trip-logs": ["view", "add", "edit"],
             "vehicle-breakdowns": ["view", "add"],
             "staff-notifications": ["view", "edit"],
+            "retrip-requests": ["view"],
+        },
+        "schedule-setup": {
+            "collection-points": ["view"],
+        },
+        # The trip header shows the assigned vehicle, and the breakdown flow
+        # reads the vehicle detail before reporting against it.
+        "transport-masters": {
+            "vehicle-creation": ["view"],
+            "vehicle-type": ["view"],
         },
     },
     # Backs the supervisor app (module5_supervisor): assignments/trip logs
@@ -602,6 +625,11 @@ ROLE_DEFAULT_PERMISSIONS = {
             "vehicle-breakdowns": ["view", "edit"],
             "staff-notifications": ["view", "edit"],
             "bin-collection-events": ["view"],
+            # Reviews Re-Trip requests via the approve/reject actions —
+            # both POST, so the middleware's HTTP_ACTION_MAP scores them as
+            # "add", not "edit"; create/update/destroy stay disabled in the
+            # viewset itself so nothing else can write here.
+            "retrip-requests": ["view", "add"],
         },
         "schedule-setup": {
             "staff-templates": ["view"],
@@ -619,8 +647,13 @@ ROLE_DEFAULT_PERMISSIONS = {
             "vehicle-creation": ["view"],
         },
         "complaint-ticket": {
-            "grievance-tickets": ["view", "edit"],
-            "tickets": ["view", "edit"],
+            # Every ticket action (resolve/escalate/assign/comments/
+            # attachments/reopen/feedback/status) is a POST, so the
+            # middleware's HTTP_ACTION_MAP scores them "add", not "edit" —
+            # a plain PATCH/PUT on the ticket resource itself is the only
+            # thing "edit" actually gates here.
+            "grievance-tickets": ["view", "edit", "add"],
+            "tickets": ["view", "edit", "add"],
         },
     },
 }

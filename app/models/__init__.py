@@ -174,6 +174,7 @@ from .schedule_masters.daily_trip_collection_point import DailyTripCollectionPoi
 from .schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
 from .schedule_masters.bin_collection_event import BinCollectionEvent
 from .schedule_masters.vehicle_breakdown import VehicleBreakdown
+from .schedule_masters.trip_retrip_request import TripRetripRequest
 
 
 # ============================================================
@@ -301,4 +302,5 @@ __all__ = [
     "DailyTripHouseholdCollection",
     "BinCollectionEvent",
     "VehicleBreakdown",
+    "TripRetripRequest",
 ]

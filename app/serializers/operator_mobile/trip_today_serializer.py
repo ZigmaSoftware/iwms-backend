@@ -150,6 +150,15 @@ class _CrewMemberSerializer(serializers.Serializer):
         return None
 
 
+class _RetripRequestBriefSerializer(serializers.Serializer):
+    unique_id = serializers.CharField()
+    status = serializers.CharField()
+    reason = serializers.CharField(allow_null=True)
+    pending_bin_count = serializers.IntegerField()
+    pending_household_count = serializers.IntegerField()
+    created_at = serializers.DateTimeField()
+
+
 class MyTripTodaySerializer(serializers.Serializer):
     assignment_unique_id = serializers.CharField(source="unique_id")
     trip_date = serializers.DateField()
@@ -158,6 +167,11 @@ class MyTripTodaySerializer(serializers.Serializer):
     scheduled_time = serializers.TimeField()
     actual_start_time = serializers.TimeField(allow_null=True)
     actual_end_time = serializers.TimeField(allow_null=True)
+    # Precise start/end timestamps — `isStarted`/`isFinished` on the app side
+    # key off these rather than the wall-clock-only *_time fields, matching
+    # what `require_trip_started`/`mark_started`/`mark_ended` actually set.
+    actual_start_at = serializers.DateTimeField(allow_null=True)
+    actual_end_at = serializers.DateTimeField(allow_null=True)
     panchayat = serializers.SerializerMethodField()
     ward = serializers.SerializerMethodField()
     waste_type = _WasteTypeBriefSerializer(source="primary_waste_type", allow_null=True)
@@ -167,6 +181,16 @@ class MyTripTodaySerializer(serializers.Serializer):
     collection_points = serializers.SerializerMethodField()
     household_collections = serializers.SerializerMethodField()
     crew = serializers.SerializerMethodField()
+    # The Re-Trip request awaiting supervisor review, if any — lets the
+    # driver's home screen keep showing "awaiting approval" after a refresh,
+    # not just in the direct response to the `end` action that created it.
+    retrip_request = serializers.SerializerMethodField()
+
+    def get_retrip_request(self, obj):
+        pending = obj.retrip_requests.filter(status="Pending").first()
+        if not pending:
+            return None
+        return _RetripRequestBriefSerializer(pending).data
 
     def get_collection_type(self, obj):
         return getattr(obj.trip_plan_id, "collection_type", None)
