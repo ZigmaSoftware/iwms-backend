@@ -187,6 +187,26 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         data["country_ids"] = country_ids
         data["country_names"] = country_names
 
+        # Narrowest level actually granted, in the same narrowest-to-broadest
+        # order the login-time scope resolution uses. Zone/Panchayat are
+        # siblings under City (see StaffAccessConfiguration docs), so either
+        # being assigned counts as that granularity. "company" means no
+        # geo-level grant at all — unrestricted down to the whole company.
+        scope_level = "company"
+        if data["ward_ids"]:
+            scope_level = "ward"
+        elif data["zone_ids"]:
+            scope_level = "zone"
+        elif data["panchayat_ids"]:
+            scope_level = "panchayat"
+        elif data["city_ids"]:
+            scope_level = "city"
+        elif data["district_ids"]:
+            scope_level = "district"
+        elif data["state_ids"]:
+            scope_level = "state"
+        data["scope_level"] = scope_level
+
         if instance.staff_id:
             staff_data = StaffcreationSerializer(instance.staff_id, context=self.context).data
             data["password"] = staff_data.get("password", "")
@@ -353,6 +373,10 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
             )
             ids = list(dict.fromkeys(ids))
             if not ids:
+                # Empty means "unrestricted at this level" — still resolve to
+                # an empty instance list so update() clears any previously
+                # granted records at this level instead of leaving them stale.
+                resolved_locations[accessor] = []
                 continue
 
             qs = model.objects.filter(unique_id__in=ids, is_deleted=False)
