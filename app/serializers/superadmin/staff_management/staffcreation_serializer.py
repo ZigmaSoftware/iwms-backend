@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.contractorUserType import ContractorUserType
@@ -109,6 +111,13 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         required=False,
         allow_null=True,
     )
+    age = serializers.IntegerField(
+        source="personal_details.age",
+        required=False,
+        allow_null=True,
+        min_value=18,
+        max_value=120,
+    )
     blood_group = serializers.CharField(
         source="personal_details.blood_group",
         required=False,
@@ -178,6 +187,20 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             raise serializers.ValidationError("A staff member with this username already exists.")
         return value
 
+    def _validate_address_pincode(self, value):
+        if not value:
+            return value
+        pincode = value.get("pincode") if isinstance(value, dict) else None
+        if pincode not in (None, "") and not re.match(r"^\d{6}$", str(pincode)):
+            raise serializers.ValidationError({"pincode": "Enter a valid 6-digit pincode."})
+        return value
+
+    def validate_present_address(self, value):
+        return self._validate_address_pincode(value)
+
+    def validate_permanent_address(self, value):
+        return self._validate_address_pincode(value)
+
     user_type_id = serializers.CharField(
     source="staffusertype_id.usertype_id.unique_id",read_only=True)
 
@@ -189,6 +212,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     personal_field_names = [
         "marital_status",
         "dob",
+        "age",
         "blood_group",
         "gender",
         "physically_challenged",
@@ -241,6 +265,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             # Personal details (flattened)
             "marital_status",
             "dob",
+            "age",
             "blood_group",
             "gender",
             "physically_challenged",
