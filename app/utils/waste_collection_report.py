@@ -9,6 +9,7 @@ from app.utils.household_waste_breakdown import (
     household_only_location_rows,
     household_only_type_rows,
 )
+from app.models.schedule_masters.daily_trip_log import DailyTripLog
 
 
 ZERO = Decimal("0")
@@ -174,6 +175,7 @@ def build_waste_collection_report(
         "collection_point_id",
         "collected_weight_kg",
         "household_collected_weight_kg",
+        "log_status",
     ))
     info_by_assignment = {
         row["trip_assignment_id_id"]: row for row in trip_info_rows
@@ -218,11 +220,14 @@ def build_waste_collection_report(
             "weight": ZERO,
             "assignments": set(),
             "points": set(),
+            "all_verified": True,
         })
         bucket["weight"] += decimal_value(weight)
         bucket["assignments"].add(assignment_id)
         if info["collection_point_id"]:
             bucket["points"].add(info["collection_point_id"])
+        if info.get("log_status") != DailyTripLog.LOG_STATUS_VERIFIED:
+            bucket["all_verified"] = False
 
     for waste_row in waste_rows:
         assignment_id = waste_row["trip_assignment_id"]
@@ -283,6 +288,7 @@ def build_waste_collection_report(
                 "weight": ZERO,
                 "assignments": set(),
                 "points": set(),
+                "all_verified": True,
             })
             bucket["weight"] += hh["weight"]
             # No trip_assignment_id exists for these rows — count each
@@ -325,6 +331,7 @@ def build_waste_collection_report(
                 **common,
             })
         else:
+            verification_status = "Verified" if bucket.get("all_verified", True) else "Unverified"
             rows.append({
                 "unique_id": f"DWC-{bucket['period']}-{bucket['panchayat_id']}-{bucket['waste_type_id']}",
                 "collection_date": bucket["period"],
@@ -335,7 +342,8 @@ def build_waste_collection_report(
                 "variance_percent": 0.0,
                 "collection_efficiency_percent": 0.0,
                 "coverage_efficiency_percent": 0.0,
-                "report_status": "Collected",
+                "report_status": verification_status,
+                "verification_status": verification_status,
                 **common,
             })
 
@@ -426,6 +434,15 @@ def build_waste_collection_report(
     total_weight = sum((item["weight"] for item in locations.values()), ZERO)
     total_trips = sum(item["trips"] for item in locations.values())
     total_points = sum(item["points"] for item in locations.values())
+    overall_status = (
+        "Collected"
+        if monthly
+        else (
+            "Verified"
+            if rows and all(row["verification_status"] == "Verified" for row in rows)
+            else "Unverified"
+        )
+    )
     kpis = {
         "total_actual_weight_kg": float(rounded(total_weight)),
         "total_actual_weight": float(rounded(total_weight)),
@@ -443,7 +460,8 @@ def build_waste_collection_report(
         "variance_kg": float(rounded(total_weight)),
         "collection_efficiency_percent": 0.0,
         "coverage_efficiency_percent": float(percent(total_points, total_trips)),
-        "report_status": "Collected",
+        "report_status": overall_status,
+        **({} if monthly else {"verification_status": overall_status}),
     }
 
     return {
