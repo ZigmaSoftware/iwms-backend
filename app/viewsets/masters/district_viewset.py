@@ -7,8 +7,10 @@ from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 
 class DistrictViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
-    location_scope_field = "districts"
-    location_scope_lookup = "unique_id"
+    location_scope_chain = [
+        ("districts", "unique_id"),
+        ("states", "state_id__unique_id"),
+    ]
 
     queryset = District.objects.filter(is_deleted=False)
     serializer_class = DistrictSerializer

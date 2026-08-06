@@ -11,8 +11,12 @@ from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 
 
 class ZoneViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
-    location_scope_field = "zones"
-    location_scope_lookup = "unique_id"
+    location_scope_chain = [
+        ("zones", "unique_id"),
+        ("cities", "city_id__unique_id"),
+        ("districts", "district_id__unique_id"),
+        ("states", "state_id__unique_id"),
+    ]
 
     queryset = Zone.objects.filter(is_deleted=False)
     serializer_class = ZoneSerializer
