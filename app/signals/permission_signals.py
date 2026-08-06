@@ -19,7 +19,7 @@ def log_permission_change(sender, instance, created, **kwargs):
 
         PermissionAuditLog.objects.create(
             company_id=instance.company_id_id,
-            staffusertype_id=instance.staffusertype_id_id,
+            project_id=instance.project_id_id,
             mainscreen_id=instance.mainscreen_id_id,
             userscreen_id=instance.userscreen_id_id,
             userscreenaction_id=instance.userscreenaction_id_id,
@@ -30,4 +30,4 @@ def log_permission_change(sender, instance, created, **kwargs):
         )
 
     except Exception as e:
-        print("❌ Permission Audit Log Error:", str(e))
+        print("Permission Audit Log Error:", str(e))

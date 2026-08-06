@@ -8,9 +8,13 @@ from app.models.screen_managements.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.user_creations.staff_access_configuration import (
+    StaffAccessConfiguration,
+    StaffAccessConfigurationPermission,
+)
 
 
-ACTION_KEYS = ("show", "view", "add", "edit", "delete")
+ACTION_KEYS = ("view", "add", "edit", "delete", "use")
 
 APP_SURFACE_CONFIG = {
     "citizen": {
@@ -156,8 +160,6 @@ def build_column_permissions(column_queryset):
             "uniqueId": column_permission.unique_id,
             "companyId": column_permission.company_id_id,
             "projectId": column_permission.project_id_id,
-            "userTypeId": column_permission.usertype_id_id,
-            "staffUserTypeId": column_permission.staffusertype_id_id,
             "mainScreenId": mainscreen.unique_id,
             "mainScreenName": mainscreen.mainscreen_name,
             "mainScreenKey": normalize_permission_key(mainscreen.mainscreen_name),
@@ -464,52 +466,71 @@ def finalize_permission_payload(payload, *, permissions=None, role_name=None, us
 def permission_querysets(
     *,
     company_unique_id=None,
-    usertype_unique_id=None,
-    staffusertype_unique_id=None,
-    contractorusertype_unique_id=None,
+    staff_unique_id=None,
     include_all=False,
     **_unused,
 ):
-    action_queryset = CompanyUserScreenPermission.objects.filter(
-        is_active=True,
-        is_deleted=False,
-    ).select_related(
-        "mainscreen_id",
-        "userscreen_id",
-        "userscreenaction_id",
-        "staffusertype_id",
-        "contractorusertype_id",
-    )
-    column_queryset = CompanyUserScreenColumnPermission.objects.filter(
-        is_active=True,
-        is_deleted=False,
-    ).select_related(
-        "userscreen_id",
-        "userscreen_id__mainscreen_id",
-        "column_id",
-        "staffusertype_id",
-        "contractorusertype_id",
-    )
+    """
+    Resolve the effective (action_queryset, column_queryset) for a request.
 
+    - include_all=True: platform superadmin — the full CompanyUserScreenPermission
+      catalog across all companies/projects (column permissions are not scoped
+      by role anymore, so an empty queryset is returned for the "all" column view
+      since there is no single project to key it to).
+    - staff_unique_id given: resolve the staff's own StaffAccessConfiguration grant
+      (a subset of whatever their project's CompanyUserScreenPermission catalog
+      enabled). This is now the actual enforcement source for staff/contractor logins.
+    """
     if include_all:
+        action_queryset = CompanyUserScreenPermission.objects.filter(
+            is_active=True,
+            is_deleted=False,
+        ).select_related("mainscreen_id", "userscreen_id", "userscreenaction_id")
+        column_queryset = CompanyUserScreenColumnPermission.objects.filter(
+            is_active=True,
+            is_deleted=False,
+        ).select_related("userscreen_id", "userscreen_id__mainscreen_id", "column_id")
         return action_queryset, column_queryset
 
-    if not company_unique_id or not usertype_unique_id:
-        return action_queryset.none(), column_queryset.none()
+    empty_action = StaffAccessConfigurationPermission.objects.none()
+    empty_column = CompanyUserScreenColumnPermission.objects.none()
 
-    filters = {
-        "company_id_id": company_unique_id,
-        "usertype_id_id": usertype_unique_id,
-    }
-    if staffusertype_unique_id:
-        filters["staffusertype_id_id"] = staffusertype_unique_id
-    elif contractorusertype_unique_id:
-        filters["contractorusertype_id_id"] = contractorusertype_unique_id
-    else:
-        filters["staffusertype_id__isnull"] = True
-        filters["contractorusertype_id__isnull"] = True
+    if not staff_unique_id:
+        return empty_action, empty_column
 
-    return action_queryset.filter(**filters), column_queryset.filter(**filters)
+    config = (
+        StaffAccessConfiguration.objects.filter(
+            staff_id_id=staff_unique_id,
+            is_active=True,
+            is_deleted=False,
+        )
+        .first()
+    )
+    if not config:
+        return empty_action, empty_column
+
+    action_queryset = StaffAccessConfigurationPermission.objects.filter(
+        staff_access_configuration_id_id=config.unique_id,
+        is_active=True,
+        is_deleted=False,
+    ).select_related("mainscreen_id", "userscreen_id", "userscreenaction_id")
+
+    column_queryset = CompanyUserScreenColumnPermission.objects.filter(
+        company_id_id=config.company_id_id,
+        userscreen_id_id__in=action_queryset.values_list("userscreen_id_id", flat=True),
+        is_active=True,
+        is_deleted=False,
+    )
+    # No projects configured => unrestricted access to every project under
+    # the company, so don't narrow by project at all.
+    project_ids = list(config.projects.values_list("unique_id", flat=True))
+    if project_ids:
+        column_queryset = column_queryset.filter(project_id_id__in=project_ids)
+    column_queryset = column_queryset.select_related(
+        "userscreen_id", "userscreen_id__mainscreen_id", "column_id"
+    )
+
+    return action_queryset, column_queryset
 
 
 def resolve_permission_payload(**filters):

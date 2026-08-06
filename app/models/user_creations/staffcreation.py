@@ -1,6 +1,6 @@
 import hashlib
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from app.utils.base_models import Account, BaseMaster
 from app.utils.comfun import generate_unique_id
 from ..role_assigns.userType import UserType
@@ -15,6 +15,7 @@ from app.models.masters.designation import Designation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.customer_qr import generate_customer_qr_content
+from app.utils.scoped_display_id import lock_tenant_scope, next_scoped_display_id
 
 
 def generate_staff_unique_id():
@@ -41,6 +42,11 @@ class StaffcreationOfficeDetails(BaseMaster):
         unique=True,
         editable=False,
         default=generate_staff_unique_id,
+    )
+    staff_id = models.CharField(
+        max_length=20,
+        editable=False,
+        db_index=True,
     )
     emp_id = models.CharField(
         max_length=8,
@@ -246,6 +252,12 @@ class StaffcreationOfficeDetails(BaseMaster):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company_id", "project_id", "staff_id"],
+                name="uniq_staff_id_per_company_project",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.employee_name} ({self.staff_unique_id})"
@@ -292,7 +304,29 @@ class StaffcreationOfficeDetails(BaseMaster):
                 update_fields.add("emp_id")
                 kwargs["update_fields"] = list(update_fields)
 
-        super().save(*args, **kwargs)
+        if not self.staff_id:
+            with transaction.atomic():
+                lock_tenant_scope(
+                    company_model=Company,
+                    project_model=Project,
+                    company_id=self.company_id_id,
+                    project_id=self.project_id_id,
+                )
+                self.staff_id = next_scoped_display_id(
+                    model=StaffcreationOfficeDetails,
+                    field_name="staff_id",
+                    prefix="STF",
+                    company_id=self.company_id_id,
+                    project_id=self.project_id_id,
+                )
+                update_fields = kwargs.get("update_fields")
+                if update_fields is not None:
+                    update_fields = set(update_fields)
+                    update_fields.add("staff_id")
+                    kwargs["update_fields"] = list(update_fields)
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
         if is_new:
             Account.objects.get_or_create(staff=self)
@@ -336,6 +370,7 @@ class StaffPersonalDetails(models.Model):
     )
     marital_status = models.CharField(max_length=50, blank=True, null=True)
     dob = models.DateField(blank=True, null=True)
+    age = models.PositiveSmallIntegerField(blank=True, null=True)
     blood_group = models.CharField(max_length=20, blank=True, null=True)
     gender = models.CharField(max_length=20, blank=True, null=True)
     physically_challenged = models.CharField(max_length=20, blank=True, null=True)

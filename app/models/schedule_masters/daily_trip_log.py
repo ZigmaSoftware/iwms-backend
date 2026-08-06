@@ -320,10 +320,22 @@ class DailyTripLog(BaseMaster):
         if assignment.status == DailyTripAssignment.STATUS_CANCELLED:
             raise ValidationError("Cannot create a log for a cancelled trip.")
 
+        # Weight fields stay live even after verification — collected_weight_kg/
+        # household_collected_weight_kg must keep reflecting collection points
+        # or WasteCollection rows recorded/updated afterwards. "Verified" is an
+        # approval checkpoint on the trip, not a freeze on the actual weight
+        # collected. Every other field remains read-only once verified.
+        WEIGHT_ONLY_FIELDS = {"collected_weight_kg", "household_collected_weight_kg", "updated_at"}
         if self.pk:
             previous = DailyTripLog.objects.filter(pk=self.pk).first()
             if previous and previous.log_status == self.LOG_STATUS_VERIFIED:
-                raise ValidationError("Verified trip logs are read-only.")
+                other_field_changed = any(
+                    getattr(self, field.attname) != getattr(previous, field.attname)
+                    for field in self._meta.fields
+                    if field.attname not in WEIGHT_ONLY_FIELDS
+                )
+                if other_field_changed:
+                    raise ValidationError("Verified trip logs are read-only.")
 
         if self.log_status != self.LOG_STATUS_DRAFT:
             bin_weight = self.collected_weight_kg or Decimal("0")
@@ -357,10 +369,8 @@ class DailyTripLog(BaseMaster):
         if self.log_status in {self.LOG_STATUS_SUBMITTED, self.LOG_STATUS_VERIFIED}:
             assignment = self.trip_assignment_id
             if assignment.status != DailyTripAssignment.STATUS_COMPLETED:
-                now_time = timezone.localtime().time()
-                update_fields = ["status", "updated_at"]
-                assignment.status = DailyTripAssignment.STATUS_COMPLETED
-                if not assignment.actual_end_time:
-                    assignment.actual_end_time = self.actual_end_time or now_time
-                    update_fields.append("actual_end_time")
-                assignment.save(update_fields=update_fields)
+                # Route through the model so this path stamps `actual_end_at`
+                # too — writing only the wall-clock `actual_end_time` here left
+                # log-completed trips with a null authoritative timestamp, and
+                # duration math reads `actual_end_at`. mark_ended() saves itself.
+                assignment.mark_ended()

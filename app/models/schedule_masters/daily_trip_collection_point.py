@@ -131,6 +131,27 @@ class DailyTripCollectionPoint(BaseMaster):
         default=STATUS_PENDING,
         db_index=True,
     )
+    status_reason = models.TextField(null=True, blank=True)
+    status_latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+    )
+    status_longitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+    )
+
+    # Set by the Re-Trip flow (app/services/retrip_service.py) when this stop
+    # was still pending and got moved to a continuation trip, so the Daily
+    # Trip Plan / Trip Log screens can show "Assigned to Next Trip" instead
+    # of a bare Pending with no explanation.
+    carried_to_assignment = models.ForeignKey(
+        DailyTripAssignment,
+        on_delete=models.SET_NULL,
+        db_column="carried_to_assignment_id",
+        to_field="unique_id",
+        related_name="carried_in_bin_stops",
+        null=True,
+        blank=True,
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -170,12 +191,47 @@ class DailyTripCollectionPoint(BaseMaster):
         self.collected_at = collected_at or timezone.now()
         self.is_collected = True
         self.status = self.STATUS_COLLECTED
+        self.status_reason = None
+        self.status_latitude = None
+        self.status_longitude = None
         self.save(update_fields=[
             "collected_weight_kg",
             "collected_by",
             "collected_at",
             "is_collected",
             "status",
+            "status_reason",
+            "status_latitude",
+            "status_longitude",
+            "updated_at",
+        ])
+        self.trip_assignment_id.mark_completed_if_all_cps_collected()
+
+    def mark_status(self, status, reason, latitude=None, longitude=None):
+        """Mark this stop Missed/Skipped (collect-later) from the operator app.
+
+        No weight is recorded — Missed/Skipped stops are operationally
+        resolved for the day but contribute zero weight. Mirrors TN_Iwms's
+        DailyTripCollectionPoint.mark_status.
+        """
+        self.status = status
+        self.status_reason = reason
+        self.status_latitude = latitude
+        self.status_longitude = longitude
+        self.is_collected = False
+        self.collected_at = None
+        self.collected_by = None
+        if status in {self.STATUS_SKIPPED, self.STATUS_MISSED}:
+            self.collected_weight_kg = None
+        self.save(update_fields=[
+            "status",
+            "status_reason",
+            "status_latitude",
+            "status_longitude",
+            "is_collected",
+            "collected_at",
+            "collected_by",
+            "collected_weight_kg",
             "updated_at",
         ])
         self.trip_assignment_id.mark_completed_if_all_cps_collected()

@@ -1,4 +1,7 @@
-from django.db import models
+from decimal import Decimal
+
+from django.core.validators import RegexValidator
+from django.db import models, transaction
 from app.utils.base_models import BaseMaster
 from app.models.common_masters.country import Country
 from app.models.common_masters.state import State
@@ -10,6 +13,7 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.masters.ward import Ward
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
+from app.models.user_creations.waste_collection_bluetooth import WasteType
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.masters.panchayat import Panchayat
@@ -20,6 +24,7 @@ from app.utils.customer_qr import (
     generate_qr_data as build_customer_qr_data,
     resolve_subproperty_type,
 )
+from app.utils.scoped_display_id import lock_tenant_scope, next_scoped_display_id
 
 
 def generate_customer_id():
@@ -29,6 +34,28 @@ def generate_customer_id():
 def generate_apartment_id():
     """Generate readable prefixed ID like APT-20260424001"""
     return f"APT-{generate_unique_id()}"
+
+
+# Bulk waste generator auto-detection thresholds
+BULK_WASTE_SQFT_THRESHOLD = Decimal("20000")
+BULK_WASTE_WATER_LPD_THRESHOLD = Decimal("40000")
+BULK_WASTE_COLLECTION_KG_THRESHOLD = Decimal("100")
+
+
+def exceeds_bulk_waste_threshold(sqft, water_consumption_lpd, waste_collection_kg_per_day):
+    def exceeds(value, threshold):
+        if value is None:
+            return False
+        return Decimal(str(value)) > threshold
+
+    return (
+        exceeds(sqft, BULK_WASTE_SQFT_THRESHOLD)
+        or exceeds(water_consumption_lpd, BULK_WASTE_WATER_LPD_THRESHOLD)
+        or exceeds(
+            waste_collection_kg_per_day,
+            BULK_WASTE_COLLECTION_KG_THRESHOLD,
+        )
+    )
 
 
 def get_or_create_apartment_id(apartment_name, latitude, longitude, company_id):
@@ -58,6 +85,8 @@ class CustomerCreation(BaseMaster):
         "villa_no",
         "industry_name",
         "industry_type",
+        "company_id_id",
+        "project_id_id",
         "sub_property",
         "sub_property_id",
     }
@@ -71,6 +100,8 @@ class CustomerCreation(BaseMaster):
         "villa_no",
         "industry_name",
         "industry_type",
+        "company_id_id",
+        "project_id_id",
         "sub_property_id",
     )
 
@@ -104,6 +135,12 @@ class CustomerCreation(BaseMaster):
         editable=False,
     )
 
+    customer_id = models.CharField(
+        max_length=20,
+        editable=False,
+        db_index=True,
+    )
+
     customer_name = models.CharField(max_length=100)
     contact_no = models.CharField(max_length=10)
     building_no = models.CharField(max_length=20, null=True, blank=True)
@@ -117,7 +154,10 @@ class CustomerCreation(BaseMaster):
     state = models.ForeignKey(State, on_delete=models.PROTECT, related_name='customer_creation')
     country = models.ForeignKey(Country, on_delete=models.PROTECT, related_name='customer_creation')
 
-    pincode = models.CharField(max_length=10)
+    pincode = models.CharField(
+        max_length=6,
+        validators=[RegexValidator(r"^\d{6}$", "Enter a valid 6-digit pincode.")],
+    )
     latitude = models.CharField(max_length=100)
     longitude = models.CharField(max_length=100)
 
@@ -164,6 +204,22 @@ class CustomerCreation(BaseMaster):
         blank=True
     )
 
+    water_consumption_lpd = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Water consumption in litres per day",
+    )
+
+    waste_collection_kg_per_day = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Waste collection in kg per day",
+    )
+
     id_proof_type = models.CharField(
         max_length=20,
         choices=IDProofType.choices,
@@ -172,6 +228,18 @@ class CustomerCreation(BaseMaster):
     )
 
     id_no = models.CharField(max_length=100)
+
+    member_count = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of family members in the household",
+    )
+
+    family_members = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {member_name, id_proof_type, id_no} dicts for family members",
+    )
 
     property_ref = models.ForeignKey(
         Property,
@@ -184,6 +252,12 @@ class CustomerCreation(BaseMaster):
         SubProperty,
         on_delete=models.PROTECT,
         related_name="customer_creation"
+    )
+
+    waste_types = models.ManyToManyField(
+        WasteType,
+        related_name="customer_creations",
+        blank=True,
     )
 
     # =============================
@@ -264,10 +338,19 @@ class CustomerCreation(BaseMaster):
         verbose_name = "Customer"
         verbose_name_plural = "Customers"
         ordering = ["customer_name"]
+        indexes = [
+            models.Index(fields=["is_deleted", "customer_name"], name="custcreation_del_name_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company_id", "project_id", "customer_id"],
+                name="uniq_customer_id_per_company_project",
+            ),
+        ]
 
     def __str__(self):
         location = (
-            self.zone.name if self.zone else
+            self.zone.zone_name if self.zone else
             self.city.name if self.city else
             self.state.name
         )
@@ -343,6 +426,11 @@ class CustomerCreation(BaseMaster):
 
     def save(self, *args, **kwargs):
 
+        if exceeds_bulk_waste_threshold(
+            self.sqft, self.water_consumption_lpd, self.waste_collection_kg_per_day
+        ):
+            self.is_bulkwaste_generator = True
+
         if self.block_no:
             self.block_no = self.block_no.upper()
 
@@ -372,7 +460,28 @@ class CustomerCreation(BaseMaster):
             merged_update_fields.add("group_qr_id")
             kwargs["update_fields"] = list(merged_update_fields)
 
-        super().save(*args, **kwargs)
+        if not self.customer_id:
+            with transaction.atomic():
+                lock_tenant_scope(
+                    company_model=Company,
+                    project_model=Project,
+                    company_id=self.company_id_id,
+                    project_id=self.project_id_id,
+                )
+                self.customer_id = next_scoped_display_id(
+                    model=CustomerCreation,
+                    field_name="customer_id",
+                    prefix="CUST",
+                    company_id=self.company_id_id,
+                    project_id=self.project_id_id,
+                )
+                if requested_update_fields is not None:
+                    repaired_update_fields = set(kwargs["update_fields"])
+                    repaired_update_fields.add("customer_id")
+                    kwargs["update_fields"] = list(repaired_update_fields)
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
         if qr_refresh_required:
             self._regenerate_qr_code()

@@ -22,8 +22,6 @@ from .masters.department import Department
 from .masters.designation import Designation
 from .masters.panchayat_leader_login import PanchayatLeaderLogin
 from .masters.district_leader_login import DistrictLeaderLogin
-from .masters.municipality import Municipality
-from .masters.town_panchayat import TownPanchayat
 from .masters.block_panchayat_union import BlockPanchayatUnion
 
 
@@ -76,6 +74,10 @@ from .user_creations.staffcreation import (
 from .schedule_masters.staff_template import StaffTemplate
 from .schedule_masters.alternative_staff_template import AlternativeStaffTemplate
 from .user_creations.unassigned_staff_pool import UnassignedStaffPool
+from .user_creations.staff_access_configuration import (
+    StaffAccessConfiguration,
+    StaffAccessConfigurationPermission,
+)
 
 
 # ============================================================
@@ -157,8 +159,6 @@ __all__ = [
     "Designation",
     "PanchayatLeaderLogin",
     "DistrictLeaderLogin",
-    "Municipality",
-    "TownPanchayat",
     "BlockPanchayatUnion",
 
     # Assets
@@ -193,6 +193,8 @@ __all__ = [
     "AlternativeStaffTemplate",
     "SupervisorZoneMap",
     "UnassignedStaffPool",
+    "StaffAccessConfiguration",
+    "StaffAccessConfigurationPermission",
 
     # Auth / Audit
     "LoginAudit",

@@ -1,8 +1,9 @@
 """Unit tests for Bins model — CRUD + constraints."""
 import pytest
 from app.models.assets.bins import Bins
-from app.models.assets.collection_point import Collection_point
+from app.models.schedule_masters.collection_point import Collection_point
 from app.models.masters.panchayat import Panchayat
+from app.models.masters.ward import Ward
 
 
 @pytest.fixture
@@ -92,3 +93,54 @@ class TestBinsUpdate:
         bin_obj.save()
         bin_obj.refresh_from_db()
         assert bin_obj.bin_type == "large"
+
+
+@pytest.mark.django_db
+class TestBinsZoneWardPanchayat:
+    def test_ward_zone_panchayat_fields_are_nullable(self, bin_obj):
+        assert bin_obj.ward_id is None
+        assert bin_obj.zone_id is None
+
+    def test_save_derives_panchayat_from_collection_point(self, bin_obj, panchayat):
+        bin_obj.refresh_from_db()
+        assert bin_obj.panchayat_id == panchayat
+
+    def test_save_derives_zone_from_ward(self, bin_obj, collection_point, zone):
+        ward = Ward.objects.create(
+            ward_name="Zone Ward",
+            state_id=zone.state_id,
+            district_id=zone.district_id,
+            city_id=zone.city_id,
+            zone_id=zone,
+        )
+        collection_point.wards.add(ward)
+        bin_obj.ward_id = ward
+        bin_obj.zone_id = None
+        bin_obj.save()
+        bin_obj.refresh_from_db()
+        assert bin_obj.ward_id == ward
+        assert bin_obj.zone_id == zone
+
+    def test_save_derives_panchayat_from_ward(self, bin_obj, collection_point, panchayat):
+        ward = Ward.objects.create(
+            ward_name="Panchayat Ward",
+            state_id=panchayat.state_id,
+            district_id=panchayat.district_id,
+            city_id=panchayat.city_id,
+            panchayat_id=panchayat,
+        )
+        collection_point.wards.add(ward)
+        bin_obj.ward_id = ward
+        bin_obj.panchayat_id = None
+        bin_obj.save()
+        bin_obj.refresh_from_db()
+        assert bin_obj.ward_id == ward
+        assert bin_obj.panchayat_id == panchayat
+
+    def test_explicit_zone_and_ward_are_persisted(self, bin_obj, zone, ward):
+        bin_obj.zone_id = zone
+        bin_obj.ward_id = ward
+        bin_obj.save()
+        bin_obj.refresh_from_db()
+        assert bin_obj.zone_id == zone
+        assert bin_obj.ward_id == ward

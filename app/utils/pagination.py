@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
+from rest_framework.utils.urls import remove_query_param, replace_query_param
 from drf_yasg import openapi
 
 
@@ -31,6 +32,29 @@ class LimitOffsetWithPage(LimitOffsetPagination):
             request._request.GET[self.offset_query_param] = str(computed_offset)
 
         return super().paginate_queryset(queryset, request, view)
+
+    def get_next_link(self):
+        """
+        Base class builds this from offset/limit; rewrite offset -> page so
+        clients that request ?page=N don't get a stale/misleading page param
+        echoed back unchanged in the link.
+        """
+        url = super().get_next_link()
+        if url is None:
+            return None
+        limit = self.limit or 1
+        next_page = (self.offset + self.limit) // limit + 1
+        url = remove_query_param(url, self.offset_query_param)
+        return replace_query_param(url, "page", next_page)
+
+    def get_previous_link(self):
+        url = super().get_previous_link()
+        if url is None:
+            return None
+        limit = self.limit or 1
+        prev_page = max((self.offset - self.limit) // limit + 1, 1)
+        url = remove_query_param(url, self.offset_query_param)
+        return replace_query_param(url, "page", prev_page)
 
     def get_schema_operation_parameters(self, view):
         params = super().get_schema_operation_parameters(view) or []

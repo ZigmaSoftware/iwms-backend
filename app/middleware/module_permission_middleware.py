@@ -88,7 +88,6 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Zone",
         "Ward",
         "Panchayat",
-        "AreaType",
         "AdministrativeHierarchy",
         "Department",
         "Designation",
@@ -98,12 +97,11 @@ MODULE_RESOURCE_ALLOWLIST = {
     "waste-types": {
         "Property",
         "SubProperty",
-    },
-    "assets": {
+        # merged in from the legacy "assets" module (assets/waste-types,
+        # assets/bins now route as waste-types/wastetypes, waste-types/bins)
         "Bin",
         "CollectionPoint",
         "WasteType",
-        "Bin"
     },
     "screen-managements": {
         "MainScreenType",
@@ -126,6 +124,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "AlternativeStaffTemplate",
         "supervisor-zone-map",
         "UnassignedStaffPool",
+        "staffaccessconfiguration",
     },
     "process-items": {
         
@@ -136,10 +135,24 @@ MODULE_RESOURCE_ALLOWLIST = {
         "FeedBack",
         "UserChargeRule",
     },
-    "grivences": {
+    "complaint-ticket": {
+        # renamed from the legacy "grivences" module
         "Complaint",
         "MainCategory",
         "SubCategory",
+        # stub sub-resources — see complaint_ticket_stub_viewsets.py
+        "ComplaintModule",
+        "ComplaintPriority",
+        "ComplaintStatus",
+        "ComplaintSource",
+        "ComplaintLanguage",
+        "ComplaintTeam",
+        "ComplaintSlaRule",
+        "ComplaintRoutingRule",
+        "ComplaintFeedback",
+        "ComplaintReopenHistory",
+        "ComplaintNotification",
+        "ComplaintAddressChange",
     },
     "transport-masters": {
         "VehicleTypeCreation",
@@ -147,18 +160,28 @@ MODULE_RESOURCE_ALLOWLIST = {
         "TripAttendance",
         "Fuel",
     },
-    "schedule-masters": {
+    "schedule-setup": {
+        # split from the legacy "schedule-masters" module — setup resources
         "StaffTemplateCreation",
         "AlternativeStaffTemplate",
         "CollectionPoint",
         "TripPlan",
+    },
+    "schedule-operations": {
+        # split from the legacy "schedule-masters" module — operational resources
         "DailyTripAssignment",
         "DailyTripCollectionPoint",
         "BinCollectionEvent",
         "DailyTripLog",
+        "WasteCollection",
+        "VehicleBreakdown",
+        "TripRetripRequest",
+    },
+    "schedule-masters": {
+        # legacy name — kept alive only for the reporting sub-resources
+        # still registered under it (see base_urls.py)
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
-        "WasteCollection",
     },
     "audits": {
         "VehicleTripAudit",
@@ -171,7 +194,8 @@ MODULE_RESOURCE_ALLOWLIST = {
 }
 
 # alias safety
-MODULE_RESOURCE_ALLOWLIST["grievance"] = MODULE_RESOURCE_ALLOWLIST["grivences"]
+MODULE_RESOURCE_ALLOWLIST["grivences"] = MODULE_RESOURCE_ALLOWLIST["complaint-ticket"]
+MODULE_RESOURCE_ALLOWLIST["grievance"] = MODULE_RESOURCE_ALLOWLIST["complaint-ticket"]
 
 PROTECTED_MODULES = tuple(MODULE_RESOURCE_ALLOWLIST.keys())
 
@@ -179,6 +203,33 @@ MODULE_PERMISSION_ALIASES = {
     "customer-masters": "customers",
     "process-items": "process",
     "grievance": "grivences",
+    # "complaint-ticket" is the live URL module (see base_urls.py); permission
+    # rows already seeded/granted under the old "grivences" module name keep
+    # authorizing it without needing to be re-granted.
+    "complaint-ticket": "grivences",
+}
+
+# "schedule-setup"/"schedule-operations" are a pure split of the legacy
+# "schedule-masters" module, and Bin/WasteType route under "waste-types" but
+# were split out of the legacy "assets" module — in both cases the target
+# module also has resources genuinely seeded there natively (e.g. TripPlan
+# under schedule-setup, Property under waste-types), so a blanket
+# MODULE_PERMISSION_ALIASES entry would shadow those. Instead, each listed
+# resource's action lookup additionally falls back to the named legacy
+# module only when the primary (current) module has no entry for it — see
+# _resolve_allowed_actions below.
+RESOURCE_MODULE_FALLBACKS = {
+    "Bin": "assets",
+    "WasteType": "assets",
+    "StaffTemplateCreation": "schedule-masters",
+    "AlternativeStaffTemplate": "schedule-masters",
+    "CollectionPoint": "schedule-masters",
+    "TripPlan": "schedule-masters",
+    "DailyTripAssignment": "schedule-masters",
+    "DailyTripCollectionPoint": "schedule-masters",
+    "BinCollectionEvent": "schedule-masters",
+    "DailyTripLog": "schedule-masters",
+    "WasteCollection": "schedule-masters",
 }
 
 RESOURCE_PERMISSION_ALIASES = {
@@ -310,23 +361,15 @@ def _authenticate_request(request):
 
 def _permission_filters_for_user(user):
     company = getattr(user, "company_id", None)
-    usertype = getattr(user, "user_type_id", None)
-    staffusertype = getattr(user, "staffusertype_id", None)
-    contractorusertype = getattr(user, "contractorusertype_id", None)
-
     company_unique_id = getattr(company, "unique_id", None)
-    usertype_unique_id = getattr(usertype, "unique_id", None)
-    staffusertype_unique_id = getattr(staffusertype, "unique_id", None)
-    contractorusertype_unique_id = getattr(contractorusertype, "unique_id", None)
+    staff_unique_id = getattr(user, "staff_unique_id", None)
 
-    if not company_unique_id or not usertype_unique_id:
+    if not company_unique_id or not staff_unique_id:
         return None
 
     return {
         "company_unique_id": company_unique_id,
-        "usertype_unique_id": usertype_unique_id,
-        "staffusertype_unique_id": staffusertype_unique_id,
-        "contractorusertype_unique_id": contractorusertype_unique_id,
+        "staff_unique_id": staff_unique_id,
     }
 
 
@@ -339,16 +382,10 @@ def _resolve_permissions_for_request(request):
     if not filters:
         return {}
 
-    user_id = getattr(request.user, "staff_unique_id", None) or getattr(
-        request.user, "unique_id", None
-    ) or getattr(request.user, "pk", None)
     cache_key = (
         "module-permissions:"
-        f"{user_id}:"
-        f"{filters['company_unique_id']}:"
-        f"{filters['usertype_unique_id']}:"
-        f"{filters.get('staffusertype_unique_id') or 'none'}:"
-        f"{filters.get('contractorusertype_unique_id') or 'none'}"
+        f"{filters['staff_unique_id']}:"
+        f"{filters['company_unique_id']}"
     )
 
     permissions = cache.get(cache_key)
@@ -440,14 +477,38 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return JsonResponse({"detail": "Invalid HTTP method"}, status=405)
 
         permissions = _resolve_permissions_for_request(request)
-        permission_module = MODULE_PERMISSION_ALIASES.get(module, module)
         allowed_actions = self._resolve_allowed_actions(
-            permissions.get(permission_module, {}),
+            permissions.get(module, {}),
             permission_resource,
             route_resource,
         )
 
+        if not allowed_actions:
+            alias_module = MODULE_PERMISSION_ALIASES.get(module)
+            if alias_module:
+                allowed_actions = self._resolve_allowed_actions(
+                    permissions.get(alias_module, {}),
+                    permission_resource,
+                    route_resource,
+                )
+
+        if not allowed_actions:
+            fallback_module = RESOURCE_MODULE_FALLBACKS.get(permission_resource)
+            if fallback_module:
+                allowed_actions = self._resolve_allowed_actions(
+                    permissions.get(fallback_module, {}),
+                    permission_resource,
+                    route_resource,
+                )
+
         if action not in allowed_actions:
+            # A GET is also satisfied by "use" — a lighter-weight grant meant
+            # for consuming a screen's records as reference data (e.g. a
+            # dropdown option source) without exposing the full list screen.
+            if action == "view" and "use" in allowed_actions:
+                request.permission_use_only = True
+                return None
+
             return JsonResponse(
                 {
                     "detail": "Permission denied",

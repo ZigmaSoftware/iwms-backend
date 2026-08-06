@@ -12,6 +12,7 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
+from app.utils.hierarchy import copy_flat_geo
 
 
 def generate_tpcp_id():
@@ -23,10 +24,12 @@ class TripPlanCollectionPoint(BaseMaster):
 
     COLLECTION_TYPE_BIN = "bin_collection"
     COLLECTION_TYPE_HOUSEHOLD = "household_collection"
+    COLLECTION_TYPE_BULK = "bulk_waste_collection"
 
     COLLECTION_TYPE_CHOICES = [
         (COLLECTION_TYPE_BIN, "Bin Collection"),
         (COLLECTION_TYPE_HOUSEHOLD, "Household Collection"),
+        (COLLECTION_TYPE_BULK, "Bulk Waste Collection"),
     ]
 
     unique_id = models.CharField(
@@ -35,6 +38,15 @@ class TripPlanCollectionPoint(BaseMaster):
         default=generate_tpcp_id,
         editable=False,
     )
+
+    trip_plan_id = models.ForeignKey(
+        TripPlan,
+        on_delete=models.CASCADE,
+        to_field="unique_id",
+        related_name="plan_collection_points",
+        db_column="trip_plan_id",
+    )
+
     company_id = models.ForeignKey(
         Company,
         on_delete=models.PROTECT,
@@ -50,14 +62,6 @@ class TripPlanCollectionPoint(BaseMaster):
         db_column="project_id",
         null=True,
         blank=True,
-    )
-
-    trip_plan_id = models.ForeignKey(
-        TripPlan,
-        on_delete=models.CASCADE,
-        to_field="unique_id",
-        related_name="plan_collection_points",
-        db_column="trip_plan_id",
     )
 
     collection_type = models.CharField(
@@ -87,7 +91,7 @@ class TripPlanCollectionPoint(BaseMaster):
         blank=True,
     )
 
-    # --- Household Collection fields (required when collection_type == household_collection) ---
+    # --- Household/Bulk Collection fields (required when collection_type == household_collection or bulk_waste_collection) ---
     customer_id = models.ForeignKey(
         CustomerCreation,
         on_delete=models.PROTECT,
@@ -100,27 +104,30 @@ class TripPlanCollectionPoint(BaseMaster):
 
     zone_id = models.ForeignKey(
         Zone,
-        on_delete=models.PROTECT,
-        related_name="trip_plan_collection_points",
-        db_column="zone_id",
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        related_name="trip_plan_collection_points",
+        to_field="unique_id",
+        db_column="zone_id",
     )
     ward_id = models.ForeignKey(
         Ward,
-        on_delete=models.PROTECT,
-        related_name="trip_plan_collection_points",
-        db_column="ward_id",
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        related_name="trip_plan_collection_points",
+        to_field="unique_id",
+        db_column="ward_id",
     )
     panchayat_id = models.ForeignKey(
         Panchayat,
-        on_delete=models.PROTECT,
-        related_name="trip_plan_collection_points",
-        db_column="panchayat_id",
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        related_name="trip_plan_collection_points",
+        to_field="unique_id",
+        db_column="panchayat_id",
     )
     sequence = models.PositiveIntegerField(
         help_text="Visit order within the route.",
@@ -146,30 +153,39 @@ class TripPlanCollectionPoint(BaseMaster):
         ]
 
     def clean(self):
+        # A stop's type must match its plan's declared collection_type - a
+        # plan generates exactly one category of daily work (see
+        # TripPlan.collection_type), so a household_collection plan can only
+        # carry household-type stops, and a bin_collection plan only bin
+        # stops. (Whether a bulk stop may be added manually is enforced at
+        # the API/serializer layer; the auto-generated bulk placeholder row
+        # is still valid here.)
+        if self.trip_plan_id_id and self.collection_type != self.trip_plan_id.collection_type:
+            raise ValidationError(
+                {"collection_type": "Stop type must match the trip plan's collection type."}
+            )
         if self.collection_type == self.COLLECTION_TYPE_BIN:
             if not self.collection_point_id_id:
                 raise ValidationError({"collection_point_id": "Collection point is required for bin collection."})
             if not self.bin_id_id:
                 raise ValidationError({"bin_id": "Bin is required for bin collection."})
-        elif self.collection_type == self.COLLECTION_TYPE_HOUSEHOLD:
-            if not self.customer_id_id:
-                raise ValidationError({"customer_id": "Customer is required for household collection."})
+        elif self.collection_type in {self.COLLECTION_TYPE_HOUSEHOLD, self.COLLECTION_TYPE_BULK}:
+            if not self.customer_id_id and not self.ward_id_id and not self.panchayat_id_id and not self.trip_plan_id_id:
+                raise ValidationError(
+                    {"customer_id": "Select a customer or assign collection to a geographic area."}
+                )
 
     def save(self, *args, **kwargs):
-        if self.trip_plan_id_id and not self.company_id_id:
-            plan = self.trip_plan_id
-            self.company_id = plan.company_id
-            self.project_id = plan.project_id
         if self.collection_point_id_id:
-            collection_point = self.collection_point_id
-            self.panchayat_id = collection_point.panchayat_id
-            first_ward = collection_point.wards.select_related("zone_id").first()
-            self.ward_id = first_ward
-            self.zone_id = first_ward.zone_id if first_ward else None
+            copy_flat_geo(self, self.collection_point_id)
+        elif self.customer_id_id:
+            copy_flat_geo(self, self.customer_id)
+        elif self.trip_plan_id_id:
+            copy_flat_geo(self, self.trip_plan_id)
         super().save(*args, **kwargs)
 
     def __str__(self):
-        if self.collection_type == self.COLLECTION_TYPE_HOUSEHOLD and self.customer_id_id:
+        if self.collection_type in {self.COLLECTION_TYPE_HOUSEHOLD, self.COLLECTION_TYPE_BULK} and self.customer_id_id:
             return f"{self.trip_plan_id_id} -> customer:{self.customer_id_id} (seq {self.sequence})"
         return (
             f"{self.trip_plan_id_id} -> "

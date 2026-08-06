@@ -1,15 +1,25 @@
-from rest_framework import viewsets, status
+from rest_framework import filters, viewsets, status
 from app.models.masters.panchayat import Panchayat
 from app.serializers.masters.panchayat_serializer import PanchayatSerializer
 from rest_framework.response import Response
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.location_scope_mixin import LocationScopedViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 
-class PanhayatViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class PanhayatViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+    location_scope_field = "panchayats"
+    location_scope_lookup = "unique_id"
+
     serializer_class = PanchayatSerializer
     lookup_field = "unique_id"
     permission_resource = "Panchayat"
+
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["panchayat_name"]
+    ordering_fields = ["panchayat_name", "is_active"]
 
     AUDIT_MODULE = "masters"
     AUDIT_ENDPOINT ="panchayat"
@@ -39,7 +49,7 @@ class PanhayatViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if state_uid:
             queryset = queryset.filter(state_id__unique_id=state_uid)
 
-        return queryset
+        return self.filter_queryset_by_location_scope(queryset)
 
     def perform_destroy(self, instance):
         instance.delete()

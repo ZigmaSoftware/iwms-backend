@@ -6,7 +6,6 @@ from app.models.common_masters.state import State
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone, GeoFencingType
-from app.models.masters.areatype import AreaType
 from app.models.masters.hierarchy import AdministrativeHierarchy
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
@@ -60,20 +59,7 @@ class ZoneSeeder(BaseSeeder):
         chennai_dist = District.objects.get(name="Chennai")
         chennai_city = City.objects.get(name="Chennai City")
 
-        urban_area_type, _ = AreaType.objects.get_or_create(
-            name="Urban",
-            state_id=tamil_nadu,
-            district_id=chennai_dist,
-            city_id=chennai_city,
-            defaults={
-                "description": "Densely populated urban area",
-                "is_active": True,
-                "is_deleted": False,
-            },
-        )
-
         hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(
-            area_type=urban_area_type,
             level_name="Zone",
         )
 
@@ -88,7 +74,6 @@ class ZoneSeeder(BaseSeeder):
                     "state_id": tamil_nadu,
                     "district_id": chennai_dist,
                     "city_id": chennai_city,
-                    "area_type_id": urban_area_type,
                     "hierarchy_id": hierarchy,
                     "latitude": lat,
                     "longitude": lon,

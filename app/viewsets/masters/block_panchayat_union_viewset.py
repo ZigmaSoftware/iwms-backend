@@ -1,13 +1,20 @@
+from rest_framework import filters
 from app.models.masters.block_panchayat_union import BlockPanchayatUnion
 from app.serializers.masters.block_panchayat_union_serializer import BlockPanchayatUnionSerializer
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.pagination import LimitOffsetWithPage
 
 
 class BlockPanchayatUnionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = BlockPanchayatUnionSerializer
     lookup_field = "unique_id"
     permission_resource = "BlockPanchayatUnion"
+
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = LimitOffsetWithPage
+    search_fields = ["block_name"]
+    ordering_fields = ["block_name"]
 
     AUDIT_MODULE = "masters"
     AUDIT_ENDPOINT = "block-panchayat-unions"
