@@ -109,6 +109,13 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         required=False,
         allow_null=True,
     )
+    age = serializers.IntegerField(
+        source="personal_details.age",
+        required=False,
+        allow_null=True,
+        min_value=18,
+        max_value=120,
+    )
     blood_group = serializers.CharField(
         source="personal_details.blood_group",
         required=False,
@@ -189,6 +196,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     personal_field_names = [
         "marital_status",
         "dob",
+        "age",
         "blood_group",
         "gender",
         "physically_challenged",
@@ -241,6 +249,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             # Personal details (flattened)
             "marital_status",
             "dob",
+            "age",
             "blood_group",
             "gender",
             "physically_challenged",
