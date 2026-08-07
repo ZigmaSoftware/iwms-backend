@@ -1,3 +1,5 @@
+from django.conf import settings
+
 from rest_framework import serializers
 
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
@@ -145,7 +147,18 @@ class _CrewMemberSerializer(serializers.Serializer):
 
     def get_photo_url(self, staff):
         request = self.context.get("request")
-        if staff.photo and request:
+        if not request:
+            return None
+
+        # Prefer the face registered for attendance (Employee.image_path),
+        # falling back to the admin-uploaded staff photo — same resolution
+        # the staff-profile endpoint uses, so the circle matches the header.
+        emp = getattr(staff, "attendance_profile", None)
+        image_path = getattr(emp, "image_path", None)
+        if image_path and not isinstance(image_path, (bytes, bytearray, memoryview)):
+            return request.build_absolute_uri(settings.MEDIA_URL + image_path.lstrip("/"))
+
+        if staff.photo:
             return request.build_absolute_uri(staff.photo.url)
         return None
 

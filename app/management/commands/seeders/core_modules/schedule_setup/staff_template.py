@@ -82,19 +82,31 @@ class StaffTemplateSeeder(BaseSeeder):
             return False
         company, project = self._ensure_company_project(driver, operator)
         account = self._get_account(driver)
-        _, created = StaffTemplate.objects.get_or_create(
+
+        # Deliberately NOT get_or_create: this pair can legitimately already
+        # have more than one row. A driver seeded here under one company /
+        # project may be repinned to another later (DriverWetDryBinTripsSeeder
+        # moves driver_user to Blue Planet / Palakkad BP), which leaves the
+        # original template behind — and get_or_create() raises
+        # MultipleObjectsReturned the next time it sees both. Reuse whichever
+        # already exists (preferring one that owns trip plans, so we never
+        # orphan a seeded round) instead of adding yet another duplicate.
+        if StaffTemplate.objects.filter(
+            driver_id=driver, operator_id=operator
+        ).exists():
+            return False
+
+        StaffTemplate.objects.create(
             driver_id=driver,
             operator_id=operator,
-            defaults={
-                "company_id": company,
-                "project_id": project,
-                "extra_operator_id": [],
-                "created_by": account,
-                "updated_by": account,
-                "status": "ACTIVE",
-            },
+            company_id=company,
+            project_id=project,
+            extra_operator_id=[],
+            created_by=account,
+            updated_by=account,
+            status="ACTIVE",
         )
-        return created
+        return True
 
     def run(self):
         created_count = 0
