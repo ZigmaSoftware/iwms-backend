@@ -171,6 +171,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         # split from the legacy "schedule-masters" module — operational resources
         "DailyTripAssignment",
         "DailyTripCollectionPoint",
+        "DailyTripHouseholdCollection",
         "BinCollectionEvent",
         "DailyTripLog",
         "WasteCollection",
@@ -178,8 +179,20 @@ MODULE_RESOURCE_ALLOWLIST = {
         "TripRetripRequest",
     },
     "schedule-masters": {
-        # legacy name — kept alive only for the reporting sub-resources
-        # still registered under it (see base_urls.py)
+        # Legacy permission bucket retained for grants created before Schedule
+        # Setup and Daily Operations became separate sidebar/router groups.
+        "StaffTemplateCreation",
+        "AlternativeStaffTemplate",
+        "CollectionPoint",
+        "TripPlan",
+        "DailyTripAssignment",
+        "DailyTripCollectionPoint",
+        "DailyTripHouseholdCollection",
+        "BinCollectionEvent",
+        "DailyTripLog",
+        "WasteCollection",
+        "VehicleBreakdown",
+        "TripRetripRequest",
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
     },
@@ -227,9 +240,12 @@ RESOURCE_MODULE_FALLBACKS = {
     "TripPlan": "schedule-masters",
     "DailyTripAssignment": "schedule-masters",
     "DailyTripCollectionPoint": "schedule-masters",
+    "DailyTripHouseholdCollection": "schedule-masters",
     "BinCollectionEvent": "schedule-masters",
     "DailyTripLog": "schedule-masters",
     "WasteCollection": "schedule-masters",
+    "VehicleBreakdown": "schedule-masters",
+    "TripRetripRequest": "schedule-masters",
 }
 
 RESOURCE_PERMISSION_ALIASES = {
@@ -240,6 +256,7 @@ RESOURCE_PERMISSION_ALIASES = {
     "VehicleTypeCreation": ("vehicle-type", "vehicle-types"),
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),
     "column-permissions": ("CompanyUserScreenPermission",),
+    "staffaccessconfiguration": ("staff-access-configuration",),
 }
 
 
