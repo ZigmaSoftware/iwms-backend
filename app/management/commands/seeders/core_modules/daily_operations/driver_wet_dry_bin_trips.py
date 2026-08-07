@@ -155,12 +155,35 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         self._resync_assignment_scheduled_time(dry_plan, today)
 
         self._report([wet_plan, dry_plan])
+        self._assert_exactly_two_plans(ctx)
 
         self.log(
             f"---driver_user wet/dry bin trips ready: "
             f"{wet_plan.display_code} (Wet Waste, {len(wet_bins)} CPs), "
             f"{dry_plan.display_code} (Dry Waste, {len(dry_bins)} CPs)---"
         )
+
+    # ------------------------------------------------------------------
+    def _assert_exactly_two_plans(self, ctx):
+        """Fail loudly if driver_user ends up with anything but the wet/dry
+        pair. Everything upstream is meant to guarantee this; a mismatch here
+        means some other seeder created plans AFTER _purge_foreign_plans ran,
+        which would otherwise only surface as extra trip cards in the app.
+        """
+        codes = sorted(
+            TripPlan.objects.filter(
+                staff_template_id__driver_id=ctx["driver"],
+            ).values_list("display_code", flat=True)
+        )
+        expected = sorted([WET_PLAN_DISPLAY_CODE, DRY_PLAN_DISPLAY_CODE])
+        if codes != expected:
+            raise RuntimeError(
+                f"driver_user must have exactly 2 trip plans {expected}, "
+                f"but has {len(codes)}: {codes}. Another seeder is creating "
+                f"trip plans for driver_user — check TripPlanSeeder's "
+                f"EXCLUDED_DRIVER_USERNAMES and that no retired driver seeder "
+                f"was reintroduced by a merge."
+            )
 
     # ------------------------------------------------------------------
     def _resolve_context(self):

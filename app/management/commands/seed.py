@@ -33,6 +33,18 @@ from app.management.commands.seeders.superadmin.role_management import ROLE_ASSI
 # user-creations (router: user-creations/staffcreation, supervisor-zone-map, ...)
 from app.management.commands.seeders.superadmin.staff_management.auth_user_seeder import AuthUserSeeder
 from app.management.commands.seeders.superadmin.staff_management.supervisor_user import SupervisorUserSeeder
+
+# DriverWetDryBinTripsSeeder is the ONLY driver_user trip seeder. It gives
+# driver_user exactly two assignments: a Wet Waste bin round and a Dry Waste
+# bin round.
+#
+# MERGE CONFLICT RESOLUTION — READ BEFORE RESOLVING:
+# Older branches import driver_palakkad_trips / driver_bin_only /
+# driver_bin_assignments / driver_extra_collection_points here. Those seeders
+# are DELETED — they created the household, bulk and duplicate-bin plans that
+# driver_user must never have. If a merge reintroduces any of those imports,
+# drop them and keep only this one; the deleted files no longer exist, so
+# keeping them raises ImportError at startup.
 from app.management.commands.seeders.core_modules.daily_operations.driver_wet_dry_bin_trips import (
     DriverWetDryBinTripsSeeder,
 )
