@@ -10,6 +10,18 @@ from app.models.user_creations.attendance import Recognized
 
 class AttendanceListViewSet(ViewSet):
 
+    def _worked_seconds(self, check_in, check_out):
+        if not check_in:
+            return 0
+        end_record = check_out if check_out and check_out.records >= check_in.records else None
+        end_at = end_record.records if end_record else timezone.localtime()
+        return max(int((end_at - check_in.records).total_seconds()), 0)
+
+    def _worked_duration_label(self, worked_seconds):
+        hours, remainder = divmod(max(int(worked_seconds), 0), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
     def _to_media_url(self, path):
         if not path:
             return None
@@ -125,14 +137,19 @@ class AttendanceListViewSet(ViewSet):
         last = records.last()
         last_type = last.punch_type if last else None
         next_punch = "OUT" if last_type == "IN" else "IN"
+        worked_seconds = self._worked_seconds(check_in, check_out)
 
         return Response(
             {
                 "status": "success",
                 "check_in_time": check_in.recognition_time.strftime("%H:%M") if check_in else None,
                 "check_out_time": check_out.recognition_time.strftime("%H:%M") if check_out else None,
+                "check_in_at": check_in.records.isoformat() if check_in else None,
+                "check_out_at": check_out.records.isoformat() if check_out else None,
                 "checked_in": has_in,
                 "checked_out": has_out,
+                "worked_seconds": worked_seconds,
+                "worked_duration": self._worked_duration_label(worked_seconds),
                 "last_punch_type": last_type,
                 "next_punch": next_punch,
                 "total_punches": records.count(),

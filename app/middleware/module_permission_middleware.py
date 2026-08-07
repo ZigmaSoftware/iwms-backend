@@ -49,6 +49,20 @@ AUTH_ONLY_SUFFIXES = (
     "attendance-list/",
     "localbody/",        # panchayat leader portal — auth only, no module permission check
     "district/",         # district portal — auth only, no module permission check
+    "register-fcm-token/",  # staff + citizen FCM device token self-registration
+    "attendance/daily-attendance/",  # driver/operator/supervisor attendance screens
+    "attendance/staff-profile/",     # same screens' profile calls
+    # Self-service permission refresh — authenticate the caller (so the
+    # viewset can resolve *their* bundle) but skip the module-permission
+    # check, since asking for your own permissions can't itself require one.
+    "login/my-permissions/",
+)
+
+# Citizen-scoped grievance API — self-service, no module-permission check;
+# every query inside the viewset is hard-scoped to the logged-in citizen.
+CITIZEN_PREFIXES = tuple(
+    prefix + "citizen/"
+    for prefix in API_AUTH_PREFIXES
 )
 
 AUTH_ONLY_PREFIXES = tuple(
@@ -63,6 +77,7 @@ PLATFORM_PREFIXES = (
 
 PUBLIC_PREFIXES = (
     "/media/",
+    "/api/v1/publicgrievance/",
 )
 
 COMMON_AUDIT_CREATE_PATHS = tuple(
@@ -140,19 +155,22 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Complaint",
         "MainCategory",
         "SubCategory",
-        # stub sub-resources — see complaint_ticket_stub_viewsets.py
+        # ticketed complaint workflow (app.models.complaint_management)
         "ComplaintModule",
         "ComplaintPriority",
         "ComplaintStatus",
         "ComplaintSource",
         "ComplaintLanguage",
         "ComplaintTeam",
+        "ComplaintCategory",
+        "ComplaintSubcategory",
         "ComplaintSlaRule",
         "ComplaintRoutingRule",
         "ComplaintFeedback",
         "ComplaintReopenHistory",
         "ComplaintNotification",
         "ComplaintAddressChange",
+        "ComplaintTicket",
     },
     "transport-masters": {
         "VehicleTypeCreation",
@@ -171,6 +189,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         # split from the legacy "schedule-masters" module — operational resources
         "DailyTripAssignment",
         "DailyTripCollectionPoint",
+        "DailyTripHouseholdCollection",
         "BinCollectionEvent",
         "DailyTripLog",
         "WasteCollection",
@@ -178,8 +197,20 @@ MODULE_RESOURCE_ALLOWLIST = {
         "TripRetripRequest",
     },
     "schedule-masters": {
-        # legacy name — kept alive only for the reporting sub-resources
-        # still registered under it (see base_urls.py)
+        # Legacy permission bucket retained for grants created before Schedule
+        # Setup and Daily Operations became separate sidebar/router groups.
+        "StaffTemplateCreation",
+        "AlternativeStaffTemplate",
+        "CollectionPoint",
+        "TripPlan",
+        "DailyTripAssignment",
+        "DailyTripCollectionPoint",
+        "DailyTripHouseholdCollection",
+        "BinCollectionEvent",
+        "DailyTripLog",
+        "WasteCollection",
+        "VehicleBreakdown",
+        "TripRetripRequest",
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
     },
@@ -227,9 +258,12 @@ RESOURCE_MODULE_FALLBACKS = {
     "TripPlan": "schedule-masters",
     "DailyTripAssignment": "schedule-masters",
     "DailyTripCollectionPoint": "schedule-masters",
+    "DailyTripHouseholdCollection": "schedule-masters",
     "BinCollectionEvent": "schedule-masters",
     "DailyTripLog": "schedule-masters",
     "WasteCollection": "schedule-masters",
+    "VehicleBreakdown": "schedule-masters",
+    "TripRetripRequest": "schedule-masters",
 }
 
 RESOURCE_PERMISSION_ALIASES = {
@@ -240,6 +274,7 @@ RESOURCE_PERMISSION_ALIASES = {
     "VehicleTypeCreation": ("vehicle-type", "vehicle-types"),
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),
     "column-permissions": ("CompanyUserScreenPermission",),
+    "staffaccessconfiguration": ("staff-access-configuration",),
 }
 
 
@@ -367,9 +402,19 @@ def _permission_filters_for_user(user):
     if not company_unique_id or not staff_unique_id:
         return None
 
+    # role_name is required so staff with no explicit StaffAccessConfiguration
+    # rows still resolve their role's baseline grants (see
+    # ROLE_DEFAULT_PERMISSIONS) — otherwise the login response would hand the
+    # app permissions that every subsequent request then 403s against.
+    role_obj = (
+        getattr(user, "staffusertype_id", None)
+        or getattr(user, "contractorusertype_id", None)
+    )
+
     return {
         "company_unique_id": company_unique_id,
         "staff_unique_id": staff_unique_id,
+        "role_name": getattr(role_obj, "name", None),
     }
 
 
@@ -385,7 +430,8 @@ def _resolve_permissions_for_request(request):
     cache_key = (
         "module-permissions:"
         f"{filters['staff_unique_id']}:"
-        f"{filters['company_unique_id']}"
+        f"{filters['company_unique_id']}:"
+        f"{filters.get('role_name') or '-'}"
     )
 
     permissions = cache.get(cache_key)
@@ -421,6 +467,10 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return auth_error
 
         if any(request.path.startswith(p) for p in AUTH_ONLY_PREFIXES):
+            auth_error = _authenticate_request(request)
+            return auth_error
+
+        if any(request.path.startswith(p) for p in CITIZEN_PREFIXES):
             auth_error = _authenticate_request(request)
             return auth_error
 

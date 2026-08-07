@@ -20,7 +20,7 @@ def _serialize_summary(assignment: DailyTripAssignment) -> dict:
         (c.collected_weight_kg or Decimal("0")) for c in children
     )
     panchayat = assignment.panchayat_id
-    waste_type = assignment.waste_type_id
+    waste_type = assignment.primary_waste_type
     return {
         "assignment_unique_id": assignment.unique_id,
         "trip_date": assignment.trip_date.isoformat(),
@@ -29,10 +29,14 @@ def _serialize_summary(assignment: DailyTripAssignment) -> dict:
             "unique_id": panchayat.unique_id,
             "name": panchayat.panchayat_name,
         },
-        "waste_type": {
-            "unique_id": waste_type.unique_id,
-            "name": waste_type.waste_type_name,
-        },
+        "waste_type": (
+            {
+                "unique_id": waste_type.unique_id,
+                "name": waste_type.waste_type_name,
+            }
+            if waste_type
+            else None
+        ),
         "progress": {
             "collected": collected,
             "total": total,
@@ -82,10 +86,9 @@ class TripHistoryViewSet(viewsets.ViewSet):
             .filter(staff_template_id__operator_id=operator)
             .select_related(
                 "panchayat_id",
-                "waste_type_id",
                 "vehicle_id",
             )
-            .prefetch_related("trip_collection_points")
+            .prefetch_related("trip_collection_points", "waste_types")
             .order_by("-trip_date", "-scheduled_time")
         )
 
