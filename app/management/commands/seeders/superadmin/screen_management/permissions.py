@@ -60,13 +60,22 @@ class PermissionSeeder(BaseSeeder):
         # --------------------------------------------------
         # 1. MAIN SCREEN TYPE
         # --------------------------------------------------
-        megamenu, _ = MainScreenType.objects.get_or_create(
-            type_name="megamenu",
-            defaults={
-                "is_active": True,
-                "is_deleted": False,
-            },
+        screen_type_names = (
+            "super-admin",
+            "masters",
+            "core-modules",
+            "reports",
         )
+        screen_types = {}
+        for type_name in screen_type_names:
+            screen_type, _ = MainScreenType.objects.update_or_create(
+                type_name=type_name,
+                defaults={
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            screen_types[type_name] = screen_type
 
         # --------------------------------------------------
         # 2. ACTIONS
@@ -115,7 +124,7 @@ class PermissionSeeder(BaseSeeder):
                 "mainscreens",
                 "userscreens",
                 "userscreen-action",
-                "CompanyUserScreenPermission",
+                "companywisescreenpermissions",
             ],
             "role-assigns": [
                 "user-type",
@@ -125,6 +134,7 @@ class PermissionSeeder(BaseSeeder):
             "user-creations": [
                 # "users-creation",
                 "staffcreation",
+                "staff-access-configuration",
                 # "stafftemplate-creation",
                 # "alternative-stafftemplate",
                 # "supervisor-zone-map",
@@ -201,7 +211,8 @@ class PermissionSeeder(BaseSeeder):
                 # "vehicle-trip-audit",
                 # "trip-exception-log",
                 # "bin-load-log",
-                "common-audit"
+                "common-audit",
+                "login-audit",
             ],
             "reports": [
                 "trip-summary",
@@ -216,22 +227,73 @@ class PermissionSeeder(BaseSeeder):
             ],
         }
 
+        # Keep the backend permission hierarchy in the same groups and order as
+        # the admin sidebar. MainScreen remains the permission module key; its
+        # MainScreenType provides the parent group shown in screen management.
+        screen_groups = {
+            "super-admin": (
+                "screen-managements",
+                "role-assigns",
+                "user-creations",
+                "common-masters",
+                "audits",
+                "process",
+            ),
+            "masters": (
+                "masters",
+                "waste-types",
+                "transport-masters",
+                "customers",
+            ),
+            "core-modules": (
+                "schedule-setup",
+                "schedule-operations",
+                "complaint-ticket",
+            ),
+            "reports": (
+                "schedule-masters",
+                "reports",
+            ),
+        }
+
+        module_group = {
+            module_name: group_name
+            for group_name, module_names in screen_groups.items()
+            for module_name in module_names
+        }
+        module_order = {
+            module_name: order
+            for module_names in screen_groups.values()
+            for order, module_name in enumerate(module_names, start=1)
+        }
+        ungrouped_modules = set(screen_structure) - set(module_group)
+        unknown_modules = set(module_group) - set(screen_structure)
+        if ungrouped_modules or unknown_modules:
+            raise RuntimeError(
+                "Permission screen grouping is out of sync: "
+                f"ungrouped={sorted(ungrouped_modules)}, "
+                f"unknown={sorted(unknown_modules)}"
+            )
+
         # --------------------------------------------------
         # 4. CREATE MAIN SCREENS + USER SCREENS
         # --------------------------------------------------
         mainscreens = {}
 
-        total_mains = len(screen_structure)
-        if total_mains:
-            self._move_mainscreen_orders_out_of_range(megamenu, total_mains)
+        for group_name, module_names in screen_groups.items():
+            self._move_mainscreen_orders_out_of_range(
+                screen_types[group_name],
+                len(module_names),
+            )
 
-        for order, (main_name, screens) in enumerate(screen_structure.items(), start=1):
+        for main_name, screens in screen_structure.items():
+            group_name = module_group[main_name]
             main, _ = MainScreen.objects.update_or_create(
                 mainscreen_name=main_name,
                 defaults={
-                    "mainscreentype_id": megamenu,
+                    "mainscreentype_id": screen_types[group_name],
                     "icon_name": main_name,
-                    "order_no": order,
+                    "order_no": module_order[main_name],
                     "is_active": True,
                     "is_deleted": False,
                 },
@@ -242,6 +304,29 @@ class PermissionSeeder(BaseSeeder):
 
             ordered_screens = []
             for idx, screen_name in enumerate(screens, start=1):
+                # Preserve existing permission rows when adopting the router's
+                # canonical screen name instead of creating a duplicate screen.
+                if screen_name == "companywisescreenpermissions":
+                    legacy_screen = UserScreen.objects.filter(
+                        userscreen_name="CompanyUserScreenPermission",
+                        mainscreen_id=main,
+                    ).first()
+                    canonical_exists = UserScreen.objects.filter(
+                        userscreen_name=screen_name,
+                    ).exists()
+                    if legacy_screen and not canonical_exists:
+                        legacy_screen.userscreen_name = screen_name
+                        legacy_screen.folder_name = screen_name
+                        legacy_screen.icon_name = screen_name
+                        legacy_screen.save(
+                            update_fields=[
+                                "userscreen_name",
+                                "folder_name",
+                                "icon_name",
+                                "updated_at",
+                            ]
+                        )
+
                 screen, _ = UserScreen.objects.get_or_create(
                     userscreen_name=screen_name,
                     defaults={
@@ -278,9 +363,16 @@ class PermissionSeeder(BaseSeeder):
                         screen.model_name = model_name
                         screen.save(update_fields=["model_app_label", "model_name", "updated_at"])
 
-    
+        legacy_megamenu = MainScreenType.objects.filter(type_name="megamenu").first()
+        if legacy_megamenu and not MainScreen.objects.filter(
+            mainscreentype_id=legacy_megamenu,
+            is_active=True,
+            is_deleted=False,
+        ).exists():
+            legacy_megamenu.is_active = False
+            legacy_megamenu.is_deleted = True
+            legacy_megamenu.save(update_fields=["is_active", "is_deleted"])
 
-     
         # --------------------------------------------------
         # 4C. MONTHLY WASTE COMPARISON COLUMNS
         # --------------------------------------------------
