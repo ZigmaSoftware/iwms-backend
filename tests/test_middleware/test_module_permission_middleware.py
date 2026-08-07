@@ -79,3 +79,21 @@ def test_staff_template_creation_permission_matches_staff_templates_route():
         "StaffTemplateCreation",
         "staff-templates",
     ) == ["view", "add", "edit", "delete"]
+
+
+def test_staff_access_configuration_permission_matches_hyphenated_screen_name():
+    middleware = ModulePermissionMiddleware(lambda request: None)
+    permissions = {
+        "staff-access-configuration": ["view", "add", "edit", "delete"],
+    }
+
+    assert _resource_is_allowed(
+        "user-creations",
+        "staffaccessconfiguration",
+        "staff-access-configuration",
+    )
+    assert middleware._resolve_allowed_actions(
+        permissions,
+        "staffaccessconfiguration",
+        "staff-access-configuration",
+    ) == ["view", "add", "edit", "delete"]
