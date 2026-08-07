@@ -19,7 +19,7 @@ python3 manage.py runserver
 python3 manage.py seed
 
 # One line commadn to run everything
-find . -name "__pycache__" -type d -exec rm -rf {} + && python3 manage.py makemigrations && python3 manage.py migrate && python3 manage.py seed && python3 manage.py runserver 0.0.0.0:8000
+find . -name "__pycache__" -type d -exec rm -rf {} + && python3 manage.py makemigrations app && python3 manage.py migrate && python3 manage.py seed && python3 manage.py runserver 0.0.0.0:8000
 
 
 # Run individual groups

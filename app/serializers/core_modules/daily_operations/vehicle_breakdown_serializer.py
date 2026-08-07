@@ -26,17 +26,27 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
         slug_field="unique_id",
         queryset=VehicleCreation.objects.filter(is_deleted=False),
     )
+    # Optional on create — the driver reporting a breakdown usually doesn't
+    # know the replacement yet; the supervisor picks these at `/verify/`
+    # (see VehicleBreakdownVerifySerializer below), which then requires all
+    # three be set (from here or there) before approving.
     replacement_vehicle_id = serializers.SlugRelatedField(
         slug_field="unique_id",
         queryset=VehicleCreation.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
     )
     replacement_driver_id = serializers.SlugRelatedField(
         slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
     )
     replacement_operator_id = serializers.SlugRelatedField(
         slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
     )
 
     # Read-only detail fields
@@ -227,8 +237,28 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
 
 
 class VehicleBreakdownVerifySerializer(serializers.Serializer):
-    """Used for PATCH /{id}/verify/ — approves the breakdown and wires the replacement."""
+    """Used for PATCH /{id}/verify/ — the supervisor picks the replacement
+    vehicle/driver/operator here (if not already set at creation) and
+    approves the breakdown."""
     remarks = serializers.CharField(required=False, allow_blank=True, default="")
+    replacement_vehicle_id = serializers.SlugRelatedField(
+        slug_field="unique_id",
+        queryset=VehicleCreation.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    replacement_driver_id = serializers.SlugRelatedField(
+        slug_field="staff_unique_id",
+        queryset=Staffcreation.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    replacement_operator_id = serializers.SlugRelatedField(
+        slug_field="staff_unique_id",
+        queryset=Staffcreation.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
 
     def save(self):
         instance = self.context["instance"]
@@ -240,6 +270,16 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             raise serializers.ValidationError("Breakdown has already been approved.")
         if instance.approval_status == VehicleBreakdown.APPROVAL_REJECTED:
             raise serializers.ValidationError("Rejected breakdowns cannot be approved.")
+
+        # Only fill in what the driver didn't already set at creation —
+        # never overwrite an explicit earlier choice.
+        replacement_vehicle = self.validated_data.get("replacement_vehicle_id") or instance.replacement_vehicle_id
+        replacement_driver = self.validated_data.get("replacement_driver_id") or instance.replacement_driver_id
+        replacement_operator = self.validated_data.get("replacement_operator_id") or instance.replacement_operator_id
+        if not (replacement_vehicle and replacement_driver and replacement_operator):
+            raise serializers.ValidationError(
+                "Select a replacement vehicle, driver, and operator before approving this breakdown."
+            )
 
         from django.db import transaction
         from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
@@ -253,8 +293,8 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             alt_template, _ = AlternativeStaffTemplate.objects.update_or_create(
                 staff_template=assignment.staff_template_id,
                 defaults=dict(
-                    driver_id=instance.replacement_driver_id,
-                    operator_id=instance.replacement_operator_id,
+                    driver_id=replacement_driver,
+                    operator_id=replacement_operator,
                     company_id=instance.company_id,
                     project_id=instance.project_id,
                     change_reason="Vehicle Breakdown",
@@ -265,7 +305,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             # Update DailyTripAssignment: replacement vehicle, alt staff template, and
             # advance status to In Progress (breakdown proves the trip was underway).
             update_fields = ["vehicle_id", "alt_staff_template_id", "updated_at"]
-            assignment.vehicle_id = instance.replacement_vehicle_id
+            assignment.vehicle_id = replacement_vehicle
             assignment.alt_staff_template_id = alt_template
             if assignment.status == DailyTripAssignment.STATUS_SCHEDULED:
                 assignment.status = DailyTripAssignment.STATUS_IN_PROGRESS
@@ -284,6 +324,9 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
                     pass
 
             VehicleBreakdown.objects.filter(pk=instance.pk).update(
+                replacement_vehicle_id=replacement_vehicle,
+                replacement_driver_id=replacement_driver,
+                replacement_operator_id=replacement_operator,
                 alt_staff_template_id=alt_template,
                 status=VehicleBreakdown.STATUS_REPLACEMENT_ARRANGED,
                 approval_status=VehicleBreakdown.APPROVAL_APPROVED,

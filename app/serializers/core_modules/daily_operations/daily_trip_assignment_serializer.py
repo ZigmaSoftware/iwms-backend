@@ -178,6 +178,10 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     # In Progress), in whole seconds — the client formats it however it needs.
     # Null until the trip has been started.
     total_trip_time_seconds = serializers.SerializerMethodField(read_only=True)
+    # This assignment's 1-based position among today's assignments for the
+    # same trip plan: 1 for the ordinary run, 2+ for a Re-Trip continuation
+    # (and any further same-day re-trips of that continuation).
+    trip_count = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
         write_only=True,
@@ -224,6 +228,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "actual_start_time",
             "actual_end_time",
             "total_trip_time_seconds",
+            "trip_count",
             "status",
             "approval_status",
             "remarks",
@@ -246,6 +251,9 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     def get_total_trip_time_seconds(self, obj):
         duration = obj.total_trip_time
         return int(duration.total_seconds()) if duration is not None else None
+
+    def get_trip_count(self, obj):
+        return obj.trip_count()
 
     def get_retrip_info(self, obj):
         # `.all()` (not `.filter()`) so this reads the Prefetch queryset the

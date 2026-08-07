@@ -414,6 +414,31 @@ class DailyTripAssignment(BaseMaster):
         diff = end - self.actual_start_at
         return diff if diff.total_seconds() >= 0 else timedelta(0)
 
+    def trip_count(self):
+        """This assignment's 1-based position among all assignments made
+        today for the same trip plan — the ordinary run is `1`; a Re-Trip
+        continuation (`app/services/retrip_service.py`, same `trip_plan_id`
+        and `trip_date`, a fresh row with no direct FK back to its source)
+        is `2`, and so on for a chain of same-day re-trips. Ordered by
+        `created_at` so the count reflects the order the shifts actually
+        happened in, not unique_id string order. Ported from the
+        government backend's identically-named/-behaved method.
+        """
+        siblings = list(
+            DailyTripAssignment.objects.filter(
+                trip_plan_id=self.trip_plan_id,
+                trip_date=self.trip_date,
+                is_deleted=False,
+            )
+            .order_by("created_at", "unique_id")
+            .values_list("unique_id", flat=True)
+        )
+        try:
+            return siblings.index(self.unique_id) + 1
+        except ValueError:
+            # Not persisted yet (unsaved instance) — it would be the next one.
+            return len(siblings) + 1
+
     def mark_completed_if_all_cps_collected(self):
         children = self.trip_collection_points.filter(is_deleted=False)
         if not children.exists():
