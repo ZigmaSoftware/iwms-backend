@@ -390,3 +390,36 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
             {"status": True, "message": "Staff Deleted Successfully"},
             status=status.HTTP_200_OK
         )
+
+    # -----------------------------------------------------
+    # FCM device token registration (push notifications)
+    # Exempted from module-permission checks via
+    # ModulePermissionMiddleware.AUTH_ONLY_SUFFIXES ("register-fcm-token/").
+    # -----------------------------------------------------
+
+    @action(detail=False, methods=["post"], url_path="register-fcm-token")
+    def register_fcm_token(self, request):
+        """Driver/operator/supervisor apps call this after login (and on
+        token refresh) to register their Firebase device token, so the
+        backend can push notifications to this staff member. Always acts on
+        the authenticated caller's own record. Mirrors
+        CustomercreationViewset.register_fcm_token."""
+        staff = request.user
+        if not isinstance(staff, Staffcreation):
+            return Response(
+                {"error": "Only a staff account can register a device token."},
+                status=403,
+            )
+        token = (request.data.get("fcm_token") or "").strip()
+        if not token:
+            return Response({"error": "fcm_token is required"}, status=400)
+        from app.models.customers.customercreation import CustomerCreation
+
+        with transaction.atomic():
+            Staffcreation.objects.filter(fcm_token=token).exclude(
+                staff_unique_id=staff.staff_unique_id
+            ).update(fcm_token=None)
+            CustomerCreation.objects.filter(fcm_token=token).update(fcm_token=None)
+            staff.fcm_token = token
+            staff.save(update_fields=["fcm_token"])
+        return Response({"status": "ok"})

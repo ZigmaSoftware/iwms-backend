@@ -143,6 +143,12 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         trip_plan = params.get("trip_plan_id")
         trip_status = params.get("status")
         waste_type = params.get("waste_type_id")
+        mine = params.get("mine")
+
+        if mine and str(mine).lower() in ("1", "true", "yes"):
+            # Supervisor app: assignments whose trip plan this supervisor owns
+            # (TripPlan.supervisor_id == requester), replacing zone-based scoping.
+            qs = qs.filter(trip_plan_id__supervisor_id=self.request.user)
 
         if trip_date:
             qs = qs.filter(trip_date=trip_date)

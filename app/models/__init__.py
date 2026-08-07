@@ -110,6 +110,40 @@ from .grivences.sub_category_citizenGrievance import SubCategory
 
 
 # ============================================================
+# GROUP: COMPLAINT MANAGEMENT (ticketed grievance workflow)
+# ============================================================
+from .complaint_management import (
+    ComplaintSource,
+    ComplaintLanguage,
+    ComplaintPriority,
+    ComplaintStatus,
+    ComplaintModule,
+    ComplaintCategory,
+    ComplaintSubcategory,
+    ComplaintTeam,
+    ComplaintSlaRule,
+    ComplaintTicket,
+    ComplaintTicketExtraDetail,
+    ComplaintAttachment,
+    ComplaintStatusHistory,
+    ComplaintAssignmentHistory,
+    ComplaintComment,
+    ComplaintRoutingRule,
+    ComplaintEscalationHistory,
+    ComplaintFeedback,
+    ComplaintReopenHistory,
+    ComplaintAddressChangeRequest,
+    ComplaintNotification,
+)
+
+
+# ============================================================
+# GROUP: STAFF NOTIFICATIONS
+# ============================================================
+from .notifications.staff_notification import StaffNotification
+
+
+# ============================================================
 # GROUP: BLUETOOTH / MOBILE WASTE COLLECTION
 # ============================================================
 from .user_creations.waste_collection_bluetooth import (
@@ -123,6 +157,7 @@ from .user_creations.waste_collection_bluetooth import (
 # GROUP: ATTENDANCE (MOBILE)
 # ============================================================
 from .user_creations.attendance import Employee, Recognized
+from .user_creations.attendance_new import AttendanceNew
 
 
 # ============================================================
@@ -139,6 +174,7 @@ from .schedule_masters.daily_trip_collection_point import DailyTripCollectionPoi
 from .schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
 from .schedule_masters.bin_collection_event import BinCollectionEvent
 from .schedule_masters.vehicle_breakdown import VehicleBreakdown
+from .schedule_masters.trip_retrip_request import TripRetripRequest
 
 
 # ============================================================
@@ -212,6 +248,32 @@ __all__ = [
     "MainCategory",
     "SubCategory",
 
+    # Complaint Management (ticketed grievance workflow)
+    "ComplaintSource",
+    "ComplaintLanguage",
+    "ComplaintPriority",
+    "ComplaintStatus",
+    "ComplaintModule",
+    "ComplaintCategory",
+    "ComplaintSubcategory",
+    "ComplaintTeam",
+    "ComplaintSlaRule",
+    "ComplaintTicket",
+    "ComplaintTicketExtraDetail",
+    "ComplaintAttachment",
+    "ComplaintStatusHistory",
+    "ComplaintAssignmentHistory",
+    "ComplaintComment",
+    "ComplaintRoutingRule",
+    "ComplaintEscalationHistory",
+    "ComplaintFeedback",
+    "ComplaintReopenHistory",
+    "ComplaintAddressChangeRequest",
+    "ComplaintNotification",
+
+    # Staff Notifications
+    "StaffNotification",
+
     # Bluetooth Waste
     "WasteCollectionSub",
     "WasteType",
@@ -220,6 +282,7 @@ __all__ = [
     # Attendance
     "Employee",
     "Recognized",
+    "AttendanceNew",
 
     # Transport
     "VehicleTypeCreation",
@@ -239,4 +302,5 @@ __all__ = [
     "DailyTripHouseholdCollection",
     "BinCollectionEvent",
     "VehicleBreakdown",
+    "TripRetripRequest",
 ]

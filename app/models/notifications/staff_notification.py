@@ -2,7 +2,7 @@ from django.db import models
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
 
 
 def generate_staff_notification_id():
@@ -11,27 +11,37 @@ def generate_staff_notification_id():
 
 class StaffNotification(BaseMaster):
     """General-purpose in-app notification for a staff login (driver/operator/
-    supervisor). Always created via `app.services.staff_notification_service.
-    notify_staff` — that is the single place new notification types get added.
-
-    No push-notification delivery yet (private has no FCM/push integration),
-    so this is in-app only: a row here plus whatever list/badge UI reads it.
+    supervisor apps) — mirrors ComplaintNotification's shape, but for
+    operational events outside the grievance module: vehicle replacement
+    approval/rejection, team reassignment, substitution and re-trip decisions.
+    Paired with a push send so a driver sees the alert whether or not the push
+    actually reaches the device.
     """
 
     TYPE_VEHICLE_BREAKDOWN_REPORTED = "VEHICLE_BREAKDOWN_REPORTED"
     TYPE_VEHICLE_REPLACEMENT_APPROVED = "VEHICLE_REPLACEMENT_APPROVED"
     TYPE_VEHICLE_REPLACEMENT_REJECTED = "VEHICLE_REPLACEMENT_REJECTED"
+    TYPE_TEAM_CHANGED = "TEAM_CHANGED"
+    TYPE_TEAM_SUBSTITUTED = "TEAM_SUBSTITUTED"
+    # Re-Trip: driver asks to close a trip with stops left; supervisor decides.
     TYPE_RETRIP_REQUESTED = "RETRIP_REQUESTED"
     TYPE_RETRIP_APPROVED = "RETRIP_APPROVED"
     TYPE_RETRIP_REJECTED = "RETRIP_REJECTED"
+
+    TYPE_TICKET_ESCALATED_TO = "TICKET_ESCALATED_TO"
+    TYPE_TICKET_ESCALATED = "TICKET_ESCALATED"
 
     TYPE_CHOICES = [
         (TYPE_VEHICLE_BREAKDOWN_REPORTED, "Vehicle Breakdown Reported"),
         (TYPE_VEHICLE_REPLACEMENT_APPROVED, "Vehicle Replacement Approved"),
         (TYPE_VEHICLE_REPLACEMENT_REJECTED, "Vehicle Replacement Rejected"),
+        (TYPE_TEAM_CHANGED, "Team Changed"),
+        (TYPE_TEAM_SUBSTITUTED, "Team Substituted"),
         (TYPE_RETRIP_REQUESTED, "Re-Trip Requested"),
         (TYPE_RETRIP_APPROVED, "Re-Trip Approved"),
         (TYPE_RETRIP_REJECTED, "Re-Trip Rejected"),
+        (TYPE_TICKET_ESCALATED_TO, "Ticket Escalated To You"),
+        (TYPE_TICKET_ESCALATED, "Ticket Escalated"),
     ]
 
     unique_id = models.CharField(
@@ -42,7 +52,7 @@ class StaffNotification(BaseMaster):
     )
 
     recipient_staff = models.ForeignKey(
-        Staffcreation,
+        StaffcreationOfficeDetails,
         on_delete=models.CASCADE,
         related_name="app_notifications",
         to_field="staff_unique_id",

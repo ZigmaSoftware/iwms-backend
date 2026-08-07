@@ -18,7 +18,11 @@ from app.models.masters.zone import Zone
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.user_creations.staff_access_configuration import StaffAccessConfiguration
-from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
+from app.utils.permission_response import (
+    apply_role_defaults,
+    finalize_permission_payload,
+    resolve_permission_payload,
+)
 from app.utils.password_encryption import decrypt_password
 
 PASSWORD_EXPIRY_DAYS = 90
@@ -115,46 +119,14 @@ class LoginSerializer(serializers.Serializer):
         return payload["permissions"]
 
     def _apply_role_defaults(self, permissions, role_name):
-        if not role_name:
-            return permissions
+        """Delegates to the shared implementation in permission_response.
 
-        defaults = {
-            "driver": {
-                "customers": {
-                    "customercreations": ["view"],
-                },
-                "process": {
-                    
-                },
-                "user-creations": {
-                    "alternative-stafftemplate": ["view"],
-                },
-            },
-            "operator": {
-                "customers": {
-                    "customercreations": ["view"],
-                },
-                "process": {
-                    
-                },
-                "user-creations": {
-                    "alternative-stafftemplate": ["view"],
-                },
-            },
-        }
-
-        role_defaults = defaults.get(role_name.lower())
-        if not role_defaults:
-            return permissions
-
-        for module_name, screens in role_defaults.items():
-            module_perms = permissions.setdefault(module_name, {})
-            for screen_name, actions in screens.items():
-                existing = set(module_perms.get(screen_name, []))
-                merged = existing.union(actions)
-                module_perms[screen_name] = list(merged)
-
-        return permissions
+        The defaults MUST be shared with ModulePermissionMiddleware (which
+        authorizes every non-login request); keeping a second copy here is
+        what previously let login hand back permissions the middleware then
+        rejected with 403.
+        """
+        return apply_role_defaults(permissions, role_name)
 
     def _resolve_location_scope(self, access_config, company, project_ids):
         """Mirror the company/project scoping convention for the geo levels:
