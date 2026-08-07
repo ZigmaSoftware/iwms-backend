@@ -131,6 +131,16 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         self._resync_assignment_waste_types(wet_plan, ctx["wet_type"])
         self._resync_assignment_waste_types(dry_plan, ctx["dry_type"])
 
+        # Self-healing: driver_user must end up with EXACTLY these two plans.
+        # Anything else on their StaffTemplate came from a seeder that
+        # shouldn't have touched them — the generic TripPlanSeeder (which
+        # cycles every active StaffTemplate across its ward/panchayat plans
+        # unless EXCLUDED_DRIVER_USERNAMES filters them out), or one of the
+        # retired driver_palakkad_trips/driver_bin_only/driver_bin_assignments
+        # seeders on an older branch. Purge them here rather than relying on
+        # that exclusion surviving every future merge.
+        self._purge_foreign_plans(ctx, keep={wet_plan.pk, dry_plan.pk})
+
         from app.management.commands.generate_daily_trips import run_for_date
         today = timezone.localdate()
         result = run_for_date(today, force=True)
@@ -436,6 +446,48 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         ).exclude(bin_id__in=bins).delete()
         if deleted:
             self.log(f"Pruned {deleted} stale (never-collected) daily stop(s) on {plan.display_code}.")
+
+    # ------------------------------------------------------------------
+    def _purge_foreign_plans(self, ctx, keep):
+        """Hard-delete every TripPlan on driver_user's StaffTemplate that this
+        seeder does not own, along with everything hanging off it.
+
+        Deletion order matters: DailyTripAssignment is PROTECTed by
+        BinCollectionEvent and DailyTripLog, and TripPlan is PROTECTed by
+        DailyTripAssignment — so children must go first or the delete raises
+        ProtectedError. Soft-deleting instead is not enough: a cancelled /
+        is_deleted plan still shows up as a stale trip card in the app.
+        """
+        from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+        from app.models.schedule_masters.daily_trip_collection_point import (
+            DailyTripCollectionPoint,
+        )
+        from app.models.schedule_masters.daily_trip_household_collection import (
+            DailyTripHouseholdCollection,
+        )
+        from app.models.schedule_masters.daily_trip_log import DailyTripLog
+
+        foreign = TripPlan.objects.filter(
+            staff_template_id__driver_id=ctx["driver"],
+        ).exclude(pk__in=keep)
+
+        codes = list(foreign.values_list("display_code", flat=True))
+        if not codes:
+            return
+
+        assignments = DailyTripAssignment.objects.filter(trip_plan_id__in=foreign)
+
+        BinCollectionEvent.objects.filter(trip_assignment_id__in=assignments).delete()
+        DailyTripLog.objects.filter(trip_assignment_id__in=assignments).delete()
+        DailyTripCollectionPoint.objects.filter(trip_assignment_id__in=assignments).delete()
+        DailyTripHouseholdCollection.objects.filter(trip_assignment_id__in=assignments).delete()
+        assignments.delete()
+        foreign.delete()
+
+        self.log(
+            f"Purged {len(codes)} trip plan(s) not owned by this seeder "
+            f"({', '.join(codes)}) — driver_user keeps only the wet/dry pair."
+        )
 
     # ------------------------------------------------------------------
     def _resync_assignment_waste_types(self, plan, waste_type):
