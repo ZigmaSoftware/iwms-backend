@@ -33,14 +33,8 @@ from app.management.commands.seeders.superadmin.role_management import ROLE_ASSI
 # user-creations (router: user-creations/staffcreation, supervisor-zone-map, ...)
 from app.management.commands.seeders.superadmin.staff_management.auth_user_seeder import AuthUserSeeder
 from app.management.commands.seeders.superadmin.staff_management.supervisor_user import SupervisorUserSeeder
-from app.management.commands.seeders.core_modules.daily_operations.driver_palakkad_trips import (
-    DriverPalakkadTripsSeeder,
-)
-from app.management.commands.seeders.core_modules.daily_operations.driver_bin_only import (
-    DriverBinOnlySeeder,
-)
-from app.management.commands.seeders.core_modules.daily_operations.driver_extra_collection_points import (
-    DriverExtraCollectionPointsSeeder,
+from app.management.commands.seeders.core_modules.daily_operations.driver_wet_dry_bin_trips import (
+    DriverWetDryBinTripsSeeder,
 )
 from app.management.commands.seeders.superadmin.staff_management.staff_office import StaffOfficeSeeder
 from app.management.commands.seeders.superadmin.staff_management.staff_personal import StaffPersonalSeeder
@@ -175,14 +169,24 @@ SCHEDULE_OPERATIONS_SEEDERS = [
     DailyTripLogSeeder,             # 3. daily-trip-logs
     TripAttendanceSeeder,
     BinCollectionEventSeeder,       # 4. bin-collection-events
-    # Depends on driver_user (user-creations) AND today's DailyTripAssignment
-    # rows (above) both existing — must run last in this group.
+    # Best-effort here: on a fresh DB, driver_user has no trip yet at this
+    # point (DriverWetDryBinTripsSeeder below creates it), so this just logs
+    # "no trip today — Skipping" without creating supervisor_user. That's
+    # fine — DriverWetDryBinTripsSeeder creates the login itself if it's
+    # still missing when it runs. Kept here (rather than removed) so a
+    # RE-run of `seed all`, once driver_user already has a trip, has this
+    # seeder do its normal trip-plan-ownership wiring/refresh too.
     SupervisorUserSeeder,
-    # Builds driver_user's own bin + household trips under Blue Planet /
-    # Palakkad BP (the stock plans above sit under the IWMS company, which
-    # CompanyScopedViewSet hides from driver_user). Runs after
-    # SupervisorUserSeeder so supervisor_user exists to own the plans.
-    DriverPalakkadTripsSeeder,
+    # driver_user's own bin-collection trips — one Wet Waste round, one Dry
+    # Waste round, 10 collection points each, supervised by supervisor_user.
+    # Self-contained: creates supervisor_user itself if SupervisorUserSeeder
+    # above couldn't (see the seeder's own module docstring for why).
+    # Replaces the removed DriverPalakkadTripsSeeder/DriverBinOnlySeeder/
+    # DriverBinAssignmentsSeeder (and their `driver-trips`/`driver-bin-only`/
+    # `driver-bin-assignments` standalone shortcuts) which used to seed
+    # driver_user's trips — those were unwired on request so a fresh DB
+    # started with zero trips; this is the new, deliberate replacement.
+    DriverWetDryBinTripsSeeder,
 ]
 
 # Legacy alias — `schedule-masters` used to cover both of the above before it was
@@ -273,22 +277,24 @@ SEED_GROUPS = {
     "bin-collection-events": [BinCollectionEventSeeder],
     "trip-logs":          [DailyTripLogSeeder],
     "vehicle-breakdowns": [VehicleBreakdownSeeder],
+    # driver_user's Wet/Dry bin-collection trips (see the seeder's own
+    # module docstring). Requires the superadmin group (Blue Planet masters)
+    # and user-creations (driver_user/operator_user) to have run first.
+    "driver-wet-dry-bin-trips": [DriverWetDryBinTripsSeeder],
     "waste-collections":  [WasteCollectionSeeder],
     "retrip-demo":        [RetripDemoSeeder],
     "blue-planet":        [BluePlanetSeeder],
     "ticket-masters":     TICKET_SEEDERS,  # complaint-ticket/grievance-tickets masters only
     # Requires driver_user + today's DailyTripAssignment rows to already
     # exist (run `user-creations` and `schedule-operations` first, or `all`).
+    # driver_user currently has no seeded trips, so this is a no-op until
+    # some other seeder gives it one.
     "supervisor-user":    [SupervisorUserSeeder],
-    # driver_user's bin + household trips under Blue Planet / Palakkad BP.
-    "driver-trips":       [DriverPalakkadTripsSeeder],
-    # Narrows driver_user back down to bin collection only — run AFTER
-    # driver-trips (and anything else that might regenerate household/bulk
-    # plans for driver_user's StaffTemplate).
-    "driver-bin-only":    [DriverBinOnlySeeder],
-    # 10 more collectable collection points (+ bins) appended to driver_user's
-    # bin-collection TripPlan.
-    "driver-extra-cps":   [DriverExtraCollectionPointsSeeder],
+    # driver_user's own trip seeders (formerly `driver-trips`,
+    # `driver-bin-only`, `driver-bin-assignments`) were removed on request —
+    # a fresh DB + `seed all` leaves driver_user with zero trips for now.
+    # The seeder source files are left in place, just unwired from every
+    # group/shortcut here, in case they're wanted again later.
 }
 
 # ============================================================

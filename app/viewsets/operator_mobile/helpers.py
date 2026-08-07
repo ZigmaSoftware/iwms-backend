@@ -149,10 +149,22 @@ def find_active_assignment_for_operator(
         if of_type:
             candidates = of_type
 
-    # The crew runs their trips in order, so "the active trip" is the earliest
-    # one with work left — not simply the earliest one. Without this, a driver
-    # holding a 07:00 and a 15:00 bin trip would stay pinned to the morning trip
-    # after finishing it, and the afternoon bins could never be scanned.
+    # The crew runs their trips in order, so "the active trip" is normally the
+    # earliest one with work left. When the driver has already pressed Start on
+    # one of today's trips, however, that trip is the one in progress and all
+    # scans must be validated against it — not merely the earliest unfinished
+    # one. Without this, a crew holding a Wet (07:00) and a Dry (09:00) bin trip
+    # that presses Start on the Dry trip would still have every scan rejected:
+    # the loop would keep pointing at the (unfinished) Wet trip, so a Dry bin
+    # would fail the waste-type check as "wrong trip."
+    started = [
+        c for c in candidates
+        if c.status == DailyTripAssignment.STATUS_IN_PROGRESS
+    ]
+    if started:
+        return min(started, key=lambda c: (c.scheduled_time, c.unique_id))
+
+    # No trip started yet → the earliest one with work left is the answer.
     for candidate in candidates:
         if not assignment_is_finished(candidate):
             return candidate

@@ -173,6 +173,31 @@ class DriverPalakkadTripsSeeder(BaseSeeder):
             # StaffTemplate.operator_id is required; fall back to the driver so
             # the merged driver/captain flow still works.
             operator = driver
+
+        # AuthUserSeeder creates driver_user/operator_user under WHATEVER
+        # company/project happens to sort first in the DB (no name filter),
+        # which is almost never Blue Planet/Palakkad BP. Everything this
+        # seeder builds — the trip plan, its stops, the supervisor's own
+        # tenancy — lives under Blue Planet/Palakkad BP, so pin the driver's
+        # (and operator's) own Staffcreation row there too. Without this,
+        # CompanyScopedViewSet silently filters every trip out of the
+        # supervisor app: the trip plan is in the right project, but
+        # `supervisor_user.project_id` (copied from `driver.project_id` by
+        # SupervisorUserSeeder) would still point at the stale one, and the
+        # supervisor's queryset never matches it.
+        for staff in {driver, operator}:
+            if staff.company_id_id != company.unique_id or staff.project_id_id != project.unique_id:
+                staff.company_id = company
+                staff.project_id = project
+                staff.district_id = district
+                staff.city_id = city
+                staff.zone_id = zone
+                staff.ward_id = ward
+                staff.save(update_fields=[
+                    "company_id", "project_id", "district_id", "city_id",
+                    "zone_id", "ward_id", "updated_at",
+                ])
+
         if not supervisor:
             self.log(f"'{SUPERVISOR_USERNAME}' not found — run the supervisor-user seeder first.")
             return None
@@ -350,13 +375,20 @@ class DriverPalakkadTripsSeeder(BaseSeeder):
 
     # ------------------------------------------------------------------
     def _retire_household_and_bulk(self, ctx, template):
-        """Permanently deactivate any household/bulk TripPlan this seeder
-        created in an older run, and cancel today's (or any future)
-        DailyTripAssignment already generated from one.
+        """Completely remove any household/bulk TripPlan this seeder created
+        in an older run, and every DailyTripAssignment generated from one —
+        hard-deleted, not soft-cancelled. driver_user has no household/bulk
+        collection UI at all, so these shouldn't exist in any form,
+        including a lingering "Cancelled" row.
+
+        `DailyTripAssignment`'s child tables (DailyTripHouseholdCollection,
+        DailyTripCollectionPoint) CASCADE off it, and nothing else holds a
+        PROTECT reference to a household/bulk assignment (unlike bin
+        assignments, which BinCollectionEvent/DailyTripLog protect) — a
+        household stop is never bin-scanned, so hard delete is safe here.
 
         This makes re-running the seeder itself enough to undo the old
-        household/bulk plans — no separate `driver-bin-only` seed group
-        needed afterwards.
+        household/bulk plans — no separate cleanup step needed afterwards.
         """
         from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 
@@ -369,38 +401,20 @@ class DriverPalakkadTripsSeeder(BaseSeeder):
                 TripPlan.COLLECTION_TYPE_BULK,
             ],
         )
-        plan_count = plans.filter(is_deleted=False).update(
-            is_active=False, status=TripPlan.Status.INACTIVE
+        plan_count = plans.count()
+        if not plan_count:
+            return
+
+        assignment_count = DailyTripAssignment.objects.filter(trip_plan_id__in=plans).count()
+        DailyTripAssignment.objects.filter(trip_plan_id__in=plans).delete()
+
+        plans.delete()
+
+        self.log(
+            f"Removed {plan_count} old household/bulk TripPlan(s) and "
+            f"{assignment_count} DailyTripAssignment row(s) (with their "
+            f"child stops) for {DRIVER_USERNAME} — completely, not cancelled."
         )
-
-        today = timezone.localdate()
-        assignments = DailyTripAssignment.objects.filter(
-            trip_plan_id__in=TripPlan.objects.filter(
-                company_id=ctx["company"],
-                project_id=ctx["project"],
-                staff_template_id=template,
-                collection_type__in=[
-                    TripPlan.COLLECTION_TYPE_HOUSEHOLD,
-                    TripPlan.COLLECTION_TYPE_BULK,
-                ],
-            ),
-            trip_date__gte=today,
-            is_deleted=False,
-        ).exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-
-        cancelled = 0
-        for assignment in assignments:
-            if assignment.status == DailyTripAssignment.STATUS_COMPLETED:
-                continue
-            assignment.status = DailyTripAssignment.STATUS_CANCELLED
-            assignment.save(update_fields=["status", "updated_at"])
-            cancelled += 1
-
-        if plan_count or cancelled:
-            self.log(
-                f"Retired {plan_count} old household/bulk TripPlan(s) and "
-                f"cancelled {cancelled} pending assignment(s) for {DRIVER_USERNAME}."
-            )
 
     # ------------------------------------------------------------------
     def _generate_assignments(self):

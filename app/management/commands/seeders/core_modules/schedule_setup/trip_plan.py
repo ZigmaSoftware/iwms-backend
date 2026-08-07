@@ -23,6 +23,10 @@ BASE_TIMES = [
     time(11, 0), time(11, 30), time(12, 0),  time(12, 30), time(13, 0),
 ]
 
+# Drivers whose trip plans are hand-seeded elsewhere and must NOT receive
+# extra auto-generated ward/panchayat plans from this generic seeder.
+EXCLUDED_DRIVER_USERNAMES = ["driver_user"]
+
 
 class TripPlanSeeder(BaseSeeder):
     name = "trip_plan"
@@ -47,8 +51,17 @@ class TripPlanSeeder(BaseSeeder):
             self.log("TripPlanSeeder skipped (missing dependencies).")
             return
 
+        # `driver_user` is the mobile-app demo driver and owns exactly two
+        # hand-built trip plans (the Wet/Dry bin rounds seeded by
+        # `driver_wet_dry_bin_trips`). This generic seeder cycles every
+        # active StaffTemplate across its ward/panchayat plans, which would
+        # otherwise hand driver_user extra auto-generated trips
+        # (DRIVER-<VEHICLE>-01/-02) on top of those two — so skip any
+        # template driven by them.
         staff_templates = list(StaffTemplate.objects.filter(
             is_deleted=False, status="ACTIVE"
+        ).exclude(
+            driver_id__username__in=EXCLUDED_DRIVER_USERNAMES,
         ).order_by("created_at"))
 
         vehicles = list(VehicleCreation.objects.filter(
