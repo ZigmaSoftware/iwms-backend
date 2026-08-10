@@ -22,13 +22,7 @@ class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):
     def list(self, request):
         queryset = DailyTripLog.objects.select_related(
             "company_id", "project_id", "panchayat_id"
-        ).filter(
-            is_deleted=False,
-            log_status__in=[
-                DailyTripLog.LOG_STATUS_SUBMITTED,
-                DailyTripLog.LOG_STATUS_VERIFIED,
-            ],
-        )
+        ).filter(is_deleted=False)
         queryset = self.filter_queryset(queryset)
 
         month_value = request.query_params.get("month")

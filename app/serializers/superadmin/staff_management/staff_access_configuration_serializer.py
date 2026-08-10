@@ -54,7 +54,12 @@ LOOKUP_SCREEN_NAMES = (
 def _auto_lookup_permission_entries(company_id, project_ids):
     """"view" (userscreen_id, userscreenaction_id, mainscreen_id) entries for
     the supporting lookup screens enabled in the given company/project(s)'
-    catalog — to be auto-granted alongside a staff's real permissions."""
+    catalog — to be auto-granted alongside a staff's real permissions.
+
+    `project_ids` falsy/empty means the staff is scoped to the company only
+    (no project) — the catalog for that is the company-level (project_id
+    IS NULL) permissions, NOT a union across every project the company has.
+    """
     qs = CompanyUserScreenPermission.objects.filter(
         company_id_id=company_id,
         userscreen_id__userscreen_name__in=LOOKUP_SCREEN_NAMES,
@@ -67,6 +72,8 @@ def _auto_lookup_permission_entries(company_id, project_ids):
     )
     if project_ids:
         qs = qs.filter(project_id_id__in=project_ids)
+    else:
+        qs = qs.filter(project_id__isnull=True)
     rows = qs.values_list("userscreen_id_id", "userscreenaction_id_id", "mainscreen_id_id").distinct()
     return [
         {"mainscreen_id": row[2], "userscreen_id": row[0], "userscreenaction_id": row[1]}
@@ -75,10 +82,10 @@ def _auto_lookup_permission_entries(company_id, project_ids):
 
 
 def _project_enabled_screen_action_keys(company_id, project_ids):
-    """(userscreen_id, userscreenaction_id) pairs enabled for the union of the
-    given projects' catalogs. `project_ids` falsy/empty means "no project
+    """(userscreen_id, userscreenaction_id) pairs enabled for the given
+    projects' catalogs. `project_ids` falsy/empty means "no project
     restriction" — i.e. the staff is scoped to the whole company, so the
-    catalog is the union across every project the company has."""
+    catalog is the company-level (project_id IS NULL) permissions only."""
     qs = CompanyUserScreenPermission.objects.filter(
         company_id_id=company_id,
         permission_type="screen",
@@ -87,6 +94,8 @@ def _project_enabled_screen_action_keys(company_id, project_ids):
     )
     if project_ids:
         qs = qs.filter(project_id_id__in=project_ids)
+    else:
+        qs = qs.filter(project_id__isnull=True)
     qs = qs.exclude(
         Q(userscreenaction_id__action_name__iexact="show")
         | Q(userscreenaction_id__variable_name__iexact="show")
