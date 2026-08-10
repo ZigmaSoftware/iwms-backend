@@ -469,10 +469,7 @@ class DashboardSummaryViewSet(ViewSet):
     def _collection_type_summary(self, ctx, target_date=None):
         assignments = self._scoped(DailyTripAssignment.objects.filter(is_deleted=False), ctx)
         logs = self._scoped(
-            DailyTripLog.objects.filter(
-                is_deleted=False,
-                log_status__in=[DailyTripLog.LOG_STATUS_SUBMITTED, DailyTripLog.LOG_STATUS_VERIFIED],
-            ),
+            DailyTripLog.objects.filter(is_deleted=False),
             ctx,
         )
         household_rows = self._scoped(

@@ -135,13 +135,11 @@ class ScanBinViewSet(viewsets.ViewSet):
         existing = DailyTripLog.objects.filter(trip_assignment_id=assignment).first()
         if existing:
             existing.collected_weight_kg = total_weight
-            existing.log_status = DailyTripLog.LOG_STATUS_SUBMITTED
             existing.save()
             return
 
         DailyTripLog.objects.create(
             trip_assignment_id=assignment,
             collected_weight_kg=total_weight,
-            log_status=DailyTripLog.LOG_STATUS_SUBMITTED,
             remarks="Auto-generated from operator-mobile completion.",
         )

@@ -203,8 +203,7 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         remarks = request.data.get("remarks", "")
 
         valid = {
-            DailyTripLog.LOG_STATUS_DRAFT,
-            DailyTripLog.LOG_STATUS_SUBMITTED,
+            DailyTripLog.LOG_STATUS_UNVERIFIED,
             DailyTripLog.LOG_STATUS_VERIFIED,
         }
         if new_status not in valid:
@@ -236,7 +235,7 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if new_status == DailyTripLog.LOG_STATUS_VERIFIED:
             update_fields["verified_by_id"] = account.pk if account else None
             update_fields["verified_at"] = now
-        elif new_status == DailyTripLog.LOG_STATUS_DRAFT:
+        elif new_status == DailyTripLog.LOG_STATUS_UNVERIFIED:
             update_fields["verified_by_id"] = None
             update_fields["verified_at"] = None
 

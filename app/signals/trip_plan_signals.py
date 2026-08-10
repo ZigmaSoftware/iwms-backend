@@ -232,7 +232,6 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
         try:
             log = DailyTripLog(
                 trip_assignment_id=instance.trip_assignment_id,
-                log_status=DailyTripLog.LOG_STATUS_DRAFT,
                 remarks="Auto-generated from household waste collections.",
             )
             # autofill_from_assignment() is called inside save()
@@ -244,22 +243,3 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
 
     # 3. Sync household weight onto the log
     log.sync_from_household_collections()
-
-    # 4. Auto-submit when ALL household stops for this trip are collected
-    #    (mirrors DailyTripCollectionPointViewSet auto-submit for bins)
-    log.refresh_from_db(fields=["log_status", "household_collected_weight_kg"])
-    if log.log_status != DailyTripLog.LOG_STATUS_DRAFT:
-        return  # already submitted / verified — don't touch
-
-    hh_weight = log.household_collected_weight_kg or 0
-    if hh_weight <= 0:
-        return
-
-    all_hh = DailyTripHouseholdCollection.objects.filter(
-        trip_assignment_id=instance.trip_assignment_id,
-        is_deleted=False,
-    )
-    if all_hh.exists() and not all_hh.filter(is_collected=False).exists():
-        DailyTripLog.objects.filter(pk=log.pk).update(
-            log_status=DailyTripLog.LOG_STATUS_SUBMITTED,
-        )
