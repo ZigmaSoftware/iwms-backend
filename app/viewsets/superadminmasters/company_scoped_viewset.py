@@ -115,7 +115,18 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         )
 
         if not project_unique_id:
-            return None
+            # Mobile apps (driver/operator/supervisor) never send a project
+            # header or field — they only ever operate within their own
+            # single project. Desktop/admin callers that manage several
+            # projects under one company are expected to keep sending one
+            # explicitly; this fallback only fires when nothing was given
+            # at all, so it never silently overrides an explicit choice.
+            user = getattr(self.request, "user", None)
+            own_project_id = getattr(user, "project_id_id", None)
+            if own_project_id:
+                project_unique_id = own_project_id
+            else:
+                return None
 
         project = Project.objects.filter(
             unique_id=project_unique_id,

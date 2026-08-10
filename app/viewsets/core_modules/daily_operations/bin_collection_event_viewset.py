@@ -78,6 +78,14 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         collection_date = params.get("collection_date") or params.get("date")
         date_from = params.get("date_from")
         date_to = params.get("date_to")
+        mine = params.get("mine")
+
+        if mine and str(mine).lower() in ("1", "true", "yes"):
+            # Supervisor app waste summary: events on trips whose plan this
+            # supervisor owns (mirrors DailyTripLogViewSet's `mine` filter).
+            queryset = queryset.filter(
+                trip_assignment_id__trip_plan_id__supervisor_id=self.request.user
+            )
 
         if trip_assignment:
             queryset = queryset.filter(trip_assignment_id=trip_assignment)

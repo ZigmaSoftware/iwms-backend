@@ -82,19 +82,31 @@ from ..viewsets.core_modules.complaint_management.complaint_viewset import Compl
 from ..viewsets.core_modules.complaint_management.main_category_viewset import MainCategoryViewSet
 from ..viewsets.core_modules.complaint_management.sub_category_viewset import SubCategoryViewSet
 from ..viewsets.core_modules.complaint_management.complaint_ticket_stub_viewsets import (
+    ComplaintReopenHistoryViewSet,
+    ComplaintAddressChangeViewSet,
+)
+# Ticketed complaint workflow (replaces the remaining stub viewsets above
+# once a real model/serializer/viewset exists for them).
+from ..viewsets.core_modules.complaint_management.ticket_master_viewsets import (
     ComplaintModuleViewSet,
     ComplaintPriorityViewSet,
     ComplaintStatusViewSet,
     ComplaintSourceViewSet,
     ComplaintLanguageViewSet,
     ComplaintTeamViewSet,
+    ComplaintTicketCategoryViewSet,
+    ComplaintTicketSubcategoryViewSet,
     ComplaintSlaRuleViewSet,
     ComplaintRoutingRuleViewSet,
-    ComplaintFeedbackViewSet,
-    ComplaintReopenHistoryViewSet,
-    ComplaintNotificationViewSet,
-    ComplaintAddressChangeViewSet,
 )
+from ..viewsets.core_modules.complaint_management.citizen_ticket_viewset import (
+    CitizenComplaintTicketViewSet,
+)
+from ..viewsets.core_modules.complaint_management.public_grievance_viewset import (
+    PublicGrievanceViewSet,
+)
+from ..viewsets.core_modules.complaint_management.ticket_viewset import ComplaintTicketViewSet
+from ..viewsets.core_modules.notifications.staff_notification_viewset import StaffNotificationViewSet
 
 # Transport masters
 from ..viewsets.masters.transport_masters.vehicletypecreation_viewset import VehicleTypeCreationViewSet
@@ -132,10 +144,11 @@ from ..viewsets.district.district_dashboard_viewset import DistrictDashboardView
 from ..viewsets.dashboard.dashboard_summary_viewset import DashboardSummaryViewSet
 
 # Operator mobile
-from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet
+from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet, MyTripsTodayViewSet
 from ..viewsets.operator_mobile.validate_bin_qr_viewset import ValidateBinQrViewSet
 from ..viewsets.operator_mobile.scan_bin_viewset import ScanBinViewSet
 from ..viewsets.operator_mobile.trip_history_viewset import TripHistoryViewSet
+from ..viewsets.operator_mobile.trip_lifecycle_viewset import TripLifecycleViewSet
 
 # Waste bluetooth
 from ..viewsets.waste_collection_bluetooth.waste_bluetooth_viewset import WasteCollectionBluetoothViewSet
@@ -147,6 +160,7 @@ from ..viewsets.core_modules.attendance.register import RegisterViewSet
 from ..viewsets.core_modules.attendance.recognize import RecognizeViewSet
 from ..viewsets.core_modules.attendance.employee_viewset import EmployeeViewSet
 from ..viewsets.core_modules.attendance.staff_profile_viewset import StaffProfileViewSet
+from ..viewsets.core_modules.attendance.attendance_records_viewset import AttendanceRecordsViewSet
 from ..viewsets.core_modules.attendance.attendance_list import AttendanceListViewSet
 from ..viewsets.core_modules.attendance.external_attendance import ExternalAttendanceViewSet
 
@@ -240,6 +254,8 @@ router.register_group("customer-masters", "user-charge-rules", UserChargeRuleVie
 # complaint-ticket sub-resource set — see
 # app/viewsets/grivences/complaint_ticket_stub_viewsets.py.
 # ============================================================
+# `tickets` stays the flat Complaint model — the admin web frontend already
+# calls this exact path (src/helpers/admin/endpoints.ts) expecting that shape.
 router.register_group("complaint-ticket", "tickets", ComplaintViewSet)
 router.register_group("complaint-ticket", "categories", MainCategoryViewSet)
 router.register_group("complaint-ticket", "subcategories", SubCategoryViewSet)
@@ -249,12 +265,39 @@ router.register_group("complaint-ticket", "statuses", ComplaintStatusViewSet, ba
 router.register_group("complaint-ticket", "sources", ComplaintSourceViewSet, basename="complaint-ticket-sources")
 router.register_group("complaint-ticket", "languages", ComplaintLanguageViewSet, basename="complaint-ticket-languages")
 router.register_group("complaint-ticket", "teams", ComplaintTeamViewSet, basename="complaint-ticket-teams")
+router.register_group("complaint-ticket", "ticket-categories", ComplaintTicketCategoryViewSet, basename="complaint-ticket-ticket-categories")
+router.register_group("complaint-ticket", "ticket-subcategories", ComplaintTicketSubcategoryViewSet, basename="complaint-ticket-ticket-subcategories")
 router.register_group("complaint-ticket", "sla-rules", ComplaintSlaRuleViewSet, basename="complaint-ticket-sla-rules")
 router.register_group("complaint-ticket", "routing-rules", ComplaintRoutingRuleViewSet, basename="complaint-ticket-routing-rules")
-router.register_group("complaint-ticket", "feedback", ComplaintFeedbackViewSet, basename="complaint-ticket-feedback")
 router.register_group("complaint-ticket", "reopen-history", ComplaintReopenHistoryViewSet, basename="complaint-ticket-reopen-history")
-router.register_group("complaint-ticket", "notifications", ComplaintNotificationViewSet, basename="complaint-ticket-notifications")
 router.register_group("complaint-ticket", "address-change", ComplaintAddressChangeViewSet, basename="complaint-ticket-address-change")
+
+# Ticketed grievance workflow (status/escalate/resolve/reopen/feedback) — a
+# new path, since `tickets` above is taken by the flat Complaint model.
+router.register_group("complaint-ticket", "grievance-tickets", ComplaintTicketViewSet, basename="complaint-ticket-grievance-tickets")
+
+# ============================================================
+# GROUP: CITIZEN (self-scoped, auth-only — see AUTH_ONLY_SUFFIXES /
+# CITIZEN_PREFIXES in module_permission_middleware.py)
+# ============================================================
+router.register_group("citizen", "complaint-tickets", CitizenComplaintTicketViewSet, basename="citizen-complaint-tickets")
+
+# ============================================================
+# GROUP: PUBLIC (no login, no module permission check — see
+# AUTH_EXEMPT_PREFIXES in module_permission_middleware.py)
+# ============================================================
+router.register_group(
+    "public",
+    "publicgrievance",
+    PublicGrievanceViewSet,
+    basename="publicgrievance",
+    include_group_in_prefix=False,
+)
+
+# ============================================================
+# GROUP: STAFF NOTIFICATIONS (shared by driver/operator/supervisor apps)
+# ============================================================
+router.register_group("schedule-operations", "staff-notifications", StaffNotificationViewSet, basename="schedule-operations-staff-notifications")
 
 # ============================================================
 # GROUP: TRANSPORT MASTERS
@@ -347,6 +390,12 @@ router.register_group(
 )
 router.register_group(
     "operator-mobile",
+    "my-trips-today",
+    MyTripsTodayViewSet,
+    basename="operator-mobile-my-trips-today",
+)
+router.register_group(
+    "operator-mobile",
     "validate-bin-qr",
     ValidateBinQrViewSet,
     basename="operator-mobile-validate-bin-qr",
@@ -362,6 +411,12 @@ router.register_group(
     "trip-history",
     TripHistoryViewSet,
     basename="operator-mobile-trip-history",
+)
+router.register_group(
+    "operator-mobile",
+    "trip-lifecycle",
+    TripLifecycleViewSet,
+    basename="operator-mobile-trip-lifecycle",
 )
 
 # ============================================================
@@ -437,6 +492,40 @@ router.register_group(
     AttendanceListViewSet,
     basename="mobile-attendance-list",
     include_group_in_prefix=False,
+)
+
+# App calls `attendance/daily-attendance/{today,summary}/` and
+# `attendance/staff-profile/` — same viewsets as above, registered under the
+# path the driver/operator/supervisor attendance screens actually use.
+router.register_group(
+    "attendance",
+    "daily-attendance",
+    AttendanceListViewSet,
+    basename="attendance-daily-attendance",
+)
+router.register_group(
+    "attendance",
+    "staff-profile",
+    StaffProfileViewSet,
+    basename="attendance-staff-profile",
+)
+router.register_group(
+    "attendance",
+    "register",
+    RegisterViewSet,
+    basename="attendance-register",
+)
+router.register_group(
+    "attendance",
+    "recognize",
+    RecognizeViewSet,
+    basename="attendance-recognize",
+)
+router.register_group(
+    "attendance",
+    "records",
+    AttendanceRecordsViewSet,
+    basename="attendance-records",
 )
 
 # ============================================================

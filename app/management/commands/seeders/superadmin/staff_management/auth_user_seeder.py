@@ -52,6 +52,9 @@ class AuthUserSeeder(BaseSeeder):
 
         # 7 driver-operator pairs + 1 approver = 15 entries
         # Passwords: min 6 chars, uppercase + lowercase + digit
+        # NOTE: supervisor_user is NOT seeded here — see SupervisorUserSeeder,
+        # which wires it to driver_user's real trip plan(s) and complaint
+        # teams rather than creating a bare, data-less login.
         seed_staff = [
             ("driver_user",   "driver1@demo.local",   "Driver123",   driver_role),
             ("operator_user", "operator1@demo.local",  "Operator123", operator_role),
@@ -101,12 +104,31 @@ class AuthUserSeeder(BaseSeeder):
                     project_id=project,
                     employee_name=username,
                 ).first()
+            if not staff:
+                # `username` is globally unique, but the lookups above are
+                # scoped to the first company/project. A later seeder may have
+                # deliberately repinned this login to a different tenant (e.g.
+                # DriverWetDryBinTripsSeeder moves driver_user/operator_user to
+                # Blue Planet / Palakkad BP so CompanyScopedViewSet can see
+                # their trips). Without this global fallback the scoped lookup
+                # misses and create() dies on the unique username index.
+                staff = Staffcreation.objects.filter(username=username).first()
 
             if not staff:
                 Staffcreation.objects.create(**defaults)
                 continue
 
+            # Never re-tenant an existing login. Another seeder may own where
+            # this staff member lives (DriverWetDryBinTripsSeeder pins
+            # driver_user/operator_user to Blue Planet / Palakkad BP); blindly
+            # writing this seeder's company/project back would undo that and
+            # make the result depend on seeder ordering. Everything else —
+            # role, password, contact, flags — is still refreshed.
+            sticky = {"company_id", "project_id", "district_id", "city_id",
+                      "zone_id", "ward_id"}
             for field, value in defaults.items():
+                if field in sticky:
+                    continue
                 setattr(staff, field, value)
             staff.save()
 

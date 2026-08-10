@@ -29,6 +29,10 @@ APP_SURFACE_CONFIG = {
         "label": "Driver",
         "route": "/driver/home",
     },
+    "supervisor": {
+        "label": "Supervisor",
+        "route": "/supervisor/home",
+    },
     "admin": {
         "label": "Admin",
         "route": "/admin/home",
@@ -356,7 +360,11 @@ def infer_app_surfaces(module_access, permissions, role_name=None, user_type=Non
         surface_keys.append("driver")
     elif "operator" in role_key:
         surface_keys.append("operator")
-    elif any(token in role_key for token in ("admin", "superadmin", "supervisor", "platform")):
+    # Supervisor must be checked BEFORE the admin bucket: the supervisor app
+    # (module5_supervisor) is its own surface, not the admin dashboard.
+    elif "supervisor" in role_key:
+        surface_keys.append("supervisor")
+    elif any(token in role_key for token in ("admin", "superadmin", "platform")):
         surface_keys.append("admin")
     elif module_keys & {
         "screen-managements",
@@ -533,10 +541,170 @@ def permission_querysets(
     return action_queryset, column_queryset
 
 
+# ============================================================
+# ROLE DEFAULT PERMISSIONS
+# ============================================================
+# Baseline read-only grants for mobile-app roles that have no explicit
+# StaffAccessConfiguration rows. These MUST live here (not only in the login
+# serializer) because ModulePermissionMiddleware authorizes every subsequent
+# request through resolve_permission_payload() — if the defaults were applied
+# only at login, the app would receive permissions it then gets 403s against.
+ROLE_DEFAULT_PERMISSIONS = {
+    # Driver ("captain") — the driver and operator apps are merged, so this
+    # role also drives trips end to end: read its own assignments/stops and
+    # write collection progress. The operator-mobile/* scan endpoints are
+    # permission-exempt, but the driver screens also hit these directly
+    # (assignment detail, complete/skip, collection logs, household status).
+    "driver": {
+        "customers": {
+            "customercreations": ["view"],
+        },
+        "user-creations": {
+            "alternative-stafftemplate": ["view"],
+        },
+        "schedule-operations": {
+            "daily-trip-assignments": ["view", "edit"],
+            "daily-trip-collection-points": ["view", "edit"],
+            "daily-trip-household-collections": ["view", "edit"],
+            "bin-collection-events": ["view", "add"],
+            "daily-trip-logs": ["view", "add", "edit"],
+            "vehicle-breakdowns": ["view", "add"],
+            "staff-notifications": ["view", "edit"],
+            # Read-only: the driver app shows its own Re-Trip request's
+            # status while a supervisor decides it, but never approves/
+            # rejects/creates one directly — that's all via retrip_service.
+            "retrip-requests": ["view"],
+        },
+        "schedule-setup": {
+            "collection-points": ["view"],
+        },
+        # The trip header shows the assigned vehicle, and the breakdown flow
+        # reads the vehicle detail before reporting against it.
+        "transport-masters": {
+            "vehicle-creation": ["view"],
+            "vehicle-type": ["view"],
+        },
+    },
+    "operator": {
+        "customers": {
+            "customercreations": ["view"],
+        },
+        "user-creations": {
+            "alternative-stafftemplate": ["view"],
+        },
+        "schedule-operations": {
+            "daily-trip-assignments": ["view", "edit"],
+            "daily-trip-collection-points": ["view", "edit"],
+            "daily-trip-household-collections": ["view", "edit"],
+            "bin-collection-events": ["view", "add"],
+            "daily-trip-logs": ["view", "add", "edit"],
+            "vehicle-breakdowns": ["view", "add"],
+            "staff-notifications": ["view", "edit"],
+            "retrip-requests": ["view"],
+        },
+        "schedule-setup": {
+            "collection-points": ["view"],
+        },
+        # The trip header shows the assigned vehicle, and the breakdown flow
+        # reads the vehicle detail before reporting against it.
+        "transport-masters": {
+            "vehicle-creation": ["view"],
+            "vehicle-type": ["view"],
+        },
+    },
+    # Backs the supervisor app (module5_supervisor): assignments/trip logs
+    # for the home + trips screens, staff + templates for the crew/teams
+    # screens, collection points and customers for the households screen,
+    # grievance tickets for the supervisor grievance view.
+    "supervisor": {
+        "schedule-operations": {
+            "daily-trip-assignments": ["view"],
+            "daily-trip-logs": ["view"],
+            "daily-trip-collection-points": ["view"],
+            "daily-trip-household-collections": ["view"],
+            "vehicle-breakdowns": ["view", "edit"],
+            "staff-notifications": ["view", "edit"],
+            "bin-collection-events": ["view"],
+            # Reviews Re-Trip requests via the approve/reject actions —
+            # both POST, so the middleware's HTTP_ACTION_MAP scores them as
+            # "add", not "edit"; create/update/destroy stay disabled in the
+            # viewset itself so nothing else can write here.
+            "retrip-requests": ["view", "add"],
+        },
+        "schedule-setup": {
+            "staff-templates": ["view"],
+            "alternative-staff-templates": ["view"],
+            "collection-points": ["view"],
+            "trip-plans": ["view"],
+        },
+        "user-creations": {
+            "staffcreation": ["view"],
+        },
+        "customers": {
+            "customercreations": ["view"],
+        },
+        "transport-masters": {
+            "vehicle-creation": ["view"],
+        },
+        "complaint-ticket": {
+            # Every ticket action (resolve/escalate/assign/comments/
+            # attachments/reopen/feedback/status) is a POST, so the
+            # middleware's HTTP_ACTION_MAP scores them "add", not "edit" —
+            # a plain PATCH/PUT on the ticket resource itself is the only
+            # thing "edit" actually gates here.
+            "grievance-tickets": ["view", "edit", "add"],
+            "tickets": ["view", "edit", "add"],
+        },
+    },
+}
+
+
+def role_default_permissions(role_name):
+    """Baseline permissions for a role, or {} when the role has none.
+
+    Roles are stored as display names ("Company Supervisor", "Company
+    Driver"), so match on the significant token rather than an exact key.
+    """
+    if not role_name:
+        return {}
+
+    normalized = str(role_name).strip().lower()
+    defaults = ROLE_DEFAULT_PERMISSIONS.get(normalized)
+    if defaults is None:
+        for key, value in ROLE_DEFAULT_PERMISSIONS.items():
+            if key in normalized:
+                defaults = value
+                break
+    return defaults or {}
+
+
+def apply_role_defaults(permissions, role_name):
+    """Merge a role's baseline grants into `permissions` (non-destructive:
+    explicitly granted actions always win / are preserved)."""
+    defaults = role_default_permissions(role_name)
+    if not defaults:
+        return permissions
+
+    permissions = permissions or {}
+    for module_name, screens in defaults.items():
+        module_perms = permissions.setdefault(module_name, {})
+        for screen_name, actions in screens.items():
+            existing = set(module_perms.get(screen_name, []))
+            module_perms[screen_name] = sorted(existing.union(actions))
+    return permissions
+
+
 def resolve_permission_payload(**filters):
     action_queryset, column_queryset = permission_querysets(**filters)
+    permissions = build_action_permissions(action_queryset)
+
+    # Fall back to role baselines only when the staff member has no explicit
+    # grants at all, so configured permissions are never silently widened.
+    if not permissions:
+        permissions = apply_role_defaults(permissions, filters.get("role_name"))
+
     payload = {
-        "permissions": build_action_permissions(action_queryset),
+        "permissions": permissions,
         "permission_details": build_permission_details(action_queryset, column_queryset),
         "column_permissions": build_column_permissions(column_queryset),
         "module_access": build_module_access(action_queryset, column_queryset),

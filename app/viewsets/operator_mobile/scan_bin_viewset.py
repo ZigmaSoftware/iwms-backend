@@ -1,12 +1,14 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 
 from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.schedule_masters.daily_trip_collection_point import (
+    DailyTripCollectionPoint,
+)
 from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.permissions.operator_permission import IsOperatorRole
 from app.serializers.operator_mobile.scan_serializers import (
@@ -15,8 +17,8 @@ from app.serializers.operator_mobile.scan_serializers import (
 from app.viewsets.operator_mobile.helpers import (
     OperatorFlowError,
     build_scan_context,
-    maybe_resolve_driver,
     progress_payload,
+    require_trip_started,
     resolve_operator_staff,
     serialize_assignment_brief,
     serialize_bin_brief,
@@ -44,9 +46,15 @@ class ScanBinViewSet(viewsets.ViewSet):
                 status=exc.http_status,
             )
 
-        weight = payload["weight_kg"]
+        action = payload["action"]
+        weight = payload.get("weight_kg")
         vehicle = ctx.assignment.vehicle_id
-        if vehicle and vehicle.capacity and Decimal(weight) > Decimal(vehicle.capacity):
+        if (
+            action == ScanBinRequestSerializer.ACTION_COLLECT
+            and vehicle
+            and vehicle.capacity
+            and Decimal(weight) > Decimal(vehicle.capacity)
+        ):
             return Response(
                 {
                     "code": "WEIGHT_EXCEEDS_CAPACITY",
@@ -60,30 +68,45 @@ class ScanBinViewSet(viewsets.ViewSet):
 
         try:
             with transaction.atomic():
-                self._ensure_assignment_in_progress(ctx.assignment)
+                # Driver must have pressed "Start Trip" first — see
+                # trip_lifecycle_viewset.py. Replaces the old implicit
+                # auto-start-on-first-scan behaviour.
+                require_trip_started(ctx.assignment)
 
-                ctx.trip_cp.mark_collected(
-                    weight_kg=weight,
-                    collected_by=operator,
-                )
+                if action == ScanBinRequestSerializer.ACTION_COLLECT:
+                    ctx.trip_cp.mark_collected(
+                        weight_kg=weight,
+                        collected_by=operator,
+                    )
+                    event_status = BinCollectionEvent.STATUS_COLLECTED
+                    event_weight = weight
+                    status_reason = None
+                else:
+                    if action == ScanBinRequestSerializer.ACTION_COLLECT_LATER:
+                        cp_status = DailyTripCollectionPoint.STATUS_SKIPPED
+                        event_status = BinCollectionEvent.STATUS_COLLECT_LATER
+                    else:
+                        cp_status = DailyTripCollectionPoint.STATUS_MISSED
+                        event_status = BinCollectionEvent.STATUS_NOT_COLLECTED
 
-                event = BinCollectionEvent.objects.create(
-                    company_id=ctx.assignment.company_id,
-                    project_id=ctx.assignment.project_id,
-                    trip_assignment_id=ctx.assignment,
-                    trip_collection_point_id=ctx.trip_cp,
-                    collection_point_id=ctx.bin.collection_point_id,
-                    bin_id=ctx.bin,
-                    panchayat_id=ctx.assignment.panchayat_id,
-                    waste_type_id=ctx.assignment.waste_type_id,
-                    vehicle_id=ctx.assignment.vehicle_id,
-                    operator_id=operator,
-                    driver_id=maybe_resolve_driver(ctx.assignment),
-                    collected_weight_kg=weight,
-                    scanned_qr=payload["bin_qr"],
+                    status_reason = payload["status_reason"]
+                    ctx.trip_cp.mark_status(
+                        status=cp_status,
+                        reason=status_reason,
+                        latitude=payload.get("latitude"),
+                        longitude=payload.get("longitude"),
+                    )
+                    event_weight = Decimal("0.00")
+
+                event = self._create_event(
+                    ctx=ctx,
+                    action=action,
+                    event_status=event_status,
+                    weight=event_weight,
                     latitude=payload.get("latitude"),
                     longitude=payload.get("longitude"),
                     notes=payload.get("notes"),
+                    status_reason=status_reason,
                 )
 
                 ctx.assignment.refresh_from_db()
@@ -100,31 +123,59 @@ class ScanBinViewSet(viewsets.ViewSet):
 
         return Response(
             {
-                "bin": serialize_bin_brief(ctx.bin),
+                "bin": serialize_bin_brief(ctx.bin, request=request),
                 "collection_point": serialize_cp_brief(ctx.bin.collection_point_id),
                 "trip_collection_point": serialize_trip_cp_brief(ctx.trip_cp),
                 "assignment": serialize_assignment_brief(ctx.assignment),
                 "trip_progress": progress,
                 "event": {
                     "unique_id": event.unique_id,
-                    "event_at": event.event_at.isoformat(),
+                    "event_at": event.created_at.isoformat(),
+                    "event_type": event.status,
                     "collected_weight_kg": str(event.collected_weight_kg),
+                    "status_reason": event.status_reason,
                 },
             },
             status=status.HTTP_201_CREATED,
         )
 
-    def _ensure_assignment_in_progress(self, assignment: DailyTripAssignment):
-        if assignment.status in (
-            DailyTripAssignment.STATUS_SCHEDULED,
-        ):
-            now = timezone.localtime().time()
-            assignment.status = DailyTripAssignment.STATUS_IN_PROGRESS
-            update_fields = ["status", "updated_at"]
-            if not assignment.actual_start_time:
-                assignment.actual_start_time = now
-                update_fields.append("actual_start_time")
-            assignment.save(update_fields=update_fields)
+    def _create_event(
+        self,
+        *,
+        ctx,
+        action,
+        event_status,
+        weight,
+        latitude,
+        longitude,
+        notes,
+        status_reason,
+    ):
+        event_notes = notes
+        if action != ScanBinRequestSerializer.ACTION_COLLECT and not event_notes:
+            event_notes = status_reason
+
+        ward = ctx.assignment.wards.first()
+        return BinCollectionEvent.objects.create(
+            company_id=ctx.assignment.company_id,
+            project_id=ctx.assignment.project_id,
+            trip_assignment_id=ctx.assignment,
+            trip_collection_point_id=ctx.trip_cp,
+            collection_point_id=ctx.bin.collection_point_id,
+            bin_id=ctx.bin,
+            # Nullable: zone/ward-scoped trips carry no panchayat.
+            panchayat_id=ctx.assignment.panchayat_id,
+            ward_id=ward,
+            zone_id=getattr(ward, "zone_id", None),
+            waste_type_id=ctx.bin.wastetype_id,
+            vehicle_id=ctx.assignment.vehicle_id,
+            status=event_status,
+            status_reason=status_reason,
+            collected_weight_kg=weight,
+            driver_latitude=latitude,
+            driver_longitude=longitude,
+            notes=event_notes,
+        )
 
     def _upsert_trip_log(self, assignment: DailyTripAssignment, operator):
         children = assignment.trip_collection_points.filter(is_deleted=False)
@@ -133,13 +184,29 @@ class ScanBinViewSet(viewsets.ViewSet):
         )
 
         existing = DailyTripLog.objects.filter(trip_assignment_id=assignment).first()
+        log_status = (
+            DailyTripLog.LOG_STATUS_SUBMITTED
+            if total_weight > 0
+            else DailyTripLog.LOG_STATUS_DRAFT
+        )
+        remarks = (
+            "Auto-generated from operator-mobile completion."
+            if total_weight > 0
+            else "Auto-generated from operator-mobile completion; no collected bin weight."
+        )
         if existing:
+            # A verified log is read-only; don't fail the scan trying to update it.
+            if existing.log_status == DailyTripLog.LOG_STATUS_VERIFIED:
+                return
             existing.collected_weight_kg = total_weight
+            existing.log_status = log_status
+            existing.remarks = existing.remarks or remarks
             existing.save()
             return
 
         DailyTripLog.objects.create(
             trip_assignment_id=assignment,
             collected_weight_kg=total_weight,
-            remarks="Auto-generated from operator-mobile completion.",
+            log_status=log_status,
+            remarks=remarks,
         )
