@@ -160,7 +160,12 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
             if company_id_param and hasattr(queryset.model, "company_id"):
                 queryset = queryset.filter(company_id=company_id_param)
             if project_id_param and hasattr(queryset.model, "project_id"):
-                queryset = queryset.filter(project_id=project_id_param)
+                # "none" is the sentinel used by the frontend for company-wide
+                # (no-project) records, since a URL/query value can't be empty.
+                if project_id_param == "none":
+                    queryset = queryset.filter(project_id__isnull=True)
+                else:
+                    queryset = queryset.filter(project_id=project_id_param)
             return queryset
 
         company = self._company()

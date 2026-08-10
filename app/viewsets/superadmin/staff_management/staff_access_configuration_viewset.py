@@ -93,23 +93,21 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if len(project_ids) == 1 and "," in project_ids[0]:
             project_ids = [p.strip() for p in project_ids[0].split(",") if p.strip()]
 
-        # No project_id given => company-wide (every project under the
-        # company), matching the "company only mandatory" scope semantics.
-        if not project_ids:
-            from app.models.superadmin_masters.project import Project
-            project_ids = list(
-                Project.objects.filter(company_id_id=company.unique_id, is_deleted=False)
-                .order_by("name")
-                .values_list("unique_id", flat=True)
-            )
-
-        rows = CompanyUserScreenPermission.objects.filter(
+        base_qs = CompanyUserScreenPermission.objects.filter(
             company_id_id=company.unique_id,
-            project_id_id__in=project_ids,
             permission_type="screen",
             is_deleted=False,
             is_active=True,
-        ).exclude(
+        )
+
+        # No project_id given => company-level permissions only (rows
+        # granted directly at the company, not tied to any project).
+        if not project_ids:
+            rows = base_qs.filter(project_id__isnull=True)
+        else:
+            rows = base_qs.filter(project_id_id__in=project_ids)
+
+        rows = rows.exclude(
             Q(userscreenaction_id__action_name__iexact="show")
             | Q(userscreenaction_id__variable_name__iexact="show")
         ).select_related(
@@ -121,13 +119,15 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         # Grouped per project (each project's catalog shown as its own
         # section), rather than merged into one flat list — a screen/action
         # enabled differently across projects would otherwise collide.
+        # Company-level rows (project_id is null) are grouped under a single
+        # "company-wide" pseudo-project entry.
         project_map = {}
         for perm in rows:
             project_entry = project_map.setdefault(
                 perm.project_id_id,
                 {
                     "projectId": perm.project_id_id,
-                    "projectName": perm.project_id.name,
+                    "projectName": perm.project_id.name if perm.project_id_id else "Company-Wide",
                     "mainscreens": {},
                 },
             )

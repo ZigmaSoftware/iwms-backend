@@ -320,11 +320,11 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         assignment = obj.trip_assignment_id
         if not assignment:
             return []
-        rows = bulk_waste_type_rows_for_trip_assignments([assignment.pk])
+        rows = bulk_waste_type_rows_for_trip_assignments([assignment.unique_id], source="all")
         return [
             {
                 "waste_type_name": row["waste_type_name"],
-                "collected_weight_kg": str(row["collected_weight_kg"]),
+                "collected_weight_kg": str(row["weight_kg"]),
             }
             for row in rows
         ]

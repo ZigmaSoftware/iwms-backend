@@ -174,7 +174,6 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if not children.exists():
             return
 
-        all_collected = not children.filter(is_collected=False).exists()
         total_weight = children.aggregate(total=Sum("collected_weight_kg"))["total"] or 0
         vehicle_capacity = getattr(getattr(assignment, "vehicle_id", None), "capacity", None)
         trip_capacity = getattr(getattr(assignment, "trip_plan_id", None), "max_vehicle_capacity_kg", None)
@@ -186,11 +185,6 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
         # Always store the real weight so the log appears in waste comparison reports.
         # Over-capacity trips are flagged in remarks for operator review.
-        log_status = (
-            DailyTripLog.LOG_STATUS_SUBMITTED
-            if all_collected and total_weight
-            else DailyTripLog.LOG_STATUS_DRAFT
-        )
         remarks = (
             "Auto-generated from daily trip collection points; total weight exceeds capacity."
             if exceeds_capacity
@@ -201,7 +195,6 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             trip_assignment_id=assignment,
             defaults={
                 "collected_weight_kg": total_weight,
-                "log_status": log_status,
                 "remarks": remarks,
             },
         )
@@ -213,7 +206,6 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         # the weight against collection points recorded/updated afterwards.
         log.collected_weight_kg = total_weight
         if log.log_status != DailyTripLog.LOG_STATUS_VERIFIED:
-            log.log_status = log_status
             log.remarks = log.remarks or remarks
         log.save()
 
