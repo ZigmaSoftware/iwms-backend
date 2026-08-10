@@ -39,10 +39,10 @@ class DailyTripLogSeeder(BaseSeeder):
             self.log("DailyTripLogSeeder skipped (no daily trip assignments).")
             return
 
-        # Comparison dashboards intentionally read confirmed logs only. Seed
-        # Submitted/Verified rows so all 30 fixtures are visible there.
+        # Waste comparison reports show every trip log regardless of status,
+        # so mix Unverified/Verified rows to demonstrate both states.
         statuses = [
-            DailyTripLog.LOG_STATUS_SUBMITTED,
+            DailyTripLog.LOG_STATUS_UNVERIFIED,
             DailyTripLog.LOG_STATUS_VERIFIED,
         ]
         verifier = Account.objects.first()
@@ -61,9 +61,6 @@ class DailyTripLogSeeder(BaseSeeder):
                 trip_assignment_id=assignment, is_deleted=False
             ).first()
             if existing_log:
-                if existing_log.log_status == DailyTripLog.LOG_STATUS_DRAFT:
-                    existing_log.log_status = DailyTripLog.LOG_STATUS_SUBMITTED
-                    existing_log.save(update_fields=["log_status", "updated_at"])
                 skipped += 1
                 continue
 
