@@ -41,8 +41,18 @@ class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):
                 pass
 
         panchayat_ids = _comma_values(request.query_params.get("panchayat_id"))
-        if panchayat_ids:
-            queryset = queryset.filter(panchayat_id_id__in=panchayat_ids)
+        zone_ids = _comma_values(request.query_params.get("zone_id"))
+        # Panchayat and zone selections combine with OR — see
+        # DailyWasteComparisonViewSet.list for why.
+        if panchayat_ids or zone_ids:
+            from django.db.models import Q
+
+            location_filter = Q()
+            if panchayat_ids:
+                location_filter |= Q(panchayat_id_id__in=panchayat_ids)
+            if zone_ids:
+                location_filter |= Q(zone_id_id__in=zone_ids)
+            queryset = queryset.filter(location_filter)
 
         waste_type_id = request.query_params.get("waste_type_id")
         if waste_type_id:
@@ -59,6 +69,7 @@ class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):
             company_id=request.query_params.get("company_id"),
             project_id=request.query_params.get("project_id"),
             panchayat_ids=panchayat_ids or None,
+            zone_ids=zone_ids or None,
             date_filter=date_filter,
         )
         return Response(payload)
