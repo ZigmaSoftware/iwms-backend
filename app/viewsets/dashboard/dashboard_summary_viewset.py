@@ -327,7 +327,7 @@ class DashboardSummaryViewSet(ViewSet):
         total = household_total + bin_total
 
         master_rows = list(
-            WasteType.objects.filter(is_deleted=False, is_active=True)
+            self._scoped(WasteType.objects.filter(is_deleted=False, is_active=True), self._no_ward(ctx))
             .order_by("waste_type_name", "unique_id")
             .values("unique_id", "waste_type_name")
         )

@@ -48,6 +48,11 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         read_only=True
     )
 
+    is_assigned_today = serializers.SerializerMethodField()
+
+    def get_is_assigned_today(self, obj):
+        return bool(getattr(obj, "is_assigned_today", False))
+
     class Meta:
         model = StaffTemplate
         fields = [
@@ -72,10 +77,10 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "staffusertype_name",
 
             "created_by",
-            
+
 
             "updated_by",
-        
+
 
             "status",
 
@@ -83,6 +88,7 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "updated_at",
             "is_active",
             "is_deleted",
+            "is_assigned_today",
         ]
 
         read_only_fields = [

@@ -33,8 +33,6 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     ward_id = UniqueIdOrPkField(
         slug_field="unique_id",
         queryset=Ward.objects.filter(is_deleted=False),
-        required=False,
-        allow_null=True,
     )
     ward_name = serializers.CharField(source="ward_id.ward_name", read_only=True)
 
