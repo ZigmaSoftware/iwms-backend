@@ -1,4 +1,6 @@
 
+from django.db.models import Exists, OuterRef
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
@@ -7,8 +9,9 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 
 from app.models.user_creations.staffcreation import Staffcreation
 from app.models.schedule_masters.staff_template import StaffTemplate
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.audits.staff_template_audit_log import StaffTemplateAuditLog
-from app.utils.base_models import Account 
+from app.utils.base_models import Account
 
 from app.serializers.core_modules.schedule_setup.staff_template_serializer import (
     StaffTemplateSerializer
@@ -48,6 +51,17 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if status_param:
             qs = qs.filter(status=status_param)
 
+        busy_today = DailyTripAssignment.objects.filter(
+            staff_template_id=OuterRef("pk"),
+            trip_date=timezone.localdate(),
+            is_deleted=False,
+        ).exclude(
+            status__in=[
+                DailyTripAssignment.STATUS_CANCELLED,
+                DailyTripAssignment.STATUS_COMPLETED,
+            ]
+        )
+
         return qs.select_related(
             "driver_id",
             "operator_id",
@@ -55,7 +69,7 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             "updated_by",
             "company_id",
             "project_id",
-        )
+        ).annotate(is_assigned_today=Exists(busy_today))
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
