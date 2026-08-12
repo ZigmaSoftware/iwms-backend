@@ -106,6 +106,51 @@ class BluePlanetSeeder(BaseSeeder):
         ],
     }
 
+    # Real-world-approximate boundary polygons for named localities within
+    # Greater Noida and Palakkad — hand-picked to correspond to genuine
+    # areas on the map (not a synthetic box around wherever seeded assets
+    # happened to land). Connected in order to draw the geofence polygon.
+    WARD_REAL_BOUNDARIES = {
+        "GNO Ward 1": [  # Alpha 1 / Alpha 2 sector block, Greater Noida
+            {"latitude": 28.4720, "longitude": 77.5145},
+            {"latitude": 28.4718, "longitude": 77.5245},
+            {"latitude": 28.4635, "longitude": 77.5248},
+            {"latitude": 28.4610, "longitude": 77.5180},
+            {"latitude": 28.4640, "longitude": 77.5130},
+        ],
+        "GNO Ward 2": [  # Knowledge Park III block, Greater Noida
+            {"latitude": 28.4790, "longitude": 77.4890},
+            {"latitude": 28.4795, "longitude": 77.5010},
+            {"latitude": 28.4715, "longitude": 77.5015},
+            {"latitude": 28.4705, "longitude": 77.4905},
+        ],
+        "GNO Ward 3": [  # Pari Chowk / Surajpur block, Greater Noida
+            {"latitude": 28.4930, "longitude": 77.5090},
+            {"latitude": 28.4935, "longitude": 77.5205},
+            {"latitude": 28.4805, "longitude": 77.5210},
+            {"latitude": 28.4800, "longitude": 77.5095},
+        ],
+        "PAL Ward 1": [  # Kalpathy block, Palakkad
+            {"latitude": 10.7920, "longitude": 76.6540},
+            {"latitude": 10.7925, "longitude": 76.6650},
+            {"latitude": 10.7810, "longitude": 76.6655},
+            {"latitude": 10.7770, "longitude": 76.6580},
+            {"latitude": 10.7820, "longitude": 76.6520},
+        ],
+        "PAL Ward 2": [  # Olavakkode block, Palakkad
+            {"latitude": 10.7700, "longitude": 76.6350},
+            {"latitude": 10.7705, "longitude": 76.6460},
+            {"latitude": 10.7595, "longitude": 76.6465},
+            {"latitude": 10.7590, "longitude": 76.6355},
+        ],
+        "PAL Ward 3": [  # Town center / Palakkad Fort area
+            {"latitude": 10.7810, "longitude": 76.6600},
+            {"latitude": 10.7815, "longitude": 76.6710},
+            {"latitude": 10.7700, "longitude": 76.6715},
+            {"latitude": 10.7695, "longitude": 76.6605},
+        ],
+    }
+
     # (main_category, sub_category, category, priority, status, details)
     COMPLAINT_DATA = [
         ("Missed Collection", "Bin not collected", Complaint.CategoryChoices.COLLECTION, Complaint.PriorityChoices.HIGH, Complaint.StatusChoices.PROGRESSING, "Bin was not collected on the scheduled day."),
@@ -615,6 +660,8 @@ class BluePlanetSeeder(BaseSeeder):
             },
         )
 
+        self._finalize_ward_boundaries(wards, bins, customers)
+
         return {
             "district": district,
             "city": city,
@@ -628,6 +675,118 @@ class BluePlanetSeeder(BaseSeeder):
             "customers": customers,
             "complaints": complaints,
         }
+
+    @staticmethod
+    def _point_in_polygon(lat, lon, coords):
+        n = len(coords)
+        inside = False
+        j = n - 1
+        for i in range(n):
+            lat_i, lon_i = coords[i]["latitude"], coords[i]["longitude"]
+            lat_j, lon_j = coords[j]["latitude"], coords[j]["longitude"]
+            if (lon_i > lon) != (lon_j > lon):
+                x = (lat_j - lat_i) * (lon - lon_i) / (lon_j - lon_i) + lat_i
+                if lat < x:
+                    inside = not inside
+            j = i
+        return inside
+
+    @staticmethod
+    def _polygon_centroid(coords):
+        lats = [p["latitude"] for p in coords]
+        lons = [p["longitude"] for p in coords]
+        return sum(lats) / len(lats), sum(lons) / len(lons)
+
+    def _finalize_ward_boundaries(self, wards, bins, customers, padding=0.0015):
+        """Give every ward a boundary_coordinates polygon so the dashboard's
+        ward-geofence overlay has something to draw.
+
+        Prefers a real-world locality boundary from WARD_REAL_BOUNDARIES
+        (hand-picked to correspond to genuine named areas within Greater
+        Noida/Palakkad) when one is defined for this ward's name. Falls
+        back to a bounding box around the ward's own bins/customers when
+        no real boundary is on file.
+
+        Either way, any bin/collection-point/customer belonging to the
+        ward that ends up outside the chosen polygon is nudged to a point
+        inside it (scattered around the polygon's centroid) — otherwise a
+        real-world-shaped ward could easily exclude assets that were
+        seeded independently around the ward's plain center point.
+        """
+        for ward in wards:
+            real_boundary = self.WARD_REAL_BOUNDARIES.get(ward.ward_name)
+            if real_boundary:
+                ward.boundary_coordinates = real_boundary
+                center_lat, center_lon = self._polygon_centroid(real_boundary)
+                ward.latitude = round(center_lat, 6)
+                ward.longitude = round(center_lon, 6)
+                ward.save(update_fields=["boundary_coordinates", "latitude", "longitude"])
+            else:
+                points = [
+                    (float(bin_obj.latitude), float(bin_obj.longitude))
+                    for bin_obj in bins
+                    if bin_obj.ward_id_id == ward.unique_id
+                    and bin_obj.latitude is not None
+                    and bin_obj.longitude is not None
+                ]
+                points += [
+                    (float(customer.latitude), float(customer.longitude))
+                    for customer in customers
+                    if customer.ward_id == ward.unique_id
+                    and customer.latitude
+                    and customer.longitude
+                ]
+                if ward.latitude is not None and ward.longitude is not None:
+                    points.append((float(ward.latitude), float(ward.longitude)))
+                if not points:
+                    continue
+
+                lats = [p[0] for p in points]
+                lons = [p[1] for p in points]
+                min_lat, max_lat = min(lats) - padding, max(lats) + padding
+                min_lon, max_lon = min(lons) - padding, max(lons) + padding
+
+                ward.boundary_coordinates = [
+                    {"latitude": max_lat, "longitude": min_lon},
+                    {"latitude": max_lat, "longitude": max_lon},
+                    {"latitude": min_lat, "longitude": max_lon},
+                    {"latitude": min_lat, "longitude": min_lon},
+                ]
+                ward.save(update_fields=["boundary_coordinates"])
+                continue
+
+            # Nudge any out-of-boundary asset into the real polygon so
+            # markers never render outside their own ward's geofence.
+            coords = ward.boundary_coordinates
+            nudge_idx = 0
+            for bin_obj in bins:
+                if bin_obj.ward_id_id != ward.unique_id or bin_obj.latitude is None:
+                    continue
+                lat, lon = float(bin_obj.latitude), float(bin_obj.longitude)
+                if self._point_in_polygon(lat, lon, coords):
+                    continue
+                new_lat, new_lon = _scatter(center_lat, center_lon, nudge_idx, spread=0.003)
+                nudge_idx += 1
+                bin_obj.latitude = round(new_lat, 6)
+                bin_obj.longitude = round(new_lon, 6)
+                bin_obj.save(update_fields=["latitude", "longitude"])
+                cp = bin_obj.collection_point_id
+                if cp and not self._point_in_polygon(float(cp.latitude), float(cp.longitude), coords):
+                    cp.latitude = bin_obj.latitude
+                    cp.longitude = bin_obj.longitude
+                    cp.save(update_fields=["latitude", "longitude"])
+
+            for customer in customers:
+                if customer.ward_id != ward.unique_id or not customer.latitude:
+                    continue
+                lat, lon = float(customer.latitude), float(customer.longitude)
+                if self._point_in_polygon(lat, lon, coords):
+                    continue
+                new_lat, new_lon = _scatter(center_lat, center_lon, nudge_idx + 50, spread=0.003)
+                nudge_idx += 1
+                customer.latitude = f"{new_lat:.6f}"
+                customer.longitude = f"{new_lon:.6f}"
+                customer.save(update_fields=["latitude", "longitude"])
 
     def run(self):
         company, company_created = Company.objects.update_or_create(
