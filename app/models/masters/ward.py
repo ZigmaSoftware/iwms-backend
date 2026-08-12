@@ -69,6 +69,17 @@ class Ward(BaseMaster):
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     geofencing_type = models.CharField(max_length=20, choices=GeoFencingType.choices, default=GeoFencingType.SQUARE)
+    boundary_coordinates = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Ordered list of {latitude, longitude} points tracing this "
+            "ward's boundary. Connected in order (and back to the first "
+            "point) to draw the geofence polygon on the map. Needs at "
+            "least 3 points to render — fewer than that is treated as "
+            "'no boundary set' and only the center point is shown."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -81,6 +92,19 @@ class Ward(BaseMaster):
 
         if not has_zone and not has_panchayat:
             raise ValidationError("Ward must belong to Zone or Panchayat.")
+
+        if self.boundary_coordinates is not None:
+            if not isinstance(self.boundary_coordinates, list):
+                raise ValidationError("boundary_coordinates must be a list of points.")
+            for point in self.boundary_coordinates:
+                if (
+                    not isinstance(point, dict)
+                    or "latitude" not in point
+                    or "longitude" not in point
+                ):
+                    raise ValidationError(
+                        "Each boundary_coordinates point needs latitude and longitude."
+                    )
 
     def __str__(self):
         if self.zone_id:
