@@ -44,6 +44,8 @@ Re-running replaces each plan's stop set wholesale (clears then rebuilds) so
 a plan always ends up with exactly its 10 CPs, never a growing/mixed pile.
 """
 
+import math
+
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
@@ -76,32 +78,30 @@ SUPERVISOR_USERNAME = "supervisor_user"
 WET_PLAN_DISPLAY_CODE = "DRIVERUSER-PAL-WETBIN-01"
 DRY_PLAN_DISPLAY_CODE = "DRIVERUSER-PAL-DRYBIN-01"
 
-# 10 Wet Waste collection points.
+def _scatter(base_lat, base_lon, index, spread=0.012):
+    """Deterministic pseudo-random offset around an anchor point, so seeded
+    collection points land scattered across real streets on a map instead
+    of walking in a single straight line (a fixed per-index increment
+    produces exactly that — a line of pins)."""
+    angle = (index * 137.508) % 360  # golden-angle spacing — avoids clustering
+    radius = spread * (0.35 + 0.65 * ((index * 0.618) % 1))
+    d_lat = radius * math.cos(math.radians(angle))
+    d_lon = radius * math.sin(math.radians(angle))
+    return f"{base_lat + d_lat:.6f}", f"{base_lon + d_lon:.6f}"
+
+
+# 10 Wet Waste collection points, scattered around central Palakkad.
 WET_POINTS = [
-    ("CP-PAL-WETBIN-01", "10.7897", "76.6578"),
-    ("CP-PAL-WETBIN-02", "10.7901", "76.6582"),
-    ("CP-PAL-WETBIN-03", "10.7905", "76.6586"),
-    ("CP-PAL-WETBIN-04", "10.7909", "76.6590"),
-    ("CP-PAL-WETBIN-05", "10.7913", "76.6594"),
-    ("CP-PAL-WETBIN-06", "10.7917", "76.6598"),
-    ("CP-PAL-WETBIN-07", "10.7921", "76.6602"),
-    ("CP-PAL-WETBIN-08", "10.7925", "76.6606"),
-    ("CP-PAL-WETBIN-09", "10.7929", "76.6610"),
-    ("CP-PAL-WETBIN-10", "10.7933", "76.6614"),
+    (f"CP-PAL-WETBIN-{idx:02d}", *_scatter(10.7867, 76.6548, idx))
+    for idx in range(1, 11)
 ]
 
-# 10 Dry Waste collection points.
+# 10 Dry Waste collection points, scattered around a nearby Palakkad anchor
+# (offset from the wet-waste anchor so the two waste streams cover
+# different parts of town rather than overlapping).
 DRY_POINTS = [
-    ("CP-PAL-DRYBIN-01", "10.7995", "76.6676"),
-    ("CP-PAL-DRYBIN-02", "10.7999", "76.6680"),
-    ("CP-PAL-DRYBIN-03", "10.8003", "76.6684"),
-    ("CP-PAL-DRYBIN-04", "10.8007", "76.6688"),
-    ("CP-PAL-DRYBIN-05", "10.8011", "76.6692"),
-    ("CP-PAL-DRYBIN-06", "10.8015", "76.6696"),
-    ("CP-PAL-DRYBIN-07", "10.8019", "76.6700"),
-    ("CP-PAL-DRYBIN-08", "10.8023", "76.6704"),
-    ("CP-PAL-DRYBIN-09", "10.8027", "76.6708"),
-    ("CP-PAL-DRYBIN-10", "10.8031", "76.6712"),
+    (f"CP-PAL-DRYBIN-{idx:02d}", *_scatter(10.7950, 76.6650, idx + 20))
+    for idx in range(1, 11)
 ]
 
 

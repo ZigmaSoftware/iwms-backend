@@ -57,6 +57,29 @@ def _period(row, monthly):
     return f"{date.year}-{date.month:02d}" if monthly else str(date)
 
 
+def _location_from_row(row):
+    """Bin-collection trips are panchayat-scoped; household/zone trips carry
+    zone_id instead (DailyTripLog.autofill_from_assignment falls back to the
+    ward's zone when there's no panchayat — see daily_trip_log.py). Reports
+    used to key everything off panchayat_id alone and silently dropped every
+    zone-only row; resolve whichever the row actually has so nothing is lost."""
+    panchayat_id = row.get("panchayat_id")
+    if panchayat_id:
+        return (
+            "panchayat",
+            panchayat_id,
+            row.get("panchayat_id__panchayat_name") or panchayat_id,
+        )
+    zone_id = row.get("zone_id")
+    if zone_id:
+        return (
+            "zone",
+            zone_id,
+            row.get("zone_id__zone_name") or zone_id,
+        )
+    return None
+
+
 def _paginate(rows, page_param, limit_param):
     if page_param is None and limit_param is None:
         return rows
@@ -84,6 +107,7 @@ def build_waste_collection_report(
     company_id=None,
     project_id=None,
     panchayat_ids=None,
+    zone_ids=None,
     date_filter=None,
 ):
     """Build collection analytics without multiplying trip-level metrics."""
@@ -98,6 +122,8 @@ def build_waste_collection_report(
         "project_id__name",
         "panchayat_id",
         "panchayat_id__panchayat_name",
+        "zone_id",
+        "zone_id__zone_name",
     ]
     location_qs = queryset.values(*group_fields).annotate(
         total_actual_weight=Sum(
@@ -112,14 +138,17 @@ def build_waste_collection_report(
 
     locations = {}
     for raw in location_qs:
-        if not raw["panchayat_id"]:
+        location = _location_from_row(raw)
+        if location is None:
             continue
+        location_type, location_id, location_name = location
         period = _period(raw, monthly)
         key = (
             period,
             raw["company_id"],
             raw["project_id"],
-            raw["panchayat_id"],
+            location_type,
+            location_id,
         )
         bucket = locations.setdefault(key, {
             "period": period,
@@ -127,8 +156,12 @@ def build_waste_collection_report(
             "company_name": raw["company_id__name"],
             "project_id": raw["project_id"],
             "project_name": raw["project_id__name"],
-            "panchayat_id": raw["panchayat_id"],
-            "panchayat_name": raw["panchayat_id__panchayat_name"] or raw["panchayat_id"],
+            "local_body_field": location_type,
+            "local_body_type": location_type.capitalize(),
+            "local_body_id": location_id,
+            "local_body_name": location_name,
+            "panchayat_id": location_id if location_type == "panchayat" else None,
+            "panchayat_name": location_name if location_type == "panchayat" else None,
             "weight": ZERO,
             "trips": 0,
             "points": 0,
@@ -145,17 +178,25 @@ def build_waste_collection_report(
             company_id=company_id,
             project_id=project_id,
             panchayat_ids=panchayat_ids,
+            zone_ids=zone_ids,
             date_filter=date_filter,
         ):
-            key = (hh["period"], hh["company_id"], hh["project_id"], hh["panchayat_id"])
+            key = (
+                hh["period"], hh["company_id"], hh["project_id"],
+                hh["local_body_field"], hh["local_body_id"],
+            )
             bucket = locations.setdefault(key, {
                 "period": hh["period"],
                 "company_id": hh["company_id"],
                 "company_name": hh["company_name"],
                 "project_id": hh["project_id"],
                 "project_name": hh["project_name"],
-                "panchayat_id": hh["panchayat_id"],
-                "panchayat_name": hh["panchayat_name"],
+                "local_body_field": hh["local_body_field"],
+                "local_body_type": hh["local_body_field"].capitalize(),
+                "local_body_id": hh["local_body_id"],
+                "local_body_name": hh["local_body_name"],
+                "panchayat_id": hh["local_body_id"] if hh["local_body_field"] == "panchayat" else None,
+                "panchayat_name": hh["local_body_name"] if hh["local_body_field"] == "panchayat" else None,
                 "weight": ZERO,
                 "trips": 0,
                 "points": 0,
@@ -172,6 +213,8 @@ def build_waste_collection_report(
         "project_id__name",
         "panchayat_id",
         "panchayat_id__panchayat_name",
+        "zone_id",
+        "zone_id__zone_name",
         "collection_point_id",
         "collected_weight_kg",
         "household_collected_weight_kg",
@@ -195,8 +238,12 @@ def build_waste_collection_report(
     type_buckets = {}
 
     def add_type_row(info, wt_id, wt_name, weight, assignment_id):
-        if not info or not info["panchayat_id"]:
+        if not info:
             return
+        location = _location_from_row(info)
+        if location is None:
+            return
+        location_type, location_id, location_name = location
         if decimal_value(weight) == ZERO:
             return
         period = _period(info, monthly)
@@ -204,7 +251,8 @@ def build_waste_collection_report(
             period,
             info["company_id"],
             info["project_id"],
-            info["panchayat_id"],
+            location_type,
+            location_id,
             wt_id,
         )
         bucket = type_buckets.setdefault(key, {
@@ -213,8 +261,12 @@ def build_waste_collection_report(
             "company_name": info["company_id__name"],
             "project_id": info["project_id"],
             "project_name": info["project_id__name"],
-            "panchayat_id": info["panchayat_id"],
-            "panchayat_name": info["panchayat_id__panchayat_name"] or info["panchayat_id"],
+            "local_body_field": location_type,
+            "local_body_type": location_type.capitalize(),
+            "local_body_id": location_id,
+            "local_body_name": location_name,
+            "panchayat_id": location_id if location_type == "panchayat" else None,
+            "panchayat_name": location_name if location_type == "panchayat" else None,
             "waste_type_id": wt_id,
             "waste_type": wt_name,
             "weight": ZERO,
@@ -269,11 +321,12 @@ def build_waste_collection_report(
             company_id=company_id,
             project_id=project_id,
             panchayat_ids=panchayat_ids,
+            zone_ids=zone_ids,
             date_filter=date_filter,
         ):
             key = (
                 hh["period"], hh["company_id"], hh["project_id"],
-                hh["panchayat_id"], hh["waste_type_id"],
+                hh["local_body_field"], hh["local_body_id"], hh["waste_type_id"],
             )
             bucket = type_buckets.setdefault(key, {
                 "period": hh["period"],
@@ -281,8 +334,12 @@ def build_waste_collection_report(
                 "company_name": hh["company_name"],
                 "project_id": hh["project_id"],
                 "project_name": hh["project_name"],
-                "panchayat_id": hh["panchayat_id"],
-                "panchayat_name": hh["panchayat_name"],
+                "local_body_field": hh["local_body_field"],
+                "local_body_type": hh["local_body_field"].capitalize(),
+                "local_body_id": hh["local_body_id"],
+                "local_body_name": hh["local_body_name"],
+                "panchayat_id": hh["local_body_id"] if hh["local_body_field"] == "panchayat" else None,
+                "panchayat_name": hh["local_body_name"] if hh["local_body_field"] == "panchayat" else None,
                 "waste_type_id": hh["waste_type_id"],
                 "waste_type": hh["waste_type"],
                 "weight": ZERO,
@@ -292,7 +349,7 @@ def build_waste_collection_report(
             })
             bucket["weight"] += hh["weight"]
             # No trip_assignment_id exists for these rows — count each
-            # (period, panchayat, waste_type) bucket itself as one visit.
+            # (period, location, waste_type) bucket itself as one visit.
             bucket["assignments"].add(key)
 
     rows = []
@@ -306,10 +363,10 @@ def build_waste_collection_report(
             "project_name": bucket["project_name"],
             "panchayat_id": bucket["panchayat_id"],
             "panchayat_name": bucket["panchayat_name"],
-            "local_body_field": "panchayat",
-            "local_body_type": "Panchayat",
-            "local_body_id": bucket["panchayat_id"],
-            "local_body_name": bucket["panchayat_name"],
+            "local_body_field": bucket["local_body_field"],
+            "local_body_type": bucket["local_body_type"],
+            "local_body_id": bucket["local_body_id"],
+            "local_body_name": bucket["local_body_name"],
             "waste_type_id": bucket["waste_type_id"],
             "waste_type": bucket["waste_type"],
             "total_trips": trips,
@@ -318,7 +375,7 @@ def build_waste_collection_report(
         }
         if monthly:
             rows.append({
-                "unique_id": f"MWR-{bucket['period']}-{bucket['panchayat_id']}-{bucket['waste_type_id']}",
+                "unique_id": f"MWR-{bucket['period']}-{bucket['local_body_id']}-{bucket['waste_type_id']}",
                 "month": bucket["period"],
                 "total_actual_weight": float(weight),
                 # Backward-compatible legacy comparison fields.
@@ -333,7 +390,7 @@ def build_waste_collection_report(
         else:
             verification_status = "Verified" if bucket.get("all_verified", True) else "Unverified"
             rows.append({
-                "unique_id": f"DWC-{bucket['period']}-{bucket['panchayat_id']}-{bucket['waste_type_id']}",
+                "unique_id": f"DWC-{bucket['period']}-{bucket['local_body_id']}-{bucket['waste_type_id']}",
                 "collection_date": bucket["period"],
                 "actual_weight_kg": float(weight),
                 # Backward-compatible legacy comparison fields.
@@ -360,10 +417,14 @@ def build_waste_collection_report(
         trend["weight"] += location["weight"]
         trend["trips"] += location["trips"]
         trend["points"] += location["points"]
-        pid = location["panchayat_id"]
-        comparison = comparisons.setdefault(pid, {
-            "panchayat_id": pid,
+        comparison_key = (location["local_body_field"], location["local_body_id"])
+        comparison = comparisons.setdefault(comparison_key, {
+            "panchayat_id": location["panchayat_id"],
             "panchayat_name": location["panchayat_name"],
+            "local_body_field": location["local_body_field"],
+            "local_body_type": location["local_body_type"],
+            "local_body_id": location["local_body_id"],
+            "local_body_name": location["local_body_name"],
             "weight": ZERO,
             "trips": 0,
             "points": 0,
@@ -391,10 +452,10 @@ def build_waste_collection_report(
         comparison_rows.append({
             "panchayat_id": item["panchayat_id"],
             "panchayat_name": item["panchayat_name"],
-            "local_body_field": "panchayat",
-            "local_body_type": "Panchayat",
-            "local_body_id": item["panchayat_id"],
-            "local_body_name": item["panchayat_name"],
+            "local_body_field": item["local_body_field"],
+            "local_body_type": item["local_body_type"],
+            "local_body_id": item["local_body_id"],
+            "local_body_name": item["local_body_name"],
             weight_key: value,
             "total_trips": item["trips"],
             "collection_points_covered": item["points"],
@@ -412,12 +473,12 @@ def build_waste_collection_report(
             "weight": ZERO,
             "trips": 0,
             "points": 0,
-            "panchayats": set(),
+            "locations": set(),
         })
         item["weight"] += decimal_value(row[weight_key])
         item["trips"] += row["total_trips"]
         item["points"] += row["collection_points_covered"]
-        item["panchayats"].add(row["panchayat_id"])
+        item["locations"].add((row["local_body_field"], row["local_body_id"]))
     breakdown_total = sum((item["weight"] for item in breakdown.values()), ZERO)
     breakdown_rows = [{
         "waste_type_id": item["waste_type_id"],
@@ -427,7 +488,8 @@ def build_waste_collection_report(
         "share_percent": float(percent(item["weight"], breakdown_total)),
         "total_trips": item["trips"],
         "collection_points_covered": item["points"],
-        "panchayat_count": len(item["panchayats"]),
+        "panchayat_count": len(item["locations"]),
+        "location_count": len(item["locations"]),
     } for item in breakdown.values()]
     breakdown_rows.sort(key=lambda row: row["actual_weight_kg"], reverse=True)
 

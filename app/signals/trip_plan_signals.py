@@ -243,3 +243,43 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
 
     # 3. Sync household weight onto the log
     log.sync_from_household_collections()
+
+
+@receiver(post_save, sender="app.BinCollectionEvent")
+def sync_bin_collection_on_event_save(sender, instance, **kwargs):
+    """Mirrors sync_household_collection_on_waste_save for the bin-collection
+    side: when a BinCollectionEvent (secondary/bin scan) is saved, find or
+    create the trip's DailyTripLog and sync collected_weight_kg from all
+    BinCollectionEvent rows on that trip.
+
+    Without this, bin-collection trips never produced a DailyTripLog through
+    normal app usage — only household collections had an equivalent signal —
+    so panchayat-based reports (Daily/Monthly Waste Comparison) never saw bin
+    data unless something else (e.g. a seeder) manually created the log.
+    """
+    if not instance.trip_assignment_id_id or instance.is_deleted:
+        return
+
+    from app.models.schedule_masters.daily_trip_log import DailyTripLog
+
+    log = DailyTripLog.objects.filter(
+        trip_assignment_id=instance.trip_assignment_id_id,
+        is_deleted=False,
+    ).first()
+
+    if log is None:
+        try:
+            log = DailyTripLog(
+                trip_assignment_id=instance.trip_assignment_id,
+                remarks="Auto-generated from bin collection events.",
+            )
+            # autofill_from_assignment() and sync_from_bin_collection_events()
+            # are both called inside save().
+            log.save()
+            return
+        except Exception:
+            # If assignment is missing required fields (no staff template,
+            # vehicle, etc.) skip log creation gracefully.
+            return
+
+    log.sync_from_bin_collection_events()

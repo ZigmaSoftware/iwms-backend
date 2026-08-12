@@ -287,6 +287,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "replacement_vehicle_no": getattr(bd.replacement_vehicle_id, "vehicle_no", None),
             "replacement_driver": getattr(bd.replacement_driver_id, "employee_name", None),
             "replacement_operator": getattr(bd.replacement_operator_id, "employee_name", None),
+            "new_assignment_id": getattr(bd.new_assignment, "unique_id", None),
         }
 
     def get_trip_plan(self, obj):
