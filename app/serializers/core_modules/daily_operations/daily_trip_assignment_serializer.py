@@ -287,6 +287,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "replacement_vehicle_no": getattr(bd.replacement_vehicle_id, "vehicle_no", None),
             "replacement_driver": getattr(bd.replacement_driver_id, "employee_name", None),
             "replacement_operator": getattr(bd.replacement_operator_id, "employee_name", None),
+            "new_assignment_id": getattr(bd.new_assignment, "unique_id", None),
         }
 
     def get_trip_plan(self, obj):
@@ -680,6 +681,42 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "staff_template_id",
             getattr(instance, "staff_template_id", None),
         )
+        vehicle = attrs.get(
+            "vehicle_id",
+            getattr(instance, "vehicle_id", None),
+        )
+
+        if trip_date and (staff_template or vehicle):
+            busy_qs = DailyTripAssignment.objects.filter(
+                trip_date=trip_date,
+                is_deleted=False,
+            ).exclude(
+                status__in=[
+                    DailyTripAssignment.STATUS_CANCELLED,
+                    DailyTripAssignment.STATUS_COMPLETED,
+                ]
+            )
+            if instance:
+                busy_qs = busy_qs.exclude(pk=instance.pk)
+
+            if staff_template and busy_qs.filter(staff_template_id=staff_template).exists():
+                raise serializers.ValidationError(
+                    {
+                        "staff_template_id": (
+                            "This staff template is already assigned to another "
+                            "trip today. Complete or unassign that trip first."
+                        )
+                    }
+                )
+            if vehicle and busy_qs.filter(vehicle_id=vehicle).exists():
+                raise serializers.ValidationError(
+                    {
+                        "vehicle_id": (
+                            "This vehicle is already assigned to another trip "
+                            "today. Complete or unassign that trip first."
+                        )
+                    }
+                )
         if staff_template and trip_date and "alt_staff_template_id" not in attrs:
             attrs["alt_staff_template_id"] = AlternativeStaffTemplate.objects.filter(
                 staff_template=staff_template,

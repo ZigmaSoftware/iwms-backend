@@ -1,13 +1,14 @@
 from .blue_planet import BluePlanetSeeder
-from .company import CompanySeeder
 from .developer import PlatformDeveloperSeeder
-from .project import ProjectSeeder
 from .superuser import PlatformSuperUserSeeder
 
+# Only Blue Planet is seeded by default — CompanySeeder/ProjectSeeder (the
+# generic "IWMS" demo company) and the generic ProjectSeeder are
+# intentionally left unregistered here so `seed all` produces exactly one
+# company. The files still exist on disk and can be imported directly if
+# ever needed again.
 COMPANY_SEEDERS = [
-    CompanySeeder,
     BluePlanetSeeder,
-    ProjectSeeder,
 ]
 
 PLATFORM_SEEDERS = [

@@ -23,6 +23,29 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         read_only=True
     )
 
+    # `coordinates` is the single read/write field for the ward boundary —
+    # the dashboard map layers (useWardGeofences/WardGeofenceLayer/
+    # WardMapPanel) already read `coordinates` on every ward list response.
+    # `boundary_coordinates` (the underlying model field) stays read-only
+    # here so there is exactly one writable path onto it.
+    coordinates = serializers.JSONField(source="boundary_coordinates", required=False, allow_null=True)
+    local_body_type = serializers.SerializerMethodField()
+    local_body_name = serializers.SerializerMethodField()
+
+    def get_local_body_type(self, obj):
+        if obj.zone_id_id:
+            return "Zone"
+        if obj.panchayat_id_id:
+            return "Panchayat"
+        return None
+
+    def get_local_body_name(self, obj):
+        if obj.zone_id_id:
+            return obj.zone_id.zone_name
+        if obj.panchayat_id_id:
+            return obj.panchayat_id.panchayat_name
+        return None
+
     class Meta:
         model = Ward
         fields = [
@@ -48,6 +71,8 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "zone_name",
             "panchayat_id",
             "panchayat_name",
+            "local_body_type",
+            "local_body_name",
 
             "hierarchy_id",
             "hierarchy_order",
@@ -56,7 +81,11 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "ward_name",
             "description",
 
+            "latitude",
+            "longitude",
             "geofencing_type",
+            "boundary_coordinates",
+            "coordinates",
 
             "is_active",
             "created_at",
@@ -72,9 +101,37 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "updated_at",
             "company_id",
             "project_id",
+            "boundary_coordinates",
         ]
 
     def validate(self, attrs):
+
+        coordinates = attrs.get("boundary_coordinates")
+        if coordinates is not None:
+            if not isinstance(coordinates, list):
+                raise serializers.ValidationError(
+                    {"coordinates": "Must be a list of {latitude, longitude} points."}
+                )
+            for point in coordinates:
+                if not isinstance(point, dict) or "latitude" not in point or "longitude" not in point:
+                    raise serializers.ValidationError(
+                        {"coordinates": "Each point needs a latitude and longitude."}
+                    )
+                try:
+                    lat = float(point["latitude"])
+                    lng = float(point["longitude"])
+                except (TypeError, ValueError):
+                    raise serializers.ValidationError(
+                        {"coordinates": "latitude/longitude must be numbers."}
+                    )
+                if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+                    raise serializers.ValidationError(
+                        {"coordinates": "latitude/longitude out of range."}
+                    )
+            if coordinates and len(coordinates) < 3:
+                raise serializers.ValidationError(
+                    {"coordinates": "A boundary needs at least 3 points to form a polygon."}
+                )
 
         hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         ward_name = attrs.get("ward_name")

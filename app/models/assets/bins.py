@@ -112,6 +112,9 @@ class Bins(BaseMaster):
     bin_image = models.CharField(max_length=100)
     bin_qr = models.ImageField(upload_to="bin_qr/", blank=True, null=True)
 
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -129,6 +132,10 @@ class Bins(BaseMaster):
             self.city_id = self.collection_point_id.city_id
             if not self.panchayat_id:
                 self.panchayat_id = self.collection_point_id.panchayat_id
+            if self.latitude is None:
+                self.latitude = self.collection_point_id.latitude
+            if self.longitude is None:
+                self.longitude = self.collection_point_id.longitude
 
         if self.ward_id:
             if not self.zone_id and self.ward_id.zone_id:

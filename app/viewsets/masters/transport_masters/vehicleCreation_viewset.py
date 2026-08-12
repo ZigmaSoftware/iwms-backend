@@ -2,8 +2,9 @@
 import csv
 import io
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -15,6 +16,7 @@ from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.models.transport_masters.fuel import Fuel
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.serializers.masters.transport_masters.vehicleCreation_serializer import VehicleCreationSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.filters import (
@@ -25,9 +27,6 @@ from app.utils.filters import (
 from app.utils.pagination import LimitOffsetWithPage
 
 class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
-    queryset = VehicleCreation.objects.filter(is_deleted=False).select_related(
-        "vehicle_type", "fuel_type", "company_id", "project_id"
-    )
     serializer_class = VehicleCreationSerializer
     lookup_field = "unique_id"
     filter_backends = [
@@ -40,6 +39,22 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "vehicles"
+
+    def get_queryset(self):
+        busy_today = DailyTripAssignment.objects.filter(
+            vehicle_id=OuterRef("pk"),
+            trip_date=timezone.localdate(),
+            is_deleted=False,
+        ).exclude(
+            status__in=[
+                DailyTripAssignment.STATUS_CANCELLED,
+                DailyTripAssignment.STATUS_COMPLETED,
+            ]
+        )
+
+        return VehicleCreation.objects.filter(is_deleted=False).select_related(
+            "vehicle_type", "fuel_type", "company_id", "project_id"
+        ).annotate(is_assigned_today=Exists(busy_today))
 
     def get_object(self):
         lookup_field = self.lookup_field

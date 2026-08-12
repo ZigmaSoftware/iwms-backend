@@ -60,6 +60,7 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         "vehicle_breakdown__replacement_vehicle_id",
         "vehicle_breakdown__replacement_driver_id",
         "vehicle_breakdown__replacement_operator_id",
+        "vehicle_breakdown__new_assignment",
     ).prefetch_related(
         "wards",
         "wards__zone_id",
