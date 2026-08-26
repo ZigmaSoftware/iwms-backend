@@ -556,6 +556,193 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
         return Response({"summary": aggregate, "trips": trips})
 
+    def _dump_yard_for(self, project):
+        from app.models.schedule_masters.dump_yard import DumpYard
+
+        if not project:
+            return None
+        return DumpYard.objects.filter(project_id=project, is_active=True, is_deleted=False).first()
+
+    def _route_stops_for_assignment(self, assignment):
+        """RouteStop-shaped dicts for one assignment's real stops, with the
+        project's dump yard (if any) appended as the final stop. Purely a
+        read-time projection — never creates a DailyTripCollectionPoint row.
+
+        A single physical collection point commonly has several bins (one
+        per waste stream), each a separate DailyTripCollectionPoint row at
+        the exact same coordinate — grouped here into one RouteStop per
+        collection_point_id so the map shows one pin per real-world location
+        instead of stacking N identical markers on top of each other. Order
+        follows the group's earliest sequence; bin-level detail survives in
+        `details["Bins"]`.
+        """
+        stops = list(
+            DailyTripCollectionPoint.objects.select_related(
+                "collection_point_id", "bin_id",
+            )
+            .filter(trip_assignment_id=assignment, is_deleted=False)
+            .order_by("sequence")
+        )
+
+        grouped = {}
+        for stop in stops:
+            cp = stop.collection_point_id
+            group = grouped.setdefault(cp.unique_id, {
+                "id": stop.unique_id,
+                "label": cp.cp_name,
+                "type": "collection_point",
+                "sequence": stop.sequence,
+                "latitude": float(cp.latitude),
+                "longitude": float(cp.longitude),
+                "bins": [],
+            })
+            group["sequence"] = min(group["sequence"], stop.sequence)
+            group["bins"].append(f"{stop.bin_id.bin_name} ({stop.status})")
+
+        ordered_groups = sorted(grouped.values(), key=lambda group: group["sequence"])
+        route_stops = [
+            {
+                "id": group["id"],
+                "label": group["label"],
+                "type": group["type"],
+                "order": index + 1,
+                "latitude": group["latitude"],
+                "longitude": group["longitude"],
+                "details": {"Bins": ", ".join(group["bins"])},
+            }
+            for index, group in enumerate(ordered_groups)
+        ]
+
+        dump_yard = self._dump_yard_for(assignment.project_id)
+        if dump_yard:
+            route_stops.append({
+                "id": dump_yard.unique_id,
+                "label": dump_yard.name,
+                "type": "dump_yard",
+                "order": len(route_stops) + 1,
+                "latitude": float(dump_yard.latitude),
+                "longitude": float(dump_yard.longitude),
+                "details": {},
+            })
+
+        return route_stops
+
+    @action(detail=False, methods=["get"], url_path="static-route")
+    def static_route(self, request):
+        """Real, fixed-order stop list for one trip assignment — Start
+        (implicit, the vehicle's own position) → collection points → dump
+        yard — for the Static Route Map. Never reorders or optimizes."""
+        assignment_id = request.query_params.get("trip_assignment_id")
+        if not assignment_id:
+            return Response(
+                {"trip_assignment_id": "This field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        assignment = self._ensure_assignment_stops(assignment_id)
+        if not assignment:
+            return Response(
+                {"detail": "Daily Trip Assignment was not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from app.models.schedule_masters.route_detour_waypoint import RouteDetourWaypoint
+
+        waypoints = RouteDetourWaypoint.objects.filter(
+            trip_assignment_id=assignment, is_active=True, is_deleted=False,
+        ).order_by("after_stop_id", "sequence")
+
+        return Response({
+            "trip_assignment_id": assignment.unique_id,
+            "trip_date": assignment.trip_date,
+            "vehicle_no": getattr(assignment.vehicle_id, "vehicle_no", None),
+            "stops": self._route_stops_for_assignment(assignment),
+            "detour_waypoints": [
+                {
+                    "id": waypoint.unique_id,
+                    "after_stop_id": waypoint.after_stop_id,
+                    "sequence": waypoint.sequence,
+                    "latitude": float(waypoint.latitude),
+                    "longitude": float(waypoint.longitude),
+                }
+                for waypoint in waypoints
+            ],
+        })
+
+    @action(detail=False, methods=["get"], url_path="static-routes")
+    def static_routes(self, request):
+        """Every trip assignment's fixed-order stop list at once, for the
+        Static Route Map's "all routes" view. Supports the same
+        company/project/date filters as tracking-overview."""
+        assignments = DailyTripAssignment.objects.select_related(
+            "vehicle_id", "project_id",
+        ).filter(is_deleted=False)
+
+        company = request.query_params.get("company_id")
+        project = request.query_params.get("project_id")
+        trip_date = request.query_params.get("date") or request.query_params.get("trip_date")
+        if company:
+            assignments = assignments.filter(company_id__unique_id=company)
+        if project:
+            assignments = assignments.filter(project_id__unique_id=project)
+        if trip_date:
+            assignments = assignments.filter(trip_date=trip_date)
+        assignments = assignments.order_by("-trip_date", "-scheduled_time")[:30]
+
+        routes = []
+        for assignment in assignments:
+            self._ensure_assignment_stops(assignment.unique_id)
+            stops = self._route_stops_for_assignment(assignment)
+            if not stops:
+                continue
+            routes.append({
+                "trip_assignment_id": assignment.unique_id,
+                "trip_date": assignment.trip_date,
+                "vehicle_no": getattr(assignment.vehicle_id, "vehicle_no", None),
+                "stops": stops,
+            })
+
+        return Response({"routes": routes})
+
+    @action(detail=False, methods=["post"], url_path="route-static")
+    def route_static(self, request):
+        """Return road-following geometry for a caller-supplied, fixed stop order.
+
+        Unlike optimize-route, this never reorders stops — it only asks
+        OpenRouteService to draw the road path through the given sequence.
+        """
+        raw_stops = request.data.get("stops")
+        if not isinstance(raw_stops, list) or len(raw_stops) < 2:
+            return Response(
+                {"stops": "Provide at least 2 stops as [{id, latitude, longitude}, ...]."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        route_input = []
+        for stop in raw_stops:
+            try:
+                route_input.append({
+                    "id": str(stop["id"]),
+                    "location": [float(stop["longitude"]), float(stop["latitude"])],
+                })
+            except (KeyError, TypeError, ValueError):
+                return Response(
+                    {"stops": "Each stop needs id, latitude and longitude."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            route = route_stops(route_input[1:], vehicle_start=route_input[0]["location"])
+        except OpenRouteServiceError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response({
+            "stop_order": [stop["id"] for stop in route_input],
+            "distance_meters": route["distance"],
+            "duration_seconds": route["duration"],
+            "route_geojson": route["geometry"],
+        })
+
     @action(detail=False, methods=["post"], url_path="optimize-route")
     def optimize_route(self, request):
         assignment_id = request.data.get("trip_assignment_id")

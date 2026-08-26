@@ -70,6 +70,7 @@ from app.management.commands.seeders.masters.transport_masters.trip_attendance i
 # TripPlanSeeder/TripPlanCollectionPointSeeder all hardcode/bootstrap "IWMS"
 # — intentionally not imported (Blue Planet seeds its own collection
 # points, staff templates and trip plans directly in BluePlanetSeeder).
+from app.management.commands.seeders.core_modules.schedule_setup.dump_yard import DumpYardSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignmentSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPointSeeder
 # DailyTripLogSeeder intentionally NOT imported/registered — DailyTripLog
@@ -163,10 +164,13 @@ PROCESS_ITEMS_SEEDERS = [
 # SCHEDULE SETUP (router: schedule-setup/staff-templates,
 # alternative-staff-templates, collection-points, trip-plans)
 # Collection points, bins, staff templates and trip plans are all seeded
-# directly inside BluePlanetSeeder (superadmin group) — this group is
-# intentionally empty now that the generic IWMS seeders are unregistered.
+# directly inside BluePlanetSeeder (superadmin group). DumpYardSeeder is the
+# one real seeder in this group — it needs Blue Planet/Palakkad BP (from
+# BluePlanetSeeder) to already exist.
 # ============================================================
-SCHEDULE_SETUP_SEEDERS = []
+SCHEDULE_SETUP_SEEDERS = [
+    DumpYardSeeder,
+]
 
 # ============================================================
 # SCHEDULE OPERATIONS (router: schedule-operations/daily-trip-assignments,
@@ -294,6 +298,9 @@ SEED_GROUPS = {
     # module docstring). Requires the superadmin group (Blue Planet masters)
     # and user-creations (driver_user/operator_user) to have run first.
     "driver-wet-dry-bin-trips": [DriverWetDryBinTripsSeeder],
+    # One DumpYard for Blue Planet/Palakkad BP — requires the superadmin
+    # group (Blue Planet/Palakkad BP) to have run first.
+    "dump-yard": [DumpYardSeeder],
     "waste-collections":  [WasteCollectionSeeder],
     "retrip-demo":        [RetripDemoSeeder],
     "blue-planet":        [BluePlanetSeeder],
