@@ -121,9 +121,11 @@ from ..viewsets.masters.transport_masters.fuel_viewset import FuelViewSet
 from ..viewsets.core_modules.schedule_setup.staff_template_viewset import StaffTemplateViewSet
 from ..viewsets.core_modules.schedule_setup.alternative_staff_template_viewset import AlternativeStaffTemplateViewSet
 from ..viewsets.core_modules.schedule_setup.collection_point_viewset import CollectionPointViewSet
+from ..viewsets.core_modules.schedule_setup.dump_yard_viewset import DumpYardViewSet
 from ..viewsets.core_modules.schedule_setup.trip_plan_viewset import TripPlanViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
+from ..viewsets.core_modules.daily_operations.route_detour_waypoint_viewset import RouteDetourWaypointViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_household_collection_viewset import DailyTripHouseholdCollectionViewSet
 from ..viewsets.core_modules.daily_operations.bin_collection_event_viewset import BinCollectionEventViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_log_viewset import DailyTripLogViewSet
@@ -311,6 +313,7 @@ router.register_group("transport-masters", "fuels",         FuelViewSet)
 router.register_group("schedule-setup", "staff-templates", StaffTemplateViewSet)
 router.register_group("schedule-setup", "alternative-staff-templates", AlternativeStaffTemplateViewSet)
 router.register_group("schedule-setup", "collection-points", CollectionPointViewSet)
+router.register_group("schedule-setup", "dump-yards", DumpYardViewSet)
 router.register_group("schedule-setup", "trip-plans", TripPlanViewSet)
 
 # ============================================================
@@ -319,6 +322,7 @@ router.register_group("schedule-setup", "trip-plans", TripPlanViewSet)
 # ============================================================
 router.register_group("schedule-operations", "daily-trip-assignments", DailyTripAssignmentViewSet)
 router.register_group("schedule-operations", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
+router.register_group("schedule-operations", "route-detour-waypoints", RouteDetourWaypointViewSet)
 router.register_group("schedule-operations", "daily-trip-household-collections", DailyTripHouseholdCollectionViewSet)
 router.register_group("schedule-operations", "bin-collection-events", BinCollectionEventViewSet)
 router.register_group("schedule-operations", "daily-trip-logs", DailyTripLogViewSet)
