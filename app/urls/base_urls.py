@@ -116,12 +116,12 @@ from ..viewsets.masters.transport_masters.vehicletypecreation_viewset import Veh
 from ..viewsets.masters.transport_masters.vehicleCreation_viewset import VehicleCreationViewSet
 from ..viewsets.masters.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
 from ..viewsets.masters.transport_masters.fuel_viewset import FuelViewSet
+from ..viewsets.masters.plant_viewset import PlantViewSet
 
 # Schedule masters
 from ..viewsets.core_modules.schedule_setup.staff_template_viewset import StaffTemplateViewSet
 from ..viewsets.core_modules.schedule_setup.alternative_staff_template_viewset import AlternativeStaffTemplateViewSet
 from ..viewsets.core_modules.schedule_setup.collection_point_viewset import CollectionPointViewSet
-from ..viewsets.core_modules.schedule_setup.dump_yard_viewset import DumpYardViewSet
 from ..viewsets.core_modules.schedule_setup.trip_plan_viewset import TripPlanViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
@@ -198,6 +198,7 @@ router.register_group("masters", "district-leaders", DistrictLeaderLoginViewSet)
 router.register_group("masters", "hierarchy",         AdministrativeHierarchyViewSet)
 router.register_group("masters", "departments",       DepartmentViewSet)
 router.register_group("masters", "designations",      DesignationViewSet)
+router.register_group("masters", "plants",         PlantViewSet)
 
 
 # ============================================================
@@ -313,7 +314,6 @@ router.register_group("transport-masters", "fuels",         FuelViewSet)
 router.register_group("schedule-setup", "staff-templates", StaffTemplateViewSet)
 router.register_group("schedule-setup", "alternative-staff-templates", AlternativeStaffTemplateViewSet)
 router.register_group("schedule-setup", "collection-points", CollectionPointViewSet)
-router.register_group("schedule-setup", "dump-yards", DumpYardViewSet)
 router.register_group("schedule-setup", "trip-plans", TripPlanViewSet)
 
 # ============================================================

@@ -1,28 +1,28 @@
 from rest_framework import filters
 
-from app.models.schedule_masters.dump_yard import DumpYard
-from app.serializers.core_modules.schedule_setup.dump_yard_serializer import DumpYardSerializer
+from app.models.masters.plant import Plant
+from app.serializers.masters.plant_serializer import PlantSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 
-class DumpYardViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    serializer_class = DumpYardSerializer
+class PlantViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+    serializer_class = PlantSerializer
     lookup_field = "unique_id"
 
-    permission_resource = "DumpYard"
+    permission_resource = "Plant"
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     pagination_class = LimitOffsetWithPage
     search_fields = ["name"]
     ordering_fields = ["name", "is_active"]
 
-    AUDIT_MODULE = "schedule-setup"
-    AUDIT_ENDPOINT = "dump-yard"
+    AUDIT_MODULE = "masters"
+    AUDIT_ENDPOINT = "plants"
 
     def get_queryset(self):
-        queryset = DumpYard.objects.select_related(
+        queryset = Plant.objects.select_related(
             "company_id",
             "project_id",
         ).filter(is_deleted=False)
