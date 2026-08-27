@@ -70,7 +70,8 @@ from app.management.commands.seeders.masters.transport_masters.trip_attendance i
 # TripPlanSeeder/TripPlanCollectionPointSeeder all hardcode/bootstrap "IWMS"
 # — intentionally not imported (Blue Planet seeds its own collection
 # points, staff templates and trip plans directly in BluePlanetSeeder).
-from app.management.commands.seeders.core_modules.schedule_setup.dump_yard import DumpYardSeeder
+from app.management.commands.seeders.masters.plant import PlantSeeder
+from app.management.commands.seeders.masters.plant_gno import PlantGNOSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignmentSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPointSeeder
 # DailyTripLogSeeder intentionally NOT imported/registered — DailyTripLog
@@ -124,10 +125,14 @@ COMMON_MASTER_SEEDERS = [
 ]
 
 # District/City/Zone/Ward/Panchayat/Department/Designation are all seeded
-# directly inside BluePlanetSeeder (superadmin group) — this group is
-# intentionally empty now that the generic IWMS masters seeders are
-# unregistered.
-MASTERS_SEEDERS = []
+# directly inside BluePlanetSeeder (superadmin group). PlantSeeder and
+# PlantGNOSeeder are the real seeders in this group — they need Blue
+# Planet/Palakkad BP and Blue Planet/Greater Noida BP (from BluePlanetSeeder)
+# to already exist.
+MASTERS_SEEDERS = [
+    PlantSeeder,
+    PlantGNOSeeder,
+]
 
 WASTE_TYPES_SEEDERS = [
     PropertySeeder,
@@ -164,13 +169,9 @@ PROCESS_ITEMS_SEEDERS = [
 # SCHEDULE SETUP (router: schedule-setup/staff-templates,
 # alternative-staff-templates, collection-points, trip-plans)
 # Collection points, bins, staff templates and trip plans are all seeded
-# directly inside BluePlanetSeeder (superadmin group). DumpYardSeeder is the
-# one real seeder in this group — it needs Blue Planet/Palakkad BP (from
-# BluePlanetSeeder) to already exist.
+# directly inside BluePlanetSeeder (superadmin group).
 # ============================================================
-SCHEDULE_SETUP_SEEDERS = [
-    DumpYardSeeder,
-]
+SCHEDULE_SETUP_SEEDERS = []
 
 # ============================================================
 # SCHEDULE OPERATIONS (router: schedule-operations/daily-trip-assignments,
@@ -298,9 +299,9 @@ SEED_GROUPS = {
     # module docstring). Requires the superadmin group (Blue Planet masters)
     # and user-creations (driver_user/operator_user) to have run first.
     "driver-wet-dry-bin-trips": [DriverWetDryBinTripsSeeder],
-    # One DumpYard for Blue Planet/Palakkad BP — requires the superadmin
-    # group (Blue Planet/Palakkad BP) to have run first.
-    "dump-yard": [DumpYardSeeder],
+    # One Plant each for Blue Planet/Palakkad BP and Blue Planet/Greater
+    # Noida BP — requires the superadmin group to have run first.
+    "plant": [PlantSeeder, PlantGNOSeeder],
     "waste-collections":  [WasteCollectionSeeder],
     "retrip-demo":        [RetripDemoSeeder],
     "blue-planet":        [BluePlanetSeeder],

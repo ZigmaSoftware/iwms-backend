@@ -1,12 +1,12 @@
 from rest_framework import serializers
 
-from app.models.schedule_masters.dump_yard import DumpYard
+from app.models.masters.plant import Plant
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 
-class DumpYardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+class PlantSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     class Meta:
-        model = DumpYard
+        model = Plant
         fields = [
             "unique_id",
             "company_id",
@@ -30,9 +30,9 @@ class DumpYardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         ]
 
     def validate_project_id(self, project):
-        existing = DumpYard.objects.filter(project_id=project, is_deleted=False)
+        existing = Plant.objects.filter(project_id=project, is_deleted=False)
         if self.instance:
             existing = existing.exclude(unique_id=self.instance.unique_id)
         if existing.exists():
-            raise serializers.ValidationError("This project already has a dump yard.")
+            raise serializers.ValidationError("This project already has a plant.")
         return project

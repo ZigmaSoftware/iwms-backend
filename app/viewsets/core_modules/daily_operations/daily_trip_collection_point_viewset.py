@@ -57,6 +57,10 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             is_deleted=False,
         ).select_related("collection_point_id", "bin_id").order_by("sequence")
         for stop in plan_stops:
+            if not stop.collection_point_id_id or not stop.bin_id_id:
+                # DailyTripCollectionPoint only models bin-collection stops;
+                # household/bulk stops have no collection_point/bin to copy.
+                continue
             if stop.collection_point_id_id in existing_cp_ids:
                 continue
             DailyTripCollectionPoint.objects.create(
@@ -503,6 +507,7 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             aggregate["pending"] += pending
             aggregate["missed"] += missed
 
+            plant = self._plant_for(assignment.project_id)
             route_input = [
                 {
                     "id": stop.unique_id,
@@ -513,7 +518,18 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 }
                 for stop in stops
             ]
-            vehicle_start = self._latest_vehicle_start(assignment)
+            if plant:
+                route_input.append({
+                    "id": plant.unique_id,
+                    "location": [float(plant.longitude), float(plant.latitude)],
+                })
+            # Live GPS wins when available; otherwise the vehicle is assumed
+            # to still be at the plant — its real start/end point for
+            # the day — falling back to route_stops' own first-stop default
+            # only when the project has no plant set up.
+            vehicle_start = self._latest_vehicle_start(assignment) or (
+                [float(plant.longitude), float(plant.latitude)] if plant else None
+            )
             route_signature = "|".join(
                 [
                     assignment.unique_id,
@@ -522,6 +538,7 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                         f"{stop.unique_id}:{stop.sequence}:{stop.collection_point_id.latitude}:{stop.collection_point_id.longitude}"
                         for stop in stops
                     ],
+                    f"plant:{plant.unique_id}" if plant else "plant:none",
                 ]
             )
             cache_key = f"daily-trip-overview-route:{hashlib.sha1(route_signature.encode()).hexdigest()}"
@@ -556,16 +573,16 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
         return Response({"summary": aggregate, "trips": trips})
 
-    def _dump_yard_for(self, project):
-        from app.models.schedule_masters.dump_yard import DumpYard
+    def _plant_for(self, project):
+        from app.models.masters.plant import Plant
 
         if not project:
             return None
-        return DumpYard.objects.filter(project_id=project, is_active=True, is_deleted=False).first()
+        return Plant.objects.filter(project_id=project, is_active=True, is_deleted=False).first()
 
     def _route_stops_for_assignment(self, assignment):
         """RouteStop-shaped dicts for one assignment's real stops, with the
-        project's dump yard (if any) appended as the final stop. Purely a
+        project's plant (if any) appended as the final stop. Purely a
         read-time projection — never creates a DailyTripCollectionPoint row.
 
         A single physical collection point commonly has several bins (one
@@ -613,17 +630,22 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             for index, group in enumerate(ordered_groups)
         ]
 
-        dump_yard = self._dump_yard_for(assignment.project_id)
-        if dump_yard:
-            route_stops.append({
-                "id": dump_yard.unique_id,
-                "label": dump_yard.name,
-                "type": "dump_yard",
-                "order": len(route_stops) + 1,
-                "latitude": float(dump_yard.latitude),
-                "longitude": float(dump_yard.longitude),
+        plant = self._plant_for(assignment.project_id)
+        if plant:
+            plant_stop = {
+                "id": plant.unique_id,
+                "label": plant.name,
+                "type": "plant",
+                "latitude": float(plant.latitude),
+                "longitude": float(plant.longitude),
                 "details": {},
-            })
+            }
+            # The vehicle starts its day at the plant and returns there
+            # at the end of the trip, so it's both the first and last stop.
+            route_stops = [{**plant_stop, "order": 1}] + [
+                {**stop, "order": stop["order"] + 1} for stop in route_stops
+            ]
+            route_stops.append({**plant_stop, "order": len(route_stops) + 1})
 
         return route_stops
 
