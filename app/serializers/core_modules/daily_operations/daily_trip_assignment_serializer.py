@@ -178,6 +178,10 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     # In Progress), in whole seconds — the client formats it however it needs.
     # Null until the trip has been started.
     total_trip_time_seconds = serializers.SerializerMethodField(read_only=True)
+    # This assignment's 1-based position among today's assignments for the
+    # same trip plan: 1 for the ordinary run, 2+ for a Re-Trip continuation
+    # (and any further same-day re-trips of that continuation).
+    trip_count = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
         write_only=True,
@@ -224,6 +228,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "actual_start_time",
             "actual_end_time",
             "total_trip_time_seconds",
+            "trip_count",
             "status",
             "approval_status",
             "remarks",
@@ -246,6 +251,9 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     def get_total_trip_time_seconds(self, obj):
         duration = obj.total_trip_time
         return int(duration.total_seconds()) if duration is not None else None
+
+    def get_trip_count(self, obj):
+        return obj.trip_count()
 
     def get_retrip_info(self, obj):
         # `.all()` (not `.filter()`) so this reads the Prefetch queryset the
@@ -279,6 +287,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "replacement_vehicle_no": getattr(bd.replacement_vehicle_id, "vehicle_no", None),
             "replacement_driver": getattr(bd.replacement_driver_id, "employee_name", None),
             "replacement_operator": getattr(bd.replacement_operator_id, "employee_name", None),
+            "new_assignment_id": getattr(bd.new_assignment, "unique_id", None),
         }
 
     def get_trip_plan(self, obj):
@@ -672,6 +681,42 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "staff_template_id",
             getattr(instance, "staff_template_id", None),
         )
+        vehicle = attrs.get(
+            "vehicle_id",
+            getattr(instance, "vehicle_id", None),
+        )
+
+        if trip_date and (staff_template or vehicle):
+            busy_qs = DailyTripAssignment.objects.filter(
+                trip_date=trip_date,
+                is_deleted=False,
+            ).exclude(
+                status__in=[
+                    DailyTripAssignment.STATUS_CANCELLED,
+                    DailyTripAssignment.STATUS_COMPLETED,
+                ]
+            )
+            if instance:
+                busy_qs = busy_qs.exclude(pk=instance.pk)
+
+            if staff_template and busy_qs.filter(staff_template_id=staff_template).exists():
+                raise serializers.ValidationError(
+                    {
+                        "staff_template_id": (
+                            "This staff template is already assigned to another "
+                            "trip today. Complete or unassign that trip first."
+                        )
+                    }
+                )
+            if vehicle and busy_qs.filter(vehicle_id=vehicle).exists():
+                raise serializers.ValidationError(
+                    {
+                        "vehicle_id": (
+                            "This vehicle is already assigned to another trip "
+                            "today. Complete or unassign that trip first."
+                        )
+                    }
+                )
         if staff_template and trip_date and "alt_staff_template_id" not in attrs:
             attrs["alt_staff_template_id"] = AlternativeStaffTemplate.objects.filter(
                 staff_template=staff_template,

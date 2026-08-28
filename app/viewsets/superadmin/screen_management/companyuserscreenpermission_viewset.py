@@ -165,15 +165,15 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         if error:
             return error
 
-        project_id = (
-            project_id
-            or request.data.get("project_id")
-            or request.data.get("projectId")
-        )
-        if not project_id:
-            return Response(
-                {"error": "project_id is required"},
-                status=status.HTTP_400_BAD_REQUEST,
+        # "none" is the sentinel used by the frontend for company-wide
+        # (no-project) permissions, since a URL path segment can't be empty.
+        if project_id == "none":
+            project_id = None
+        else:
+            project_id = (
+                project_id
+                or request.data.get("project_id")
+                or request.data.get("projectId")
             )
 
         payload = request.data.copy()
@@ -230,7 +230,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             qs = qs.filter(company_id_id=company.unique_id)
 
         project_id = self.request.query_params.get("project_id") or self.request.query_params.get("projectId")
-        if project_id:
+        if project_id == "none":
+            qs = qs.filter(project_id__isnull=True)
+        elif project_id:
             qs = qs.filter(project_id_id=project_id)
 
         permission_type = (
@@ -307,6 +309,10 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             return error
 
         project_id = request.query_params.get("project_id") or request.query_params.get("projectId")
+        # "none" is the sentinel used by the frontend for company-wide
+        # (no-project) permissions, since a URL path segment can't be empty.
+        if project_id == "none":
+            project_id = None
         mainscreen_id = request.query_params.get("mainscreen_id")
         permission_type = (
             request.query_params.get("permission_type")
@@ -314,14 +320,14 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             or "screen"
         )
 
-        if not project_id or not mainscreen_id:
+        if not mainscreen_id:
             return Response(
-                {"error": "project_id and mainscreen_id required"},
+                {"error": "mainscreen_id required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # 🔥 CACHE KEY
-        cache_key = f"perm_{company.unique_id}_{project_id}_{mainscreen_id}_{permission_type}"
+        cache_key = f"perm_{company.unique_id}_{project_id or 'none'}_{mainscreen_id}_{permission_type}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
@@ -503,7 +509,10 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     # ---------------------------------------------------------
     @action(detail=False, methods=["delete"], url_path=r"delete-by-project/(?P<project_id>[^/.]+)/?")
     def delete_by_project(self, request, project_id):
-        return self._delete_by_project(request, project_id=project_id)
+        # "none" is the sentinel used by the frontend for company-wide
+        # (no-project) permissions, since a URL path segment can't be empty.
+        resolved_project_id = None if project_id == "none" else project_id
+        return self._delete_by_project(request, project_id=resolved_project_id)
 
     def _delete_by_project(self, request, project_id=None):
         company, error = self._company_from_request(request, source="query", required=True)
@@ -605,14 +614,13 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
                 project_id_value = (row.get("project_id") or project_override or "")
                 project_id_value = str(project_id_value).strip() if project_id_value else ""
-                if not project_id_value:
-                    errors.append({"row": index, "error": "project_id is required"})
-                    continue
 
-                project = self._find_project_by_value(company, project_id_value)
-                if not project:
-                    errors.append({"row": index, "error": f"Invalid project_id: {project_id_value}"})
-                    continue
+                project = None
+                if project_id_value:
+                    project = self._find_project_by_value(company, project_id_value)
+                    if not project:
+                        errors.append({"row": index, "error": f"Invalid project_id: {project_id_value}"})
+                        continue
 
                 mainscreen_value = (row.get("main_screen_id_or_name") or "").strip()
                 if not mainscreen_value:
@@ -709,9 +717,11 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     errors.append({"row": index, "error": f"Invalid ward_id: {row.get('ward_id')}"})
                     continue
 
+                project_unique_id = project.unique_id if project else None
+
                 existing = CompanyUserScreenPermission.objects.filter(
                     company_id_id=company.unique_id,
-                    project_id_id=project.unique_id,
+                    project_id_id=project_unique_id,
                     mainscreen_id_id=mainscreen.unique_id,
                     permission_type=permission_type,
                     userscreen_id_id=userscreen.unique_id,
@@ -723,12 +733,12 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     success_count += 1
                     continue
 
-                counter_key = (company.unique_id, project.unique_id, mainscreen.unique_id)
+                counter_key = (company.unique_id, project_unique_id, mainscreen.unique_id)
                 order_counters[counter_key] = order_counters.get(counter_key, 0) + 1
 
                 CompanyUserScreenPermission.objects.create(
                     company_id_id=company.unique_id,
-                    project_id_id=project.unique_id,
+                    project_id_id=project_unique_id,
                     mainscreen_id_id=mainscreen.unique_id,
                     permission_type=permission_type,
                     userscreen_id_id=userscreen.unique_id,

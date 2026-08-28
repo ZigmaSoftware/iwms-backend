@@ -195,6 +195,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "WasteCollection",
         "VehicleBreakdown",
         "TripRetripRequest",
+        "StaffNotification",
     },
     "schedule-masters": {
         # Legacy permission bucket retained for grants created before Schedule

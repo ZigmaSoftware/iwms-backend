@@ -7,6 +7,7 @@ from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.models.user_creations.staffcreation import Staffcreation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.utils.waste_images import capture_images_for_customer
 from app.utils.waste_type_breakdown import bulk_waste_type_rows_for_trip_assignments
 
 
@@ -62,6 +63,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     collection_status = serializers.SerializerMethodField(read_only=True)
     household_collections = serializers.SerializerMethodField(read_only=True)
     waste_type_breakdown = serializers.SerializerMethodField(read_only=True)
+    capture_images = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = DailyTripLog
@@ -111,6 +113,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "collection_status",
             "household_collections",
             "waste_type_breakdown",
+            "capture_images",
             "created_by",
             "created_at",
             "updated_at",
@@ -316,15 +319,45 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             })
         return result
 
+    def get_capture_images(self, obj):
+        """Capture photos taken during this trip — aggregated by matching every
+        household collection's customer + collection date against
+        WasteCollectionSub photos (there is no direct FK to the photo)."""
+        from app.models.schedule_masters.daily_trip_household_collection import (
+            DailyTripHouseholdCollection,
+        )
+
+        assignment = obj.trip_assignment_id
+        if not assignment:
+            return []
+        request = self.context.get("request")
+        images = []
+        seen = set()
+        hh_list = (
+            DailyTripHouseholdCollection.objects
+            .filter(trip_assignment_id=assignment, is_deleted=False)
+            .select_related("customer_id", "waste_collection_id")
+        )
+        for hh in hh_list:
+            customer = hh.customer_id
+            waste = hh.waste_collection_id
+            customer_id = getattr(customer, "unique_id", None)
+            collection_date = getattr(waste, "collection_date", None)
+            for img in capture_images_for_customer(customer_id, collection_date, request):
+                if img["url"] not in seen:
+                    seen.add(img["url"])
+                    images.append(img)
+        return images
+
     def get_waste_type_breakdown(self, obj):
         assignment = obj.trip_assignment_id
         if not assignment:
             return []
-        rows = bulk_waste_type_rows_for_trip_assignments([assignment.pk])
+        rows = bulk_waste_type_rows_for_trip_assignments([assignment.unique_id], source="all")
         return [
             {
                 "waste_type_name": row["waste_type_name"],
-                "collected_weight_kg": str(row["collected_weight_kg"]),
+                "collected_weight_kg": str(row["weight_kg"]),
             }
             for row in rows
         ]

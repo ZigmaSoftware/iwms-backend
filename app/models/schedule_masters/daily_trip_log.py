@@ -41,13 +41,11 @@ def _generate_daily_trip_log_unique_id(company_id, project_id):
 
 
 class DailyTripLog(BaseMaster):
-    LOG_STATUS_DRAFT = "Draft"
-    LOG_STATUS_SUBMITTED = "Submitted"
+    LOG_STATUS_UNVERIFIED = "Unverified"
     LOG_STATUS_VERIFIED = "Verified"
 
     LOG_STATUS_CHOICES = [
-        (LOG_STATUS_DRAFT, "Draft"),
-        (LOG_STATUS_SUBMITTED, "Submitted"),
+        (LOG_STATUS_UNVERIFIED, "Unverified"),
         (LOG_STATUS_VERIFIED, "Verified"),
     ]
 
@@ -188,7 +186,7 @@ class DailyTripLog(BaseMaster):
     log_status = models.CharField(
         max_length=20,
         choices=LOG_STATUS_CHOICES,
-        default=LOG_STATUS_DRAFT,
+        default=LOG_STATUS_UNVERIFIED,
         db_index=True,
     )
 
@@ -337,13 +335,13 @@ class DailyTripLog(BaseMaster):
                 if other_field_changed:
                     raise ValidationError("Verified trip logs are read-only.")
 
-        if self.log_status != self.LOG_STATUS_DRAFT:
+        if self.log_status == self.LOG_STATUS_VERIFIED:
             bin_weight = self.collected_weight_kg or Decimal("0")
             household_weight = self.household_collected_weight_kg or Decimal("0")
             if bin_weight <= 0 and household_weight <= 0:
                 raise ValidationError(
                     "Either collected_weight_kg or household_collected_weight_kg must be "
-                    "greater than 0 before submitting."
+                    "greater than 0 before verifying."
                 )
 
         # Over-capacity trips are flagged in remarks by the auto-upsert but are
@@ -366,7 +364,7 @@ class DailyTripLog(BaseMaster):
         self.sync_from_bin_collection_events()
         self.sync_from_household_collections()
 
-        if self.log_status in {self.LOG_STATUS_SUBMITTED, self.LOG_STATUS_VERIFIED}:
+        if self.actual_end_time:
             assignment = self.trip_assignment_id
             if assignment.status != DailyTripAssignment.STATUS_COMPLETED:
                 # Route through the model so this path stamps `actual_end_at`

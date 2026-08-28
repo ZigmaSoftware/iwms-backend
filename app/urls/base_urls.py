@@ -77,16 +77,9 @@ from ..viewsets.core_modules.daily_operations.wastecollection_viewset import Was
 from ..viewsets.masters.customer_masters.feedback_viewset import FeedBackViewSet
 from ..viewsets.masters.customer_masters.userchargerule_viewset import UserChargeRuleViewSet
 
-# Complaint ticket (renamed from the legacy "grivences" group)
-from ..viewsets.core_modules.complaint_management.complaint_viewset import ComplaintViewSet
+# Complaint Ticketing
 from ..viewsets.core_modules.complaint_management.main_category_viewset import MainCategoryViewSet
 from ..viewsets.core_modules.complaint_management.sub_category_viewset import SubCategoryViewSet
-from ..viewsets.core_modules.complaint_management.complaint_ticket_stub_viewsets import (
-    ComplaintReopenHistoryViewSet,
-    ComplaintAddressChangeViewSet,
-)
-# Ticketed complaint workflow (replaces the remaining stub viewsets above
-# once a real model/serializer/viewset exists for them).
 from ..viewsets.core_modules.complaint_management.ticket_master_viewsets import (
     ComplaintModuleViewSet,
     ComplaintPriorityViewSet,
@@ -98,6 +91,16 @@ from ..viewsets.core_modules.complaint_management.ticket_master_viewsets import 
     ComplaintTicketSubcategoryViewSet,
     ComplaintSlaRuleViewSet,
     ComplaintRoutingRuleViewSet,
+)
+from ..viewsets.core_modules.complaint_management.secondary_viewsets import (
+    ComplaintFeedbackViewSet,
+    ComplaintReopenHistoryViewSet,
+)
+from ..viewsets.core_modules.complaint_management.notification_viewset import (
+    ComplaintNotificationViewSet,
+)
+from ..viewsets.core_modules.complaint_management.address_change_viewset import (
+    ComplaintAddressChangeViewSet,
 )
 from ..viewsets.core_modules.complaint_management.citizen_ticket_viewset import (
     CitizenComplaintTicketViewSet,
@@ -113,6 +116,7 @@ from ..viewsets.masters.transport_masters.vehicletypecreation_viewset import Veh
 from ..viewsets.masters.transport_masters.vehicleCreation_viewset import VehicleCreationViewSet
 from ..viewsets.masters.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
 from ..viewsets.masters.transport_masters.fuel_viewset import FuelViewSet
+from ..viewsets.masters.plant_viewset import PlantViewSet
 
 # Schedule masters
 from ..viewsets.core_modules.schedule_setup.staff_template_viewset import StaffTemplateViewSet
@@ -121,6 +125,7 @@ from ..viewsets.core_modules.schedule_setup.collection_point_viewset import Coll
 from ..viewsets.core_modules.schedule_setup.trip_plan_viewset import TripPlanViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
+from ..viewsets.core_modules.daily_operations.route_detour_waypoint_viewset import RouteDetourWaypointViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_household_collection_viewset import DailyTripHouseholdCollectionViewSet
 from ..viewsets.core_modules.daily_operations.bin_collection_event_viewset import BinCollectionEventViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_log_viewset import DailyTripLogViewSet
@@ -193,6 +198,7 @@ router.register_group("masters", "district-leaders", DistrictLeaderLoginViewSet)
 router.register_group("masters", "hierarchy",         AdministrativeHierarchyViewSet)
 router.register_group("masters", "departments",       DepartmentViewSet)
 router.register_group("masters", "designations",      DesignationViewSet)
+router.register_group("masters", "plants",         PlantViewSet)
 
 
 # ============================================================
@@ -247,18 +253,11 @@ router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
 router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
 
 # ============================================================
-# GROUP: COMPLAINT TICKET (renamed from the legacy "grivences" group;
-# tickets/categories/subcategories are the existing resources, renamed
-# to match government's naming. The remaining entries are stub
-# ViewSets (no backing model yet) mirroring government's fuller
-# complaint-ticket sub-resource set — see
-# app/viewsets/grivences/complaint_ticket_stub_viewsets.py.
+# GROUP: COMPLAINT TICKETING
 # ============================================================
-# `tickets` stays the flat Complaint model — the admin web frontend already
-# calls this exact path (src/helpers/admin/endpoints.ts) expecting that shape.
-router.register_group("complaint-ticket", "tickets", ComplaintViewSet)
-router.register_group("complaint-ticket", "categories", MainCategoryViewSet)
-router.register_group("complaint-ticket", "subcategories", SubCategoryViewSet)
+router.register_group("complaint-ticket", "tickets", ComplaintTicketViewSet, basename="complaint-ticket-tickets")
+router.register_group("complaint-ticket", "categories", ComplaintTicketCategoryViewSet, basename="complaint-ticket-categories")
+router.register_group("complaint-ticket", "subcategories", ComplaintTicketSubcategoryViewSet, basename="complaint-ticket-subcategories")
 router.register_group("complaint-ticket", "modules", ComplaintModuleViewSet, basename="complaint-ticket-modules")
 router.register_group("complaint-ticket", "priorities", ComplaintPriorityViewSet, basename="complaint-ticket-priorities")
 router.register_group("complaint-ticket", "statuses", ComplaintStatusViewSet, basename="complaint-ticket-statuses")
@@ -269,11 +268,12 @@ router.register_group("complaint-ticket", "ticket-categories", ComplaintTicketCa
 router.register_group("complaint-ticket", "ticket-subcategories", ComplaintTicketSubcategoryViewSet, basename="complaint-ticket-ticket-subcategories")
 router.register_group("complaint-ticket", "sla-rules", ComplaintSlaRuleViewSet, basename="complaint-ticket-sla-rules")
 router.register_group("complaint-ticket", "routing-rules", ComplaintRoutingRuleViewSet, basename="complaint-ticket-routing-rules")
+router.register_group("complaint-ticket", "feedback", ComplaintFeedbackViewSet, basename="complaint-ticket-feedback")
 router.register_group("complaint-ticket", "reopen-history", ComplaintReopenHistoryViewSet, basename="complaint-ticket-reopen-history")
+router.register_group("complaint-ticket", "notifications", ComplaintNotificationViewSet, basename="complaint-ticket-notifications")
 router.register_group("complaint-ticket", "address-change", ComplaintAddressChangeViewSet, basename="complaint-ticket-address-change")
 
-# Ticketed grievance workflow (status/escalate/resolve/reopen/feedback) — a
-# new path, since `tickets` above is taken by the flat Complaint model.
+# Backward-compatible mobile alias used by the private app.
 router.register_group("complaint-ticket", "grievance-tickets", ComplaintTicketViewSet, basename="complaint-ticket-grievance-tickets")
 
 # ============================================================
@@ -322,6 +322,7 @@ router.register_group("schedule-setup", "trip-plans", TripPlanViewSet)
 # ============================================================
 router.register_group("schedule-operations", "daily-trip-assignments", DailyTripAssignmentViewSet)
 router.register_group("schedule-operations", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
+router.register_group("schedule-operations", "route-detour-waypoints", RouteDetourWaypointViewSet)
 router.register_group("schedule-operations", "daily-trip-household-collections", DailyTripHouseholdCollectionViewSet)
 router.register_group("schedule-operations", "bin-collection-events", BinCollectionEventViewSet)
 router.register_group("schedule-operations", "daily-trip-logs", DailyTripLogViewSet)

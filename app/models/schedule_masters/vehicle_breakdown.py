@@ -100,21 +100,27 @@ class VehicleBreakdown(BaseMaster):
         db_column="breakdown_vehicle_id",
         related_name="vehicle_breakdowns_as_broken",
     )
+    # Null until the supervisor arranges a replacement at /verify/ — the
+    # driver reporting a breakdown usually doesn't know it yet.
     replacement_vehicle_id = models.ForeignKey(
         VehicleCreation,
         on_delete=models.PROTECT,
         to_field="unique_id",
         db_column="replacement_vehicle_id",
         related_name="vehicle_breakdowns_as_replacement",
+        null=True,
+        blank=True,
     )
 
-    # ── Replacement Staff ─────────────────────────────────────────────
+    # ── Replacement Staff (assigned later by the supervisor) ──────────
     replacement_driver_id = models.ForeignKey(
         Staffcreation,
         on_delete=models.PROTECT,
         to_field="staff_unique_id",
         db_column="replacement_driver_id",
         related_name="vehicle_breakdowns_as_driver",
+        null=True,
+        blank=True,
     )
     replacement_operator_id = models.ForeignKey(
         Staffcreation,
@@ -122,6 +128,8 @@ class VehicleBreakdown(BaseMaster):
         to_field="staff_unique_id",
         db_column="replacement_operator_id",
         related_name="vehicle_breakdowns_as_operator",
+        null=True,
+        blank=True,
     )
 
     # ── Created AlternativeStaffTemplate (set during approval) ───────
@@ -131,6 +139,17 @@ class VehicleBreakdown(BaseMaster):
         to_field="unique_id",
         db_column="alt_staff_template_id",
         related_name="vehicle_breakdown",
+        null=True,
+        blank=True,
+    )
+
+    # ── Continuation trip created on verify (mirrors TripRetripRequest.new_assignment) ──
+    new_assignment = models.ForeignKey(
+        DailyTripAssignment,
+        on_delete=models.SET_NULL,
+        to_field="unique_id",
+        db_column="new_assignment_id",
+        related_name="breakdown_source",
         null=True,
         blank=True,
     )

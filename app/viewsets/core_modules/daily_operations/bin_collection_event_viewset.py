@@ -128,7 +128,6 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if not children.exists():
             return
 
-        all_collected = not children.filter(is_collected=False).exists()
         total_weight = children.aggregate(total=Sum("collected_weight_kg"))["total"] or 0
         vehicle_capacity = getattr(getattr(assignment, "vehicle_id", None), "capacity", None)
         trip_capacity = getattr(getattr(assignment, "trip_plan_id", None), "max_vehicle_capacity_kg", None)
@@ -139,11 +138,6 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             and Decimal(str(total_weight)) > Decimal(str(capacity))
         )
         stored_weight = None if exceeds_capacity else total_weight
-        log_status = (
-            DailyTripLog.LOG_STATUS_SUBMITTED
-            if all_collected and stored_weight
-            else DailyTripLog.LOG_STATUS_DRAFT
-        )
         remarks = (
             "Auto-generated from daily trip collection points; total weight exceeds capacity."
             if exceeds_capacity
@@ -154,7 +148,6 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             trip_assignment_id=assignment,
             defaults={
                 "collected_weight_kg": stored_weight,
-                "log_status": log_status,
                 "remarks": remarks,
             },
         )
@@ -166,7 +159,6 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         # the weight against collection points recorded/updated afterwards.
         log.collected_weight_kg = stored_weight
         if log.log_status != DailyTripLog.LOG_STATUS_VERIFIED:
-            log.log_status = log_status
             log.remarks = log.remarks or remarks
         log.save()
 

@@ -31,6 +31,9 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "project_id",
             "trip_assignment_id",
             "trip_assignment_id__trip_plan_id",
+            "trip_assignment_id__trip_plan_id__staff_template_id",
+            "trip_assignment_id__trip_plan_id__staff_template_id__driver_id",
+            "trip_assignment_id__trip_plan_id__staff_template_id__operator_id",
             "trip_assignment_id__staff_template_id",
             "trip_assignment_id__staff_template_id__driver_id",
             "trip_assignment_id__staff_template_id__operator_id",
@@ -40,7 +43,13 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "replacement_driver_id",
             "replacement_operator_id",
             "alt_staff_template_id",
+            "alt_staff_template_id__driver_id",
+            "alt_staff_template_id__operator_id",
+            "alt_staff_template_id__staff_template",
+            "alt_staff_template_id__staff_template__driver_id",
+            "alt_staff_template_id__staff_template__operator_id",
             "approved_by",
+            "new_assignment",
         )
         .filter(is_deleted=False)
     )
@@ -53,6 +62,26 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     AUDIT_MODULE = "schedule-masters"
     AUDIT_ENDPOINT = "vehicle-breakdowns"
+
+    def _scope_company_project(self, qs):
+        if self._is_platform_super_admin():
+            company_param = self.request.query_params.get("company_id")
+            project_param = self.request.query_params.get("project_id")
+            if company_param and hasattr(qs.model, "company_id"):
+                qs = qs.filter(company_id__unique_id=company_param)
+            if project_param and hasattr(qs.model, "project_id"):
+                qs = qs.filter(project_id__unique_id=project_param)
+            return qs
+
+        company = self._company()
+        if company and hasattr(qs.model, "company_id"):
+            qs = qs.filter(company_id=company)
+
+        project = self._project()
+        if project and hasattr(qs.model, "project_id"):
+            qs = qs.filter(project_id=project)
+
+        return qs
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -197,14 +226,14 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        active_assignments = DailyTripAssignment.objects.filter(
+        active_assignments = self._scope_company_project(DailyTripAssignment.objects.filter(
             trip_date=trip_date,
             status__in=[
                 DailyTripAssignment.STATUS_SCHEDULED,
                 DailyTripAssignment.STATUS_IN_PROGRESS,
             ],
             is_deleted=False,
-        ).select_related("staff_template_id", "alt_staff_template_id")
+        )).select_related("staff_template_id", "alt_staff_template_id")
 
         busy_driver_ids = set()
         busy_operator_ids = set()
@@ -228,13 +257,7 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         elif role == "Company Operator":
             qs = qs.exclude(staff_unique_id__in=busy_operator_ids)
 
-        if not self._is_platform_super_admin():
-            company_param = request.query_params.get("company_id")
-            project_param = request.query_params.get("project_id")
-            if company_param:
-                qs = qs.filter(company_id__unique_id=company_param)
-            if project_param:
-                qs = qs.filter(project_id__unique_id=project_param)
+        qs = self._scope_company_project(qs)
 
         data = [
             {
@@ -242,6 +265,84 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "employee_name": s.employee_name,
             }
             for s in qs.order_by("employee_name")
+        ]
+        return Response(data)
+
+    # ── available-staff-templates action ──────────────────────────────
+    # Returns active staff templates whose driver/operator are not on a
+    # Scheduled/In-Progress trip for the date. Templates from completed trips
+    # remain available.
+
+    @action(detail=False, methods=["get"], url_path="available-staff-templates")
+    def available_staff_templates(self, request):
+        from app.models.schedule_masters.staff_template import StaffTemplate
+
+        trip_date = request.query_params.get("date")
+        if not trip_date:
+            return Response(
+                {"detail": "date query param is required (YYYY-MM-DD)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        active_assignments = self._scope_company_project(DailyTripAssignment.objects.filter(
+            trip_date=trip_date,
+            status__in=[
+                DailyTripAssignment.STATUS_SCHEDULED,
+                DailyTripAssignment.STATUS_IN_PROGRESS,
+            ],
+            is_deleted=False,
+        )).select_related("staff_template_id", "alt_staff_template_id")
+
+        busy_driver_ids = set()
+        busy_operator_ids = set()
+        for assignment in active_assignments:
+            template = assignment.alt_staff_template_id or assignment.staff_template_id
+            if not template:
+                continue
+            if template.driver_id_id:
+                busy_driver_ids.add(template.driver_id_id)
+            if template.operator_id_id:
+                busy_operator_ids.add(template.operator_id_id)
+
+        current_breakdown_id = request.query_params.get("exclude_id")
+        pending_breakdowns = self._scope_company_project(VehicleBreakdown.objects.filter(
+            trip_assignment_id__trip_date=trip_date,
+            approval_status=VehicleBreakdown.APPROVAL_PENDING,
+            is_deleted=False,
+        ))
+        if current_breakdown_id:
+            pending_breakdowns = pending_breakdowns.exclude(unique_id=current_breakdown_id)
+
+        busy_driver_ids.update(
+            pending_breakdowns.exclude(replacement_driver_id__isnull=True)
+            .values_list("replacement_driver_id", flat=True)
+        )
+        busy_operator_ids.update(
+            pending_breakdowns.exclude(replacement_operator_id__isnull=True)
+            .values_list("replacement_operator_id", flat=True)
+        )
+
+        qs = StaffTemplate.objects.filter(
+            is_deleted=False,
+            is_active=True,
+            status=StaffTemplate.Status.ACTIVE,
+        )
+        qs = self._scope_company_project(qs)
+        qs = qs.exclude(
+            Q(driver_id__staff_unique_id__in=busy_driver_ids)
+            | Q(operator_id__staff_unique_id__in=busy_operator_ids)
+        ).select_related("driver_id", "operator_id")
+
+        data = [
+            {
+                "unique_id": template.unique_id,
+                "display_code": template.display_code,
+                "driver_id": template.driver_id_id,
+                "driver_name": template.driver_id.employee_name if template.driver_id else None,
+                "operator_id": template.operator_id_id,
+                "operator_name": template.operator_id.employee_name if template.operator_id else None,
+            }
+            for template in qs.order_by("display_code")
         ]
         return Response(data)
 
@@ -257,24 +358,24 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        busy_vehicle_ids = DailyTripAssignment.objects.filter(
+        busy_vehicle_ids = self._scope_company_project(DailyTripAssignment.objects.filter(
             trip_date=trip_date,
             status__in=[
                 DailyTripAssignment.STATUS_SCHEDULED,
                 DailyTripAssignment.STATUS_IN_PROGRESS,
             ],
             is_deleted=False,
-        ).values_list("vehicle_id", flat=True)
+        )).values_list("vehicle_id", flat=True)
 
         # When editing an existing breakdown, exclude it from the pending filter
         # so its own replacement vehicle is still shown as available.
         current_breakdown_id = request.query_params.get("exclude_id")
-        pending_qs = VehicleBreakdown.objects.filter(
+        pending_qs = self._scope_company_project(VehicleBreakdown.objects.filter(
             trip_assignment_id__trip_date=trip_date,
             approval_status=VehicleBreakdown.APPROVAL_PENDING,
             replacement_vehicle_id__isnull=False,
             is_deleted=False,
-        )
+        ))
         if current_breakdown_id:
             pending_qs = pending_qs.exclude(unique_id=current_breakdown_id)
         pending_replacement_ids = pending_qs.values_list("replacement_vehicle_id", flat=True)
@@ -284,14 +385,7 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             is_active=True,
         ).exclude(unique_id__in=busy_vehicle_ids).exclude(unique_id__in=pending_replacement_ids)
 
-        # Company/project scope for non-superadmin
-        if not self._is_platform_super_admin():
-            company_param = request.query_params.get("company_id")
-            project_param = request.query_params.get("project_id")
-            if company_param:
-                qs = qs.filter(company_id__unique_id=company_param)
-            if project_param:
-                qs = qs.filter(project_id__unique_id=project_param)
+        qs = self._scope_company_project(qs)
 
         data = [
             {

@@ -76,11 +76,6 @@ class Command(BaseCommand):
                 and Decimal(str(total_weight)) > Decimal(str(capacity))
             )
             stored_weight = None if exceeds_capacity else total_weight
-            log_status = (
-                DailyTripLog.LOG_STATUS_SUBMITTED
-                if all_collected and stored_weight
-                else DailyTripLog.LOG_STATUS_DRAFT
-            )
             remarks = (
                 "Backfilled from daily trip collection points; total weight exceeds capacity."
                 if exceeds_capacity
@@ -90,16 +85,13 @@ class Command(BaseCommand):
             DailyTripLog.objects.create(
                 trip_assignment_id=assignment,
                 collected_weight_kg=stored_weight,
-                log_status=log_status,
                 remarks=remarks,
             )
             created += 1
-            if log_status == DailyTripLog.LOG_STATUS_SUBMITTED:
-                submitted += 1
 
         self.stdout.write(
             self.style.SUCCESS(
                 "Daily trip log backfill complete. "
-                f"created={created} submitted={submitted} skipped={skipped}"
+                f"created={created} skipped={skipped}"
             )
         )

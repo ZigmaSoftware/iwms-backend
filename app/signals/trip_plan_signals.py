@@ -232,7 +232,6 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
         try:
             log = DailyTripLog(
                 trip_assignment_id=instance.trip_assignment_id,
-                log_status=DailyTripLog.LOG_STATUS_DRAFT,
                 remarks="Auto-generated from household waste collections.",
             )
             # autofill_from_assignment() is called inside save()
@@ -245,21 +244,42 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
     # 3. Sync household weight onto the log
     log.sync_from_household_collections()
 
-    # 4. Auto-submit when ALL household stops for this trip are collected
-    #    (mirrors DailyTripCollectionPointViewSet auto-submit for bins)
-    log.refresh_from_db(fields=["log_status", "household_collected_weight_kg"])
-    if log.log_status != DailyTripLog.LOG_STATUS_DRAFT:
-        return  # already submitted / verified — don't touch
 
-    hh_weight = log.household_collected_weight_kg or 0
-    if hh_weight <= 0:
+@receiver(post_save, sender="app.BinCollectionEvent")
+def sync_bin_collection_on_event_save(sender, instance, **kwargs):
+    """Mirrors sync_household_collection_on_waste_save for the bin-collection
+    side: when a BinCollectionEvent (secondary/bin scan) is saved, find or
+    create the trip's DailyTripLog and sync collected_weight_kg from all
+    BinCollectionEvent rows on that trip.
+
+    Without this, bin-collection trips never produced a DailyTripLog through
+    normal app usage — only household collections had an equivalent signal —
+    so panchayat-based reports (Daily/Monthly Waste Comparison) never saw bin
+    data unless something else (e.g. a seeder) manually created the log.
+    """
+    if not instance.trip_assignment_id_id or instance.is_deleted:
         return
 
-    all_hh = DailyTripHouseholdCollection.objects.filter(
-        trip_assignment_id=instance.trip_assignment_id,
+    from app.models.schedule_masters.daily_trip_log import DailyTripLog
+
+    log = DailyTripLog.objects.filter(
+        trip_assignment_id=instance.trip_assignment_id_id,
         is_deleted=False,
-    )
-    if all_hh.exists() and not all_hh.filter(is_collected=False).exists():
-        DailyTripLog.objects.filter(pk=log.pk).update(
-            log_status=DailyTripLog.LOG_STATUS_SUBMITTED,
-        )
+    ).first()
+
+    if log is None:
+        try:
+            log = DailyTripLog(
+                trip_assignment_id=instance.trip_assignment_id,
+                remarks="Auto-generated from bin collection events.",
+            )
+            # autofill_from_assignment() and sync_from_bin_collection_events()
+            # are both called inside save().
+            log.save()
+            return
+        except Exception:
+            # If assignment is missing required fields (no staff template,
+            # vehicle, etc.) skip log creation gracefully.
+            return
+
+    log.sync_from_bin_collection_events()

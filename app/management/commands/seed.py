@@ -16,16 +16,18 @@ from app.management.commands.seeders.superadmin_masters import (
 from app.management.commands.seeders.superadmin.common_masters import COMMON_MASTER_SEEDERS as _COMMON_MASTER_SEEDERS
 
 # masters (router: masters/districts, cities, zones, wards, panchayat, ...)
-from app.management.commands.seeders.masters import MASTER_SEEDERS as CORE_MASTER_SEEDERS
-from app.management.commands.seeders.masters.department import DepartmentSeeder
-from app.management.commands.seeders.masters.designation import DesignationSeeder
+# NOTE: DistrictSeeder/CitySeeder/ZoneSeeder/WardSeeder/PanchayatSeeder/
+# DepartmentSeeder/DesignationSeeder all bootstrap or hardcode the generic
+# "IWMS" company/project — intentionally NOT imported/registered below so
+# `seed all` produces exactly one company (Blue Planet). Files remain on
+# disk untouched.
 
 # waste-types (router: waste-types/properties, subproperties, wastetypes, bins —
 # wastetypes/bins merged in from the legacy "assets" group)
 from app.management.commands.seeders.masters.waste_masters.properties import PropertySeeder
 from app.management.commands.seeders.masters.waste_masters.subproperties import SubPropertySeeder
-from app.management.commands.seeders.masters.waste_masters.wastetype import WasteTypeSeeder
-from app.management.commands.seeders.masters.waste_masters.bins import BinSeeder
+# WasteTypeSeeder/BinSeeder hardcode Company.objects.get(name="IWMS") —
+# intentionally not imported (Blue Planet seeds its own waste types/bins).
 
 # role-assigns (router: role-assigns/user-type, staffusertypes, contractorusertypes)
 from app.management.commands.seeders.superadmin.role_management import ROLE_ASSIGN_SEEDERS
@@ -33,21 +35,29 @@ from app.management.commands.seeders.superadmin.role_management import ROLE_ASSI
 # user-creations (router: user-creations/staffcreation, supervisor-zone-map, ...)
 from app.management.commands.seeders.superadmin.staff_management.auth_user_seeder import AuthUserSeeder
 from app.management.commands.seeders.superadmin.staff_management.supervisor_user import SupervisorUserSeeder
-from app.management.commands.seeders.core_modules.daily_operations.driver_palakkad_trips import (
-    DriverPalakkadTripsSeeder,
+
+# DriverWetDryBinTripsSeeder is the ONLY driver_user trip seeder. It gives
+# driver_user exactly two assignments: a Wet Waste bin round and a Dry Waste
+# bin round.
+#
+# MERGE CONFLICT RESOLUTION — READ BEFORE RESOLVING:
+# Older branches import driver_palakkad_trips / driver_bin_only /
+# driver_bin_assignments / driver_extra_collection_points here. Those seeders
+# are DELETED — they created the household, bulk and duplicate-bin plans that
+# driver_user must never have. If a merge reintroduces any of those imports,
+# drop them and keep only this one; the deleted files no longer exist, so
+# keeping them raises ImportError at startup.
+from app.management.commands.seeders.core_modules.daily_operations.driver_wet_dry_bin_trips import (
+    DriverWetDryBinTripsSeeder,
 )
-from app.management.commands.seeders.core_modules.daily_operations.driver_bin_only import (
-    DriverBinOnlySeeder,
-)
-from app.management.commands.seeders.core_modules.daily_operations.driver_extra_collection_points import (
-    DriverExtraCollectionPointsSeeder,
-)
-from app.management.commands.seeders.superadmin.staff_management.staff_office import StaffOfficeSeeder
-from app.management.commands.seeders.superadmin.staff_management.staff_personal import StaffPersonalSeeder
+# StaffOfficeSeeder/StaffPersonalSeeder fall back to bootstrapping "IWMS"
+# when no company exists yet — intentionally not imported/registered below
+# (Blue Planet's own staff are already created inside BluePlanetSeeder).
 
 # transport-masters (router: transport-masters/vehicle-type, vehicle-creation, trip-attendance, fuels)
 from app.management.commands.seeders.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreationSeeder
-from app.management.commands.seeders.masters.transport_masters.vehicleCreation import VehicleCreationSeeder
+# VehicleCreationSeeder (masters/transport_masters) hardcodes/bootstraps
+# "IWMS" — intentionally not imported (Blue Planet seeds its own vehicles).
 from app.management.commands.seeders.masters.transport_masters.fuel import FuelSeeder
 from app.management.commands.seeders.masters.transport_masters.trip_attendance import TripAttendanceSeeder
 
@@ -56,14 +66,18 @@ from app.management.commands.seeders.masters.transport_masters.trip_attendance i
 
 # schedule-setup / schedule-operations (router: schedule-setup/..., schedule-operations/... —
 # split from the legacy "schedule-masters" group)
-from app.management.commands.seeders.core_modules.schedule_setup.collection_point import CollectionPointSeeder
-from app.management.commands.seeders.core_modules.schedule_setup.staff_template import StaffTemplateSeeder
-from app.management.commands.seeders.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplateSeeder
-from app.management.commands.seeders.core_modules.schedule_setup.trip_plan import TripPlanSeeder
-from app.management.commands.seeders.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPointSeeder
+# CollectionPointSeeder/StaffTemplateSeeder/AlternativeStaffTemplateSeeder/
+# TripPlanSeeder/TripPlanCollectionPointSeeder all hardcode/bootstrap "IWMS"
+# — intentionally not imported (Blue Planet seeds its own collection
+# points, staff templates and trip plans directly in BluePlanetSeeder).
+from app.management.commands.seeders.masters.plant import PlantSeeder
+from app.management.commands.seeders.masters.plant_gno import PlantGNOSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignmentSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPointSeeder
-from app.management.commands.seeders.core_modules.daily_operations.daily_trip_log import DailyTripLogSeeder
+# DailyTripLogSeeder intentionally NOT imported/registered — DailyTripLog
+# rows auto-derive from BinCollectionEvent/WasteCollection via the existing
+# signal chain (sync_household_collection_on_waste_save), so seeding them
+# directly is redundant. The seeder file remains on disk unwired.
 from app.management.commands.seeders.core_modules.daily_operations.bin_collection_event import BinCollectionEventSeeder
 from app.management.commands.seeders.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdownSeeder
 from app.management.commands.seeders.core_modules.daily_operations.waste_collection import WasteCollectionSeeder
@@ -76,7 +90,11 @@ from app.management.commands.seeders.superadmin.screen_management import PERMISS
 from app.management.commands.seeders.collections import COLLECTION_SEEDERS
 
 # customer-masters (router: customer-masters/customercreations, ...)
-from app.management.commands.seeders.masters.customer_masters import CUSTOMER_SEEDERS
+# CUSTOMER_SEEDERS includes CustomerCreationSeeder, which hardcodes Chennai/
+# Zone 1/Ward 1 under the generic "IWMS" company — imported directly below
+# and filtered down to just UserChargeRuleSeeder (company-agnostic; Blue
+# Planet's own customers are created directly in BluePlanetSeeder).
+from app.management.commands.seeders.masters.customer_masters.userChargeRule import UserChargeRuleSeeder
 
 # complaint-ticket (router: complaint-ticket/tickets, categories, subcategories —
 # renamed from the legacy "grivences" group)
@@ -89,7 +107,8 @@ from app.management.commands.seeders.core_modules.complaint_management import (
 
 
 # reports (router: reports/monthly-waste-comparison)
-from app.management.commands.seeders.reports import REPORT_SEEDERS
+# DailyWasteComparisonSeeder/MonthlyWasteComparisonSeeder both hardcode
+# Company.objects.get(name="IWMS") — intentionally not imported below.
 
 
 # ============================================================
@@ -105,16 +124,20 @@ COMMON_MASTER_SEEDERS = [
     *_COMMON_MASTER_SEEDERS,
 ]
 
+# District/City/Zone/Ward/Panchayat/Department/Designation are all seeded
+# directly inside BluePlanetSeeder (superadmin group). PlantSeeder and
+# PlantGNOSeeder are the real seeders in this group — they need Blue
+# Planet/Palakkad BP and Blue Planet/Greater Noida BP (from BluePlanetSeeder)
+# to already exist.
 MASTERS_SEEDERS = [
-    *CORE_MASTER_SEEDERS,   # districts, cities, zones, wards, panchayat, etc.
-    DepartmentSeeder,
-    DesignationSeeder,
+    PlantSeeder,
+    PlantGNOSeeder,
 ]
 
 WASTE_TYPES_SEEDERS = [
     PropertySeeder,
     SubPropertySeeder,
-    WasteTypeSeeder,    # merged from legacy `assets` group — waste-types/wastetypes → WasteTypeViewSet
+    # WasteTypeSeeder dropped — Blue Planet seeds its own waste types.
 ]
 
 # Legacy alias — `assets` used to be its own URL/seed group before it was merged
@@ -122,25 +145,19 @@ WASTE_TYPES_SEEDERS = [
 # scripts/muscle-memory using `--group assets` keep working.
 ASSETS_SEEDERS = WASTE_TYPES_SEEDERS
 
-# Note: BinSeeder (waste-types/bins) depends on CollectionPoint (schedule-setup), so
-# in `all` mode BinSeeder is invoked from within schedule-setup (after CollectionPointSeeder)
-# rather than from this list. Running `--group waste-types` alone seeds WasteType only;
-# bins require schedule-setup's CollectionPoints to exist first.
-
 ROLE_ASSIGNS_SEEDERS = [
     *ROLE_ASSIGN_SEEDERS,
 ]
 
 USER_CREATIONS_SEEDERS = [
     AuthUserSeeder,
-    StaffOfficeSeeder,
-    StaffPersonalSeeder,
-    
+    # StaffOfficeSeeder/StaffPersonalSeeder dropped — Blue Planet's staff
+    # are already created inside BluePlanetSeeder.
 ]
 
 TRANSPORT_MASTERS_SEEDERS = [
     VehicleTypeCreationSeeder,   # transport-masters/vehicle-type
-    VehicleCreationSeeder,       # transport-masters/vehicle-creation
+    # VehicleCreationSeeder dropped — Blue Planet seeds its own vehicles.
     FuelSeeder,                  # transport-masters/fuels
 ]
 
@@ -151,18 +168,10 @@ PROCESS_ITEMS_SEEDERS = [
 # ============================================================
 # SCHEDULE SETUP (router: schedule-setup/staff-templates,
 # alternative-staff-templates, collection-points, trip-plans)
-# BinSeeder is included here (after CollectionPointSeeder) because
-# bins depend on collection_points which are seeded in this group,
-# even though Bins themselves live under the waste-types URL group.
+# Collection points, bins, staff templates and trip plans are all seeded
+# directly inside BluePlanetSeeder (superadmin group).
 # ============================================================
-SCHEDULE_SETUP_SEEDERS = [
-    CollectionPointSeeder,          # 1. collection-points
-    BinSeeder,                      # waste-types/bins — must follow CollectionPoint
-    StaffTemplateSeeder,            # 2. staff-templates
-    AlternativeStaffTemplateSeeder, # 3. alternative-staff-templates
-    TripPlanSeeder,                 # 4. trip-plans
-    TripPlanCollectionPointSeeder,  # 5. trip-plan-collection-points
-]
+SCHEDULE_SETUP_SEEDERS = []
 
 # ============================================================
 # SCHEDULE OPERATIONS (router: schedule-operations/daily-trip-assignments,
@@ -172,17 +181,28 @@ SCHEDULE_SETUP_SEEDERS = [
 SCHEDULE_OPERATIONS_SEEDERS = [
     DailyTripAssignmentSeeder,      # 1. daily-trip-assignments
     DailyTripCollectionPointSeeder, # 2. daily-trip-collection-points
-    DailyTripLogSeeder,             # 3. daily-trip-logs
+    # DailyTripLogSeeder dropped — trip logs auto-derive from
+    # BinCollectionEvent/WasteCollection, seeding them directly is redundant.
     TripAttendanceSeeder,
-    BinCollectionEventSeeder,       # 4. bin-collection-events
-    # Depends on driver_user (user-creations) AND today's DailyTripAssignment
-    # rows (above) both existing — must run last in this group.
+    BinCollectionEventSeeder,       # 3. bin-collection-events
+    # Best-effort here: on a fresh DB, driver_user has no trip yet at this
+    # point (DriverWetDryBinTripsSeeder below creates it), so this just logs
+    # "no trip today — Skipping" without creating supervisor_user. That's
+    # fine — DriverWetDryBinTripsSeeder creates the login itself if it's
+    # still missing when it runs. Kept here (rather than removed) so a
+    # RE-run of `seed all`, once driver_user already has a trip, has this
+    # seeder do its normal trip-plan-ownership wiring/refresh too.
     SupervisorUserSeeder,
-    # Builds driver_user's own bin + household trips under Blue Planet /
-    # Palakkad BP (the stock plans above sit under the IWMS company, which
-    # CompanyScopedViewSet hides from driver_user). Runs after
-    # SupervisorUserSeeder so supervisor_user exists to own the plans.
-    DriverPalakkadTripsSeeder,
+    # driver_user's own bin-collection trips — one Wet Waste round, one Dry
+    # Waste round, 10 collection points each, supervised by supervisor_user.
+    # Self-contained: creates supervisor_user itself if SupervisorUserSeeder
+    # above couldn't (see the seeder's own module docstring for why).
+    # Replaces the removed DriverPalakkadTripsSeeder/DriverBinOnlySeeder/
+    # DriverBinAssignmentsSeeder (and their `driver-trips`/`driver-bin-only`/
+    # `driver-bin-assignments` standalone shortcuts) which used to seed
+    # driver_user's trips — those were unwired on request so a fresh DB
+    # started with zero trips; this is the new, deliberate replacement.
+    DriverWetDryBinTripsSeeder,
 ]
 
 # Legacy alias — `schedule-masters` used to cover both of the above before it was
@@ -203,7 +223,10 @@ COLLECTIONS_SEEDERS = [
 ]
 
 CUSTOMER_MASTERS_SEEDERS = [
-    *CUSTOMER_SEEDERS,
+    # CustomerCreationSeeder dropped — Blue Planet's own customers are
+    # created directly inside BluePlanetSeeder. UserChargeRuleSeeder is
+    # company-agnostic (picks up whichever company exists) and kept.
+    UserChargeRuleSeeder,
     # Household waste-collection records depend on customers (this group) and
     # on daily trip assignments (already seeded in schedule-operations).
     WasteCollectionSeeder,
@@ -218,9 +241,9 @@ COMPLAINT_TICKET_SEEDERS = [
 ]
 
 
-REPORTS_SEEDERS = [
-    *REPORT_SEEDERS,
-]
+# DailyWasteComparisonSeeder/MonthlyWasteComparisonSeeder both hardcode the
+# generic "IWMS" company — intentionally left unregistered.
+REPORTS_SEEDERS = []
 
 # ============================================================
 # ORDER MATTERS — follows URL group dependency chain
@@ -271,24 +294,28 @@ SEED_GROUPS = {
     "platform":           SUPERADMIN_SEEDERS,
     # Single-seeder shortcuts
     "bin-collection-events": [BinCollectionEventSeeder],
-    "trip-logs":          [DailyTripLogSeeder],
     "vehicle-breakdowns": [VehicleBreakdownSeeder],
+    # driver_user's Wet/Dry bin-collection trips (see the seeder's own
+    # module docstring). Requires the superadmin group (Blue Planet masters)
+    # and user-creations (driver_user/operator_user) to have run first.
+    "driver-wet-dry-bin-trips": [DriverWetDryBinTripsSeeder],
+    # One Plant each for Blue Planet/Palakkad BP and Blue Planet/Greater
+    # Noida BP — requires the superadmin group to have run first.
+    "plant": [PlantSeeder, PlantGNOSeeder],
     "waste-collections":  [WasteCollectionSeeder],
     "retrip-demo":        [RetripDemoSeeder],
     "blue-planet":        [BluePlanetSeeder],
     "ticket-masters":     TICKET_SEEDERS,  # complaint-ticket/grievance-tickets masters only
     # Requires driver_user + today's DailyTripAssignment rows to already
     # exist (run `user-creations` and `schedule-operations` first, or `all`).
+    # driver_user currently has no seeded trips, so this is a no-op until
+    # some other seeder gives it one.
     "supervisor-user":    [SupervisorUserSeeder],
-    # driver_user's bin + household trips under Blue Planet / Palakkad BP.
-    "driver-trips":       [DriverPalakkadTripsSeeder],
-    # Narrows driver_user back down to bin collection only — run AFTER
-    # driver-trips (and anything else that might regenerate household/bulk
-    # plans for driver_user's StaffTemplate).
-    "driver-bin-only":    [DriverBinOnlySeeder],
-    # 10 more collectable collection points (+ bins) appended to driver_user's
-    # bin-collection TripPlan.
-    "driver-extra-cps":   [DriverExtraCollectionPointsSeeder],
+    # driver_user's own trip seeders (formerly `driver-trips`,
+    # `driver-bin-only`, `driver-bin-assignments`) were removed on request —
+    # a fresh DB + `seed all` leaves driver_user with zero trips for now.
+    # The seeder source files are left in place, just unwired from every
+    # group/shortcut here, in case they're wanted again later.
 }
 
 # ============================================================

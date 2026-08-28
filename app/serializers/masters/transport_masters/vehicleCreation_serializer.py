@@ -63,6 +63,11 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    is_assigned_today = serializers.SerializerMethodField()
+
+    def get_is_assigned_today(self, obj):
+        return bool(getattr(obj, "is_assigned_today", False))
+
     class Meta:
         model = VehicleCreation
         fields = [
@@ -91,6 +96,7 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
             "is_deleted",
             "created_at",
             "updated_at",
+            "is_assigned_today",
         ]
         read_only_fields = ["unique_id"]
         validators = []

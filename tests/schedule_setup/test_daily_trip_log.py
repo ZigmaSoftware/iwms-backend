@@ -10,11 +10,10 @@ Covers:
     not break the aggregate (Sum ignores NULLs).
   - sync_from_household_collections(): sums WasteCollection.total_quantity,
     only overriding when records exist.
-  - Status flow Draft -> Submitted -> Verified; read-only once Verified;
-    weight > 0 required before leaving Draft; blocked creation for cancelled
-    trips.
-  - On submit/verify (log_status in {Submitted, Verified}), the linked
-    DailyTripAssignment is marked Completed and actual_end_time is set.
+  - Status flow Unverified -> Verified; read-only once Verified; weight > 0
+    required before verifying; blocked creation for cancelled trips.
+  - Once actual_end_time is set, the linked DailyTripAssignment is marked
+    Completed and actual_end_time is set on it too.
 """
 from datetime import date, time
 from decimal import Decimal
@@ -364,9 +363,9 @@ class TestWeightSync:
 
 @pytest.mark.django_db
 class TestStatusFlow:
-    def test_default_status_is_draft(self, assignment):
+    def test_default_status_is_unverified(self, assignment):
         log = _make_log(assignment)
-        assert log.log_status == DailyTripLog.LOG_STATUS_DRAFT
+        assert log.log_status == DailyTripLog.LOG_STATUS_UNVERIFIED
 
     def test_creation_blocked_for_cancelled_trip(self, assignment):
         assignment.status = DailyTripAssignment.STATUS_CANCELLED
@@ -374,13 +373,13 @@ class TestStatusFlow:
         with pytest.raises(ValidationError):
             _make_log(assignment)
 
-    def test_submit_requires_weight_greater_than_zero(self, assignment):
-        log = _make_log(assignment)  # Draft, no weight yet
-        log.log_status = DailyTripLog.LOG_STATUS_SUBMITTED
+    def test_verify_requires_weight_greater_than_zero(self, assignment):
+        log = _make_log(assignment)  # Unverified, no weight yet
+        log.log_status = DailyTripLog.LOG_STATUS_VERIFIED
         with pytest.raises(ValidationError):
             log.save()
 
-    def test_submit_succeeds_with_positive_weight(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
+    def test_verify_succeeds_with_positive_weight(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
             trip_assignment_id=assignment, trip_collection_point_id=stop,
@@ -388,10 +387,10 @@ class TestStatusFlow:
             waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
         )
         log = _make_log(assignment)  # auto-synced to 3.00 on create
-        log.log_status = DailyTripLog.LOG_STATUS_SUBMITTED
+        log.log_status = DailyTripLog.LOG_STATUS_VERIFIED
         log.save()
         log.refresh_from_db()
-        assert log.log_status == DailyTripLog.LOG_STATUS_SUBMITTED
+        assert log.log_status == DailyTripLog.LOG_STATUS_VERIFIED
 
     def test_verified_log_is_read_only(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         BinCollectionEvent.objects.create(
@@ -410,25 +409,23 @@ class TestStatusFlow:
 
 
 # ----------------------------------------------------------------------
-# 4. Submit/verify marks assignment Completed + sets actual_end_time
+# 4. actual_end_time marks assignment Completed
 # ----------------------------------------------------------------------
 
 @pytest.mark.django_db
-class TestAssignmentCompletionOnSubmit:
-    def test_submit_marks_assignment_completed(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
+class TestAssignmentCompletionOnEndTime:
+    def test_end_time_marks_assignment_completed(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
             trip_assignment_id=assignment, trip_collection_point_id=stop,
             collection_point_id=collection_point, bin_id=bin_obj,
             waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
         )
-        log = _make_log(assignment)
-        log.log_status = DailyTripLog.LOG_STATUS_SUBMITTED
-        log.save()
+        log = _make_log(assignment, actual_end_time=time(9, 45))
         assignment.refresh_from_db()
         assert assignment.status == DailyTripAssignment.STATUS_COMPLETED
 
-    def test_submit_sets_actual_end_time_when_unset(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
+    def test_end_time_sets_actual_end_time_when_unset(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         assert assignment.actual_end_time is None
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
@@ -437,12 +434,10 @@ class TestAssignmentCompletionOnSubmit:
             waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
         )
         log = _make_log(assignment, actual_end_time=time(9, 45))
-        log.log_status = DailyTripLog.LOG_STATUS_SUBMITTED
-        log.save()
         assignment.refresh_from_db()
         assert assignment.actual_end_time == time(9, 45)
 
-    def test_submit_does_not_override_existing_actual_end_time(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
+    def test_end_time_does_not_override_existing_actual_end_time(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         assignment.actual_end_time = time(10, 0)
         assignment.save(update_fields=["actual_end_time"])
         BinCollectionEvent.objects.create(
@@ -452,8 +447,6 @@ class TestAssignmentCompletionOnSubmit:
             waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
         )
         log = _make_log(assignment, actual_end_time=time(11, 30))
-        log.log_status = DailyTripLog.LOG_STATUS_SUBMITTED
-        log.save()
         assignment.refresh_from_db()
         assert assignment.actual_end_time == time(10, 0)
 
@@ -464,13 +457,13 @@ class TestAssignmentCompletionOnSubmit:
             collection_point_id=collection_point, bin_id=bin_obj,
             waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
         )
-        log = _make_log(assignment)
+        log = _make_log(assignment, actual_end_time=time(9, 45))
         log.log_status = DailyTripLog.LOG_STATUS_VERIFIED
         log.save()
         assignment.refresh_from_db()
         assert assignment.status == DailyTripAssignment.STATUS_COMPLETED
 
-    def test_draft_does_not_touch_assignment_status(self, assignment):
+    def test_no_end_time_does_not_touch_assignment_status(self, assignment):
         log = _make_log(assignment)
         assignment.refresh_from_db()
         assert assignment.status == DailyTripAssignment.STATUS_SCHEDULED

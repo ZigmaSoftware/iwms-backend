@@ -22,7 +22,9 @@ from app.models.assets.bins import Bins
 from app.models.customers.customercreation import CustomerCreation
 from app.models.customers.wastecollection import WasteCollection
 from app.models.grivences.complaints import Complaint
+from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
+from app.models.masters.zone import Zone
 from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.daily_trip_household_collection import (
@@ -89,6 +91,8 @@ class DashboardSummaryViewSet(ViewSet):
     def _resolve_scope(self, request):
         params = request.query_params
         ward_id = (params.get("ward_id") or "").strip() or None
+        panchayat_id = (params.get("panchayat_id") or "").strip() or None
+        zone_id = (params.get("zone_id") or "").strip() or None
         date_str = (params.get("date") or "").strip() or None
         project_id_param = (params.get("project_id") or "").strip() or None
 
@@ -111,7 +115,7 @@ class DashboardSummaryViewSet(ViewSet):
                 unique_id=project_id_param, company_id=company
             ).first()
 
-        return company, project, ward_id, date_str
+        return company, project, ward_id, panchayat_id, zone_id, date_str
 
     def _resolve_date(self, date_str):
         target_date = timezone.localdate()
@@ -125,10 +129,15 @@ class DashboardSummaryViewSet(ViewSet):
         return target_date
 
     def _scoped(self, qs, ctx):
-        """Applies company/project/ward scoping. Returns .none() when no
-        company is resolved (superadmin with no company_id param) so every
-        aggregation downstream naturally yields zeroed output instead of
-        risking a cross-tenant aggregate."""
+        """Applies company/project/ward/panchayat/zone scoping. Returns
+        .none() when no company is resolved (superadmin with no company_id
+        param) so every aggregation downstream naturally yields zeroed
+        output instead of risking a cross-tenant aggregate.
+
+        Panchayat and zone filters combine with OR (a row is only ever
+        panchayat-scoped — bin-collection trips — or zone-scoped —
+        household/ward trips — never both), mirroring the same OR semantics
+        used by the Daily/Monthly Waste Comparison report filters."""
         company = ctx["company"]
         if company is None:
             return qs.none()
@@ -149,19 +158,47 @@ class DashboardSummaryViewSet(ViewSet):
                 qs = qs.filter(ward_id=ward_id)
             elif _model_has_field(model, "wards"):
                 qs = qs.filter(wards__unique_id=ward_id).distinct()
+
+        panchayat_id = ctx.get("panchayat_id")
+        zone_id = ctx.get("zone_id")
+        if panchayat_id or zone_id:
+            location_filter = Q()
+            has_location_field = False
+            if panchayat_id:
+                if model is Panchayat:
+                    location_filter |= Q(unique_id=panchayat_id)
+                    has_location_field = True
+                elif _model_has_field(model, "panchayat") or _model_has_field(model, "panchayat_id"):
+                    location_filter |= Q(panchayat_id=panchayat_id)
+                    has_location_field = True
+            if zone_id:
+                if model is Zone:
+                    location_filter |= Q(unique_id=zone_id)
+                    has_location_field = True
+                elif _model_has_field(model, "zone") or _model_has_field(model, "zone_id"):
+                    location_filter |= Q(zone_id=zone_id)
+                    has_location_field = True
+            if has_location_field:
+                qs = qs.filter(location_filter)
         return qs
 
-    def _no_ward(self, ctx):
-        return {**ctx, "ward_id": None}
+    def _no_location(self, ctx):
+        return {**ctx, "ward_id": None, "panchayat_id": None, "zone_id": None}
 
     # ==========================================================
     # MAIN ENDPOINT
     # ==========================================================
 
     def list(self, request):
-        company, project, ward_id, date_str = self._resolve_scope(request)
+        company, project, ward_id, panchayat_id, zone_id, date_str = self._resolve_scope(request)
         target_date = self._resolve_date(date_str)
-        ctx = {"company": company, "project": project, "ward_id": ward_id}
+        ctx = {
+            "company": company,
+            "project": project,
+            "ward_id": ward_id,
+            "panchayat_id": panchayat_id,
+            "zone_id": zone_id,
+        }
 
         return Response(
             {
@@ -193,11 +230,25 @@ class DashboardSummaryViewSet(ViewSet):
     # ==========================================================
 
     def _filter_options(self, ctx):
+        panchayat_qs = self._scoped(
+            Panchayat.objects.filter(is_deleted=False), self._no_location(ctx)
+        ).order_by("panchayat_name")
+        zone_qs = self._scoped(
+            Zone.objects.filter(is_deleted=False), self._no_location(ctx)
+        ).order_by("zone_name")
+        # Wards cascade under whichever panchayat/zone is selected (a ward
+        # belongs to exactly one of the two — see Ward.clean()'s XOR rule) —
+        # scoped by the full ctx (ward/panchayat/zone) so picking a panchayat
+        # or zone narrows the Wards dropdown to just that location's wards.
         ward_qs = self._scoped(
-            Ward.objects.filter(is_deleted=False), self._no_ward(ctx)
+            Ward.objects.filter(is_deleted=False), {**ctx, "ward_id": None}
         ).order_by("ward_name")
         return {
             "wards": [{"id": w.unique_id, "name": w.ward_name} for w in ward_qs[:1000]],
+            "panchayats": [
+                {"id": p.unique_id, "name": p.panchayat_name} for p in panchayat_qs[:1000]
+            ],
+            "zones": [{"id": z.unique_id, "name": z.zone_name} for z in zone_qs[:1000]],
         }
 
     # ==========================================================
@@ -327,7 +378,7 @@ class DashboardSummaryViewSet(ViewSet):
         total = household_total + bin_total
 
         master_rows = list(
-            WasteType.objects.filter(is_deleted=False, is_active=True)
+            self._scoped(WasteType.objects.filter(is_deleted=False, is_active=True), self._no_location(ctx))
             .order_by("waste_type_name", "unique_id")
             .values("unique_id", "waste_type_name")
         )
@@ -469,10 +520,7 @@ class DashboardSummaryViewSet(ViewSet):
     def _collection_type_summary(self, ctx, target_date=None):
         assignments = self._scoped(DailyTripAssignment.objects.filter(is_deleted=False), ctx)
         logs = self._scoped(
-            DailyTripLog.objects.filter(
-                is_deleted=False,
-                log_status__in=[DailyTripLog.LOG_STATUS_SUBMITTED, DailyTripLog.LOG_STATUS_VERIFIED],
-            ),
+            DailyTripLog.objects.filter(is_deleted=False),
             ctx,
         )
         household_rows = self._scoped(
@@ -557,7 +605,7 @@ class DashboardSummaryViewSet(ViewSet):
     # ==========================================================
 
     def _vehicle_summary(self, ctx):
-        vehicles = self._scoped(_active(VehicleCreation.objects.all()), self._no_ward(ctx))
+        vehicles = self._scoped(_active(VehicleCreation.objects.all()), self._no_location(ctx))
         total = vehicles.count()
         active = vehicles.filter(is_active=True).count()
         return {
@@ -571,7 +619,7 @@ class DashboardSummaryViewSet(ViewSet):
     # ==========================================================
 
     def _grievance_summary(self, ctx):
-        qs = self._scoped(Complaint.objects.filter(is_deleted=False), self._no_ward(ctx))
+        qs = self._scoped(Complaint.objects.filter(is_deleted=False), self._no_location(ctx))
         counts = qs.aggregate(
             total=Count("unique_id"),
             resolved=Count("unique_id", filter=Q(status=Complaint.StatusChoices.CLOSED)),
@@ -597,7 +645,7 @@ class DashboardSummaryViewSet(ViewSet):
 
     def _master_summary(self, ctx):
         return {
-            "wards": self._scoped(Ward.objects.filter(is_deleted=False), self._no_ward(ctx)).count(),
+            "wards": self._scoped(Ward.objects.filter(is_deleted=False), self._no_location(ctx)).count(),
         }
 
     # ==========================================================
@@ -608,7 +656,7 @@ class DashboardSummaryViewSet(ViewSet):
         vehicles = list(
             self._scoped(
                 VehicleCreation.objects.select_related("vehicle_type").filter(is_deleted=False),
-                self._no_ward(ctx),
+                self._no_location(ctx),
             )[:20]
         )
         v_ids = [v.unique_id for v in vehicles]
@@ -807,14 +855,14 @@ class DashboardSummaryViewSet(ViewSet):
         ward_data = {r["customer_id__ward"]: r for r in agg}
 
         customer_agg = (
-            self._scoped(_active(CustomerCreation.objects.filter(ward__in=ward_ids)), self._no_ward(ctx))
+            self._scoped(_active(CustomerCreation.objects.filter(ward__in=ward_ids)), self._no_location(ctx))
             .values("ward")
             .annotate(total_customers=Count("unique_id"))
         )
         customer_data = {r["ward"]: r for r in customer_agg}
 
         bin_master_agg = (
-            self._scoped(_active(Bins.objects.filter(ward_id__in=ward_ids)), self._no_ward(ctx))
+            self._scoped(_active(Bins.objects.filter(ward_id__in=ward_ids)), self._no_location(ctx))
             .values("ward_id")
             .annotate(total_bins=Count("unique_id"))
         )
@@ -1015,7 +1063,7 @@ class DashboardSummaryViewSet(ViewSet):
     # ==========================================================
 
     def _vehicle_status_detail(self, ctx):
-        vehicles = self._scoped(VehicleCreation.objects.filter(is_deleted=False), self._no_ward(ctx))
+        vehicles = self._scoped(VehicleCreation.objects.filter(is_deleted=False), self._no_location(ctx))
         total = vehicles.count()
         active = vehicles.filter(is_active=True).count()
         today = timezone.localdate()
@@ -1032,7 +1080,7 @@ class DashboardSummaryViewSet(ViewSet):
                 idle_count += 1
         breakdowns = self._scoped(
             VehicleBreakdown.objects.filter(is_deleted=False, status=VehicleBreakdown.STATUS_REPORTED),
-            self._no_ward(ctx),
+            self._no_location(ctx),
         )
         breakdown_count = breakdowns.count()
         return {
@@ -1053,7 +1101,7 @@ class DashboardSummaryViewSet(ViewSet):
                 )
                 .select_related("customer", "zone", "ward")
                 .order_by("-created"),
-                self._no_ward(ctx),
+                self._no_location(ctx),
             )[:10]
         )
         breakdowns = list(
@@ -1069,7 +1117,7 @@ class DashboardSummaryViewSet(ViewSet):
                     "trip_assignment_id__trip_plan_id",
                 )
                 .order_by("-created_at"),
-                self._no_ward(ctx),
+                self._no_location(ctx),
             )[:10]
         )
 
@@ -1127,7 +1175,7 @@ class DashboardSummaryViewSet(ViewSet):
 
     def _recent_grievances(self, ctx):
         qs = self._scoped(
-            Complaint.objects.filter(is_deleted=False).order_by("-created"), self._no_ward(ctx)
+            Complaint.objects.filter(is_deleted=False).order_by("-created"), self._no_location(ctx)
         )[:10]
         return [
             {

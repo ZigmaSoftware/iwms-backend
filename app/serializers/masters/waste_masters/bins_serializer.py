@@ -33,8 +33,6 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     ward_id = UniqueIdOrPkField(
         slug_field="unique_id",
         queryset=Ward.objects.filter(is_deleted=False),
-        required=False,
-        allow_null=True,
     )
     ward_name = serializers.CharField(source="ward_id.ward_name", read_only=True)
 
@@ -58,6 +56,8 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "ward_name",
             "collection_point_id",
             "collection_point_name",
+            "latitude",
+            "longitude",
             "bin_capacity",
             "bin_name",
             "bin_type",
@@ -82,6 +82,8 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         extra_kwargs = {
             "bin_qr": {"required": False, "read_only": True},
             "bin_image": {"required": False, "allow_blank": True},
+            "latitude": {"required": False, "allow_null": True},
+            "longitude": {"required": False, "allow_null": True},
         }
 
 
