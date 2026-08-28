@@ -28,6 +28,11 @@ class Project(BaseMaster):
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
 
+    has_blocks = models.BooleanField(
+        default=False,
+        help_text="Whether this project is organized into Blocks, enabling the Block field during customer creation.",
+    )
+
     # Local-body / authority emblem printed on customer QR stickers.
     project_logo = models.ImageField(
         upload_to="project_logos/",

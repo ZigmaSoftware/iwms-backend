@@ -20,7 +20,7 @@ class BlockViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     AUDIT_ENDPOINT = "blocks"
 
     def get_queryset(self):
-        queryset = Block.objects.filter(is_deleted=False)
+        queryset = Block.objects.filter(is_deleted=False, project_id__has_blocks=True)
 
         company_uid = self.request.query_params.get("company_id")
         project_uid = self.request.query_params.get("project_id")

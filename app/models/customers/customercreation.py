@@ -18,6 +18,7 @@ from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.masters.panchayat import Panchayat
 from app.models.superadmin_masters.project import Project
+from app.models.masters.block import Block
 from app.utils.customer_qr import (
     QR_SUBPROPERTY_APARTMENT,
     generate_customer_qr_content,
@@ -81,6 +82,7 @@ class CustomerCreation(BaseMaster):
         "building_no",
         "apartment_name",
         "block_no",
+        "block_id_id",
         "flat_no",
         "villa_no",
         "industry_name",
@@ -96,6 +98,7 @@ class CustomerCreation(BaseMaster):
         "building_no",
         "apartment_name",
         "block_no",
+        "block_id_id",
         "flat_no",
         "villa_no",
         "industry_name",
@@ -166,6 +169,15 @@ class CustomerCreation(BaseMaster):
     # =============================
     apartment_name = models.CharField(max_length=100, null=True, blank=True)
     block_no = models.CharField(max_length=20, null=True, blank=True)
+    block_id = models.ForeignKey(
+        Block,
+        on_delete=models.PROTECT,
+        related_name="customer_creations",
+        db_column="block_id",
+        null=True,
+        blank=True,
+        help_text="Block master record, only applicable when the project has has_blocks=True.",
+    )
     flat_no = models.CharField(max_length=20, null=True, blank=True)
 
     apartment_qr = models.ImageField(

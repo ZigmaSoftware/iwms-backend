@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from app.models.masters.block import Block
+from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.validators.unique_name_validator import unique_name_validator
 
@@ -45,6 +46,18 @@ class BlockSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     def validate(self, attrs):
         hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         block_name = attrs.get("block_name")
+
+        project = getattr(self.instance, "project_id", None)
+        request = self.context.get("request")
+        if project is None and request is not None:
+            project_uid = request.query_params.get("project_id") or request.data.get("project_id")
+            if project_uid:
+                project = Project.objects.filter(unique_id=project_uid).first()
+
+        if project is not None and not project.has_blocks:
+            raise serializers.ValidationError({
+                "project_id": "This project is not organized into Blocks. Enable 'has_blocks' on the project first."
+            })
 
         if hierarchy and hierarchy.level_name.lower() != "block":
             raise serializers.ValidationError({
