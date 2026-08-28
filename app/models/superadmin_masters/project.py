@@ -27,6 +27,13 @@ class Project(BaseMaster):
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
+
+    # Local-body / authority emblem printed on customer QR stickers.
+    project_logo = models.ImageField(
+        upload_to="project_logos/",
+        blank=True,
+        null=True,
+    )
     
     # GPS API URLs (Vamosys)
     gps_api_url = models.URLField(max_length=500, blank=True, null=True)  # Legacy - kept for backward compatibility
