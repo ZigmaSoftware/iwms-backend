@@ -1,0 +1,61 @@
+from rest_framework import serializers
+from app.models.masters.block import Block
+from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.validators.unique_name_validator import unique_name_validator
+
+
+class BlockSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+
+    ward_name = serializers.CharField(source="ward_id.ward_name", read_only=True)
+    hierarchy_name = serializers.CharField(source="hierarchy_id.level_name", read_only=True)
+    hierarchy_order = serializers.IntegerField(source="hierarchy_id.hierarchy_order", read_only=True)
+
+    class Meta:
+        model = Block
+        fields = [
+            "unique_id",
+            "company_id",
+            "company_name",
+            "project_id",
+            "project_name",
+            "ward_id",
+            "ward_name",
+            "hierarchy_id",
+            "hierarchy_order",
+            "hierarchy_name",
+            "block_name",
+            "description",
+            "latitude",
+            "longitude",
+            "is_active",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+            "is_deleted",
+        ]
+        read_only_fields = [
+            "unique_id",
+            "created_at",
+            "updated_at",
+            "company_id",
+            "project_id",
+        ]
+
+    def validate(self, attrs):
+        hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
+        block_name = attrs.get("block_name")
+
+        if hierarchy and hierarchy.level_name.lower() != "block":
+            raise serializers.ValidationError({
+                "hierarchy": "Hierarchy level must be Block."
+            })
+
+        if not self.instance or block_name:
+            unique_name_validator(
+                Model=Block,
+                name_field="block_name",
+                scope_fields=["company_id", "project_id", "ward_id"],
+            )(self, attrs)
+
+        return attrs

@@ -20,6 +20,7 @@ from ..viewsets.masters.district_viewset import DistrictViewSet
 from ..viewsets.masters.city_viewset import CityViewSet
 from ..viewsets.masters.zone_viewset import ZoneViewSet
 from ..viewsets.masters.ward_viewset import WardViewSet
+from ..viewsets.masters.block_viewset import BlockViewSet
 from ..viewsets.masters.panchayat_viweset import PanhayatViewSet
 from ..viewsets.masters.leader_management.panchayat_leader_viewset import PanchayatLeaderLoginViewSet
 from ..viewsets.masters.leader_management.district_leader_viewset import DistrictLeaderLoginViewSet
@@ -192,6 +193,7 @@ router.register_group("masters", "districts",     DistrictViewSet)
 router.register_group("masters", "cities",        CityViewSet)
 router.register_group("masters", "zones",         ZoneViewSet)
 router.register_group("masters", "wards",         WardViewSet)
+router.register_group("masters", "blocks",         BlockViewSet)
 router.register_group("masters", "panchayat",         PanhayatViewSet)
 router.register_group("masters", "panchayat-leaders", PanchayatLeaderLoginViewSet)
 router.register_group("masters", "district-leaders", DistrictLeaderLoginViewSet)
