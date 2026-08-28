@@ -38,15 +38,32 @@ class TestBluePlanetSeeder:
         assert noida.attendance_api_url == BluePlanetSeeder.ATTENDANCE_API_URL
         assert noida.attendance_api_key == BluePlanetSeeder.ATTENDANCE_API_KEY
         assert noida.gps_api_url == BluePlanetSeeder.GPS_API_URL
+        assert noida.gps_vehicle_tracking_api == BluePlanetSeeder.GPS_VEHICLE_TRACKING_API
         assert noida.weighment_api_url == BluePlanetSeeder.WEIGHMENT_API_URL
+
+        # Greater Noida BP uses the real Vamosys-tracked fleet instead of
+        # the generic 2-vehicle demo pattern used elsewhere.
+        assert VehicleCreation.objects.filter(
+            company_id=company, project_id=noida, is_active=True
+        ).count() == len(BluePlanetSeeder.GNO_REAL_VEHICLES)
+        assert set(
+            VehicleCreation.objects.filter(company_id=company, project_id=noida, is_active=True)
+            .values_list("vehicle_no", flat=True)
+        ) == {v["vehicle_no"] for v in BluePlanetSeeder.GNO_REAL_VEHICLES}
 
         for project in projects:
             assert Zone.objects.filter(company_id=company, project_id=project).count() == 3
             assert Ward.objects.filter(company_id=company, project_id=project).count() == 3
             assert Collection_point.objects.filter(company_id=company, project_id=project).count() == 3
             assert Bins.objects.filter(company_id=company, project_id=project).count() == 9
-            assert VehicleCreation.objects.filter(company_id=company, project_id=project).count() == 2
-            assert CustomerCreation.objects.filter(company_id=company, project_id=project).count() == 8
+            if project.name != "Greater Noida BP":
+                assert VehicleCreation.objects.filter(company_id=company, project_id=project).count() == 2
+            # Greater Noida BP additionally carries 5 real-address customers
+            # for the dedicated UP16KT1737 route (GNO_REAL_ROUTE_STOPS).
+            expected_customers = 8 + (
+                len(BluePlanetSeeder.GNO_REAL_ROUTE_STOPS) if project.name == "Greater Noida BP" else 0
+            )
+            assert CustomerCreation.objects.filter(company_id=company, project_id=project).count() == expected_customers
             assert Complaint.objects.filter(company_id=company, project_id=project).count() == 3
 
             bin_trip_plan = TripPlan.objects.get(
@@ -54,10 +71,19 @@ class TestBluePlanetSeeder:
             )
             assert bin_trip_plan.is_auto_assign is True
 
-            household_trip_plan = TripPlan.objects.get(
+            household_trip_plans = TripPlan.objects.filter(
                 company_id=company, project_id=project, collection_type=TripPlan.COLLECTION_TYPE_HOUSEHOLD
             )
-            assert household_trip_plan.is_auto_assign is True
+            assert household_trip_plans.count() == (2 if project.name == "Greater Noida BP" else 1)
+            assert all(plan.is_auto_assign for plan in household_trip_plans)
+
+            if project.name == "Greater Noida BP":
+                real_route_plan = household_trip_plans.get(
+                    vehicle_id__vehicle_no=BluePlanetSeeder.GNO_REAL_ROUTE_VEHICLE_NO
+                )
+                assert real_route_plan.plan_collection_points.filter(is_active=True).count() == len(
+                    BluePlanetSeeder.GNO_REAL_ROUTE_STOPS
+                )
 
             for bin_obj in Bins.objects.filter(company_id=company, project_id=project):
                 assert bin_obj.ward_id_id is not None
@@ -71,7 +97,10 @@ class TestBluePlanetSeeder:
         assert Project.objects.filter(company_id=company).count() == 2
         for project in Project.objects.filter(company_id=company):
             assert Zone.objects.filter(company_id=company, project_id=project).count() == 3
-            assert CustomerCreation.objects.filter(company_id=company, project_id=project).count() == 8
+            expected_customers = 8 + (
+                len(BluePlanetSeeder.GNO_REAL_ROUTE_STOPS) if project.name == "Greater Noida BP" else 0
+            )
+            assert CustomerCreation.objects.filter(company_id=company, project_id=project).count() == expected_customers
             assert Complaint.objects.filter(company_id=company, project_id=project).count() == 3
 
     def test_backfills_missing_staff_ids_across_all_projects(self):

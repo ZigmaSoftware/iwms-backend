@@ -11,6 +11,9 @@ from rest_framework.response import Response
 from app.models.schedule_masters.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
+from app.models.schedule_masters.daily_trip_household_collection import (
+    DailyTripHouseholdCollection,
+)
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
@@ -89,6 +92,85 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if next_stop:
             next_stop.status = DailyTripCollectionPoint.STATUS_IN_PROGRESS
             next_stop.save(update_fields=["status", "updated_at"])
+
+    # DailyTripHouseholdCollection has no "In Progress" state and uses its
+    # own vocabulary (Collect Later, Not Available, Not Collected) — map it
+    # onto DailyTripCollectionPoint's status vocabulary so household rows
+    # can sit in the same summary counts / tab filters / marker colors.
+    _HOUSEHOLD_STATUS_MAP = {
+        "Pending": DailyTripCollectionPoint.STATUS_PENDING,
+        "Collect Later": DailyTripCollectionPoint.STATUS_PENDING,
+        "Collected": DailyTripCollectionPoint.STATUS_COLLECTED,
+        "Not Available": DailyTripCollectionPoint.STATUS_MISSED,
+        "Not Collected": DailyTripCollectionPoint.STATUS_MISSED,
+        "Skipped": DailyTripCollectionPoint.STATUS_SKIPPED,
+    }
+
+    def _household_rows_for_assignment(self, assignment):
+        """DailyTripCollectionPointSerializer-shaped dicts for one
+        assignment's household stops (DailyTripHouseholdCollection), which
+        `get_queryset()` never sees since it only reads
+        DailyTripCollectionPoint (bin-collection stops). Lets the tracking
+        endpoint show real rows/pins/counts for household-only trips."""
+        stops = list(
+            DailyTripHouseholdCollection.objects.select_related(
+                "customer_id", "trip_assignment_id", "trip_assignment_id__trip_plan_id",
+            )
+            .filter(trip_assignment_id=assignment, is_deleted=False)
+            .order_by("sequence")
+        )
+        rows = []
+        for stop in stops:
+            customer = stop.customer_id
+            if not customer:
+                continue
+            mapped_status = self._HOUSEHOLD_STATUS_MAP.get(
+                stop.status, DailyTripCollectionPoint.STATUS_PENDING
+            )
+            rows.append({
+                "unique_id": stop.unique_id,
+                "trip_assignment_id": assignment.unique_id,
+                "trip_assignment": {
+                    "unique_id": assignment.unique_id,
+                    "trip_date": assignment.trip_date,
+                    "scheduled_time": assignment.scheduled_time,
+                    "status": assignment.status,
+                    "approval_status": assignment.approval_status,
+                    "trip_plan_id": getattr(assignment.trip_plan_id, "unique_id", None),
+                    "trip_plan_display_code": getattr(assignment.trip_plan_id, "display_code", None),
+                },
+                "collection_point_id": None,
+                "collection_point": {
+                    "unique_id": customer.unique_id,
+                    "cp_name": customer.customer_name,
+                    "latitude": customer.latitude,
+                    "longitude": customer.longitude,
+                    "panchayat_id": getattr(stop.panchayat_id, "unique_id", None),
+                    "panchayat_name": getattr(stop.panchayat_id, "panchayat_name", None),
+                    "ward_id": getattr(stop.ward_id, "unique_id", None),
+                    "ward_name": getattr(stop.ward_id, "ward_name", None),
+                    "zone_id": getattr(stop.zone_id, "unique_id", None),
+                    "zone_name": getattr(stop.zone_id, "zone_name", None),
+                },
+                "zone_id": getattr(stop.zone_id, "unique_id", None),
+                "ward_id": getattr(stop.ward_id, "unique_id", None),
+                "panchayat_id": getattr(stop.panchayat_id, "unique_id", None),
+                "bin_id": None,
+                "bin": None,
+                "sequence": stop.sequence,
+                "is_collected": stop.is_collected,
+                "collected_at": stop.collected_at,
+                "collected_weight_kg": stop.collected_weight_kg,
+                "collected_by": None,
+                "collected_by_staff": None,
+                "status": mapped_status,
+                "status_reason": stop.status_reason,
+                "status_latitude": stop.status_latitude,
+                "status_longitude": stop.status_longitude,
+                "created_at": stop.created_at,
+                "updated_at": stop.updated_at,
+            })
+        return rows
 
     def _latest_vehicle_start(self, assignment):
         latest_event = (
@@ -348,6 +430,7 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     @action(detail=False, methods=["get"], url_path="tracking")
     def tracking(self, request):
         assignment_id = request.query_params.get("trip_assignment_id")
+        selected_assignment = None
         if assignment_id:
             selected_assignment = self._ensure_assignment_stops(assignment_id)
             self._ensure_current_stop(selected_assignment)
@@ -356,39 +439,55 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "trip_assignment_id", "sequence"
         )
         status_value = request.query_params.get("status")
-        if status_value == DailyTripCollectionPoint.STATUS_MISSED:
-            queryset = route_queryset.filter(
-                status__in=[
+
+        # DailyTripCollectionPoint only models bin-collection stops; a
+        # household-only trip (see DailyTripHouseholdCollection) has none,
+        # so route_queryset alone would be empty for it. Only safe to merge
+        # in household rows when one specific trip was requested — that's
+        # the only case where the assignment is resolved up front.
+        household_rows = (
+            self._household_rows_for_assignment(selected_assignment)
+            if selected_assignment
+            else []
+        )
+
+        bin_route_rows = list(
+            self.get_serializer(route_queryset[:500], many=True).data
+        )
+        route_rows = sorted(
+            bin_route_rows + household_rows, key=lambda row: row["sequence"]
+        )
+
+        def matches_status(row):
+            if not status_value:
+                return True
+            if status_value == DailyTripCollectionPoint.STATUS_MISSED:
+                return row["status"] in {
                     DailyTripCollectionPoint.STATUS_MISSED,
                     DailyTripCollectionPoint.STATUS_SKIPPED,
-                ]
-            )
-        else:
-            queryset = route_queryset.filter(status=status_value) if status_value else route_queryset
+                }
+            return row["status"] == status_value
+
+        filtered_rows = [row for row in route_rows if matches_status(row)]
         page = max(int(request.query_params.get("page", 1)), 1)
         page_size = min(max(int(request.query_params.get("page_size", 20)), 1), 100)
-        total = queryset.count()
+        total = len(filtered_rows)
         start = (page - 1) * page_size
-        rows = queryset[start:start + page_size]
+        page_rows = filtered_rows[start:start + page_size]
 
-        route_total = route_queryset.count()
-        completed = route_queryset.filter(status=DailyTripCollectionPoint.STATUS_COLLECTED).count()
-        in_progress = route_queryset.filter(
-            status=DailyTripCollectionPoint.STATUS_IN_PROGRESS
-        ).count()
-        pending = route_queryset.filter(status=DailyTripCollectionPoint.STATUS_PENDING).count()
-        missed = route_queryset.filter(
-            status__in=[
-                DailyTripCollectionPoint.STATUS_SKIPPED,
-                DailyTripCollectionPoint.STATUS_MISSED,
-            ]
-        ).count()
-
-        assignment = (
-            route_queryset.first().trip_assignment_id
-            if route_queryset.exists()
-            else None
+        route_total = len(route_rows)
+        completed = sum(row["status"] == DailyTripCollectionPoint.STATUS_COLLECTED for row in route_rows)
+        in_progress = sum(row["status"] == DailyTripCollectionPoint.STATUS_IN_PROGRESS for row in route_rows)
+        pending = sum(row["status"] == DailyTripCollectionPoint.STATUS_PENDING for row in route_rows)
+        missed = sum(
+            row["status"] in {DailyTripCollectionPoint.STATUS_SKIPPED, DailyTripCollectionPoint.STATUS_MISSED}
+            for row in route_rows
         )
+
+        assignment = selected_assignment
+        if not assignment:
+            first_bin_row = route_queryset.first()
+            assignment = first_bin_row.trip_assignment_id if first_bin_row else None
         if assignment_id and not assignment:
             assignment = (
                 DailyTripAssignment.objects.filter(
@@ -408,12 +507,17 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 .order_by("-created_at")
                 .first()
             )
-        next_stop = route_queryset.filter(
-            status__in=[
-                DailyTripCollectionPoint.STATUS_PENDING,
-                DailyTripCollectionPoint.STATUS_IN_PROGRESS,
-            ]
-        ).first()
+        next_stop = next(
+            (
+                row for row in route_rows
+                if row["status"] in {
+                    DailyTripCollectionPoint.STATUS_PENDING,
+                    DailyTripCollectionPoint.STATUS_IN_PROGRESS,
+                }
+                and row.get("collection_point")
+            ),
+            None,
+        )
 
         return Response({
             "count": total,
@@ -427,8 +531,8 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "missed": missed,
                 "completion_percentage": round((completed / route_total) * 100, 2) if route_total else 0,
             },
-            "results": self.get_serializer(rows, many=True).data,
-            "route_results": self.get_serializer(route_queryset[:500], many=True).data,
+            "results": page_rows,
+            "route_results": route_rows,
             "vehicle_tracking": {
                 "vehicle_no": getattr(getattr(assignment, "vehicle_id", None), "vehicle_no", None),
                 "current_location": None if not latest_event else {
@@ -438,10 +542,10 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                     "collection_point": latest_event.collection_point_id.cp_name,
                 },
                 "next_collection_point": None if not next_stop else {
-                    "unique_id": next_stop.collection_point_id.unique_id,
-                    "cp_name": next_stop.collection_point_id.cp_name,
-                    "latitude": next_stop.collection_point_id.latitude,
-                    "longitude": next_stop.collection_point_id.longitude,
+                    "unique_id": next_stop["collection_point"]["unique_id"],
+                    "cp_name": next_stop["collection_point"]["cp_name"],
+                    "latitude": next_stop["collection_point"]["latitude"],
+                    "longitude": next_stop["collection_point"]["longitude"],
                 },
                 "remaining_collection_points": pending + in_progress,
             },
@@ -616,6 +720,26 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             group["sequence"] = min(group["sequence"], stop.sequence)
             group["bins"].append(f"{stop.bin_id.bin_name} ({stop.status})")
 
+        household_stops = list(
+            DailyTripHouseholdCollection.objects.select_related("customer_id")
+            .filter(trip_assignment_id=assignment, is_deleted=False)
+            .order_by("sequence")
+        )
+        for stop in household_stops:
+            customer = stop.customer_id
+            if not customer or customer.latitude is None or customer.longitude is None:
+                continue
+            grouped[f"household:{stop.unique_id}"] = {
+                "id": stop.unique_id,
+                "label": customer.customer_name,
+                "type": "household",
+                "sequence": stop.sequence,
+                "latitude": float(customer.latitude),
+                "longitude": float(customer.longitude),
+                "bins": [],
+                "status": stop.status,
+            }
+
         ordered_groups = sorted(grouped.values(), key=lambda group: group["sequence"])
         route_stops = [
             {
@@ -625,7 +749,11 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "order": index + 1,
                 "latitude": group["latitude"],
                 "longitude": group["longitude"],
-                "details": {"Bins": ", ".join(group["bins"])},
+                "details": (
+                    {"Bins": ", ".join(group["bins"])}
+                    if group["type"] == "collection_point"
+                    else {"Status": group.get("status", "")}
+                ),
             }
             for index, group in enumerate(ordered_groups)
         ]
