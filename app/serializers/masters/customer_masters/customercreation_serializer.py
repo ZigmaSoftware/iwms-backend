@@ -110,6 +110,8 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         required=False,
     )
     waste_types = serializers.SerializerMethodField(read_only=True)
+    # Local-body emblem for the project, printed on the customer QR sticker.
+    project_logo = serializers.SerializerMethodField(read_only=True)
     panchayat_id = serializers.SlugRelatedField(
         # source="panchayat_id",
         queryset=Panchayat.objects.all(),
@@ -157,6 +159,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "company_name",
             "project_id",
             "project_name",
+            "project_logo",
             "customer_name",
             "contact_no",
             "building_no",
@@ -341,6 +344,13 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
                     f"Invalid id_proof_type '{id_proof_type}' for family member."
                 )
         return value
+
+    def get_project_logo(self, obj):
+        logo = getattr(getattr(obj, "project_id", None), "project_logo", None)
+        if not logo:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(logo.url) if request else logo.url
 
     def get_waste_types(self, obj):
         return [

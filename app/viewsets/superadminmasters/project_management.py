@@ -2,6 +2,7 @@ from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
 from rest_framework.exceptions import NotFound
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
 from app.models.superadmin_masters.project import Project
 from app.permissions.platform import PlatformOrCompanyAdminOnly, PlatformOrCompanyAdminFullAccess
@@ -14,6 +15,8 @@ from app.utils.audit_mixin import AuditViewSetMixin
 
 class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [PlatformOrCompanyAdminFullAccess]
+    # MultiPart/Form parsers accept the project_logo upload.
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
     permission_resource = "Project"
     queryset = Project.objects.select_related("company_id").filter(is_deleted=False).order_by("name")
     serializer_class = ProjectSerializer
