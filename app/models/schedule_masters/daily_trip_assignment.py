@@ -459,3 +459,28 @@ class DailyTripAssignment(BaseMaster):
 
         self.mark_ended()
         return True
+
+    def mark_completed_if_all_household_stops_collected(self):
+        """Household-collection counterpart to
+        `mark_completed_if_all_cps_collected` — that method only ever looks at
+        `trip_collection_points` (bin stops), so it always bails out
+        (`children.exists()` is False) for a pure household trip, and a
+        household assignment could never auto-complete: every stop showing
+        Collected/Not Available on the driver's Households list, but the trip
+        card still reading "IN PROGRESS" forever.
+
+        Same idempotent "declare done, then mark_ended()" shape as the bin
+        version, using `pending_household_stops()` (already excludes
+        Collected/Not Available, i.e. Collect Later remains unresolved) so the
+        "what counts as resolved" rule for households matches the bin one.
+        """
+        children = self.trip_household_collections.filter(is_deleted=False)
+        if not children.exists():
+            return False
+        if self.pending_household_stops().exists():
+            return False
+        if self.status == self.STATUS_COMPLETED:
+            return True
+
+        self.mark_ended()
+        return True

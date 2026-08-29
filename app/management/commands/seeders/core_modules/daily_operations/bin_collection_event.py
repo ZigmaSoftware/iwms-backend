@@ -133,6 +133,15 @@ class BinCollectionEventSeeder(BaseSeeder):
                 vehicle_id=getattr(assignment, "vehicle_id", None),
                 panchayat_id=assignment.panchayat_id,
                 collected_weight_kg=weight_kg,
+                # collection_date defaults to timezone.localdate() (today) on
+                # the model when omitted — must be stamped from the real trip
+                # date here, or every historical assignment this backfills
+                # (yesterday, last week, ...) reports as collected TODAY.
+                # That's what inflated the supervisor app's "Day" waste-summary
+                # filter to a full week+ of tonnage: the seeder covers a whole
+                # date_range of assignments (see DailyTripAssignmentSeeder),
+                # but every one of their events landed on today's date.
+                collection_date=assignment.trip_date,
                 driver_latitude=lat,
                 driver_longitude=lng,
                 notes="Seeded sample scan event",
