@@ -197,7 +197,14 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
     2. Mark it collected with the recorded weight.
     3. Find or create the DailyTripLog for the trip.
     4. Sync household_collected_weight_kg on the log.
-    5. Auto-submit the log once all household stops are collected.
+    5. Auto-complete the trip assignment once every household stop is
+       resolved (Collected or Not Available) — see
+       `DailyTripAssignment.mark_completed_if_all_household_stops_collected`.
+       This step was documented here but never implemented: a household trip
+       could show every stop Collected on the driver's list while the
+       assignment itself stayed "In Progress" forever, because the only
+       completion check that existed (`mark_completed_if_all_cps_collected`)
+       looks at bin stops, which a household trip has none of.
     """
     if not instance.trip_assignment_id_id or instance.is_deleted:
         return
@@ -243,6 +250,9 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
 
     # 3. Sync household weight onto the log
     log.sync_from_household_collections()
+
+    # 4. Auto-complete the assignment once every household stop is resolved.
+    instance.trip_assignment_id.mark_completed_if_all_household_stops_collected()
 
 
 @receiver(post_save, sender="app.BinCollectionEvent")

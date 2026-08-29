@@ -22,3 +22,27 @@ class WasteCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     AUDIT_MODULE = "schedule-masters"
     AUDIT_ENDPOINT = "wastecollections"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        mine = self.request.query_params.get("mine")
+        if mine and str(mine).lower() in ("1", "true", "yes"):
+            # Supervisor app waste summary: household collections on trips
+            # whose plan this supervisor owns — mirrors
+            # BinCollectionEventViewSet's `mine` filter (see that viewset).
+            # Without this, the supervisor dashboard's Wet/Dry/Total cards
+            # only ever reflected BIN collections (a separate model/table),
+            # silently excluding every household collection a driver made.
+            queryset = queryset.filter(
+                trip_assignment_id__trip_plan_id__supervisor_id=self.request.user
+            )
+
+        date_from = self.request.query_params.get("date_from")
+        date_to = self.request.query_params.get("date_to")
+        if date_from:
+            queryset = queryset.filter(collection_date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(collection_date__lte=date_to)
+
+        return queryset
