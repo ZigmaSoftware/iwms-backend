@@ -36,19 +36,30 @@ from app.management.commands.seeders.superadmin.role_management import ROLE_ASSI
 from app.management.commands.seeders.superadmin.staff_management.auth_user_seeder import AuthUserSeeder
 from app.management.commands.seeders.superadmin.staff_management.supervisor_user import SupervisorUserSeeder
 
-# DriverWetDryBinTripsSeeder is the ONLY driver_user trip seeder. It gives
-# driver_user exactly two assignments: a Wet Waste bin round and a Dry Waste
-# bin round.
+# DriverWetDryBinTripsSeeder + DriverHouseholdTripSeeder are the ONLY
+# driver_user trip seeders. Together they give driver_user exactly three
+# assignments: a Wet Waste bin round, a Dry Waste bin round, and (added on
+# request, to exercise the mobile app's household collection flow) one
+# household round reusing existing Palakkad BP customers.
 #
 # MERGE CONFLICT RESOLUTION — READ BEFORE RESOLVING:
 # Older branches import driver_palakkad_trips / driver_bin_only /
 # driver_bin_assignments / driver_extra_collection_points here. Those seeders
-# are DELETED — they created the household, bulk and duplicate-bin plans that
-# driver_user must never have. If a merge reintroduces any of those imports,
-# drop them and keep only this one; the deleted files no longer exist, so
-# keeping them raises ImportError at startup.
+# are DELETED — they created bulk and duplicate-bin plans driver_user must
+# never have (household is now intentionally included, via the seeder below —
+# don't confuse this with the retired ones). If a merge reintroduces any of
+# those retired imports, drop them and keep only the two below; the deleted
+# files no longer exist, so keeping them raises ImportError at startup.
+#
+# Household MUST be imported/registered after wet-dry-bin: the bin seeder's
+# self-healing purge needs DriverHouseholdTripSeeder's
+# HOUSEHOLD_PLAN_DISPLAY_CODE (imported inside that file) to recognize the
+# household plan as one of its own rather than purging it as foreign.
 from app.management.commands.seeders.core_modules.daily_operations.driver_wet_dry_bin_trips import (
     DriverWetDryBinTripsSeeder,
+)
+from app.management.commands.seeders.core_modules.daily_operations.driver_household_trip import (
+    DriverHouseholdTripSeeder,
 )
 # StaffOfficeSeeder/StaffPersonalSeeder fall back to bootstrapping "IWMS"
 # when no company exists yet — intentionally not imported/registered below
@@ -70,6 +81,8 @@ from app.management.commands.seeders.masters.transport_masters.trip_attendance i
 # TripPlanSeeder/TripPlanCollectionPointSeeder all hardcode/bootstrap "IWMS"
 # — intentionally not imported (Blue Planet seeds its own collection
 # points, staff templates and trip plans directly in BluePlanetSeeder).
+from app.management.commands.seeders.masters.plant import PlantSeeder
+from app.management.commands.seeders.masters.plant_gno import PlantGNOSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignmentSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPointSeeder
 # DailyTripLogSeeder intentionally NOT imported/registered — DailyTripLog
@@ -123,10 +136,14 @@ COMMON_MASTER_SEEDERS = [
 ]
 
 # District/City/Zone/Ward/Panchayat/Department/Designation are all seeded
-# directly inside BluePlanetSeeder (superadmin group) — this group is
-# intentionally empty now that the generic IWMS masters seeders are
-# unregistered.
-MASTERS_SEEDERS = []
+# directly inside BluePlanetSeeder (superadmin group). PlantSeeder and
+# PlantGNOSeeder are the real seeders in this group — they need Blue
+# Planet/Palakkad BP and Blue Planet/Greater Noida BP (from BluePlanetSeeder)
+# to already exist.
+MASTERS_SEEDERS = [
+    PlantSeeder,
+    PlantGNOSeeder,
+]
 
 WASTE_TYPES_SEEDERS = [
     PropertySeeder,
@@ -163,8 +180,7 @@ PROCESS_ITEMS_SEEDERS = [
 # SCHEDULE SETUP (router: schedule-setup/staff-templates,
 # alternative-staff-templates, collection-points, trip-plans)
 # Collection points, bins, staff templates and trip plans are all seeded
-# directly inside BluePlanetSeeder (superadmin group) — this group is
-# intentionally empty now that the generic IWMS seeders are unregistered.
+# directly inside BluePlanetSeeder (superadmin group).
 # ============================================================
 SCHEDULE_SETUP_SEEDERS = []
 
@@ -198,6 +214,12 @@ SCHEDULE_OPERATIONS_SEEDERS = [
     # driver_user's trips — those were unwired on request so a fresh DB
     # started with zero trips; this is the new, deliberate replacement.
     DriverWetDryBinTripsSeeder,
+    # driver_user's household-collection trip — one round reusing existing
+    # Palakkad BP customers (Anitha Menon, Suresh Kumar, ...) in driver_user's
+    # own ward. Added on request so the mobile app's household collection
+    # flow has real data to exercise. MUST run after DriverWetDryBinTripsSeeder
+    # — see that seeder's module docstring for why the ordering matters.
+    DriverHouseholdTripSeeder,
 ]
 
 # Legacy alias — `schedule-masters` used to cover both of the above before it was
@@ -294,6 +316,9 @@ SEED_GROUPS = {
     # module docstring). Requires the superadmin group (Blue Planet masters)
     # and user-creations (driver_user/operator_user) to have run first.
     "driver-wet-dry-bin-trips": [DriverWetDryBinTripsSeeder],
+    # One Plant each for Blue Planet/Palakkad BP and Blue Planet/Greater
+    # Noida BP — requires the superadmin group to have run first.
+    "plant": [PlantSeeder, PlantGNOSeeder],
     "waste-collections":  [WasteCollectionSeeder],
     "retrip-demo":        [RetripDemoSeeder],
     "blue-planet":        [BluePlanetSeeder],

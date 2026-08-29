@@ -20,6 +20,7 @@ from ..viewsets.masters.district_viewset import DistrictViewSet
 from ..viewsets.masters.city_viewset import CityViewSet
 from ..viewsets.masters.zone_viewset import ZoneViewSet
 from ..viewsets.masters.ward_viewset import WardViewSet
+from ..viewsets.masters.block_viewset import BlockViewSet
 from ..viewsets.masters.panchayat_viweset import PanhayatViewSet
 from ..viewsets.masters.leader_management.panchayat_leader_viewset import PanchayatLeaderLoginViewSet
 from ..viewsets.masters.leader_management.district_leader_viewset import DistrictLeaderLoginViewSet
@@ -116,6 +117,7 @@ from ..viewsets.masters.transport_masters.vehicletypecreation_viewset import Veh
 from ..viewsets.masters.transport_masters.vehicleCreation_viewset import VehicleCreationViewSet
 from ..viewsets.masters.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
 from ..viewsets.masters.transport_masters.fuel_viewset import FuelViewSet
+from ..viewsets.masters.plant_viewset import PlantViewSet
 
 # Schedule masters
 from ..viewsets.core_modules.schedule_setup.staff_template_viewset import StaffTemplateViewSet
@@ -124,6 +126,7 @@ from ..viewsets.core_modules.schedule_setup.collection_point_viewset import Coll
 from ..viewsets.core_modules.schedule_setup.trip_plan_viewset import TripPlanViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
+from ..viewsets.core_modules.daily_operations.route_detour_waypoint_viewset import RouteDetourWaypointViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_household_collection_viewset import DailyTripHouseholdCollectionViewSet
 from ..viewsets.core_modules.daily_operations.bin_collection_event_viewset import BinCollectionEventViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_log_viewset import DailyTripLogViewSet
@@ -190,12 +193,14 @@ router.register_group("masters", "districts",     DistrictViewSet)
 router.register_group("masters", "cities",        CityViewSet)
 router.register_group("masters", "zones",         ZoneViewSet)
 router.register_group("masters", "wards",         WardViewSet)
+router.register_group("masters", "blocks",         BlockViewSet)
 router.register_group("masters", "panchayat",         PanhayatViewSet)
 router.register_group("masters", "panchayat-leaders", PanchayatLeaderLoginViewSet)
 router.register_group("masters", "district-leaders", DistrictLeaderLoginViewSet)
 router.register_group("masters", "hierarchy",         AdministrativeHierarchyViewSet)
 router.register_group("masters", "departments",       DepartmentViewSet)
 router.register_group("masters", "designations",      DesignationViewSet)
+router.register_group("masters", "plants",         PlantViewSet)
 
 
 # ============================================================
@@ -319,6 +324,7 @@ router.register_group("schedule-setup", "trip-plans", TripPlanViewSet)
 # ============================================================
 router.register_group("schedule-operations", "daily-trip-assignments", DailyTripAssignmentViewSet)
 router.register_group("schedule-operations", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
+router.register_group("schedule-operations", "route-detour-waypoints", RouteDetourWaypointViewSet)
 router.register_group("schedule-operations", "daily-trip-household-collections", DailyTripHouseholdCollectionViewSet)
 router.register_group("schedule-operations", "bin-collection-events", BinCollectionEventViewSet)
 router.register_group("schedule-operations", "daily-trip-logs", DailyTripLogViewSet)

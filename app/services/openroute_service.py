@@ -1,9 +1,24 @@
+import hashlib
+import json
+import time
+
 from django.conf import settings
+from django.core.cache import cache
 import requests
 
 
 class OpenRouteServiceError(Exception):
     pass
+
+
+# ORS's free tier caps directions calls at ~40/minute. The Static Route Map
+# re-requests the same trip's geometry on every reload, detour edit, and
+# "all routes" fan-out, so identical coordinate sequences are cached to cut
+# repeat calls; a short retry absorbs the rest of the burst instead of
+# falling back to a straight line on the first 429.
+DIRECTIONS_CACHE_SECONDS = 60 * 60
+DIRECTIONS_CACHE_PREFIX = "ors_directions"
+RATE_LIMIT_RETRY_DELAYS = (1, 2)
 
 
 def route_stops(stops, vehicle_start=None):
@@ -147,17 +162,38 @@ def _route_legs(geometry, ordered_ids):
     return legs
 
 
+def _directions_cache_key(coordinates):
+    rounded = [[round(lng, 6), round(lat, 6)] for lng, lat in coordinates]
+    digest = hashlib.sha1(json.dumps(rounded).encode()).hexdigest()
+    return f"{DIRECTIONS_CACHE_PREFIX}:{digest}"
+
+
 def _directions_geometry(coordinates, headers):
     if len(coordinates) < 2:
         return None
-    try:
-        response = requests.post(
-            settings.ORS_DIRECTIONS_URL,
-            json={"coordinates": coordinates},
-            headers=headers,
-            timeout=30,
-        )
-        response.raise_for_status()
-        return response.json()
-    except (requests.RequestException, TypeError, ValueError):
-        return None
+
+    cache_key = _directions_cache_key(coordinates)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    delays = (0, *RATE_LIMIT_RETRY_DELAYS)
+    for attempt, delay in enumerate(delays):
+        if delay:
+            time.sleep(delay)
+        try:
+            response = requests.post(
+                settings.ORS_DIRECTIONS_URL,
+                json={"coordinates": coordinates},
+                headers=headers,
+                timeout=30,
+            )
+            if response.status_code == 429 and attempt < len(delays) - 1:
+                continue
+            response.raise_for_status()
+            geometry = response.json()
+            cache.set(cache_key, geometry, DIRECTIONS_CACHE_SECONDS)
+            return geometry
+        except (requests.RequestException, TypeError, ValueError):
+            return None
+    return None

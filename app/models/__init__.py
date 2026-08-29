@@ -18,6 +18,7 @@ from .masters.district import District
 from .masters.city import City
 from .masters.zone import Zone
 from .masters.ward import Ward
+from .masters.block import Block
 from .masters.department import Department
 from .masters.designation import Designation
 from .masters.panchayat_leader_login import PanchayatLeaderLogin
@@ -191,6 +192,7 @@ __all__ = [
     "City",
     "Zone",
     "Ward",
+    "Block",
     "Department",
     "Designation",
     "PanchayatLeaderLogin",
