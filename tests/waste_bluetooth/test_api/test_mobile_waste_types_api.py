@@ -72,25 +72,20 @@ def customer(
 
 @pytest.mark.django_db
 class TestMobileWasteTypesAPI:
-    def test_without_customer_returns_all_active_waste_types(self, auth_client):
-        dry = WasteType.objects.create(waste_type_name="Dry Waste")
-        electronic = WasteType.objects.create(waste_type_name="Electronic Waste")
-        wet = WasteType.objects.create(waste_type_name="Wet Waste")
+    def test_without_customer_is_rejected(self, auth_client):
+        """A blank customer_id must NOT fall back to every active waste type.
+
+        That old behaviour was indistinguishable from a customer genuinely
+        having every stream, so a caller that dropped the id looked exactly
+        like "the waste type I removed on the web is still showing".
+        """
+        WasteType.objects.create(waste_type_name="Dry Waste")
+        WasteType.objects.create(waste_type_name="Wet Waste")
 
         resp = auth_client.get(BASE)
 
-        assert resp.status_code == 200
-        assert resp.data["status"] == "success"
-        assert [row["id"] for row in resp.data["data"]] == [
-            wet.unique_id,
-            dry.unique_id,
-            electronic.unique_id,
-        ]
-        assert [row["waste_type_name"] for row in resp.data["data"]] == [
-            "Wet Waste",
-            "Dry Waste",
-            "Electronic Waste",
-        ]
+        assert resp.status_code == 400
+        assert resp.data["status"] == "error"
 
     def test_customer_id_returns_customer_saved_waste_types(self, auth_client, customer):
         wet = WasteType.objects.create(waste_type_name="Wet Waste")
@@ -109,10 +104,34 @@ class TestMobileWasteTypesAPI:
         ]
         assert dry.unique_id not in [row["id"] for row in resp.data["data"]]
 
-    def test_unknown_customer_returns_empty_success_payload(self, auth_client):
+    def test_unknown_customer_is_reported_as_not_found(self, auth_client):
         WasteType.objects.create(waste_type_name="Wet Waste")
 
         resp = auth_client.get(BASE, {"customer_id": "CUS-does-not-exist"})
 
+        assert resp.status_code == 404
+        assert resp.data["status"] == "error"
+
+    def test_removing_a_waste_type_is_reflected(self, auth_client, customer):
+        """Regression: a stream removed in Customer Creation must disappear."""
+        wet = WasteType.objects.create(waste_type_name="Wet Waste")
+        dry = WasteType.objects.create(waste_type_name="Dry Waste")
+        customer.waste_types.set([wet, dry])
+
+        customer.waste_types.remove(dry)
+
+        resp = auth_client.get(BASE, {"customer_id": customer.unique_id})
+
         assert resp.status_code == 200
-        assert resp.data == {"status": "success", "count": 0, "data": []}
+        assert [row["id"] for row in resp.data["data"]] == [wet.unique_id]
+
+    def test_customer_with_no_waste_types_returns_empty(self, auth_client, customer):
+        """Empty must stay empty — callers must not substitute a default set."""
+        WasteType.objects.create(waste_type_name="Wet Waste")
+        customer.waste_types.clear()
+
+        resp = auth_client.get(BASE, {"customer_id": customer.unique_id})
+
+        assert resp.status_code == 200
+        assert resp.data["count"] == 0
+        assert resp.data["data"] == []

@@ -242,23 +242,32 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
     # ----------------- GET SAVED WASTE TYPES -----------------
     @action(detail=False, methods=["get"], url_path="get-waste-types")
     def get_saved_waste(self, request):
+        # `customer_id` is required. This used to fall back to "every active
+        # waste type" when it was blank, which is indistinguishable from a
+        # customer legitimately having every stream — so a caller that dropped
+        # the id looked exactly like "the waste type I removed is still there".
+        # Fail loudly instead.
         customer_id = (request.query_params.get("customer_id") or "").strip()
-        waste_types = WasteType.objects.filter(is_deleted=False)
+        if not customer_id:
+            return Response(
+                {"status": "error", "message": "Missing customer_id"},
+                status=400,
+            )
 
-        if customer_id:
-            customer = (
-                CustomerCreation.objects.filter(
-                    Q(unique_id=customer_id) | Q(customer_id=customer_id),
-                    is_deleted=False,
-                )
-                .prefetch_related("waste_types")
-                .first()
+        customer = (
+            CustomerCreation.objects.filter(
+                Q(unique_id=customer_id) | Q(customer_id=customer_id),
+                is_deleted=False,
             )
-            waste_types = (
-                customer.waste_types.filter(is_deleted=False)
-                if customer
-                else WasteType.objects.none()
+            .prefetch_related("waste_types")
+            .first()
+        )
+        if not customer:
+            return Response(
+                {"status": "error", "message": "Customer not found"},
+                status=404,
             )
+        waste_types = customer.waste_types.filter(is_deleted=False)
 
         waste_types = waste_types.annotate(
             sort_order=Case(

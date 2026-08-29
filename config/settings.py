@@ -192,7 +192,9 @@ USE_TZ = True
 # Static Files
 # -------------------------------------------------------
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+# No project-level `static/` source dir: the only static assets served are the
+# ones shipped by django.contrib.admin / DRF / drf-yasg, which collectstatic
+# gathers from the installed packages into STATIC_ROOT.
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 ENABLE_AUTH_USER_SEEDING = os.getenv("ENABLE_AUTH_USER_SEEDING", "true").lower() == "true"

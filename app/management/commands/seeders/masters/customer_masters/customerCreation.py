@@ -163,8 +163,13 @@ class CustomerCreationSeeder(BaseSeeder):
                     "is_deleted": False,
                 },
             )
-            customer.waste_types.set(waste_types)
+            # Seed the waste streams only for a brand-new customer. Re-running
+            # this seeder must not clobber waste types edited (in particular
+            # REMOVED) via Customer Creation on the web — `.set()` replaces the
+            # whole M2M, so calling it on the update branch silently restored
+            # every type an operator had deleted.
             if created:
+                customer.waste_types.set(waste_types)
                 created_count += 1
             else:
                 updated_count += 1

@@ -76,8 +76,16 @@ def _has_supervisor_role(user):
     if getattr(user, "is_superuser", False) and getattr(user, "company_id", None) is None:
         return True
     role_obj = getattr(user, "staffusertype_id", None)
-    role_name = getattr(role_obj, "name", "") or ""
-    return role_name.lower() in ("supervisor", "admin", "company_admin")
+    role_name = (getattr(role_obj, "name", "") or "").lower()
+    # Roles are stored with a tenant prefix ("Company Supervisor",
+    # "Company Admin", "Company Project Admin"), so an equality test against
+    # the bare word never matched and every supervisor silently fell through
+    # to the per-staff scope below — which hid tickets that were not assigned
+    # to them personally. Match on the significant word instead.
+    return any(
+        keyword in role_name
+        for keyword in ("supervisor", "admin", "superadmin")
+    )
 
 
 def _staff_ticket_scope(user):

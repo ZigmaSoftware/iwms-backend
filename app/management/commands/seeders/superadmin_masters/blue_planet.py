@@ -58,10 +58,59 @@ class BluePlanetSeeder(BaseSeeder):
     ATTENDANCE_API_URL = "http://zigfly.in/attendance-api/api/sync/recognized"
     ATTENDANCE_API_KEY = "ZIGFLY_SYNC_2025"
     GPS_API_URL = "https://api.vamosys.com/getVehicleHistory"
+    GPS_VEHICLE_TRACKING_API = "https://api.vamosys.com/mobile/getGrpDataForTrustedClients"
     WEIGHMENT_API_URL = (
         "https://zigma.in/d2d/folders/waste_collected_summary_report/"
         "waste_collected_data_api.php"
     )
+
+    # Real Vamosys-tracked fleet for Greater Noida BP (orgId=BLUEPLANET,
+    # fcode=VAM) — vehicle_no values match the live GPS feed's regNo/vehicleId
+    # exactly so the vehicle tracking page can match each pin to its vehicle.
+    GNO_REAL_VEHICLES = [
+        {"vehicle_no": "UP16RT5634", "vehicle_type": "Bus", "latitude": 28.476127, "longitude": 77.480789},
+        {"vehicle_no": "UP16RT5635", "vehicle_type": "Truck", "latitude": 28.476191, "longitude": 77.480818},
+        {"vehicle_no": "UP16KT1739", "vehicle_type": "Truck", "latitude": 28.475805, "longitude": 77.480743},
+        {"vehicle_no": "UP16KT1907", "vehicle_type": "Van", "latitude": 28.447853, "longitude": 77.478098},
+        {"vehicle_no": "UP19KT1909", "vehicle_type": "Truck", "latitude": 28.475827, "longitude": 77.480693},
+        {"vehicle_no": "UP16KT1911", "vehicle_type": "Truck", "latitude": 28.475796, "longitude": 77.480649},
+        {"vehicle_no": "UP16KT1740", "vehicle_type": "Truck", "latitude": 28.476076, "longitude": 77.480649},
+        {"vehicle_no": "UP16KT1738", "vehicle_type": "Truck", "latitude": 28.475704, "longitude": 77.480498},
+        {"vehicle_no": "UP16KT1741", "vehicle_type": "Truck", "latitude": 28.475891, "longitude": 77.480729},
+        {"vehicle_no": "UP16KT1742", "vehicle_type": "Truck", "latitude": 28.476100, "longitude": 77.480729},
+        {"vehicle_no": "UP16KT1737", "vehicle_type": "Truck", "latitude": 28.475771, "longitude": 77.480551},
+        {"vehicle_no": "UP16KT1908", "vehicle_type": "Truck", "latitude": 28.475782, "longitude": 77.480782},
+        {"vehicle_no": "UP16KT1912", "vehicle_type": "Truck", "latitude": 28.475884, "longitude": 77.480373},
+    ]
+
+    # Real, genuine Greater Noida localities (not synthetic/scattered
+    # points) used as a dedicated 5-stop household-collection route for one
+    # real Vamosys-tracked vehicle. Greater Noida BP is household-collection
+    # only, so each stop is a real customer at a real address, not a
+    # standalone Collection_point (which belongs to bin collection).
+    GNO_REAL_ROUTE_VEHICLE_NO = "UP16KT1737"
+    GNO_REAL_ROUTE_STOPS = [
+        {
+            "name": "Rakesh Gupta", "suffix": "R1", "building": "12", "street": "Pari Chowk Road",
+            "area": "Pari Chowk", "pincode": "201310", "latitude": 28.474700, "longitude": 77.504600,
+        },
+        {
+            "name": "Sanjay Malhotra", "suffix": "R2", "building": "45", "street": "Alpha 1 Market Road",
+            "area": "Alpha 1", "pincode": "201308", "latitude": 28.472100, "longitude": 77.514700,
+        },
+        {
+            "name": "Meera Agarwal", "suffix": "R3", "building": "9", "street": "Beta 2 Sector Road",
+            "area": "Beta 2", "pincode": "201309", "latitude": 28.466700, "longitude": 77.500900,
+        },
+        {
+            "name": "Vikram Chaudhary", "suffix": "R4", "building": "22", "street": "Knowledge Park III Road",
+            "area": "Knowledge Park 3", "pincode": "201313", "latitude": 28.474500, "longitude": 77.489900,
+        },
+        {
+            "name": "Poonam Bhatt", "suffix": "R5", "building": "3", "street": "Surajpur Site Road",
+            "area": "Surajpur", "pincode": "201306", "latitude": 28.487200, "longitude": 77.501100,
+        },
+    ]
 
     PROJECT_LOCATION = {
         "Greater Noida BP": {
@@ -242,6 +291,10 @@ class BluePlanetSeeder(BaseSeeder):
             fuel_type="Diesel",
             defaults={"description": "Diesel fuel", "is_active": True, "is_deleted": False},
         )
+
+        if prefix == "GNO":
+            return self._create_gno_real_vehicles(company, project, fuel)
+
         vehicle_type, _ = VehicleTypeCreation.objects.get_or_create(
             vehicleType=f"Blue Planet {prefix} Compactor",
             defaults={
@@ -262,6 +315,49 @@ class BluePlanetSeeder(BaseSeeder):
                     "capacity": "3000.00",
                     "mileage_per_liter": "6.00",
                     "service_record": "Blue Planet seeded vehicle",
+                    "vehicle_insurance": "Blue Planet Insurance",
+                    "vehicle_condition": VehicleCreation.ConditionChoices.NEW,
+                    "fuel_tank_capacity": "120.00",
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            vehicles.append(vehicle)
+        return vehicles
+
+    def _create_gno_real_vehicles(self, company, project, fuel):
+        """Vehicles for Greater Noida BP backed by the real Vamosys-tracked
+        fleet (see GNO_REAL_VEHICLES) instead of synthetic BP-GNO-VEH-0N
+        rows, so vehicle_no matches the live GPS feed's regNo exactly and
+        the vehicle tracking page can pair each pin to its DB vehicle."""
+        # Deactivate (not delete) the old synthetic demo vehicles — they're
+        # referenced by protected FKs from historical trips/logs/events, so
+        # they must stay in place, just hidden from active use. Palakkad BP
+        # is untouched.
+        VehicleCreation.objects.filter(
+            project_id=project, vehicle_no__startswith="BP-GNO-VEH-"
+        ).update(is_active=False, is_deleted=True)
+
+        vehicles = []
+        for entry in self.GNO_REAL_VEHICLES:
+            vehicle_type, _ = VehicleTypeCreation.objects.get_or_create(
+                vehicleType=entry["vehicle_type"],
+                defaults={
+                    "description": f"Vamosys-tracked {entry['vehicle_type']}",
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            vehicle, _ = VehicleCreation.objects.update_or_create(
+                vehicle_no=entry["vehicle_no"],
+                defaults={
+                    "vehicle_type": vehicle_type,
+                    "fuel_type": fuel,
+                    "company_id": company,
+                    "project_id": project,
+                    "capacity": "3000.00",
+                    "mileage_per_liter": "6.00",
+                    "service_record": "Vamosys GPS-tracked vehicle",
                     "vehicle_insurance": "Blue Planet Insurance",
                     "vehicle_condition": VehicleCreation.ConditionChoices.NEW,
                     "fuel_tank_capacity": "120.00",
@@ -621,6 +717,12 @@ class BluePlanetSeeder(BaseSeeder):
         )
         complaints = self._create_complaints(company, project, customers)
 
+        if prefix == "GNO":
+            self._create_gno_dedicated_vehicle_route(
+                company, project, district, city, state, india, zones[0], wards[0], panchayats[0],
+                staff_template, staff["supervisor"], residential_property, residential_sub_property, waste_types,
+            )
+
         # ------------------------------------------------------------
         # Household-collection TripPlan — 1 per project, one stop
         # ------------------------------------------------------------
@@ -675,6 +777,121 @@ class BluePlanetSeeder(BaseSeeder):
             "customers": customers,
             "complaints": complaints,
         }
+
+    def _create_gno_dedicated_vehicle_route(
+        self, company, project, district, city, state, country, zone, ward, panchayat,
+        staff_template, supervisor, property_obj, sub_property, waste_types,
+    ):
+        """A dedicated static household-collection route for one real
+        Vamosys-tracked vehicle (GNO_REAL_ROUTE_VEHICLE_NO), visiting 5 real
+        customers at real Greater Noida localities (GNO_REAL_ROUTE_STOPS) —
+        not synthetic scattered points. Greater Noida BP is household
+        collection only, so stops are customers (each with their own real
+        lat/lon), not standalone Collection_point rows."""
+        vehicle = VehicleCreation.objects.get(
+            project_id=project, vehicle_no=self.GNO_REAL_ROUTE_VEHICLE_NO
+        )
+
+        customers = []
+        for route_idx, stop in enumerate(self.GNO_REAL_ROUTE_STOPS, start=1):
+            id_no = f"AADHAAR-BP-GNO-ROUTE-{stop['suffix']}"
+            customer, _ = CustomerCreation.objects.update_or_create(
+                company_id=company,
+                project_id=project,
+                id_no=id_no,
+                defaults={
+                    "customer_name": stop["name"],
+                    "contact_no": f"9600{route_idx:06d}",
+                    "username": f"bp_gno_route_customer_{stop['suffix'].lower()}",
+                    "password": make_password(DEFAULT_CUSTOMER_PASSWORD),
+                    "password_crt_date": timezone.now(),
+                    "building_no": stop["building"],
+                    "street": stop["street"],
+                    "area": stop["area"],
+                    "ward": ward,
+                    "zone": zone,
+                    "city": city,
+                    "district": district,
+                    "state": state,
+                    "country": country,
+                    "panchayat_id": panchayat,
+                    "pincode": stop["pincode"],
+                    "latitude": f"{stop['latitude']:.6f}",
+                    "longitude": f"{stop['longitude']:.6f}",
+                    "sqft": "1200.00",
+                    "water_consumption_lpd": "240.00",
+                    "waste_collection_kg_per_day": "3.50",
+                    "id_proof_type": CustomerCreation.IDProofType.AADHAAR,
+                    "id_no": id_no,
+                    "member_count": 4,
+                    "family_members": [
+                        {
+                            "member_name": f"{stop['name']} Family {member_idx}",
+                            "id_proof_type": CustomerCreation.IDProofType.AADHAAR,
+                            "id_no": f"{id_no}-FM{member_idx}",
+                        }
+                        for member_idx in range(1, 5)
+                    ],
+                    "property_ref": property_obj,
+                    "sub_property": sub_property,
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            customer.waste_types.set(waste_types)
+            customers.append(customer)
+
+        trip_plan, _ = TripPlan.objects.update_or_create(
+            company_id=company,
+            project_id=project,
+            staff_template_id=staff_template,
+            vehicle_id=vehicle,
+            panchayat_id=None,
+            collection_type=TripPlan.COLLECTION_TYPE_HOUSEHOLD,
+            defaults={
+                "district_id": district,
+                "city_id": city,
+                "zone_id": zone,
+                "supervisor_id": supervisor,
+                "property_id": property_obj,
+                "sub_property_id": sub_property,
+                "waste_type_id": waste_types[0],
+                "waste_type_ids": [waste_types[0].unique_id],
+                "trip_trigger_weight_kg": 400,
+                "max_vehicle_capacity_kg": 3000,
+                "scheduled_time": "10:00",
+                "is_auto_assign": True,
+                "approval_status": TripPlan.ApprovalStatus.APPROVED,
+                "status": TripPlan.Status.ACTIVE,
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
+        trip_plan.wards.set([ward])
+
+        existing = TripPlanCollectionPoint.objects.filter(trip_plan_id=trip_plan)
+        if existing.exists():
+            max_sequence = existing.aggregate(max_sequence=Max("sequence"))["max_sequence"] or 0
+            existing.update(
+                sequence=F("sequence") + max_sequence + len(customers) + 1000,
+                is_deleted=True,
+                is_active=False,
+            )
+        for idx, customer in enumerate(customers, start=1):
+            TripPlanCollectionPoint.objects.update_or_create(
+                trip_plan_id=trip_plan,
+                customer_id=customer,
+                defaults={
+                    "company_id": company,
+                    "project_id": project,
+                    "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
+                    "sequence": idx,
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+
+        return trip_plan, customers
 
     @staticmethod
     def _point_in_polygon(lat, lon, coords):
@@ -802,6 +1019,7 @@ class BluePlanetSeeder(BaseSeeder):
             "Greater Noida BP": {
                 "description": "Blue Planet Greater Noida operations",
                 "gps_api_url": self.GPS_API_URL,
+                "gps_vehicle_tracking_api": self.GPS_VEHICLE_TRACKING_API,
                 "gps_user_id": "BLUEPLANET",
                 "gps_group_name": "BLUEPLANET:VAM",
                 "gps_provider_name": "BLUEPLANET",

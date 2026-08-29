@@ -1,40 +1,57 @@
+# ==========================================================
+# IWMS Backend — .gitignore
+# See README.md § Environment variables before adding secrets.
+# ==========================================================
+
 # === Python ===
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-*.pyc
 
-# === Django Migrations ===
+# === Django migrations (generated on each machine — see README) ===
 **/migrations/*
 !**/migrations/__init__.py
 
-# === Virtual Environments ===
+# === Virtual environments ===
 venv/
 env/
 .venv/
 
-# === Django static/media ===
+# === Django static / media ===
+# `static/` is the SOURCE of static assets and IS tracked in git.
+# `staticfiles/` is collectstatic OUTPUT — regenerate it, never commit it.
 media/
 staticfiles/
-static/
 
-# === Logs and database ===
+# === Environment files (NEVER commit — see .env.example) ===
+.env
+.env.*
+!.env.example
+
+# === Logs and local databases ===
 *.log
 db.sqlite3
 *.sqlite3
 
-# === Environment files ===
-.env
-.env.*
+# === Tests and coverage output ===
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
 
-# === IDE and System files ===
+# === Build and dist ===
+build/
+dist/
+*.egg-info/
+
+# === Per-machine and deploy artefacts (not shared) ===
+backend_sync.sh
+cron.sh
+*.deb
+
+# === IDE and OS files ===
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-
-# === Build and Dist ===
-build/
-dist/
-*.egg-info/
