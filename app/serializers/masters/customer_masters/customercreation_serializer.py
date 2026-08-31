@@ -80,11 +80,15 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         source="state",
         queryset=State.objects.all(),
         slug_field="unique_id",
+        required=False,
+        allow_null=True,
     )
     country_id = serializers.SlugRelatedField(
         source="country",
         queryset=Country.objects.all(),
         slug_field="unique_id",
+        required=False,
+        allow_null=True,
     )
     panchayat_id = serializers.SlugRelatedField(
         # source="panchayat_id",
@@ -97,11 +101,15 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         source="property_ref",
         queryset=Property.objects.all(),
         slug_field="unique_id",
+        required=False,
+        allow_null=True,
     )
     sub_property_id = serializers.SlugRelatedField(
         source="sub_property",
         queryset=SubProperty.objects.all(),
         slug_field="unique_id",
+        required=False,
+        allow_null=True,
     )
     waste_type_ids = serializers.SlugRelatedField(
         source="waste_types",
@@ -143,6 +151,19 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
     villa_no = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     industry_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     industry_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    customer_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    contact_no = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    pincode = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    latitude = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    longitude = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    id_proof_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    id_no = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    street = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    area = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    building_no = serializers.CharField()
+    sqft = serializers.DecimalField(max_digits=10, decimal_places=2)
 
     group_qr_id = serializers.CharField(read_only=True)
     is_bulkwaste_generator = serializers.BooleanField(read_only=True)
@@ -281,31 +302,16 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         #             {"detail": "Customer with the same name and mobile already exists."}
         #         )
 
-        project = attrs.get("project_id") or getattr(instance, "project_id", None)
-        block_id = attrs.get("block_id", getattr(instance, "block_id", None))
-        if project and getattr(project, "has_blocks", False) and not block_id:
-            raise serializers.ValidationError({"block_id": "Block is required for this project."})
+        building_no = attrs.get("building_no", getattr(instance, "building_no", None))
+        if not building_no:
+            raise serializers.ValidationError({"building_no": "Building/House number is required."})
+
+        sqft = attrs.get("sqft", getattr(instance, "sqft", None))
+        if sqft is None:
+            raise serializers.ValidationError({"sqft": "Sqft is required."})
 
         sub_property = attrs.get("sub_property") or getattr(instance, "sub_property", None)
-
         sub_name = (sub_property.sub_property_name or "").lower() if sub_property else ""
-
-        if sub_property:
-            def value(field_name):
-                return attrs.get(field_name, getattr(instance, field_name, None))
-
-            if "individual" in sub_name or "house" in sub_name:
-                if not value("building_no") or not value("street") or not value("area"):
-                    raise serializers.ValidationError("Building, street, and area required")
-            elif "apartment" in sub_name:
-                if not value("apartment_name") or not value("block_no"):
-                    raise serializers.ValidationError("Apartment name and block required")
-            elif "villa" in sub_name:
-                if not value("building_no"):
-                    raise serializers.ValidationError("Building number required for villa")
-            elif "industry" in sub_name:
-                if not value("industry_name"):
-                    raise serializers.ValidationError("Industry name required")
 
         property_ref = attrs.get("property_ref") or getattr(instance, "property_ref", None)
         waste_types = attrs.get("waste_types")
