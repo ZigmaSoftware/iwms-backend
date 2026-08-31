@@ -4,7 +4,6 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.management.commands.seeders.core_modules.daily_operations.waste_collection import WASTE_PRESETS
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
 from app.models.schedule_masters.daily_trip_household_collection import (
@@ -15,15 +14,28 @@ from app.models.schedule_masters.trip_plan import TripPlan
 from app.services import retrip_service
 from app.services.daily_trip_generation import generate_assignment_for_plan
 
-# "Today" is the same reservation BinCollectionEventSeeder/WasteCollectionSeeder
-# use — both skip every assignment dated today, so building this demo's
-# assignments on today's date is what keeps their fully-resolved history sweep
-# from touching — and flattening — the deliberately partial state this seeder
-# creates. driver_user/operator_user is the mobile-app demo login (see
-# StaffTemplateSeeder) — its trip plan is excluded so this demo never
-# collides with a hand-driven mobile session.
+# This demo's assignments are deliberately built on today's date: any seeder
+# that sweeps trip history and fully resolves its stops skips today, so
+# keeping to today is what protects the deliberately partial state created
+# here from being flattened. driver_user/operator_user is the mobile-app demo
+# login (see StaffTemplateSeeder) — its trip plan is excluded so this demo
+# never collides with a hand-driven mobile session.
 DEMO_STAFF_USERNAMES = {"driver_user", "operator_user"}
 REMARKS = "Truck full — proceeding to weighment. Seeded Re-Trip demo scenario."
+
+# (wet, dry, mixed, sanitary) kg presets — cycled through for varied,
+# reproducible data. Previously imported from the deleted WasteCollectionSeeder
+# module; inlined here, its only remaining consumer.
+WASTE_PRESETS = [
+    (3.5, 1.2, 0.0, 0.0),
+    (2.0, 2.5, 0.5, 0.2),
+    (5.0, 0.0, 1.0, 0.0),
+    (1.5, 1.5, 0.0, 0.3),
+    (4.2, 3.1, 0.8, 0.0),
+    (0.0, 2.0, 3.0, 0.4),
+    (6.0, 1.0, 0.0, 0.1),
+    (2.8, 2.8, 1.4, 0.2),
+]
 
 
 def _split_for_partial_completion(total):
@@ -44,9 +56,7 @@ def _split_for_partial_completion(total):
 class RetripDemoSeeder(BaseSeeder):
     """Seeds the Re-Trip / 'Proceed with Next Trip' scenarios end-to-end —
     the Re-Trip Requests screen has nothing to show against without this,
-    since every other seeder resolves 100% of a trip's stops (see
-    BinCollectionEventSeeder/WasteCollectionSeeder) and nothing else creates
-    a TripRetripRequest.
+    since nothing else creates a TripRetripRequest.
 
     Reserves 3 distinct, already-seeded TripPlans (2 bin + 1 household) for
     one dedicated "today" assignment each, so it never collides with the
@@ -167,8 +177,7 @@ class RetripDemoSeeder(BaseSeeder):
         customer-masters) — so it was cloned with zero household stops.
         sync_daily_assignment_stops_from_plan is get_or_create-based and
         safe to call again, so it's re-run here unconditionally to backfill
-        whatever was missed the first time, exactly like WasteCollectionSeeder
-        does for the historical dates."""
+        whatever was missed the first time."""
         from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
 
         existing = (
@@ -219,8 +228,8 @@ class RetripDemoSeeder(BaseSeeder):
 
     def _partially_collect_household_stops(self, assignment):
         """Collect the first N household stops (by sequence, via a real
-        WasteCollection row — same mechanism WasteCollectionSeeder uses),
-        leave the rest Pending. Returns collected_count."""
+        WasteCollection row, so the post_save signal chain runs), leave the
+        rest Pending. Returns collected_count."""
         stops = list(
             DailyTripHouseholdCollection.objects.filter(trip_assignment_id=assignment, is_deleted=False)
             .select_related("customer_id")

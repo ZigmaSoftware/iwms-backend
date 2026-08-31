@@ -85,13 +85,12 @@ from app.management.commands.seeders.masters.plant import PlantSeeder
 from app.management.commands.seeders.masters.plant_gno import PlantGNOSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignmentSeeder
 from app.management.commands.seeders.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPointSeeder
-# DailyTripLogSeeder intentionally NOT imported/registered — DailyTripLog
-# rows auto-derive from BinCollectionEvent/WasteCollection via the existing
-# signal chain (sync_household_collection_on_waste_save), so seeding them
-# directly is redundant. The seeder file remains on disk unwired.
-from app.management.commands.seeders.core_modules.daily_operations.bin_collection_event import BinCollectionEventSeeder
+# DailyTripLogSeeder/BinCollectionEventSeeder/WasteCollectionSeeder removed —
+# their seeder files were deleted on request. DailyTripLog rows in any case
+# auto-derive from BinCollectionEvent/WasteCollection via the existing signal
+# chain (sync_household_collection_on_waste_save); the models, their APIs and
+# that signal chain are untouched, only the seed-data scripts are gone.
 from app.management.commands.seeders.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdownSeeder
-from app.management.commands.seeders.core_modules.daily_operations.waste_collection import WasteCollectionSeeder
 from app.management.commands.seeders.core_modules.daily_operations.retrip_demo import RetripDemoSeeder
 
 # screen-managements (router: screen-managements/...)
@@ -192,10 +191,7 @@ SCHEDULE_SETUP_SEEDERS = []
 SCHEDULE_OPERATIONS_SEEDERS = [
     DailyTripAssignmentSeeder,      # 1. daily-trip-assignments
     DailyTripCollectionPointSeeder, # 2. daily-trip-collection-points
-    # DailyTripLogSeeder dropped — trip logs auto-derive from
-    # BinCollectionEvent/WasteCollection, seeding them directly is redundant.
     TripAttendanceSeeder,
-    BinCollectionEventSeeder,       # 3. bin-collection-events
     # Best-effort here: on a fresh DB, driver_user has no trip yet at this
     # point (DriverWetDryBinTripsSeeder below creates it), so this just logs
     # "no trip today — Skipping" without creating supervisor_user. That's
@@ -244,10 +240,7 @@ CUSTOMER_MASTERS_SEEDERS = [
     # created directly inside BluePlanetSeeder. UserChargeRuleSeeder is
     # company-agnostic (picks up whichever company exists) and kept.
     UserChargeRuleSeeder,
-    # Household waste-collection records depend on customers (this group) and
-    # on daily trip assignments (already seeded in schedule-operations).
-    WasteCollectionSeeder,
-    # Re-Trip demo scenarios also need customers (household stops) + daily
+    # Re-Trip demo scenarios need customers (household stops) + daily
     # trip assignments (schedule-operations) to already exist.
     RetripDemoSeeder,
 ]
@@ -310,7 +303,6 @@ SEED_GROUPS = {
     "vehicles":           TRANSPORT_MASTERS_SEEDERS,
     "platform":           SUPERADMIN_SEEDERS,
     # Single-seeder shortcuts
-    "bin-collection-events": [BinCollectionEventSeeder],
     "vehicle-breakdowns": [VehicleBreakdownSeeder],
     # driver_user's Wet/Dry bin-collection trips (see the seeder's own
     # module docstring). Requires the superadmin group (Blue Planet masters)
@@ -319,7 +311,6 @@ SEED_GROUPS = {
     # One Plant each for Blue Planet/Palakkad BP and Blue Planet/Greater
     # Noida BP — requires the superadmin group to have run first.
     "plant": [PlantSeeder, PlantGNOSeeder],
-    "waste-collections":  [WasteCollectionSeeder],
     "retrip-demo":        [RetripDemoSeeder],
     "blue-planet":        [BluePlanetSeeder],
     "ticket-masters":     TICKET_SEEDERS,  # complaint-ticket/grievance-tickets masters only
