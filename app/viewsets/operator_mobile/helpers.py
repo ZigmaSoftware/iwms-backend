@@ -505,3 +505,133 @@ def serialize_assignment_brief(assignment: DailyTripAssignment) -> dict:
 def maybe_resolve_driver(assignment: DailyTripAssignment) -> Optional[Staffcreation]:
     template = assignment.staff_template_id
     return getattr(template, "driver_id", None)
+
+
+def resolve_customer_from_id(customer_id: str):
+    """The CustomerCreation behind whatever id form the app sends.
+
+    The app sends either the customer's `unique_id` (scanned QR / trip
+    payload) or the legacy `customer_id` column, so match on both — the same
+    pair every other household endpoint in this project matches on.
+    """
+    from app.models.customers.customercreation import CustomerCreation
+
+    identifier = (customer_id or "").strip()
+    if not identifier:
+        raise OperatorFlowError("CUSTOMER_ID_REQUIRED", "customer_id is required.")
+
+    customer = (
+        CustomerCreation.objects
+        .filter(
+            Q(unique_id=identifier) | Q(customer_id=identifier),
+            is_deleted=False,
+        )
+        .first()
+    )
+    if customer is None:
+        raise OperatorFlowError(
+            "CUSTOMER_NOT_FOUND",
+            f"No customer found for '{identifier}'.",
+            http_status=404,
+        )
+    return customer
+
+
+def validate_customer_against_assignment(customer, assignment):
+    """The household counterpart to `validate_bin_against_assignment`.
+
+    Returns the `DailyTripHouseholdCollection` stop this customer occupies on
+    `assignment`, or raises. Two separate rules, in the order a driver hits
+    them:
+
+    1. PROJECT scope — the customer must belong to the same company/project
+       as the trip. A customer from another project is never collectable,
+       whatever trip is open.
+    2. TRIP membership — the customer must already be a stop on this
+       assignment. Previously the household endpoints attached any scanned
+       customer to the live trip on the fly, which is exactly how a household
+       that was never planned for this trip got collected without complaint.
+
+    A customer legitimately on a LATER trip of the same crew gets the
+    friendlier `TRIP_LOCKED` message instead, so "finish your current trip"
+    never reads as "this QR is invalid".
+    """
+    from app.models.schedule_masters.daily_trip_household_collection import (
+        DailyTripHouseholdCollection,
+    )
+
+    customer_company_id = getattr(customer, "company_id_id", None)
+    customer_project_id = getattr(customer, "project_id_id", None)
+    if (
+        customer_project_id
+        and assignment.project_id_id
+        and str(customer_project_id) != str(assignment.project_id_id)
+    ):
+        raise OperatorFlowError(
+            "WRONG_PROJECT",
+            "This customer belongs to a different project.",
+            http_status=403,
+        )
+    if (
+        customer_company_id
+        and assignment.company_id_id
+        and str(customer_company_id) != str(assignment.company_id_id)
+    ):
+        raise OperatorFlowError(
+            "WRONG_COMPANY",
+            "This customer belongs to a different company.",
+            http_status=403,
+        )
+
+    stop = (
+        DailyTripHouseholdCollection.objects
+        .filter(
+            trip_assignment_id=assignment,
+            customer_id=customer,
+            is_deleted=False,
+        )
+        .select_related("customer_id")
+        .first()
+    )
+    if stop is None:
+        _raise_if_customer_belongs_to_locked_trip(customer, assignment)
+        raise OperatorFlowError(
+            "CUSTOMER_NOT_IN_TRIP",
+            "This household is not on your current trip.",
+        )
+    return stop
+
+
+def _raise_if_customer_belongs_to_locked_trip(customer, active_assignment):
+    """Mirror of `_raise_if_bin_belongs_to_locked_trip` for households: if the
+    customer is a stop on another of today's trips, say so rather than
+    claiming they are not on any trip at all."""
+    from app.models.schedule_masters.daily_trip_household_collection import (
+        DailyTripHouseholdCollection,
+    )
+
+    other = (
+        DailyTripHouseholdCollection.objects
+        .filter(
+            customer_id=customer,
+            is_deleted=False,
+            trip_assignment_id__trip_date=timezone.localdate(),
+            trip_assignment_id__is_deleted=False,
+        )
+        .exclude(trip_assignment_id=active_assignment)
+        .select_related("trip_assignment_id")
+        .first()
+    )
+    if not other:
+        return
+    other_assignment = other.trip_assignment_id
+    scheduled = other_assignment.scheduled_time
+    raise OperatorFlowError(
+        "TRIP_LOCKED",
+        (
+            "This household belongs to your "
+            f"{scheduled.strftime('%H:%M') if scheduled else 'other'}"
+            " trip. Finish the current trip before starting that one."
+        ),
+        http_status=409,
+    )

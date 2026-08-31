@@ -68,7 +68,9 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             OperatorFlowError,
             find_active_assignment_for_operator,
             require_trip_started,
+            resolve_customer_from_id,
             resolve_operator_staff,
+            validate_customer_against_assignment,
         )
 
         customer_id = str(request.data.get("customer_id") or "").strip()
@@ -129,45 +131,20 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 status=exc.http_status,
             )
 
-        customer = CustomerCreation.objects.filter(
-            Q(unique_id=customer_id) | Q(customer_id=customer_id),
-            is_deleted=False,
-        ).first()
-        if customer is None:
+        # A household may only be marked on a trip it is actually a stop on,
+        # and only within the driver's own project. This used to attach ANY
+        # scanned customer to the live trip on the fly, which is how a
+        # household that was never planned for this trip could be resolved
+        # from the app without any complaint.
+        try:
+            customer = resolve_customer_from_id(customer_id)
+            dthc = validate_customer_against_assignment(customer, assignment)
+        except OperatorFlowError as exc:
             return Response(
-                {"status": "error", "message": "Customer not found"}, status=404
+                {"status": "error", "code": exc.code, "message": exc.message},
+                status=exc.http_status,
             )
 
-        # Allow marking ANY customer, even one not pre-listed on the trip:
-        # attach them to the requester's active assignment as a household
-        # stop on the fly.
-        dthc = (
-            DailyTripHouseholdCollection.objects
-            .filter(
-                trip_assignment_id=assignment,
-                customer_id=customer,
-                is_deleted=False,
-            )
-            .first()
-        )
-        if dthc is None:
-            last_seq = (
-                DailyTripHouseholdCollection.objects
-                .filter(trip_assignment_id=assignment)
-                .order_by("-sequence")
-                .values_list("sequence", flat=True)
-                .first()
-            )
-            dthc = DailyTripHouseholdCollection.objects.create(
-                trip_assignment_id=assignment,
-                customer_id=customer,
-                collection_type=DailyTripHouseholdCollection.COLLECTION_TYPE_HOUSEHOLD,
-                sequence=(last_seq or 0) + 1,
-                status=DailyTripHouseholdCollection.STATUS_PENDING,
-                is_collected=False,
-                is_active=True,
-                is_deleted=False,
-            )
         if dthc.is_collected:
             return Response(
                 {"status": "error", "message": "This household is already collected."},
@@ -196,8 +173,17 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
     # ----------------- INSERT WASTE SUB -----------------
     @action(detail=False, methods=["post"], url_path="insert-waste-sub")
     def insert_waste_sub(self, request):
+        from app.viewsets.operator_mobile.helpers import (
+            OperatorFlowError,
+            find_active_assignment_for_operator,
+            resolve_customer_from_id,
+            resolve_operator_staff,
+            validate_customer_against_assignment,
+        )
+
         screen_id = request.data.get("screen_unique_id")
         customer_id = request.data.get("customer_id")
+        assignment_id = (request.data.get("assignment_id") or "").strip()
         waste_type = request.data.get("waste_type") or request.data.get(
             "waste_type_id"
         )
@@ -212,6 +198,29 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             return Response({"status": "error", "message": "Missing waste_type"}, status=400)
         if not image:
             return Response({"status": "error", "message": "No image uploaded"}, status=400)
+
+        # Same live-trip/project guard as finalize-waste, applied here too so
+        # the driver is stopped at the FIRST waste-type upload instead of
+        # capturing every photo and only being refused at submit. Skipped when
+        # the caller sends no customer_id (older callers finalize by
+        # screen_unique_id alone and are validated at finalize).
+        if customer_id:
+            try:
+                staff = resolve_operator_staff(request.user)
+                assignment = None
+                if assignment_id:
+                    assignment = DailyTripAssignment.objects.filter(
+                        unique_id=assignment_id, is_deleted=False
+                    ).first()
+                if assignment is None:
+                    assignment = find_active_assignment_for_operator(staff)
+                customer_obj = resolve_customer_from_id(customer_id)
+                validate_customer_against_assignment(customer_obj, assignment)
+            except OperatorFlowError as exc:
+                return Response(
+                    {"status": "error", "code": exc.code, "message": exc.message},
+                    status=exc.http_status,
+                )
 
         image_path = upload_image(image)
 
@@ -290,8 +299,17 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
     # ----------------- GET LATEST WASTE SUB -----------------
     @action(detail=False, methods=["post"], url_path="get-latest-waste")
     def get_latest_waste(self, request):
+        from app.viewsets.operator_mobile.helpers import (
+            OperatorFlowError,
+            find_active_assignment_for_operator,
+            resolve_customer_from_id,
+            resolve_operator_staff,
+            validate_customer_against_assignment,
+        )
+
         screen_id = request.data.get("screen_unique_id")
         customer_id = request.data.get("customer_id")
+        assignment_id = (request.data.get("assignment_id") or "").strip()
         waste_type = request.data.get("waste_type") or request.data.get(
             "waste_type_id"
         )
@@ -328,6 +346,14 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
     # ----------------- FINALIZE WASTE COLLECTION -----------------
     @action(detail=False, methods=["post"], url_path="finalize-waste")
     def finalize_waste_collection(self, request):
+        from app.viewsets.operator_mobile.helpers import (
+            OperatorFlowError,
+            find_active_assignment_for_operator,
+            resolve_customer_from_id,
+            resolve_operator_staff,
+            validate_customer_against_assignment,
+        )
+
         screen_id = request.data.get("screen_unique_id")
         customer_id = request.data.get("customer_id")
         entry_type = request.data.get("entry_type", "app")
@@ -335,6 +361,34 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
 
         if not screen_id or not customer_id:
             return Response({"status": "error", "message": "Missing parameters"}, status=400)
+
+        # Gate the whole finalize on the household actually being a stop on
+        # the driver's live trip, in their own project — BEFORE any row is
+        # written. Without this the endpoint happily created a WasteCollection
+        # for any customer_id/assignment_id pair the app sent, so scanning a
+        # household from another trip (or another project) collected it
+        # without complaint. `assignment_id` stays optional: when the app
+        # omits it we fall back to the caller's active trip and validate
+        # against that, rather than skipping the check entirely.
+        try:
+            staff = resolve_operator_staff(request.user)
+            assignment = None
+            if assignment_id:
+                assignment = DailyTripAssignment.objects.filter(
+                    unique_id=assignment_id, is_deleted=False
+                ).first()
+            if assignment is None:
+                assignment = find_active_assignment_for_operator(staff)
+            customer_obj = resolve_customer_from_id(customer_id)
+            validate_customer_against_assignment(customer_obj, assignment)
+        except OperatorFlowError as exc:
+            return Response(
+                {"status": "error", "code": exc.code, "message": exc.message},
+                status=exc.http_status,
+            )
+        # Downstream sync resolves the assignment by id; keep them in step
+        # when it was defaulted above.
+        assignment_id = assignment.unique_id
 
         sub_rows = WasteCollectionSub.objects.filter(
             screen_unique_id=screen_id, customer_id=customer_id, is_deleted=False,
