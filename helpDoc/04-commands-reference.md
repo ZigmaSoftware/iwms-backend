@@ -103,8 +103,8 @@ superadmin → common-masters → masters → waste-types → role-assigns
 | `role-assigns` | User types, staff/contractor user types |
 | `user-creations` | Staff office and personal records, auth users, supervisors |
 | `transport-masters` | Vehicle types, vehicles, fuel, trip attendance |
-| `schedule-setup` | Collection points, staff templates, trip plans |
-| `schedule-operations` | Daily trip assignments, trip logs, bin collection events |
+| `schedule-setup` | 20 Greater Noida BP household trip plans + their customers (trip plans only) |
+| `schedule-operations` | Trip attendance, supervisor user, driver wet/dry bin trips |
 | `screen-managements` | Screen permissions |
 | `collections` | Panchayat-, ward- and zone-wise collections |
 | `customer-masters` | Customers, feedback, user charge rules |
@@ -117,8 +117,7 @@ superadmin → common-masters → masters → waste-types → role-assigns
 |---|---|
 | `blue-planet` | The Blue Planet company/project masters |
 | `plant` | One Plant each for Palakkad BP and Greater Noida BP (needs `superadmin`) |
-| `waste-collections` | Waste collection records |
-| `bin-collection-events` | Bin collection events |
+| `gno-trip-plans` | 20 Greater Noida BP household trip plans + 100 customers, trip plans only — no daily trips (needs `superadmin`) |
 | `vehicle-breakdowns` | Vehicle breakdown records |
 | `driver-wet-dry-bin-trips` | Driver wet/dry bin trips (needs `superadmin` + `user-creations`) |
 | `retrip-demo` | A retrip demonstration dataset |

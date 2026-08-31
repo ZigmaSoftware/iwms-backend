@@ -625,6 +625,12 @@ ROLE_DEFAULT_PERMISSIONS = {
             "vehicle-breakdowns": ["view", "edit"],
             "staff-notifications": ["view", "edit"],
             "bin-collection-events": ["view"],
+            # Household waste collections (WasteCollection model) — the
+            # supervisor waste-summary cards' `mine=true` fetch needs this
+            # alongside bin-collection-events, or every household collection
+            # a driver makes is silently invisible to the dashboard (only
+            # bin scans were ever visible before this was added).
+            "wastecollections": ["view"],
             # Reviews Re-Trip requests via the approve/reject actions —
             # both POST, so the middleware's HTTP_ACTION_MAP scores them as
             # "add", not "edit"; create/update/destroy stay disabled in the

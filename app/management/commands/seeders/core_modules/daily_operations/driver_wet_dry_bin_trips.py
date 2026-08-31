@@ -2,6 +2,15 @@
 by waste stream — 10 Wet Waste collection points and 10 Dry Waste collection
 points — supervised by `supervisor_user`.
 
+A THIRD plan — one household-collection TripPlan reusing existing Palakkad
+BP customers — is added by the sibling seeder `driver_household_trip.py`
+(added on request: driver_user needs a household trip to exercise the
+mobile app's household collection flow, alongside these bin trips, not
+instead of them). That seeder must run AFTER this one — see
+`HOUSEHOLD_PLAN_DISPLAY_CODE` import below, used so `_purge_foreign_plans`/
+`_assert_exactly_two_plans` here know to leave it alone rather than treating
+it as a stray foreign plan.
+
 Builds the whole chain from scratch (self-contained — does NOT depend on the
 retired `driver_palakkad_trips`/`driver_bin_assignments` seeders having run):
 
@@ -16,10 +25,11 @@ retired `driver_palakkad_trips`/`driver_bin_assignments` seeders having run):
 
 Why self-contained: `driver_palakkad_trips.py`/`driver_bin_assignments.py`
 were removed from the seed pipeline on request (driver_user should have zero
-trips out of the box). This seeder is the one now wired into
-`schedule-operations`, and must not silently do nothing if those retired
-seeders were never run — it repins driver_user/supervisor_user itself,
-exactly like `driver_palakkad_trips.py` used to.
+trips out of the box — since revised, see the household note above). This
+seeder is the one now wired into `schedule-operations`, and must not
+silently do nothing if those retired seeders were never run — it repins
+driver_user/supervisor_user itself, exactly like `driver_palakkad_trips.py`
+used to.
 
 Company/project scope: `AuthUserSeeder` creates driver_user/operator_user
 under whatever company/project sorts first in the DB (no name filter), which
@@ -49,6 +59,9 @@ import math
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.core_modules.daily_operations.driver_household_trip import (
+    HOUSEHOLD_PLAN_DISPLAY_CODE,
+)
 
 from app.models.assets.bins import BinType, Bins
 from app.models.masters.city import City
@@ -131,15 +144,29 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         self._resync_assignment_waste_types(wet_plan, ctx["wet_type"])
         self._resync_assignment_waste_types(dry_plan, ctx["dry_type"])
 
-        # Self-healing: driver_user must end up with EXACTLY these two plans.
-        # Anything else on their StaffTemplate came from a seeder that
-        # shouldn't have touched them — the generic TripPlanSeeder (which
-        # cycles every active StaffTemplate across its ward/panchayat plans
-        # unless EXCLUDED_DRIVER_USERNAMES filters them out), or one of the
-        # retired driver_palakkad_trips/driver_bin_only/driver_bin_assignments
-        # seeders on an older branch. Purge them here rather than relying on
-        # that exclusion surviving every future merge.
-        self._purge_foreign_plans(ctx, keep={wet_plan.pk, dry_plan.pk})
+        # Self-healing: driver_user must end up with EXACTLY these two bin
+        # plans plus (if driver_household_trip.py has already run) its one
+        # household plan. Anything else on their StaffTemplate came from a
+        # seeder that shouldn't have touched them — the generic TripPlanSeeder
+        # (which cycles every active StaffTemplate across its ward/panchayat
+        # plans unless EXCLUDED_DRIVER_USERNAMES filters them out), or one of
+        # the retired driver_palakkad_trips/driver_bin_only/
+        # driver_bin_assignments seeders on an older branch. Purge them here
+        # rather than relying on that exclusion surviving every future merge.
+        #
+        # Matched by display_code, not existence-checked via a DB query, so
+        # this works whether driver_household_trip.py ran before this seeder
+        # (its plan already exists — keep it) or hasn't run yet (no plan with
+        # that code exists yet — the `.exclude(...)` below is simply a no-op,
+        # and that seeder creates its own plan fresh when it runs next).
+        keep = {wet_plan.pk, dry_plan.pk}
+        keep |= set(
+            TripPlan.objects.filter(
+                staff_template_id__driver_id=ctx["driver"],
+                display_code=HOUSEHOLD_PLAN_DISPLAY_CODE,
+            ).values_list("pk", flat=True)
+        )
+        self._purge_foreign_plans(ctx, keep=keep)
 
         from app.management.commands.generate_daily_trips import run_for_date
         today = timezone.localdate()
@@ -166,7 +193,9 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
     # ------------------------------------------------------------------
     def _assert_exactly_two_plans(self, ctx):
         """Fail loudly if driver_user ends up with anything but the wet/dry
-        pair. Everything upstream is meant to guarantee this; a mismatch here
+        pair plus, optionally, the household plan (see the module docstring —
+        only present once driver_household_trip.py has run). Everything
+        upstream is meant to guarantee this; an unexpected extra code here
         means some other seeder created plans AFTER _purge_foreign_plans ran,
         which would otherwise only surface as extra trip cards in the app.
         """
@@ -175,14 +204,14 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
                 staff_template_id__driver_id=ctx["driver"],
             ).values_list("display_code", flat=True)
         )
-        expected = sorted([WET_PLAN_DISPLAY_CODE, DRY_PLAN_DISPLAY_CODE])
-        if codes != expected:
+        allowed = {WET_PLAN_DISPLAY_CODE, DRY_PLAN_DISPLAY_CODE, HOUSEHOLD_PLAN_DISPLAY_CODE}
+        unexpected = [c for c in codes if c not in allowed]
+        if unexpected:
             raise RuntimeError(
-                f"driver_user must have exactly 2 trip plans {expected}, "
-                f"but has {len(codes)}: {codes}. Another seeder is creating "
-                f"trip plans for driver_user — check TripPlanSeeder's "
-                f"EXCLUDED_DRIVER_USERNAMES and that no retired driver seeder "
-                f"was reintroduced by a merge."
+                f"driver_user must have only {sorted(allowed)}, but also has "
+                f"{unexpected}. Another seeder is creating trip plans for "
+                f"driver_user — check TripPlanSeeder's EXCLUDED_DRIVER_USERNAMES "
+                f"and that no retired driver seeder was reintroduced by a merge."
             )
 
     # ------------------------------------------------------------------

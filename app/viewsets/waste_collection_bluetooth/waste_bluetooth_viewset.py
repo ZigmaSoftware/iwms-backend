@@ -3,10 +3,17 @@ from rest_framework.decorators import action
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from rest_framework.response import Response
 from django.utils import timezone
-from django.db import connection
+from django.db.models import Case, IntegerField, Q, Sum, Value, When
 from datetime import datetime, timedelta
-from app.models.user_creations.waste_collection_bluetooth import generate_unique_id, upload_image
+from app.models.user_creations.waste_collection_bluetooth import (
+    WasteCollectionMain,
+    WasteCollectionSub,
+    WasteType,
+    upload_image,
+)
 from app.models.customers.customercreation import CustomerCreation
+from app.models.customers.wastecollection import WasteCollection
+from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 
 
 
@@ -30,15 +37,153 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 "update_waste_sub": f"{base}/update-waste-sub/",
                 "finalize_waste": f"{base}/finalize-waste/",
                 "citizen_summary": f"{base}/citizen-summary/",
+                "mark_household_status": f"{base}/mark-household-status/",
             }
         })
 
+    # ----------------- MARK HOUSEHOLD STATUS (Not available / Collect later) -----------------
+    @action(detail=False, methods=["post"], url_path="mark-household-status")
+    def mark_household_status(self, request):
+        """Driver marks a household stop Not Available or Collect Later from
+        the app — the counterpart to insert-waste-sub/finalize-waste for the
+        two "can't collect right now" outcomes.
+
+        This endpoint previously did not exist at all (the mobile app's
+        `waste/mark-household-status/` call 404'd unconditionally); ported
+        from the government backend's working implementation, adapted to
+        this backend's available helpers (no audit-log/push-notification
+        wiring here — neither exists in this backend yet, and no other
+        endpoint in this file does either).
+
+        Writes directly to the DailyTripHouseholdCollection row for the
+        given trip assignment, via DailyTripHouseholdCollection.mark_status
+        (see that model) — the same status field the trip API
+        (operator-mobile/my-trip(s)-today/) reads, so the change is visible
+        to the driver immediately on refresh.
+        """
+        from app.models.schedule_masters.daily_trip_household_collection import (
+            DailyTripHouseholdCollection,
+        )
+        from app.viewsets.operator_mobile.helpers import (
+            OperatorFlowError,
+            find_active_assignment_for_operator,
+            require_trip_started,
+            resolve_customer_from_id,
+            resolve_operator_staff,
+            validate_customer_against_assignment,
+        )
+
+        customer_id = str(request.data.get("customer_id") or "").strip()
+        status_value = str(request.data.get("status") or "").strip().lower()
+        reason = str(
+            request.data.get("reason") or request.data.get("status_reason") or ""
+        ).strip()
+        latitude = request.data.get("latitude") or None
+        longitude = request.data.get("longitude") or None
+
+        status_aliases = {
+            # "Not available" from the app → canonical "Not Available".
+            "not_available": DailyTripHouseholdCollection.STATUS_MISSED,
+            "not available": DailyTripHouseholdCollection.STATUS_MISSED,
+            "missed": DailyTripHouseholdCollection.STATUS_MISSED,
+            # "Collect later" → canonical "Collect Later" (matches the web).
+            "collect_later": DailyTripHouseholdCollection.STATUS_COLLECT_LATER,
+            "collect later": DailyTripHouseholdCollection.STATUS_COLLECT_LATER,
+            "skipped": DailyTripHouseholdCollection.STATUS_COLLECT_LATER,
+        }
+        normalized_status = status_aliases.get(status_value)
+
+        if not customer_id:
+            return Response(
+                {"status": "error", "message": "customer_id is required"}, status=400
+            )
+        if normalized_status is None:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "status must be missed/not_available or skipped/collect_later",
+                },
+                status=400,
+            )
+        if not reason:
+            return Response(
+                {"status": "error", "message": "reason is required"}, status=400
+            )
+
+        try:
+            staff = resolve_operator_staff(request.user)
+            # The app sends the specific trip the household belongs to (a
+            # driver can have both a bin AND a household trip today). Use it
+            # so the status lands on the correct household assignment;
+            # otherwise fall back to the operator's active trip.
+            assignment_id = str(request.data.get("assignment_id") or "").strip()
+            assignment = None
+            if assignment_id:
+                assignment = DailyTripAssignment.objects.filter(
+                    unique_id=assignment_id, is_deleted=False
+                ).first()
+            if assignment is None:
+                assignment = find_active_assignment_for_operator(staff)
+            require_trip_started(assignment)
+        except OperatorFlowError as exc:
+            return Response(
+                {"status": "error", "code": exc.code, "message": exc.message},
+                status=exc.http_status,
+            )
+
+        # A household may only be marked on a trip it is actually a stop on,
+        # and only within the driver's own project. This used to attach ANY
+        # scanned customer to the live trip on the fly, which is how a
+        # household that was never planned for this trip could be resolved
+        # from the app without any complaint.
+        try:
+            customer = resolve_customer_from_id(customer_id)
+            dthc = validate_customer_against_assignment(customer, assignment)
+        except OperatorFlowError as exc:
+            return Response(
+                {"status": "error", "code": exc.code, "message": exc.message},
+                status=exc.http_status,
+            )
+
+        if dthc.is_collected:
+            return Response(
+                {"status": "error", "message": "This household is already collected."},
+                status=409,
+            )
+
+        dthc.mark_status(
+            normalized_status, reason=reason, latitude=latitude, longitude=longitude,
+        )
+        # "Not Available" resolves the stop for the day same as a real
+        # collection does (see pending_household_stops); "Collect Later"
+        # doesn't, so this is a safe no-op when stops are still pending.
+        assignment.mark_completed_if_all_household_stops_collected()
+
+        return Response({
+            "status": "success",
+            "data": {
+                "unique_id": dthc.unique_id,
+                "customer_id": dthc.customer_id_id,
+                "trip_assignment_id": dthc.trip_assignment_id_id,
+                "collection_status": dthc.status,
+                "reason": dthc.status_reason,
+            },
+        })
 
     # ----------------- INSERT WASTE SUB -----------------
     @action(detail=False, methods=["post"], url_path="insert-waste-sub")
     def insert_waste_sub(self, request):
+        from app.viewsets.operator_mobile.helpers import (
+            OperatorFlowError,
+            find_active_assignment_for_operator,
+            resolve_customer_from_id,
+            resolve_operator_staff,
+            validate_customer_against_assignment,
+        )
+
         screen_id = request.data.get("screen_unique_id")
         customer_id = request.data.get("customer_id")
+        assignment_id = (request.data.get("assignment_id") or "").strip()
         waste_type = request.data.get("waste_type") or request.data.get(
             "waste_type_id"
         )
@@ -54,22 +199,51 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
         if not image:
             return Response({"status": "error", "message": "No image uploaded"}, status=400)
 
-        unique_id = generate_unique_id("wcs")
-        image_path = upload_image(image)
-        now = timezone.now()
+        # Same live-trip/project guard as finalize-waste, applied here too so
+        # the driver is stopped at the FIRST waste-type upload instead of
+        # capturing every photo and only being refused at submit. Skipped when
+        # the caller sends no customer_id (older callers finalize by
+        # screen_unique_id alone and are validated at finalize).
+        if customer_id:
+            try:
+                staff = resolve_operator_staff(request.user)
+                assignment = None
+                if assignment_id:
+                    assignment = DailyTripAssignment.objects.filter(
+                        unique_id=assignment_id, is_deleted=False
+                    ).first()
+                if assignment is None:
+                    assignment = find_active_assignment_for_operator(staff)
+                customer_obj = resolve_customer_from_id(customer_id)
+                validate_customer_against_assignment(customer_obj, assignment)
+            except OperatorFlowError as exc:
+                return Response(
+                    {"status": "error", "code": exc.code, "message": exc.message},
+                    status=exc.http_status,
+                )
 
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                INSERT INTO waste_collection_sub
-                (unique_id, screen_unique_id, customer_id, waste_type_id, image, weight,
-                 latitude, longitude, date_time, is_deleted)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,0)
-            """, [unique_id, screen_id, customer_id, waste_type, image_path,
-                  weight, latitude, longitude, now])
+        image_path = upload_image(image)
+
+        # ORM insert (was raw SQL against the non-existent table
+        # `waste_collection_sub` — the real Django-managed table is
+        # `app_wastecollectionsub`, via the WasteCollectionSub model).
+        # `unique_id` is left to the model's own default (generate_unique_id
+        # is still imported for update_waste_sub's response payload usage
+        # elsewhere, but insert no longer needs the raw "wcs" prefix version
+        # since the model already generates "wcs-...").
+        row = WasteCollectionSub.objects.create(
+            screen_unique_id=screen_id,
+            customer_id=customer_id,
+            waste_type_id=waste_type,
+            image=image_path,
+            weight=weight or 0,
+            latitude=latitude,
+            longitude=longitude,
+        )
 
         return Response({
             "status": "success",
-            "unique_id": unique_id,
+            "unique_id": row.unique_id,
             "screen_unique_id": screen_id,
             "image": image_path
         })
@@ -77,39 +251,84 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
     # ----------------- GET SAVED WASTE TYPES -----------------
     @action(detail=False, methods=["get"], url_path="get-waste-types")
     def get_saved_waste(self, request):
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT id, waste_type_name
-                FROM waste_type_creation_master
-                WHERE is_deleted=0
-                ORDER BY id ASC
-            """)
-            rows = cursor.fetchall()
-        data = [{"id": r[0], "waste_type_name": r[1]} for r in rows]
+        # `customer_id` is required. This used to fall back to "every active
+        # waste type" when it was blank, which is indistinguishable from a
+        # customer legitimately having every stream — so a caller that dropped
+        # the id looked exactly like "the waste type I removed is still there".
+        # Fail loudly instead.
+        customer_id = (request.query_params.get("customer_id") or "").strip()
+        if not customer_id:
+            return Response(
+                {"status": "error", "message": "Missing customer_id"},
+                status=400,
+            )
+
+        customer = (
+            CustomerCreation.objects.filter(
+                Q(unique_id=customer_id) | Q(customer_id=customer_id),
+                is_deleted=False,
+            )
+            .prefetch_related("waste_types")
+            .first()
+        )
+        if not customer:
+            return Response(
+                {"status": "error", "message": "Customer not found"},
+                status=404,
+            )
+        waste_types = customer.waste_types.filter(is_deleted=False)
+
+        waste_types = waste_types.annotate(
+            sort_order=Case(
+                When(waste_type_name__iexact="Wet Waste", then=Value(0)),
+                When(waste_type_name__iexact="Dry Waste", then=Value(1)),
+                default=Value(2),
+                output_field=IntegerField(),
+            )
+        ).order_by("sort_order", "waste_type_name")
+        data = [
+            {
+                "id": wt.unique_id,
+                "unique_id": wt.unique_id,
+                "waste_type_name": wt.waste_type_name,
+            }
+            for wt in waste_types
+        ]
         return Response({"status": "success", "count": len(data), "data": data})
 
     # ----------------- GET LATEST WASTE SUB -----------------
     @action(detail=False, methods=["post"], url_path="get-latest-waste")
     def get_latest_waste(self, request):
+        from app.viewsets.operator_mobile.helpers import (
+            OperatorFlowError,
+            find_active_assignment_for_operator,
+            resolve_customer_from_id,
+            resolve_operator_staff,
+            validate_customer_against_assignment,
+        )
+
         screen_id = request.data.get("screen_unique_id")
         customer_id = request.data.get("customer_id")
+        assignment_id = (request.data.get("assignment_id") or "").strip()
         waste_type = request.data.get("waste_type") or request.data.get(
             "waste_type_id"
         )
         if not waste_type:
             return Response({"status": "error", "message": "Missing waste_type"}, status=400)
 
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT id, unique_id, waste_type_id, image, weight
-                FROM waste_collection_sub
-                WHERE screen_unique_id=%s
-                AND customer_id=%s
-                AND waste_type_id=%s
-                AND is_deleted=0
-                ORDER BY id DESC LIMIT 1
-            """, [screen_id, customer_id, waste_type])
-            row = cursor.fetchone()
+        # WasteCollectionSub has no auto-increment `id` (unique_id is the
+        # primary key, generated with a timestamp component), so "latest"
+        # means most recently written rather than highest id.
+        row = (
+            WasteCollectionSub.objects.filter(
+                screen_unique_id=screen_id,
+                customer_id=customer_id,
+                waste_type_id=waste_type,
+                is_deleted=False,
+            )
+            .order_by("-date_time")
+            .first()
+        )
 
         if not row:
             return Response({"status": "error", "message": "No record found"})
@@ -117,59 +336,179 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
         return Response({
             "status": "success",
             "data": {
-                "id": row[0],
-                "unique_id": row[1],
-                "waste_type_id": row[2],
-                "image": row[3],
-                "weight": row[4],
+                "unique_id": row.unique_id,
+                "waste_type_id": row.waste_type_id,
+                "image": row.image,
+                "weight": row.weight,
             }
         })
 
     # ----------------- FINALIZE WASTE COLLECTION -----------------
     @action(detail=False, methods=["post"], url_path="finalize-waste")
     def finalize_waste_collection(self, request):
+        from app.viewsets.operator_mobile.helpers import (
+            OperatorFlowError,
+            find_active_assignment_for_operator,
+            resolve_customer_from_id,
+            resolve_operator_staff,
+            validate_customer_against_assignment,
+        )
+
         screen_id = request.data.get("screen_unique_id")
         customer_id = request.data.get("customer_id")
         entry_type = request.data.get("entry_type", "app")
+        assignment_id = (request.data.get("assignment_id") or "").strip()
 
         if not screen_id or not customer_id:
             return Response({"status": "error", "message": "Missing parameters"}, status=400)
 
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT COALESCE(SUM(weight), 0)
-                FROM waste_collection_sub
-                WHERE screen_unique_id=%s AND customer_id=%s AND is_deleted=0
-            """, [screen_id, customer_id])
-            total = cursor.fetchone()[0]
+        # Gate the whole finalize on the household actually being a stop on
+        # the driver's live trip, in their own project — BEFORE any row is
+        # written. Without this the endpoint happily created a WasteCollection
+        # for any customer_id/assignment_id pair the app sent, so scanning a
+        # household from another trip (or another project) collected it
+        # without complaint. `assignment_id` stays optional: when the app
+        # omits it we fall back to the caller's active trip and validate
+        # against that, rather than skipping the check entirely.
+        try:
+            staff = resolve_operator_staff(request.user)
+            assignment = None
+            if assignment_id:
+                assignment = DailyTripAssignment.objects.filter(
+                    unique_id=assignment_id, is_deleted=False
+                ).first()
+            if assignment is None:
+                assignment = find_active_assignment_for_operator(staff)
+            customer_obj = resolve_customer_from_id(customer_id)
+            validate_customer_against_assignment(customer_obj, assignment)
+        except OperatorFlowError as exc:
+            return Response(
+                {"status": "error", "code": exc.code, "message": exc.message},
+                status=exc.http_status,
+            )
+        # Downstream sync resolves the assignment by id; keep them in step
+        # when it was defaulted above.
+        assignment_id = assignment.unique_id
+
+        sub_rows = WasteCollectionSub.objects.filter(
+            screen_unique_id=screen_id, customer_id=customer_id, is_deleted=False,
+        )
+        total = sub_rows.aggregate(total=Sum("weight"))["total"] or 0
 
         if float(total) <= 0:
             return Response({"status": "error", "message": "No waste records found"})
 
-        main_id = generate_unique_id("wcm")
         now = timezone.now()
+        main = WasteCollectionMain.objects.create(
+            screen_unique_id=screen_id,
+            collected_time=now,
+            created=now,
+            total_waste_collected=total,
+            entry_type=entry_type,
+            customer_id=customer_id,
+        )
 
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                INSERT INTO waste_collection_main
-                (unique_id, screen_unique_id, collected_time, created,
-                 total_waste_collected, entry_type, customer_id, is_deleted)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,0)
-            """, [main_id, screen_id, now, now, total, entry_type, customer_id])
+        sub_rows.update(form_unique_id=main.unique_id)
 
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                UPDATE waste_collection_sub
-                SET form_unique_id=%s
-                WHERE screen_unique_id=%s AND customer_id=%s AND is_deleted=0
-            """, [main_id, screen_id, customer_id])
+        # Mirror this finalize into the real WasteCollection model, scoped to
+        # the trip assignment the driver was actually working. Without this,
+        # a finalize here only ever wrote to the legacy
+        # WasteCollectionMain/Sub tables — which nothing else in the system
+        # reads — so a household stop's card in the app never showed as
+        # collected, no weight ever reached DailyTripHouseholdCollection or
+        # the trip's DailyTripLog, and panchayat-level waste reports (which
+        # read WasteCollection) silently missed every collection made this
+        # way. Creating a WasteCollection row here fires
+        # sync_household_collection_on_waste_save (see
+        # app/signals/trip_plan_signals.py), which does all of that —
+        # marking the stop Collected with this weight, and rolling it into
+        # the trip log — the same as the properly-wired
+        # schedule-operations/wastecollections/ API path.
+        household_note = self._sync_to_household_collection(
+            customer_id=customer_id,
+            assignment_id=assignment_id,
+            sub_rows=sub_rows,
+            total=total,
+        )
 
         return Response({
             "status": "success",
-            "main_unique_id": main_id,
+            "main_unique_id": main.unique_id,
             "total_weight": float(total),
-            "collected_time": now
+            "collected_time": now,
+            "household_sync": household_note,
         })
+
+    def _sync_to_household_collection(self, *, customer_id, assignment_id, sub_rows, total):
+        """Best-effort bridge from the legacy sub/main tables into the real
+        WasteCollection model — see the call site's comment for why this
+        exists. Returns a short status string for the response payload
+        (never raises: a driver's collection must not be lost over a
+        secondary-sync failure once the legacy rows above are already
+        committed).
+        """
+        if not assignment_id:
+            return "skipped: no assignment_id"
+
+        try:
+            customer = CustomerCreation.objects.filter(
+                Q(unique_id=customer_id) | Q(customer_id=customer_id),
+                is_deleted=False,
+            ).first()
+            if customer is None:
+                return "skipped: customer not found"
+
+            assignment = DailyTripAssignment.objects.filter(
+                unique_id=assignment_id, is_deleted=False,
+            ).first()
+            if assignment is None:
+                return "skipped: assignment not found"
+
+            # Split the summed weight across WasteCollection's fixed
+            # wet/dry/mixed/sanitary columns by each sub-row's waste-type
+            # name — the legacy schema has no such split, only a flat
+            # `waste_type_id` per row.
+            waste_type_ids = set(
+                sub_rows.values_list("waste_type_id", flat=True).distinct()
+            )
+            names_by_id = dict(
+                WasteType.objects.filter(unique_id__in=waste_type_ids).values_list(
+                    "unique_id", "waste_type_name"
+                )
+            )
+            buckets = {"wet_waste": 0.0, "dry_waste": 0.0, "mixed_waste": 0.0, "sanitary_waste": 0.0}
+            for waste_type_id, weight in sub_rows.values_list("waste_type_id", "weight"):
+                name = (names_by_id.get(waste_type_id) or "").strip().lower()
+                if "wet" in name:
+                    buckets["wet_waste"] += float(weight or 0)
+                elif "dry" in name:
+                    buckets["dry_waste"] += float(weight or 0)
+                elif "sanitary" in name:
+                    buckets["sanitary_waste"] += float(weight or 0)
+                else:
+                    buckets["mixed_waste"] += float(weight or 0)
+
+            WasteCollection.objects.create(
+                customer=customer,
+                trip_assignment_id=assignment,
+                # Inherited from the assignment, not left blank: WasteCollection
+                # is a CompanyScopedViewSet model, and any company-scoped list
+                # (e.g. the supervisor app's `wastecollections/?mine=true`)
+                # filters by company_id/project_id — a null value here silently
+                # excludes the row from every such list, even though nothing
+                # about the create itself fails.
+                company_id=assignment.company_id,
+                project_id=assignment.project_id,
+                collection_date=timezone.localdate(),
+                **buckets,
+                # total_quantity is recomputed in WasteCollection.save() from
+                # the buckets above; the post_save signal marks the matching
+                # DailyTripHouseholdCollection stop Collected and syncs the
+                # trip's DailyTripLog automatically.
+            )
+            return "synced"
+        except Exception as exc:  # noqa: BLE001 — best-effort, see docstring
+            return f"failed: {exc}"
 
     # ----------------- UPDATE WASTE SUB -----------------
     @action(detail=False, methods=["post"], url_path="update-waste-sub")
@@ -182,14 +521,9 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
         if not record_id:
             return Response({"status": "error", "message": "Missing unique_id"}, status=400)
 
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT unique_id
-                FROM waste_collection_sub
-                WHERE unique_id=%s AND is_deleted=0
-            """, [record_id])
-            row = cursor.fetchone()
-
+        row = WasteCollectionSub.objects.filter(
+            unique_id=record_id, is_deleted=False,
+        ).first()
         if row is None:
             return Response({"status": "error", "message": f"No matching record found for unique_id {record_id}"}, status=400)
 
@@ -197,42 +531,26 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
         if "image" in request.FILES:
             image_path = upload_image(request.FILES["image"])
 
-        now = timezone.now()
-
-        sql = """
-            UPDATE waste_collection_sub
-            SET weight=%s, latitude=%s, longitude=%s, date_time=%s
-        """
-        params = [weight, latitude, longitude, now]
-
+        row.weight = weight or 0
+        row.latitude = latitude
+        row.longitude = longitude
+        row.date_time = timezone.now()
+        update_fields = ["weight", "latitude", "longitude", "date_time"]
         if image_path:
-            sql += ", image=%s"
-            params.append(image_path)
-
-        sql += " WHERE unique_id=%s AND is_deleted=0"
-        params.append(record_id)
-
-        with connection.cursor() as cursor:
-            cursor.execute(sql, params)
-
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT unique_id, waste_type_id, image, weight, latitude, longitude
-                FROM waste_collection_sub
-                WHERE unique_id=%s
-            """, [record_id])
-            updated = cursor.fetchone()
+            row.image = image_path
+            update_fields.append("image")
+        row.save(update_fields=update_fields)
 
         return Response({
             "status": "success",
             "message": "Record updated",
             "data": {
-                "unique_id": updated[0],
-                "waste_type_id": updated[1],
-                "image": updated[2],
-                "weight": updated[3],
-                "latitude": updated[4],
-                "longitude": updated[5],
+                "unique_id": row.unique_id,
+                "waste_type_id": row.waste_type_id,
+                "image": row.image,
+                "weight": row.weight,
+                "latitude": row.latitude,
+                "longitude": row.longitude,
             }
         })
 
@@ -269,17 +587,14 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             date_filter = " AND date_time >= %s AND date_time < %s"
             params.extend([start, end])
 
-        with connection.cursor() as cursor:
-            cursor.execute(
-                f"""
-                SELECT waste_type_id, COALESCE(SUM(weight), 0)
-                FROM waste_collection_sub
-                WHERE is_deleted=0 {date_filter}
-                GROUP BY waste_type_id
-            """,
-                params,
-            )
-            rows = cursor.fetchall()
+        sub_qs = WasteCollectionSub.objects.filter(is_deleted=False)
+        if start and end:
+            sub_qs = sub_qs.filter(date_time__gte=start, date_time__lt=end)
+        rows = (
+            sub_qs.values("waste_type_id")
+            .annotate(total=Sum("weight"))
+            .values_list("waste_type_id", "total")
+        )
 
         for waste_type_id, total in rows:
             key = str(waste_type_id)
@@ -291,24 +606,10 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             else:
                 weights["mixed"] += total_value
 
-        trips_params = []
-        trips_filter = ""
+        main_qs = WasteCollectionMain.objects.filter(is_deleted=False)
         if start and end:
-            trips_filter = " AND collected_time >= %s AND collected_time < %s"
-            trips_params.extend([start, end])
-
-        with connection.cursor() as cursor:
-            cursor.execute(
-                f"""
-                SELECT COUNT(*)
-                FROM waste_collection_main
-                WHERE is_deleted=0 {trips_filter}
-            """,
-                trips_params,
-            )
-            trips_row = cursor.fetchone()
-
-        total_trip = int(trips_row[0]) if trips_row and trips_row[0] is not None else 0
+            main_qs = main_qs.filter(collected_time__gte=start, collected_time__lt=end)
+        total_trip = main_qs.count()
         total_net = weights["wet"] + weights["dry"] + weights["mixed"]
         average_per_trip = total_net / total_trip if total_trip > 0 else 0.0
 

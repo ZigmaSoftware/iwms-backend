@@ -9,8 +9,8 @@ from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.user_creations.staffcreation import Staffcreation
 
-# Chennai-area GPS samples — reused from BinCollectionEventSeeder's set so
-# breakdown pins land in the same demo area as the collection scans.
+# Chennai-area GPS samples, so breakdown pins land in the same demo area as
+# the rest of the daily-operations seed data.
 GPS_SAMPLES = [
     (13.083000, 80.271000),
     (13.090000, 80.265000),
