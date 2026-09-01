@@ -113,7 +113,7 @@ class BluePlanetSeeder(BaseSeeder):
     ]
 
     PROJECT_LOCATION = {
-        "Greater Noida BP": {
+        "Blue Planet Integrated Waste Management": {
             "state": "Uttar Pradesh",
             "district": "Greater Noida BP District",
             "city": "Greater Noida BP City",
@@ -143,7 +143,7 @@ class BluePlanetSeeder(BaseSeeder):
             ("Deepa Krishnan", "07", "42G", "Station Road",  "Kalpathy",   "678007", 3, "1000.00", "200.00", "2.80"),
             ("Anoop Varma",    "08", "9H",  "Palace Road",   "Olavakkode", "678008", 5, "1250.00", "260.00", "3.60"),
         ],
-        "Greater Noida BP": [
+        "Blue Planet Integrated Waste Management": [
             ("Amit Sharma",    "01", "12A", "Alpha Road",    "Alpha 1",    "201308", 4, "1200.00", "240.00", "3.50"),
             ("Priyanka Gupta", "02", "24B", "Beta Street",   "Beta 2",     "201309", 3, "950.00",  "180.00", "2.75"),
             ("Rohit Verma",    "03", "5C",  "Gamma Lane",    "Gamma 3",    "201310", 5, "1450.00", "300.00", "4.50"),
@@ -1016,7 +1016,7 @@ class BluePlanetSeeder(BaseSeeder):
         )
 
         project_defaults = {
-            "Greater Noida BP": {
+            "Blue Planet Integrated Waste Management": {
                 "description": "Blue Planet Greater Noida operations",
                 "gps_api_url": self.GPS_API_URL,
                 "gps_vehicle_tracking_api": self.GPS_VEHICLE_TRACKING_API,

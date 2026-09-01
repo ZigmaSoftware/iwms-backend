@@ -18,7 +18,7 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
 COMPANY_NAME = "Blue Planet"
-PROJECT_NAME = "Greater Noida BP"
+PROJECT_NAME = "Blue Planet Integrated Waste Management"
 PLANT_NAME = "Greater Noida Municipal Waste Processing Yard"
 LATITUDE = "28.4900"
 LONGITUDE = "77.5350"
