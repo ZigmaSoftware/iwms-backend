@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 # ============================================================
 
 # superadmin (router: superadmin/company, superadmin/project)
-from app.management.commands.seeders.superadmin_masters import (
+from app.management.commands.seeders.superadminmasters import (
     BluePlanetSeeder,
     COMPANY_SEEDERS,
     PLATFORM_SEEDERS,
@@ -98,8 +98,6 @@ from app.management.commands.seeders.core_modules.daily_operations.retrip_demo i
 # screen-managements (router: screen-managements/...)
 from app.management.commands.seeders.superadmin.screen_management import PERMISSION_SEEDERS
 
-# collections (router: collections/panchayat-wise, ward-wise, zone-wise)
-from app.management.commands.seeders.collections import COLLECTION_SEEDERS
 
 # customer-masters (router: customer-masters/customercreations, ...)
 # CUSTOMER_SEEDERS includes CustomerCreationSeeder, which hardcodes Chennai/
@@ -240,9 +238,6 @@ SCREEN_MANAGEMENTS_SEEDERS = [
     *PERMISSION_SEEDERS,
 ]
 
-COLLECTIONS_SEEDERS = [
-    *COLLECTION_SEEDERS,
-]
 
 CUSTOMER_MASTERS_SEEDERS = [
     # CustomerCreationSeeder dropped — Blue Planet's own customers are
@@ -282,7 +277,6 @@ ORDERED_GROUPS = [
     "schedule-setup",       # collection-points, bins, staff-templates, alternative-staff-templates, trip-plans
     "schedule-operations",  # daily-trip-assignments, daily-trip-collection-points, trip-logs, bin-collection-events
     "screen-managements",   # screen permissions
-    "collections",          # panchayat-wise, ward-wise, zone-wise
     "customer-masters",     # customer creations, feedback, charge rules
     "complaint-ticket",     # tickets, categories, subcategories (renamed from legacy `grivences`)
     # "audits",               # vehicle-trip-audit, trip-exception-log, ...
@@ -305,7 +299,6 @@ SEED_GROUPS = {
     "schedule-operations": SCHEDULE_OPERATIONS_SEEDERS,
     "schedule-masters":   SCHEDULE_MASTERS_SEEDERS,  # legacy alias for schedule-setup + schedule-operations
     "screen-managements": SCREEN_MANAGEMENTS_SEEDERS,
-    "collections":        COLLECTIONS_SEEDERS,
     "customer-masters":   CUSTOMER_MASTERS_SEEDERS,
     "customers":          CUSTOMER_MASTERS_SEEDERS,  # alias
     "complaint-ticket":   COMPLAINT_TICKET_SEEDERS,
@@ -367,7 +360,7 @@ class Command(BaseCommand):
                 "superadmin | common-masters | masters | waste-types | assets (legacy alias) | "
                 "role-assigns | user-creations | transport-masters | process-items | "
                 "schedule-setup | schedule-operations | schedule-masters (legacy alias) | "
-                "screen-managements | collections | customer-masters | "
+                "screen-managements | customer-masters | "
                 "complaint-ticket | grivences (legacy alias) | audits | reports | all"
             ),
         )
