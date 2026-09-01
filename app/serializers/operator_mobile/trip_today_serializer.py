@@ -6,6 +6,18 @@ from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignmen
 from app.models.schedule_masters.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
+from app.models.schedule_masters.daily_trip_household_collection import (
+    DailyTripHouseholdCollection,
+)
+
+# The trip payload used to embed EVERY stop, on EVERY call — and this is
+# called after every single scan/collect, plus every pull-to-refresh and app
+# resume. A trip with hundreds of household stops turned that into hundreds
+# of rows re-serialized and re-transmitted on every single collection. The
+# embedded lists are now capped to one page; the rest is fetched on demand via
+# TripStopsViewSet (operator-mobile/trip-stops/<assignment_id>/...), 20 at a
+# time, only as the driver actually scrolls to them.
+STOPS_PAGE_SIZE = 20
 
 
 class _PanchayatBriefSerializer(serializers.Serializer):
@@ -238,28 +250,46 @@ class MyTripTodaySerializer(serializers.Serializer):
             1 for c in children
             if c.is_collected or c.status not in ("Pending",)
         )
+        # Postponed (Collect Later / Skipped) specifically, NOT lumped in with
+        # Not Available — TripCompletionNudge on the app side needs to tell
+        # "every stop truly collected" from "resolved, but some carried over
+        # to a follow-up trip" apart, and can no longer count this itself now
+        # that the app only ever sees one page of the actual stop list.
+        postponed = sum(
+            1 for c in children
+            if c.status in (
+                DailyTripCollectionPoint.STATUS_SKIPPED,
+                DailyTripHouseholdCollection.STATUS_COLLECT_LATER,
+            )
+        )
         return {
             "collected": collected,
             "total": total,
             "resolved": resolved,
+            "postponed": postponed,
             "completed": total > 0 and collected == total,
         }
 
     def get_collection_points(self, obj):
+        # Capped to the first page — see STOPS_PAGE_SIZE's comment. The app
+        # fetches the rest, 20 at a time, via TripStopsViewSet as the driver
+        # scrolls; this first page is embedded so the common case (a trip
+        # with <= 20 stops) needs no extra round trip at all.
         children = (
             obj.trip_collection_points
             .filter(is_deleted=False)
             .select_related("collection_point_id", "bin_id")
-            .order_by("sequence")
+            .order_by("sequence")[:STOPS_PAGE_SIZE]
         )
         return TripCollectionPointSerializer(children, many=True).data
 
     def get_household_collections(self, obj):
+        # See get_collection_points — same capping, same reason.
         children = (
             obj.trip_household_collections
             .filter(is_deleted=False)
             .select_related("customer_id", "customer_id__city")
-            .order_by("sequence")
+            .order_by("sequence")[:STOPS_PAGE_SIZE]
         )
         return HouseholdCollectionSerializer(children, many=True).data
 
