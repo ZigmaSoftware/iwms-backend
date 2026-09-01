@@ -6,7 +6,6 @@ from app.models.superadmin_masters.project import Project
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.common_masters.state import State
-from app.models.masters.hierarchy import AdministrativeHierarchy
 from app.models.masters.block_panchayat_union import BlockPanchayatUnion
 
 def generate_panchayat_id():
@@ -68,14 +67,6 @@ class Panchayat(BaseMaster):
         on_delete = models.PROTECT,
         related_name="panchayat",
         db_column="district_id",
-    )
-
-    hierarchy_id = models.ForeignKey(
-        AdministrativeHierarchy,
-        on_delete=models.PROTECT,
-        limit_choices_to={"level_name": "Panchayat"},
-        null=True,
-        blank=True
     )
 
     geofencing_type = models.CharField(

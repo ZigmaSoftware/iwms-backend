@@ -413,7 +413,12 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
         if personal_data:
             personal_instance, _ = StaffPersonalDetails.objects.get_or_create(
-                staff=staff
+                staff=staff,
+                defaults={
+                    "staff_unique_id": staff.staff_unique_id,
+                    "company_id": staff.company_id,
+                    "project_id": staff.project_id,
+                },
             )
             if not getattr(personal_instance, "company_id", None):
                 personal_instance.company_id = staff.company_id

@@ -24,6 +24,7 @@ class WasteTypeSeeder(BaseSeeder):
         "Textile Waste",
         "Food Waste",
         "Chemical Waste",
+        "Mixed Waste",
     ]
 
     def run(self):

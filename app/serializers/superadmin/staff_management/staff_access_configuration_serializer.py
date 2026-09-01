@@ -32,55 +32,6 @@ LOCATION_LEVELS = (
 )
 
 
-# Supporting master/lookup screens that operational forms across the app
-# depend on for dropdown data (District, City, Zone, Panchayat, Ward,
-# Collection Point, State). Matches TN_Iwms's provisioning convention: any
-# staff member granted at least one real operational screen also gets
-# "view" on these, so their forms' dropdowns aren't blocked by a permission
-# they'd otherwise have no reason to think to grant separately.
-LOOKUP_SCREEN_NAMES = (
-    "states",
-    "districts",
-    "cities",
-    "zones",
-    "panchayat",
-    "wards",
-    "collection-points",
-    "continents",
-    "countries",
-)
-
-
-def _auto_lookup_permission_entries(company_id, project_ids):
-    """"view" (userscreen_id, userscreenaction_id, mainscreen_id) entries for
-    the supporting lookup screens enabled in the given company/project(s)'
-    catalog — to be auto-granted alongside a staff's real permissions.
-
-    `project_ids` falsy/empty means the staff is scoped to the company only
-    (no project) — the catalog for that is the company-level (project_id
-    IS NULL) permissions, NOT a union across every project the company has.
-    """
-    qs = CompanyUserScreenPermission.objects.filter(
-        company_id_id=company_id,
-        userscreen_id__userscreen_name__in=LOOKUP_SCREEN_NAMES,
-        permission_type="screen",
-        is_deleted=False,
-        is_active=True,
-    ).filter(
-        Q(userscreenaction_id__variable_name__iexact="view")
-        | Q(userscreenaction_id__action_name__iexact="view")
-    )
-    if project_ids:
-        qs = qs.filter(project_id_id__in=project_ids)
-    else:
-        qs = qs.filter(project_id__isnull=True)
-    rows = qs.values_list("userscreen_id_id", "userscreenaction_id_id", "mainscreen_id_id").distinct()
-    return [
-        {"mainscreen_id": row[2], "userscreen_id": row[0], "userscreenaction_id": row[1]}
-        for row in rows
-    ]
-
-
 def _project_enabled_screen_action_keys(company_id, project_ids):
     """(userscreen_id, userscreenaction_id) pairs enabled for the given
     projects' catalogs. `project_ids` falsy/empty means "no project
@@ -427,20 +378,6 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
                     f"by Super Admin: {', '.join(sorted(invalid))}"
                 )
             })
-
-        # Auto-grant "view" on lookup screens (e.g. continents, countries)
-        # so operational forms can populate their dropdowns.
-        lookup_entries = _auto_lookup_permission_entries(company.unique_id, found_project_ids)
-        existing_keys = {(p["userscreen_id"], p["userscreenaction_id"]) for p in normalized_permissions}
-        for entry in lookup_entries:
-            key = (entry["userscreen_id"], entry["userscreenaction_id"])
-            if key not in existing_keys and key in enabled_keys:
-                normalized_permissions.append({
-                    "mainscreen_id": enabled_keys[key],
-                    "userscreen_id": entry["userscreen_id"],
-                    "userscreenaction_id": entry["userscreenaction_id"],
-                })
-                existing_keys.add(key)
 
         data["resolved_staff"] = staff
         data["resolved_company"] = company

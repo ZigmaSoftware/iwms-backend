@@ -20,11 +20,9 @@ from ..viewsets.masters.district_viewset import DistrictViewSet
 from ..viewsets.masters.city_viewset import CityViewSet
 from ..viewsets.masters.zone_viewset import ZoneViewSet
 from ..viewsets.masters.ward_viewset import WardViewSet
-from ..viewsets.masters.block_viewset import BlockViewSet
 from ..viewsets.masters.panchayat_viweset import PanhayatViewSet
 from ..viewsets.masters.leader_management.panchayat_leader_viewset import PanchayatLeaderLoginViewSet
 from ..viewsets.masters.leader_management.district_leader_viewset import DistrictLeaderLoginViewSet
-from ..viewsets.masters.hierarchy_viewset import AdministrativeHierarchyViewSet
 from ..viewsets.masters.department_viewset import DepartmentViewSet
 from ..viewsets.masters.designation_viewset import DesignationViewSet
 
@@ -53,12 +51,10 @@ from ..viewsets.superadmin.role_management.staffusertype_viewset import StaffUse
 from ..viewsets.superadmin.role_management.contractorusertype_viewset import ContractorUserTypeViewSet
 
 # User creations
-from ..viewsets.superadmin.staff_management.staff_viewset import StaffViewSet
 from ..viewsets.superadmin.staff_management.staffcreation_viewset import StaffcreationViewset
 from ..viewsets.superadmin.staff_management.staff_access_configuration_viewset import (
     StaffAccessConfigurationViewSet,
 )
-from ..viewsets.superadmin.staff_management.unassigned_staff_pool_viewset import UnassignedStaffPoolViewSet
 
 # Authentication
 from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
@@ -75,8 +71,6 @@ from ..viewsets.auth.change_password_viewset import (
 # Customer modules
 from ..viewsets.masters.customer_masters.customercreation_viewset import CustomerCreationViewSet
 from ..viewsets.core_modules.daily_operations.wastecollection_viewset import WasteCollectionViewSet
-from ..viewsets.masters.customer_masters.feedback_viewset import FeedBackViewSet
-from ..viewsets.masters.customer_masters.userchargerule_viewset import UserChargeRuleViewSet
 
 # Complaint Ticketing
 from ..viewsets.core_modules.complaint_management.main_category_viewset import MainCategoryViewSet
@@ -115,7 +109,6 @@ from ..viewsets.core_modules.notifications.staff_notification_viewset import Sta
 # Transport masters
 from ..viewsets.masters.transport_masters.vehicletypecreation_viewset import VehicleTypeCreationViewSet
 from ..viewsets.masters.transport_masters.vehicleCreation_viewset import VehicleCreationViewSet
-from ..viewsets.masters.transport_masters.trip_attendance_viewset import TripAttendanceViewSet
 from ..viewsets.masters.transport_masters.fuel_viewset import FuelViewSet
 from ..viewsets.masters.plant_viewset import PlantViewSet
 
@@ -156,6 +149,7 @@ from ..viewsets.operator_mobile.validate_bin_qr_viewset import ValidateBinQrView
 from ..viewsets.operator_mobile.scan_bin_viewset import ScanBinViewSet
 from ..viewsets.operator_mobile.trip_history_viewset import TripHistoryViewSet
 from ..viewsets.operator_mobile.trip_lifecycle_viewset import TripLifecycleViewSet
+from ..viewsets.operator_mobile.trip_stops_viewset import TripStopsViewSet
 
 # Waste bluetooth
 from ..viewsets.waste_collection_bluetooth.waste_bluetooth_viewset import WasteCollectionBluetoothViewSet
@@ -194,11 +188,9 @@ router.register_group("masters", "districts",     DistrictViewSet)
 router.register_group("masters", "cities",        CityViewSet)
 router.register_group("masters", "zones",         ZoneViewSet)
 router.register_group("masters", "wards",         WardViewSet)
-router.register_group("masters", "blocks",         BlockViewSet)
 router.register_group("masters", "panchayat",         PanhayatViewSet)
 router.register_group("masters", "panchayat-leaders", PanchayatLeaderLoginViewSet)
 router.register_group("masters", "district-leaders", DistrictLeaderLoginViewSet)
-router.register_group("masters", "hierarchy",         AdministrativeHierarchyViewSet)
 router.register_group("masters", "departments",       DepartmentViewSet)
 router.register_group("masters", "designations",      DesignationViewSet)
 router.register_group("masters", "plants",         PlantViewSet)
@@ -237,7 +229,6 @@ router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeV
 # ============================================================
 # GROUP: USER CREATION
 # ============================================================
-router.register_group("user-creations", "users-creation",  StaffViewSet)
 router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
 router.register_group(
     "user-creations", "staff-access-configuration", StaffAccessConfigurationViewSet
@@ -252,8 +243,6 @@ router.register_group("login", "login-user",      DesktopLoginViewSet)
 # GROUP: CUSTOMER MODULES
 # ============================================================
 router.register_group("customer-masters", "customercreations", CustomerCreationViewSet)
-router.register_group("customer-masters", "feedbacks",         FeedBackViewSet)
-router.register_group("customer-masters", "user-charge-rules", UserChargeRuleViewSet)
 
 # ============================================================
 # GROUP: COMPLAINT TICKETING
@@ -307,7 +296,6 @@ router.register_group("schedule-operations", "staff-notifications", StaffNotific
 # ============================================================
 router.register_group("transport-masters", "vehicle-type",     VehicleTypeCreationViewSet)
 router.register_group("transport-masters", "vehicle-creation", VehicleCreationViewSet)
-router.register_group("transport-masters", "trip-attendance", TripAttendanceViewSet)
 router.register_group("transport-masters", "fuels",         FuelViewSet)
 
 # ============================================================
@@ -422,6 +410,12 @@ router.register_group(
     "trip-lifecycle",
     TripLifecycleViewSet,
     basename="operator-mobile-trip-lifecycle",
+)
+router.register_group(
+    "operator-mobile",
+    "trip-stops",
+    TripStopsViewSet,
+    basename="operator-mobile-trip-stops",
 )
 
 # ============================================================
