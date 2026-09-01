@@ -12,6 +12,7 @@ class WasteTypeSeeder(BaseSeeder):
         "Plastic Waste",
         "Dry Waste",
         "Wet Waste",
+        "Mixed Waste",
         "Electronic Waste",
         "Hazardous Waste",
         "Medical Waste",

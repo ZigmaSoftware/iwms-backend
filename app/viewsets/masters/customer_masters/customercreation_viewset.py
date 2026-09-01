@@ -490,7 +490,19 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             # Try name
             return model.objects.filter(**{f"{field}__iexact": value}).first()
 
-        def get_waste_type_ids(value):
+        def get_waste_type_ids(value, company=None, project=None):
+            """
+            Resolve a cell like "Mixed Waste, Wet Waste" to waste type ids.
+
+            Accepts human-readable names (what the template asks for) as well
+            as raw unique_ids, separated by comma, pipe or semicolon.
+
+            Names are NOT unique across tenants — every project seeds its own
+            "Dry Waste" — so the name lookup is scoped to the company/project
+            of this upload first, and only falls back to an unscoped match
+            when that finds nothing. Without the scope an upload could silently
+            attach another company's waste type.
+            """
             raw_values = [
                 item.strip()
                 for item in re.split(r"[,|;]", value or "")
@@ -500,10 +512,24 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             invalid_values = []
 
             for raw_value in raw_values:
-                waste_type = (
-                    WasteType.objects.filter(unique_id=raw_value, is_deleted=False).first()
-                    or WasteType.objects.filter(waste_type_name__iexact=raw_value, is_deleted=False).first()
-                )
+                base = WasteType.objects.filter(is_deleted=False)
+
+                # An explicit id always wins.
+                waste_type = base.filter(unique_id=raw_value).first()
+
+                if not waste_type and project is not None:
+                    waste_type = base.filter(
+                        waste_type_name__iexact=raw_value, project_id=project
+                    ).first()
+
+                if not waste_type and company is not None:
+                    waste_type = base.filter(
+                        waste_type_name__iexact=raw_value, company_id=company
+                    ).first()
+
+                if not waste_type:
+                    waste_type = base.filter(waste_type_name__iexact=raw_value).first()
+
                 if waste_type:
                     waste_type_ids.append(waste_type.unique_id)
                 else:
@@ -545,7 +571,12 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 district = get_fk(District, "name", row.get("district_id") or row.get("district_name"))
                 panchayat = get_fk(Panchayat, "panchayat_name", row.get("panchayat_id") or row.get("panchayat_name"))
                 waste_type_ids, invalid_waste_types = get_waste_type_ids(
-                    row.get("waste_type_ids") or row.get("waste_types") or row.get("waste_type_names")
+                    row.get("waste_type_ids")
+                    or row.get("waste_types")
+                    or row.get("waste_type_names")
+                    or row.get("waste_type"),
+                    company=company,
+                    project=project,
                 )
 
                 apartment_name = clean(row.get("apartment_name"))
@@ -562,6 +593,19 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
                 if not sqft:
                     errors.append({"row": index, "error": "Sqft is required"})
+                    continue
+
+                # A misspelt or unknown waste type used to be dropped silently,
+                # so the row imported with no waste types and the uploader had
+                # no idea. Report it instead.
+                if invalid_waste_types:
+                    errors.append({
+                        "row": index,
+                        "error": (
+                            "Unknown waste type(s): "
+                            + ", ".join(invalid_waste_types)
+                        ),
+                    })
                     continue
 
                 data = {
