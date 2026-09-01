@@ -157,7 +157,8 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
         # "Not Available" resolves the stop for the day same as a real
         # collection does (see pending_household_stops); "Collect Later"
         # doesn't, so this is a safe no-op when stops are still pending.
-        assignment.mark_completed_if_all_household_stops_collected()
+        # auto_end=False: driver app write path — see that method's docstring.
+        assignment.mark_completed_if_all_household_stops_collected(auto_end=False)
 
         return Response({
             "status": "success",
