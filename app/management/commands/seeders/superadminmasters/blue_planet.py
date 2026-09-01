@@ -405,7 +405,7 @@ class BluePlanetSeeder(BaseSeeder):
 
     def _create_waste_types(self, company, project):
         result = []
-        for name in ("Organic Waste", "Wet Waste", "Dry Waste"):
+        for name in ("Organic Waste", "Wet Waste", "Dry Waste", "Mixed Waste"):
             waste_type, _ = WasteType.objects.update_or_create(
                 company_id=company,
                 project_id=project,
