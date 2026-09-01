@@ -9,7 +9,6 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     state_name = serializers.CharField(source="state_id.name", read_only=True)
     city_name = serializers.CharField(source="city_id.name", read_only=True)
     district_name = serializers.CharField(source="district_id.name", read_only=True)
-    hierarchy_name = serializers.CharField(source="hierarchy_id.level_name", read_only=True)
     zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True)
     panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
 
@@ -17,11 +16,6 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     country_name = serializers.CharField(source="state_id.country_id.name", read_only=True)
     continent_id = serializers.CharField(source="state_id.continent_id.unique_id", read_only=True)
     country_id = serializers.CharField(source="state_id.country_id.unique_id", read_only=True)
-
-    hierarchy_order = serializers.IntegerField(
-        source="hierarchy_id.hierarchy_order",
-        read_only=True
-    )
 
     # `coordinates` is the single read/write field for the ward boundary —
     # the dashboard map layers (useWardGeofences/WardGeofenceLayer/
@@ -73,10 +67,6 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "panchayat_name",
             "local_body_type",
             "local_body_name",
-
-            "hierarchy_id",
-            "hierarchy_order",
-            "hierarchy_name",
 
             "ward_name",
             "description",
@@ -133,7 +123,6 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
                     {"coordinates": "A boundary needs at least 3 points to form a polygon."}
                 )
 
-        hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         ward_name = attrs.get("ward_name")
 
         zone = attrs.get("zone_id") if "zone_id" in attrs else getattr(self.instance, "zone_id", None)
@@ -148,11 +137,6 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Ward must belong to Zone or Panchayat."
             )
-
-        if hierarchy and hierarchy.level_name.lower() != "ward":
-            raise serializers.ValidationError({
-                "hierarchy": "Hierarchy level must be ward."
-            })
 
         if not self.instance or ward_name:
             unique_name_validator(

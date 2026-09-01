@@ -103,7 +103,6 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Zone",
         "Ward",
         "Panchayat",
-        "AdministrativeHierarchy",
         "Department",
         "Designation",
         "PanchayatLeaderLogin",
@@ -133,22 +132,13 @@ MODULE_RESOURCE_ALLOWLIST = {
         "ContractorUserType",
     },
     "user-creations": {
-        "UsersCreation",
         "StaffCreation",
         "StaffTemplateCreation",
         "AlternativeStaffTemplate",
-        "supervisor-zone-map",
-        "UnassignedStaffPool",
         "staffaccessconfiguration",
-    },
-    "process-items": {
-        
-        "ZonePropertyLoadTracker",
     },
     "customer-masters": {
         "CustomerCreation",
-        "FeedBack",
-        "UserChargeRule",
     },
     "complaint-ticket": {
         # renamed from the legacy "grivences" module
@@ -175,7 +165,6 @@ MODULE_RESOURCE_ALLOWLIST = {
     "transport-masters": {
         "VehicleTypeCreation",
         "VehicleCreation",
-        "TripAttendance",
         "Fuel",
     },
     "schedule-setup": {
@@ -216,9 +205,6 @@ MODULE_RESOURCE_ALLOWLIST = {
         "MonthlyWasteComparisonReport",
     },
     "audits": {
-        "VehicleTripAudit",
-        "TripExceptionLog",
-        "SupervisorZoneAccessAudit",
         "StaffTemplateAuditLog",
         "LoginAudit",
         "CommonAudit",

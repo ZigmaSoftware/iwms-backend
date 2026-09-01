@@ -6,7 +6,6 @@ from django.utils import timezone
 
 from app.models.assets.bins import Bins, BinType
 from app.models.assets.collection_point import Collection_point
-from app.models.masters.hierarchy import AdministrativeHierarchy
 from app.models.masters.areatype import AreaType
 from app.models.masters.panchayat import Panchayat, GeoFencingType
 from app.models.role_assigns.staffUserType import StaffUserType
@@ -68,10 +67,6 @@ def panchayat(db, state, district, city, company, project, area_type):
         district_id=district,
         city_id=city,
     )
-    hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(
-        area_type=rural,
-        level_name="Panchayat",
-    )
     return Panchayat.objects.create(
         panchayat_name="Test Panchayat",
         company_id=company,
@@ -80,7 +75,6 @@ def panchayat(db, state, district, city, company, project, area_type):
         district_id=district,
         city_id=city,
         area_type_id=rural,
-        hierarchy_id=hierarchy,
         geofencing_type=GeoFencingType.POLYGON,
         agreed_weight_kg=500,
         weight_unit="kg",
@@ -92,7 +86,6 @@ def panchayat(db, state, district, city, company, project, area_type):
 @pytest.fixture
 def other_panchayat(db, state, district, city, company, project):
     rural = AreaType.objects.get(name="Rural")
-    hierarchy = AdministrativeHierarchy.objects.get(level_name="Panchayat")
     return Panchayat.objects.create(
         panchayat_name="Other Panchayat",
         company_id=company,
@@ -101,7 +94,6 @@ def other_panchayat(db, state, district, city, company, project):
         district_id=district,
         city_id=city,
         area_type_id=rural,
-        hierarchy_id=hierarchy,
         geofencing_type=GeoFencingType.POLYGON,
         agreed_weight_kg=500,
         weight_unit="kg",

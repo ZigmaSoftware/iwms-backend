@@ -2,7 +2,6 @@ from django.db import models
 
 from app.models.common_masters.state import State
 from app.models.masters.district import District
-from app.models.masters.hierarchy import AdministrativeHierarchy
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.base_models import BaseMaster
@@ -47,13 +46,6 @@ class BlockPanchayatUnion(BaseMaster):
         on_delete=models.PROTECT,
         related_name="block_panchayat_unions",
         db_column="district_id",
-    )
-    hierarchy_id = models.ForeignKey(
-        AdministrativeHierarchy,
-        on_delete=models.PROTECT,
-        limit_choices_to={"level_name": "Block Panchayat Union"},
-        null=True,
-        blank=True,
     )
     block_name = models.CharField(max_length=100)
     description = models.TextField(null=True, blank=True)

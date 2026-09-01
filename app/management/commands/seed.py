@@ -62,15 +62,11 @@ from app.management.commands.seeders.core_modules.daily_operations.driver_wet_dr
 # when no company exists yet — intentionally not imported/registered below
 # (Blue Planet's own staff are already created inside BluePlanetSeeder).
 
-# transport-masters (router: transport-masters/vehicle-type, vehicle-creation, trip-attendance, fuels)
+# transport-masters (router: transport-masters/vehicle-type, vehicle-creation, fuels)
 from app.management.commands.seeders.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreationSeeder
 # VehicleCreationSeeder (masters/transport_masters) hardcodes/bootstraps
 # "IWMS" — intentionally not imported (Blue Planet seeds its own vehicles).
 from app.management.commands.seeders.masters.transport_masters.fuel import FuelSeeder
-from app.management.commands.seeders.masters.transport_masters.trip_attendance import TripAttendanceSeeder
-
-# process-items (router: process-items/zone-property-load-tracker)
-
 
 # schedule-setup / schedule-operations (router: schedule-setup/..., schedule-operations/... —
 # split from the legacy "schedule-masters" group)
@@ -102,11 +98,6 @@ from app.management.commands.seeders.superadmin.screen_management import PERMISS
 from app.management.commands.seeders.collections import COLLECTION_SEEDERS
 
 # customer-masters (router: customer-masters/customercreations, ...)
-# CUSTOMER_SEEDERS includes CustomerCreationSeeder, which hardcodes Chennai/
-# Zone 1/Ward 1 under the generic "IWMS" company — imported directly below
-# and filtered down to just UserChargeRuleSeeder (company-agnostic; Blue
-# Planet's own customers are created directly in BluePlanetSeeder).
-from app.management.commands.seeders.masters.customer_masters.userChargeRule import UserChargeRuleSeeder
 # Replaces Noida (Greater Noida BP / Gamma-01 / Ward B) customers on every
 # run with the authoritative set from customer_creation_template_final.xlsx.
 from app.management.commands.seeders.masters.customer_masters.noidaCustomerImport import NoidaCustomerImportSeeder
@@ -176,10 +167,6 @@ TRANSPORT_MASTERS_SEEDERS = [
     FuelSeeder,                  # transport-masters/fuels
 ]
 
-PROCESS_ITEMS_SEEDERS = [
-    # ZonePropertyLoadTrackerSeeder,  # process-items/zone-property-load-tracker
-]
-
 # ============================================================
 # SCHEDULE SETUP (router: schedule-setup/staff-templates,
 # alternative-staff-templates, collection-points, trip-plans)
@@ -203,7 +190,6 @@ SCHEDULE_SETUP_SEEDERS = [
 SCHEDULE_OPERATIONS_SEEDERS = [
     # DailyTripAssignmentSeeder/DailyTripCollectionPointSeeder dropped —
     # daily trip plan seeding was removed on request (see the import block).
-    TripAttendanceSeeder,
     # Best-effort here: on a fresh DB, driver_user has no trip yet at this
     # point (DriverWetDryBinTripsSeeder below creates it), so this just logs
     # "no trip today — Skipping" without creating supervisor_user. That's
@@ -246,9 +232,7 @@ COLLECTIONS_SEEDERS = [
 
 CUSTOMER_MASTERS_SEEDERS = [
     # CustomerCreationSeeder dropped — Blue Planet's own customers are
-    # created directly inside BluePlanetSeeder. UserChargeRuleSeeder is
-    # company-agnostic (picks up whichever company exists) and kept.
-    UserChargeRuleSeeder,
+    # created directly inside BluePlanetSeeder.
     # Requires BluePlanetSeeder (Noida city/zone/ward B/property masters) to
     # have run first; hard-deletes any Noida customer not in the xlsx-sourced
     # list and creates/updates the 132 that are.
@@ -283,7 +267,7 @@ ORDERED_GROUPS = [
     "schedule-operations",  # daily-trip-assignments, daily-trip-collection-points, trip-logs, bin-collection-events
     "screen-managements",   # screen permissions
     "collections",          # panchayat-wise, ward-wise, zone-wise
-    "customer-masters",     # customer creations, feedback, charge rules
+    "customer-masters",     # customer creations, charge rules
     "complaint-ticket",     # tickets, categories, subcategories (renamed from legacy `grivences`)
     # "audits",               # vehicle-trip-audit, trip-exception-log, ...
     "reports",              # monthly-waste-comparison
@@ -300,7 +284,6 @@ SEED_GROUPS = {
     "user-creations":     USER_CREATIONS_SEEDERS,
     "user-creation":      USER_CREATIONS_SEEDERS,   # alias
     "transport-masters":  TRANSPORT_MASTERS_SEEDERS,
-    "process-items":      PROCESS_ITEMS_SEEDERS,
     "schedule-setup":     SCHEDULE_SETUP_SEEDERS,
     "schedule-operations": SCHEDULE_OPERATIONS_SEEDERS,
     "schedule-masters":   SCHEDULE_MASTERS_SEEDERS,  # legacy alias for schedule-setup + schedule-operations
@@ -365,7 +348,7 @@ class Command(BaseCommand):
             help=(
                 "Seeder group (mirrors URL router groups): "
                 "superadmin | common-masters | masters | waste-types | assets (legacy alias) | "
-                "role-assigns | user-creations | transport-masters | process-items | "
+                "role-assigns | user-creations | transport-masters | "
                 "schedule-setup | schedule-operations | schedule-masters (legacy alias) | "
                 "screen-managements | collections | customer-masters | "
                 "complaint-ticket | grivences (legacy alias) | audits | reports | all"

@@ -21,9 +21,6 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # -------------------------------------------------------
 ENVIRONMENT = os.getenv("DJANGO_ENV", "development")
 DEBUG = ENVIRONMENT != "production"
-TRIP_ATTENDANCE_COOLDOWN_MINUTES = int(
-    os.getenv("TRIP_ATTENDANCE_COOLDOWN_MINUTES", "1")
-)
 
 
 MEDIA_URL = '/media/'
