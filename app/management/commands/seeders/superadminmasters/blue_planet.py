@@ -115,16 +115,16 @@ class BluePlanetSeeder(BaseSeeder):
     PROJECT_LOCATION = {
         "Blue Planet Integrated Waste Management": {
             "state": "Uttar Pradesh",
-            "district": "Greater Noida BP District",
-            "city": "Greater Noida BP City",
+            "district": "Gautam Buddh Nagar",
+            "city": "Noida",
             "prefix": "GNO",
             "base_lat": 28.474400,
             "base_lon": 77.504000,
         },
         "Palakkad BP": {
             "state": "Kerala",
-            "district": "Palakkad BP District",
-            "city": "Palakkad BP City",
+            "district": "Palakkad",
+            "city": "Palakkad",
             "prefix": "PAL",
             "base_lat": 10.786700,
             "base_lon": 76.654800,
