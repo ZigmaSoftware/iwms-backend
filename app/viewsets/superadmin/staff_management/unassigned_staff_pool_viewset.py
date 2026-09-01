@@ -10,7 +10,7 @@ from app.serializers.superadmin.staff_management.unassigned_staff_pool_serialize
 from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class UnassignedStaffPoolViewSet(ModelViewSet,AuditViewSetMixin):
+class UnassignedStaffPoolViewSet(AuditViewSetMixin, ModelViewSet):
     pagination_class = None
     """
     Controls staff availability by zone & ward.
@@ -33,11 +33,13 @@ class UnassignedStaffPoolViewSet(ModelViewSet,AuditViewSetMixin):
 
     def perform_create(self, serializer):
         self._validate_daily_trip_assignment_alignment(serializer.validated_data)
-        serializer.save()
+        # super() so AuditViewSetMixin still records the change; calling
+        # serializer.save() directly here would skip the audit entry.
+        super().perform_create(serializer)
 
     def perform_update(self, serializer):
         self._validate_daily_trip_assignment_alignment(serializer.validated_data)
-        serializer.save()
+        super().perform_update(serializer)
 
     def _validate_daily_trip_assignment_alignment(self, attrs):
         daily_trip_assignment = attrs.get("daily_trip_assignment")

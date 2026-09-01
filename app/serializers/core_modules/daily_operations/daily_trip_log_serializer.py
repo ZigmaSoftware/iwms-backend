@@ -406,12 +406,39 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         return None if not wt else {"unique_id": wt.unique_id, "waste_type_name": wt.waste_type_name}
 
     def get_waste_types_detail(self, obj):
+        """Every waste type this trip collects.
+
+        Trip creation writes the selected waste types to the assignment's
+        `waste_type_ids` JSON list, while other flows fill the `waste_types`
+        M2M, so reading either one alone drops types the trip really carries.
+        `_assignment_waste_type_ids` is the same union the operator-mobile bin
+        scan validates against, which keeps the log consistent with what the
+        app accepts.
+        """
+        from app.models.user_creations.waste_collection_bluetooth import WasteType
+        from app.viewsets.operator_mobile.helpers import _assignment_waste_type_ids
+
         assignment = obj.trip_assignment_id
         if not assignment:
             return []
+        ids = _assignment_waste_type_ids(assignment)
+        if not ids:
+            return []
+        # Preserve the order the trip declared them in, then append any that
+        # only the M2M/trip-plan knows about.
+        ordered = [str(v) for v in (assignment.waste_type_ids or []) if str(v) in ids]
+        ordered += sorted(ids - set(ordered))
+        by_id = {
+            wt.unique_id: wt
+            for wt in WasteType.objects.filter(unique_id__in=ids, is_deleted=False)
+        }
         return [
-            {"unique_id": wt.unique_id, "waste_type_name": wt.waste_type_name}
-            for wt in assignment.waste_types.all()
+            {
+                "unique_id": waste_type_id,
+                "waste_type_name": by_id[waste_type_id].waste_type_name,
+            }
+            for waste_type_id in ordered
+            if waste_type_id in by_id
         ]
 
     def _staff_dict(self, staff):
