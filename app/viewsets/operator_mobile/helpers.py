@@ -265,11 +265,26 @@ def validate_bin_against_assignment(
     # rejected every legitimate scan on those trips. The authoritative
     # "is this bin on my trip" check is the DailyTripCollectionPoint lookup
     # below, which is exact; this is only a friendlier early error.
+    #
+    # It must ALSO stand down when this exact CP is genuinely one of the
+    # assignment's stops, even if its panchayat differs from
+    # `assignment.panchayat_id` — a single-panchayat bin round is the norm,
+    # but it is not guaranteed: BluePlanetSeeder's demo bin trip deliberately
+    # visits CPs across three different panchayats (GNO PLB 1/2/3) under one
+    # assignment that only records the first as `panchayat_id`. Without this
+    # exists() check every scan on CP 2 or 3 of that trip was rejected as
+    # "outside your assigned panchayat" despite being squarely on the trip —
+    # the exact case the CP_NOT_IN_TRIP lookup below would have accepted.
     cp_panchayat_id = getattr(cp, "panchayat_id_id", None)
     if (
         assignment.panchayat_id_id
         and cp_panchayat_id
         and str(cp_panchayat_id) != str(assignment.panchayat_id_id)
+        and not DailyTripCollectionPoint.objects.filter(
+            trip_assignment_id=assignment,
+            collection_point_id=cp,
+            is_deleted=False,
+        ).exists()
     ):
         raise OperatorFlowError(
             "WRONG_PANCHAYAT",
