@@ -18,12 +18,6 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
     city_unique_id    = serializers.CharField(source="city_id.unique_id", read_only=True)
     district_name     = serializers.CharField(source="district_id.name", read_only=True)
     district_unique_id = serializers.CharField(source="district_id.unique_id", read_only=True)
-    hierarchy_name = serializers.CharField(source = "hierarchy_id.level_name", read_only = True)
-
-    hierarchy_order = serializers.IntegerField(
-        source="hierarchy_id.hierarchy_order",
-        read_only=True
-    )
 
     class Meta:
         model = Zone
@@ -48,10 +42,6 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
             "district_id",
             "district_unique_id",
             "district_name",
-
-            "hierarchy_id",
-            "hierarchy_order",
-            "hierarchy_name",
 
             "zone_name",
             "description",
@@ -79,19 +69,10 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
         # -------------------------------
         # GET VALUES (Handle Update Case)
         # -------------------------------
-        hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         zone_name = attrs.get("zone_name")
 
         # -------------------------------
-        # 2️⃣ Hierarchy Must Be Panchayat
-        # -------------------------------
-        if hierarchy and hierarchy.level_name.lower() != "zone":
-            raise serializers.ValidationError({
-                "hierarchy": "Hierarchy level must be zone."
-            })
-
-        # -------------------------------
-        # 3️⃣ Unique Panchayat Name
+        # Unique Zone Name
         # -------------------------------
         if not self.instance or zone_name:
             unique_name_validator(

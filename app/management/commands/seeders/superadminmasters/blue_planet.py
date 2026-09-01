@@ -9,7 +9,6 @@ from app.models.common_masters.country import Country
 from app.models.common_masters.state import State
 from app.models.masters.city import City
 from app.models.masters.district import District
-from app.models.masters.hierarchy import AdministrativeHierarchy
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
@@ -222,18 +221,6 @@ class BluePlanetSeeder(BaseSeeder):
         )
         return asia, india, state
 
-    def _administrative_hierarchy(self):
-        zone_hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(
-            level_name="Zone"
-        )
-        ward_hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(
-            level_name="Ward"
-        )
-        panchayat_hierarchy, _ = AdministrativeHierarchy.objects.get_or_create(
-            level_name="Panchayat"
-        )
-        return zone_hierarchy, ward_hierarchy, panchayat_hierarchy
-
     def _staff_role(self, name):
         staff_type, _ = UserType.objects.get_or_create(
             name="Staff",
@@ -246,22 +233,41 @@ class BluePlanetSeeder(BaseSeeder):
         )
         return staff_type, role
 
+    # Named real staff for Greater Noida BP (prefix GNO) — this project uses
+    # actual employee names instead of the generic Driver1/Operator1/... labels.
+    GNO_NAMED_STAFF = [
+        ("driver1", "Company Driver", "ASHISH KASANA"),
+        ("operator1", "Company Operator", "CHREN SINGH"),
+        ("supervisor", "Company Supervisor", "Mithun.M"),
+    ]
+
     def _create_staff(self, company, project, district, city, zones, wards, prefix):
         staff_type, driver_role = self._staff_role("Company Driver")
         _, operator_role = self._staff_role("Company Operator")
         _, supervisor_role = self._staff_role("Company Supervisor")
+        role_by_name = {
+            "Company Driver": driver_role,
+            "Company Operator": operator_role,
+            "Company Supervisor": supervisor_role,
+        }
 
-        staff_defs = [
-            ("Driver1", driver_role),
-            ("Driver2", driver_role),
-            ("Operator1", operator_role),
-            ("Operator2", operator_role),
-            ("Supervisor", supervisor_role),
-        ]
+        if prefix == "GNO":
+            staff_defs = [
+                (label, role_by_name[role_name], employee_name)
+                for label, role_name, employee_name in self.GNO_NAMED_STAFF
+            ]
+        else:
+            staff_defs = [
+                ("driver1", driver_role, f"BP {prefix} Driver1"),
+                ("driver2", driver_role, f"BP {prefix} Driver2"),
+                ("operator1", operator_role, f"BP {prefix} Operator1"),
+                ("operator2", operator_role, f"BP {prefix} Operator2"),
+                ("supervisor", supervisor_role, f"BP {prefix} Supervisor"),
+            ]
+
         staff = {}
-        for label, role in staff_defs:
-            username = f"bp_{prefix.lower()}_{label.lower()}"
-            employee_name = f"BP {prefix} {label}"
+        for label, role, employee_name in staff_defs:
+            username = f"bp_{prefix.lower()}_{label}"
             defaults = {
                 "employee_name": employee_name,
                 "office_email": f"{username}@blueplanet.local",
@@ -283,7 +289,7 @@ class BluePlanetSeeder(BaseSeeder):
                 username=username,
                 defaults=defaults,
             )
-            staff[label.lower()] = obj
+            staff[label] = obj
         return staff
 
     def _create_vehicles(self, company, project, prefix):
@@ -405,7 +411,7 @@ class BluePlanetSeeder(BaseSeeder):
 
     def _create_waste_types(self, company, project):
         result = []
-        for name in ("Organic Waste", "Wet Waste", "Dry Waste"):
+        for name in ("Mixed Waste", "Wet Waste", "Dry Waste"):
             waste_type, _ = WasteType.objects.update_or_create(
                 company_id=company,
                 project_id=project,
@@ -524,10 +530,6 @@ class BluePlanetSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-        zone_hierarchy, ward_hierarchy, panchayat_hierarchy = (
-            self._administrative_hierarchy()
-        )
-
         base_lat = config["base_lat"]
         base_lon = config["base_lon"]
 
@@ -545,7 +547,6 @@ class BluePlanetSeeder(BaseSeeder):
                 defaults={
                     "state_id": state,
                     "district_id": district,
-                    "hierarchy_id": zone_hierarchy,
                     "latitude": zone_lat,
                     "longitude": zone_lon,
                     "is_active": True,
@@ -564,7 +565,6 @@ class BluePlanetSeeder(BaseSeeder):
                     "state_id": state,
                     "district_id": district,
                     "city_id": city,
-                    "hierarchy_id": ward_hierarchy,
                     "latitude": ward_lat,
                     "longitude": ward_lon,
                     "is_active": True,
@@ -582,7 +582,6 @@ class BluePlanetSeeder(BaseSeeder):
                     "state_id": state,
                     "district_id": district,
                     "city_id": city,
-                    "hierarchy_id": panchayat_hierarchy,
                     "agreed_weight_kg": 800,
                     "weight_unit": "kg",
                     "latitude": panchayat_lat,
@@ -611,6 +610,9 @@ class BluePlanetSeeder(BaseSeeder):
             )
             collection_point.wards.clear()
             collection_points.append(collection_point)
+
+        if prefix == "GNO":
+            self._create_noida_customer_scope(company, project, asia, india, state)
 
         agri_property, agri_sub_property, residential_property, residential_sub_property = (
             self._create_property_data(company, project)
@@ -777,6 +779,63 @@ class BluePlanetSeeder(BaseSeeder):
             "customers": customers,
             "complaints": complaints,
         }
+
+    def _create_noida_customer_scope(self, company, project, asia, india, state):
+        district, _ = District.objects.update_or_create(
+            name="Gautam Buddh Nagar",
+            state_id=state,
+            defaults={
+                "continent_id": asia,
+                "country_id": india,
+                "company_id": company,
+                "project_id": project,
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
+        city, _ = City.objects.update_or_create(
+            name="Noida",
+            state_id=state,
+            district_id=district,
+            company_id=company,
+            project_id=project,
+            defaults={
+                "continent_id": asia,
+                "country_id": india,
+                "description": "Noida city for Gamma-01 customer import",
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
+        zone, _ = Zone.objects.update_or_create(
+            zone_name="ZNE3-GAMMA-01",
+            city_id=city,
+            company_id=company,
+            project_id=project,
+            defaults={
+                "state_id": state,
+                "district_id": district,
+                "latitude": 28.474400,
+                "longitude": 77.504000,
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
+        Ward.objects.update_or_create(
+            ward_name="B",
+            zone_id=zone,
+            company_id=company,
+            project_id=project,
+            defaults={
+                "state_id": state,
+                "district_id": district,
+                "city_id": city,
+                "latitude": 28.474400,
+                "longitude": 77.504000,
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
 
     def _create_gno_dedicated_vehicle_route(
         self, company, project, district, city, state, country, zone, ward, panchayat,

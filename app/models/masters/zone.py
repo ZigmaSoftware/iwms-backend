@@ -9,7 +9,6 @@ from .city import City
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.masters.hierarchy import AdministrativeHierarchy
 
 
 
@@ -58,14 +57,6 @@ class Zone(BaseMaster):
     state_id = models.ForeignKey(State, on_delete=models.PROTECT)
     district_id = models.ForeignKey(District, on_delete=models.PROTECT)
     city_id = models.ForeignKey(City, on_delete=models.PROTECT)
-
-    hierarchy_id = models.ForeignKey(
-        AdministrativeHierarchy,
-        on_delete=models.PROTECT,
-        limit_choices_to={"level_name": "Zone"},
-        null=True,
-        blank=True
-    )
 
     zone_name = models.CharField(max_length=100)
     description = models.TextField(null=True, blank=True)

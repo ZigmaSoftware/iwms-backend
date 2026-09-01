@@ -12,8 +12,6 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
     city_unique_id    = serializers.CharField(source="city_id.unique_id", read_only=True)
     district_name     = serializers.CharField(source="district_id.name", read_only=True)
     district_unique_id = serializers.CharField(source="district_id.unique_id", read_only=True)
-    hierarchy_order = serializers.IntegerField(source="hierarchy_id.hierarchy_order", read_only=True)
-    hierarchy_name = serializers.CharField(source="hierarchy_id.level_name", read_only=True)
     block_name = serializers.CharField(source="block_id.block_name", read_only=True)
 
     class Meta:
@@ -35,9 +33,6 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
             "district_name",
             "block_id",
             "block_name",
-            "hierarchy_id",
-            "hierarchy_order",
-            "hierarchy_name",
             "panchayat_name",
             "agreed_weight_kg",
             "weight_unit",
@@ -64,19 +59,10 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
         # -------------------------------
         # GET VALUES (Handle Update Case)
         # -------------------------------
-        hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         panchayat_name = attrs.get("panchayat_name")
 
         # -------------------------------
-        # 2️⃣ Hierarchy Must Be Panchayat
-        # -------------------------------
-        if hierarchy and hierarchy.level_name.lower() != "panchayat":
-            raise serializers.ValidationError({
-                "hierarchy": "Hierarchy level must be Panchayat."
-            })
-
-        # -------------------------------
-        # 3️⃣ Unique Panchayat Name
+        # Unique Panchayat Name
         # -------------------------------
         if not self.instance or panchayat_name:
             unique_name_validator(

@@ -15,7 +15,6 @@ EXPECTED_GROUPS = {
         "user-creations",
         "common-masters",
         "audits",
-        "process",
     ],
     "masters": [
         "masters",
@@ -27,6 +26,7 @@ EXPECTED_GROUPS = {
         "schedule-setup",
         "schedule-operations",
         "complaint-ticket",
+        "attendance",
     ],
     "reports": [
         "schedule-masters",
@@ -52,6 +52,7 @@ EXPECTED_SIDEBAR_SCREENS = {
     "schedule-operations": {
         "daily-trip-assignments",
         "daily-trip-collection-points",
+        "static-route-map",
         "bin-collection-events",
         "daily-trip-logs",
         "wastecollections",
@@ -60,6 +61,9 @@ EXPECTED_SIDEBAR_SCREENS = {
     },
     "complaint-ticket": {"tickets", "categories", "subcategories"},
     "audits": {"common-audit", "login-audit"},
+    "transport-masters": {"vehicle-type", "vehicle-creation", "fuels"},
+    "masters": {"panchayat-leaders", "district-leaders", "plants"},
+    "attendance": {"attendance"},
 }
 
 
