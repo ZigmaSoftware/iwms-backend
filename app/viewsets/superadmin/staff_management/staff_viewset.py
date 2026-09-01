@@ -8,7 +8,7 @@ from app.serializers.superadmin.staff_management.user_serializer import StaffSer
 from app.utils.audit_mixin import AuditViewSetMixin
 
 
-class StaffViewSet(CompanyScopedViewSet,AuditViewSetMixin):
+class StaffViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     pagination_class = None
     queryset = Staffcreation.objects.filter(is_deleted=False)
     serializer_class = StaffSerializer

@@ -1,6 +1,7 @@
 from django.forms.models import model_to_dict
 from django.db.models.fields.files import FieldFile
 from app.utils.common_audit import CommonAudit
+from app.utils.audit_context import resolve_actor, resolve_tenancy
 from datetime import datetime, date, time
 from decimal import Decimal
 from uuid import UUID
@@ -72,15 +73,29 @@ class AuditViewSetMixin:
 
     def log_audit(self, request, instance=None, previous_data=None, new_data=None):
 
+        user = getattr(request, "user", None)
+
+        created_by_id, created_by_name, created_by_type = resolve_actor(user)
+        scope, company_uid, company_name, project_uid, project_name = resolve_tenancy(
+            user, instance
+        )
+
         CommonAudit.objects.create(
             module_name=self.AUDIT_MODULE,
             endpoint_name=self.AUDIT_ENDPOINT,
             method=request.method,
-            # object_id=getattr(instance, "unique_id", None),
             object_id=self.get_audit_object_id(instance),
             previous_data=previous_data,
             new_data=new_data,
-            createdBy=str(request.user) if request.user.is_authenticated else "SYSTEM",
+            scope=scope,
+            company_unique_id=company_uid,
+            company_name=company_name,
+            project_unique_id=project_uid,
+            project_name=project_name,
+            createdBy=str(user) if getattr(user, "is_authenticated", False) else "SYSTEM",
+            created_by_id=created_by_id,
+            created_by_name=created_by_name,
+            created_by_type=created_by_type,
         )
 
     # CREATE

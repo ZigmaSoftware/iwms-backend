@@ -54,6 +54,7 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             "bin_ids",
             "extra_operator_ids",
             "trip_assignment_id__wards",
+            "trip_assignment_id__waste_types",
             "trip_assignment_id__trip_collection_points",
             "trip_assignment_id__trip_collection_points__collection_point_id",
         )
@@ -113,7 +114,19 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if collection_point:
             qs = qs.filter(collection_point_id=collection_point)
         if waste_types:
-            qs = qs.filter(waste_type_id__in=waste_types)
+            # A trip carries several waste types, stored in the log's own
+            # `waste_type_id`, the assignment's `waste_types` M2M and its
+            # `waste_type_ids` JSON list. Match any of them so filtering by a
+            # trip's secondary waste type still returns it, mirroring the set
+            # the list shows.
+            waste_filter = (
+                Q(waste_type_id__in=waste_types)
+                | Q(trip_assignment_id__waste_types__unique_id__in=waste_types)
+                | Q(trip_assignment_id__trip_plan_id__waste_type_id__in=waste_types)
+            )
+            for waste_type in waste_types:
+                waste_filter |= Q(trip_assignment_id__waste_type_ids__icontains=waste_type)
+            qs = qs.filter(waste_filter).distinct()
         if driver:
             qs = qs.filter(driver_id=driver)
         if operator:
