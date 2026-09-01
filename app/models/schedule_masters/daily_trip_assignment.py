@@ -439,7 +439,20 @@ class DailyTripAssignment(BaseMaster):
             # Not persisted yet (unsaved instance) — it would be the next one.
             return len(siblings) + 1
 
-    def mark_completed_if_all_cps_collected(self):
+    def mark_completed_if_all_cps_collected(self, auto_end=True):
+        """Returns True once every bin stop is resolved (Collected/Missed).
+
+        [auto_end] controls whether "resolved" actually closes the trip
+        (`mark_ended()`) or just reports the fact without touching status.
+        Callers on the DRIVER APP's own write path (mark_collected/mark_status
+        on DailyTripCollectionPoint) pass `auto_end=False`: closing a trip is
+        now something the driver confirms — see `TripCompletionNudge` and
+        `TripLifecycleControl` — not something that happens invisibly the
+        moment the last stop is scanned. Admin/web CRUD
+        (bin_collection_event_viewset.py, daily_trip_collection_point_viewset.py)
+        and the backfill script keep the default `True`: an admin editing a
+        record directly has no "confirm end trip" step to defer to.
+        """
         children = self.trip_collection_points.filter(is_deleted=False)
         if not children.exists():
             return False
@@ -456,11 +469,13 @@ class DailyTripAssignment(BaseMaster):
             return False
         if self.status == self.STATUS_COMPLETED:
             return True
+        if not auto_end:
+            return True
 
         self.mark_ended()
         return True
 
-    def mark_completed_if_all_household_stops_collected(self):
+    def mark_completed_if_all_household_stops_collected(self, auto_end=True):
         """Household-collection counterpart to
         `mark_completed_if_all_cps_collected` — that method only ever looks at
         `trip_collection_points` (bin stops), so it always bails out
@@ -473,6 +488,10 @@ class DailyTripAssignment(BaseMaster):
         version, using `pending_household_stops()` (already excludes
         Collected/Not Available, i.e. Collect Later remains unresolved) so the
         "what counts as resolved" rule for households matches the bin one.
+
+        See [mark_completed_if_all_cps_collected] for what [auto_end] does and
+        why the driver-app write paths (the WasteCollection post_save signal,
+        mark_household_status) pass `auto_end=False`.
         """
         children = self.trip_household_collections.filter(is_deleted=False)
         if not children.exists():
@@ -480,6 +499,8 @@ class DailyTripAssignment(BaseMaster):
         if self.pending_household_stops().exists():
             return False
         if self.status == self.STATUS_COMPLETED:
+            return True
+        if not auto_end:
             return True
 
         self.mark_ended()

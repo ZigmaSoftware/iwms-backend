@@ -205,7 +205,11 @@ class DailyTripCollectionPoint(BaseMaster):
             "status_longitude",
             "updated_at",
         ])
-        self.trip_assignment_id.mark_completed_if_all_cps_collected()
+        # Driver app write path — ending the trip is now a driver-confirmed
+        # action (see TripCompletionNudge), not an automatic side effect of
+        # the last scan. Admin/web edits to this model still auto-close (see
+        # mark_completed_if_all_cps_collected's docstring).
+        self.trip_assignment_id.mark_completed_if_all_cps_collected(auto_end=False)
 
     def mark_status(self, status, reason, latitude=None, longitude=None):
         """Mark this stop Missed/Skipped (collect-later) from the operator app.
@@ -234,4 +238,5 @@ class DailyTripCollectionPoint(BaseMaster):
             "collected_weight_kg",
             "updated_at",
         ])
-        self.trip_assignment_id.mark_completed_if_all_cps_collected()
+        # See mark_collected's comment just above — driver app write path.
+        self.trip_assignment_id.mark_completed_if_all_cps_collected(auto_end=False)

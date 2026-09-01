@@ -196,6 +196,7 @@ class PermissionSeeder(BaseSeeder):
                 # registered in base_urls.py but previously missing here, so no
                 # UserScreen/permission row was ever seeded for them
                 "vehicle-breakdowns",
+                "trip-delay-reports",
                 "retrip-requests",
             ],
             "schedule-masters": [

@@ -579,6 +579,7 @@ ROLE_DEFAULT_PERMISSIONS = {
             "bin-collection-events": ["view", "add"],
             "daily-trip-logs": ["view", "add", "edit"],
             "vehicle-breakdowns": ["view", "add"],
+            "trip-delay-reports": ["view", "add"],
             "staff-notifications": ["view", "edit"],
             # Read-only: the driver app shows its own Re-Trip request's
             # status while a supervisor decides it, but never approves/
@@ -609,6 +610,7 @@ ROLE_DEFAULT_PERMISSIONS = {
             "bin-collection-events": ["view", "add"],
             "daily-trip-logs": ["view", "add", "edit"],
             "vehicle-breakdowns": ["view", "add"],
+            "trip-delay-reports": ["view", "add"],
             "staff-notifications": ["view", "edit"],
             "retrip-requests": ["view"],
         },
@@ -633,6 +635,7 @@ ROLE_DEFAULT_PERMISSIONS = {
             "daily-trip-collection-points": ["view"],
             "daily-trip-household-collections": ["view"],
             "vehicle-breakdowns": ["view", "edit"],
+            "trip-delay-reports": ["view", "edit"],
             "staff-notifications": ["view", "edit"],
             "bin-collection-events": ["view"],
             # Household waste collections (WasteCollection model) — the

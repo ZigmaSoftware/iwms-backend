@@ -183,6 +183,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "DailyTripLog",
         "WasteCollection",
         "VehicleBreakdown",
+        "TripDelayReport",
         "TripRetripRequest",
         "StaffNotification",
     },
@@ -200,6 +201,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "DailyTripLog",
         "WasteCollection",
         "VehicleBreakdown",
+        "TripDelayReport",
         "TripRetripRequest",
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
@@ -250,6 +252,7 @@ RESOURCE_MODULE_FALLBACKS = {
     "DailyTripLog": "schedule-masters",
     "WasteCollection": "schedule-masters",
     "VehicleBreakdown": "schedule-masters",
+    "TripDelayReport": "schedule-masters",
     "TripRetripRequest": "schedule-masters",
 }
 

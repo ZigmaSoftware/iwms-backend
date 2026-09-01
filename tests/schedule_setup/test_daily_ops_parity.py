@@ -246,25 +246,36 @@ class TestDailyTripAssignmentWasteTypesAndGeo:
 
 # ----------------------------------------------------------------------
 # 2. DailyTripAssignment.mark_completed_if_all_cps_collected — Missed counts
+#    as resolved, and ending a trip is now a driver-confirmed action rather
+#    than an automatic side effect of the last scan (see TripCompletionNudge
+#    on the app side) — DailyTripCollectionPoint.mark_collected/mark_status
+#    (the driver app's own write path) call with auto_end=False, so status
+#    is left alone even once everything is resolved. Admin/web edits still
+#    auto-close via the viewsets' own explicit
+#    mark_completed_if_all_cps_collected() call, which defaults auto_end=True.
 # ----------------------------------------------------------------------
 
 @pytest.mark.django_db
 class TestMarkCompletedStatusRule:
-    def test_all_collected_marks_completed(self, assignment, collection_point, bin_obj, driver):
+    def test_all_collected_does_not_auto_end_the_driver_app_write_path(
+        self, assignment, collection_point, bin_obj, driver
+    ):
         stop = DailyTripCollectionPoint.objects.create(
             trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
         )
         stop.mark_collected(Decimal("10.00"), None)
         assignment.refresh_from_db()
-        assert assignment.status == DailyTripAssignment.STATUS_COMPLETED
+        assert assignment.status != DailyTripAssignment.STATUS_COMPLETED
 
-    def test_missed_stop_counts_as_resolved(self, assignment, collection_point, bin_obj):
+    def test_missed_stop_counts_as_resolved_but_does_not_auto_end(
+        self, assignment, collection_point, bin_obj
+    ):
         stop = DailyTripCollectionPoint.objects.create(
             trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
         )
         stop.mark_status(DailyTripCollectionPoint.STATUS_MISSED, "Bin inaccessible")
         assignment.refresh_from_db()
-        assert assignment.status == DailyTripAssignment.STATUS_COMPLETED
+        assert assignment.status != DailyTripAssignment.STATUS_COMPLETED
 
     def test_skipped_stop_does_not_complete_trip(self, assignment, collection_point, bin_obj):
         stop = DailyTripCollectionPoint.objects.create(
@@ -273,6 +284,34 @@ class TestMarkCompletedStatusRule:
         stop.mark_status(DailyTripCollectionPoint.STATUS_SKIPPED, "Collect later")
         assignment.refresh_from_db()
         assert assignment.status != DailyTripAssignment.STATUS_COMPLETED
+
+    def test_resolved_is_still_detected_even_without_auto_end(
+        self, assignment, collection_point, bin_obj
+    ):
+        """auto_end=False still reports the resolution truthfully — only the
+        side effect of actually closing the trip is withheld — so the app's
+        TripCompletionNudge (which reads this via `progress.resolved`, not
+        this method directly) has an accurate signal to act on."""
+        stop = DailyTripCollectionPoint.objects.create(
+            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+        )
+        stop.mark_collected(Decimal("10.00"), None)
+        assignment.refresh_from_db()
+        assert assignment.mark_completed_if_all_cps_collected(auto_end=False) is True
+        assert assignment.status != DailyTripAssignment.STATUS_COMPLETED
+
+    def test_admin_write_path_still_auto_ends(self, assignment, collection_point, bin_obj):
+        """The admin/web CRUD path (and the backfill script) call this with
+        the default auto_end=True and must keep closing the trip immediately
+        — there is no "driver confirms" step for a direct admin edit."""
+        stop = DailyTripCollectionPoint.objects.create(
+            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            collected_weight_kg=Decimal("10.00"), is_collected=True,
+            status=DailyTripCollectionPoint.STATUS_COLLECTED,
+        )
+        assert assignment.mark_completed_if_all_cps_collected() is True
+        assignment.refresh_from_db()
+        assert assignment.status == DailyTripAssignment.STATUS_COMPLETED
 
 
 # ----------------------------------------------------------------------

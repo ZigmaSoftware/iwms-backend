@@ -24,7 +24,7 @@ ZONE_NAME = "ZNE3-GAMMA-01"
 WARD_NAME = "B"
 PROPERTY_NAME = "Residential"
 SUB_PROPERTY_NAME = "Individual House"
-CUSTOMER_WASTE_TYPES = ["Wet Waste", "Dry Waste"]
+CUSTOMER_WASTE_TYPES = ["Mixed Waste"]
 
 # Sourced verbatim from customer_creation_template_final.xlsx (132 rows,
 # all Noida / Gamma-01 / Ward B individual houses). (customer_name,

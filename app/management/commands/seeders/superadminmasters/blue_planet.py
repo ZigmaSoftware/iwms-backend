@@ -114,16 +114,16 @@ class BluePlanetSeeder(BaseSeeder):
     PROJECT_LOCATION = {
         "Blue Planet Integrated Waste Management": {
             "state": "Uttar Pradesh",
-            "district": "Greater Noida BP District",
-            "city": "Greater Noida BP City",
+            "district": "Gautam Buddh Nagar",
+            "city": "Noida",
             "prefix": "GNO",
             "base_lat": 28.474400,
             "base_lon": 77.504000,
         },
         "Palakkad BP": {
             "state": "Kerala",
-            "district": "Palakkad BP District",
-            "city": "Palakkad BP City",
+            "district": "Palakkad",
+            "city": "Palakkad",
             "prefix": "PAL",
             "base_lat": 10.786700,
             "base_lon": 76.654800,
@@ -233,22 +233,41 @@ class BluePlanetSeeder(BaseSeeder):
         )
         return staff_type, role
 
+    # Named real staff for Greater Noida BP (prefix GNO) — this project uses
+    # actual employee names instead of the generic Driver1/Operator1/... labels.
+    GNO_NAMED_STAFF = [
+        ("driver1", "Company Driver", "ASHISH KASANA"),
+        ("operator1", "Company Operator", "CHREN SINGH"),
+        ("supervisor", "Company Supervisor", "Mithun.M"),
+    ]
+
     def _create_staff(self, company, project, district, city, zones, wards, prefix):
         staff_type, driver_role = self._staff_role("Company Driver")
         _, operator_role = self._staff_role("Company Operator")
         _, supervisor_role = self._staff_role("Company Supervisor")
+        role_by_name = {
+            "Company Driver": driver_role,
+            "Company Operator": operator_role,
+            "Company Supervisor": supervisor_role,
+        }
 
-        staff_defs = [
-            ("Driver1", driver_role),
-            ("Driver2", driver_role),
-            ("Operator1", operator_role),
-            ("Operator2", operator_role),
-            ("Supervisor", supervisor_role),
-        ]
+        if prefix == "GNO":
+            staff_defs = [
+                (label, role_by_name[role_name], employee_name)
+                for label, role_name, employee_name in self.GNO_NAMED_STAFF
+            ]
+        else:
+            staff_defs = [
+                ("driver1", driver_role, f"BP {prefix} Driver1"),
+                ("driver2", driver_role, f"BP {prefix} Driver2"),
+                ("operator1", operator_role, f"BP {prefix} Operator1"),
+                ("operator2", operator_role, f"BP {prefix} Operator2"),
+                ("supervisor", supervisor_role, f"BP {prefix} Supervisor"),
+            ]
+
         staff = {}
-        for label, role in staff_defs:
-            username = f"bp_{prefix.lower()}_{label.lower()}"
-            employee_name = f"BP {prefix} {label}"
+        for label, role, employee_name in staff_defs:
+            username = f"bp_{prefix.lower()}_{label}"
             defaults = {
                 "employee_name": employee_name,
                 "office_email": f"{username}@blueplanet.local",
@@ -270,7 +289,7 @@ class BluePlanetSeeder(BaseSeeder):
                 username=username,
                 defaults=defaults,
             )
-            staff[label.lower()] = obj
+            staff[label] = obj
         return staff
 
     def _create_vehicles(self, company, project, prefix):
@@ -392,7 +411,7 @@ class BluePlanetSeeder(BaseSeeder):
 
     def _create_waste_types(self, company, project):
         result = []
-        for name in ("Organic Waste", "Wet Waste", "Dry Waste"):
+        for name in ("Mixed Waste", "Wet Waste", "Dry Waste"):
             waste_type, _ = WasteType.objects.update_or_create(
                 company_id=company,
                 project_id=project,

@@ -435,9 +435,30 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         ]
 
     def get_waste_types_detail(self, obj):
+        """Every waste type on this trip, from the JSON list and the M2M alike.
+
+        Trip creation writes `waste_type_ids`, other flows fill the `waste_types`
+        M2M; reading only the M2M reported no waste types at all for trips
+        created through the form.
+        """
+        from app.viewsets.operator_mobile.helpers import _assignment_waste_type_ids
+
+        ids = _assignment_waste_type_ids(obj)
+        if not ids:
+            return []
+        ordered = [str(v) for v in (obj.waste_type_ids or []) if str(v) in ids]
+        ordered += sorted(ids - set(ordered))
+        by_id = {
+            wt.unique_id: wt
+            for wt in WasteType.objects.filter(unique_id__in=ids, is_deleted=False)
+        }
         return [
-            {"unique_id": wt.unique_id, "waste_type_name": getattr(wt, "waste_type_name", None)}
-            for wt in obj.waste_types.all()
+            {
+                "unique_id": waste_type_id,
+                "waste_type_name": getattr(by_id[waste_type_id], "waste_type_name", None),
+            }
+            for waste_type_id in ordered
+            if waste_type_id in by_id
         ]
 
     def get_vehicle(self, obj):
