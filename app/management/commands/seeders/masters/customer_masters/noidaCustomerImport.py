@@ -14,7 +14,7 @@ from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 
 COMPANY_NAME = "Blue Planet"
-PROJECT_NAME = "Greater Noida BP"
+PROJECT_NAME = "Blue Planet Integrated Waste Management"
 
 CITY_NAME = "Noida"
 DISTRICT_NAME = "Gautam Buddh Nagar"

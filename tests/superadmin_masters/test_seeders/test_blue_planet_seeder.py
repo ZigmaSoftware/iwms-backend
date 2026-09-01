@@ -30,18 +30,18 @@ class TestBluePlanetSeeder:
         projects = Project.objects.filter(company_id=company).order_by("name")
 
         assert list(projects.values_list("name", flat=True)) == [
-            "Greater Noida BP",
+            "Blue Planet Integrated Waste Management",
             "Palakkad BP",
         ]
 
-        noida = projects.get(name="Greater Noida BP")
+        noida = projects.get(name="Blue Planet Integrated Waste Management")
         assert noida.attendance_api_url == BluePlanetSeeder.ATTENDANCE_API_URL
         assert noida.attendance_api_key == BluePlanetSeeder.ATTENDANCE_API_KEY
         assert noida.gps_api_url == BluePlanetSeeder.GPS_API_URL
         assert noida.gps_vehicle_tracking_api == BluePlanetSeeder.GPS_VEHICLE_TRACKING_API
         assert noida.weighment_api_url == BluePlanetSeeder.WEIGHMENT_API_URL
 
-        # Greater Noida BP uses the real Vamosys-tracked fleet instead of
+        # Blue Planet Integrated Waste Management uses the real Vamosys-tracked fleet instead of
         # the generic 2-vehicle demo pattern used elsewhere.
         assert VehicleCreation.objects.filter(
             company_id=company, project_id=noida, is_active=True
@@ -56,12 +56,12 @@ class TestBluePlanetSeeder:
             assert Ward.objects.filter(company_id=company, project_id=project).count() == 3
             assert Collection_point.objects.filter(company_id=company, project_id=project).count() == 3
             assert Bins.objects.filter(company_id=company, project_id=project).count() == 9
-            if project.name != "Greater Noida BP":
+            if project.name != "Blue Planet Integrated Waste Management":
                 assert VehicleCreation.objects.filter(company_id=company, project_id=project).count() == 2
-            # Greater Noida BP additionally carries 5 real-address customers
+            # Blue Planet Integrated Waste Management additionally carries 5 real-address customers
             # for the dedicated UP16KT1737 route (GNO_REAL_ROUTE_STOPS).
             expected_customers = 8 + (
-                len(BluePlanetSeeder.GNO_REAL_ROUTE_STOPS) if project.name == "Greater Noida BP" else 0
+                len(BluePlanetSeeder.GNO_REAL_ROUTE_STOPS) if project.name == "Blue Planet Integrated Waste Management" else 0
             )
             assert CustomerCreation.objects.filter(company_id=company, project_id=project).count() == expected_customers
             assert Complaint.objects.filter(company_id=company, project_id=project).count() == 3
@@ -74,10 +74,10 @@ class TestBluePlanetSeeder:
             household_trip_plans = TripPlan.objects.filter(
                 company_id=company, project_id=project, collection_type=TripPlan.COLLECTION_TYPE_HOUSEHOLD
             )
-            assert household_trip_plans.count() == (2 if project.name == "Greater Noida BP" else 1)
+            assert household_trip_plans.count() == (2 if project.name == "Blue Planet Integrated Waste Management" else 1)
             assert all(plan.is_auto_assign for plan in household_trip_plans)
 
-            if project.name == "Greater Noida BP":
+            if project.name == "Blue Planet Integrated Waste Management":
                 real_route_plan = household_trip_plans.get(
                     vehicle_id__vehicle_no=BluePlanetSeeder.GNO_REAL_ROUTE_VEHICLE_NO
                 )
@@ -98,7 +98,7 @@ class TestBluePlanetSeeder:
         for project in Project.objects.filter(company_id=company):
             assert Zone.objects.filter(company_id=company, project_id=project).count() == 3
             expected_customers = 8 + (
-                len(BluePlanetSeeder.GNO_REAL_ROUTE_STOPS) if project.name == "Greater Noida BP" else 0
+                len(BluePlanetSeeder.GNO_REAL_ROUTE_STOPS) if project.name == "Blue Planet Integrated Waste Management" else 0
             )
             assert CustomerCreation.objects.filter(company_id=company, project_id=project).count() == expected_customers
             assert Complaint.objects.filter(company_id=company, project_id=project).count() == 3
