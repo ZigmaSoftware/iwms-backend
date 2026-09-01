@@ -149,6 +149,7 @@ from ..viewsets.operator_mobile.validate_bin_qr_viewset import ValidateBinQrView
 from ..viewsets.operator_mobile.scan_bin_viewset import ScanBinViewSet
 from ..viewsets.operator_mobile.trip_history_viewset import TripHistoryViewSet
 from ..viewsets.operator_mobile.trip_lifecycle_viewset import TripLifecycleViewSet
+from ..viewsets.operator_mobile.trip_stops_viewset import TripStopsViewSet
 
 # Waste bluetooth
 from ..viewsets.waste_collection_bluetooth.waste_bluetooth_viewset import WasteCollectionBluetoothViewSet
@@ -409,6 +410,12 @@ router.register_group(
     "trip-lifecycle",
     TripLifecycleViewSet,
     basename="operator-mobile-trip-lifecycle",
+)
+router.register_group(
+    "operator-mobile",
+    "trip-stops",
+    TripStopsViewSet,
+    basename="operator-mobile-trip-stops",
 )
 
 # ============================================================
