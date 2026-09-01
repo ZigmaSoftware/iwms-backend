@@ -122,7 +122,8 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     pagination_class = LimitOffsetWithPage
     search_fields = [
-        "customer_id", "customer_name", "contact_no", "apartment_name", "flat_no"
+        "customer_id", "customer_name", "contact_no", "apartment_name", "flat_no",
+        "zone__zone_name",
     ]
     ordering_fields = ["customer_id", "customer_name", "is_active"]
 
@@ -538,9 +539,6 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 property_obj = get_fk(Property, "property_name", row.get("property_id") or row.get("property_name"))
                 sub_property = get_fk(SubProperty, "sub_property_name", row.get("sub_property_id") or row.get("sub_property_name"))
 
-                # 🔥 ADD THESE (MISSING IN YOUR CODE)
-
-
                 ward = get_fk(Ward, "ward_name", row.get("ward_id") or row.get("ward_name"))
                 zone = get_fk(Zone, "zone_name", row.get("zone_id") or row.get("zone_name"))
                 city = get_fk(City, "name", row.get("city_id") or row.get("city_name"))
@@ -550,50 +548,20 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                     row.get("waste_type_ids") or row.get("waste_types") or row.get("waste_type_names")
                 )
 
-                # ✅ VALIDATION
-                if not state:
-                    errors.append({"row": index, "error": f"Invalid state"})
-                    continue
-
-                if not sub_property:
-                    errors.append({"row": index, "error": f"Invalid sub_property"})
-                    continue
-
                 apartment_name = clean(row.get("apartment_name"))
                 block_no = clean(row.get("block_no"))
                 flat_no = clean(row.get("flat_no"))
 
-                if "apartment" in (sub_property.sub_property_name or "").lower():
-                    if not apartment_name or not block_no:
-                        errors.append({
-                            "row": index,
-                            "error": "Apartment requires apartment_name and block_no"
-                        })
-                        continue
+                # ✅ Only House No (building_no) and Sqft are mandatory for bulk upload.
+                building_no = clean(row.get("building_no"))
+                sqft = clean(row.get("sqft"))
 
-                # ✅ Always required
-                if not city or not district:
-                    errors.append({
-                        "row": index,
-                        "error": "City and District are required"
-                    })
+                if not building_no:
+                    errors.append({"row": index, "error": "House No (building_no) is required"})
                     continue
 
-                # ✅ Urban or Rural
-                is_urban = ward and zone
-                is_rural = panchayat
-
-                if not (is_urban or is_rural):
-                    errors.append({
-                        "row": index,
-                        "error": "Either (ward + zone) OR panchayat is required"
-                    })
-                    continue
-                if invalid_waste_types:
-                    errors.append({
-                        "row": index,
-                        "error": f"Invalid waste type(s): {', '.join(invalid_waste_types)}"
-                    })
+                if not sqft:
+                    errors.append({"row": index, "error": "Sqft is required"})
                     continue
 
                 data = {
@@ -603,7 +571,8 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                     "customer_name": clean(row.get("customer_name")),
                     "contact_no": clean(row.get("contact_no")),
 
-                    "building_no": clean(row.get("building_no")),
+                    "building_no": building_no,
+                    "sqft": sqft,
                     "street": clean(row.get("street")),
                     "area": clean(row.get("area")),
 
@@ -613,18 +582,18 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
                     "ward_id": ward.unique_id if ward else None,
                     "zone_id": zone.unique_id if zone else None,
-                    "city_id": city.unique_id,
-                    "district_id": district.unique_id,
+                    "city_id": city.unique_id if city else None,
+                    "district_id": district.unique_id if district else None,
                     "panchayat_id": panchayat.unique_id if panchayat else None,
 
                     "pincode": clean(row.get("pincode")),
                     "latitude": clean(row.get("latitude")),
                     "longitude": clean(row.get("longitude")),
 
-                    "state_id": state.unique_id,
+                    "state_id": state.unique_id if state else None,
                     "country_id": country.unique_id if country else None,
                     "property_id": property_obj.unique_id if property_obj else None,
-                    "sub_property_id": sub_property.unique_id,
+                    "sub_property_id": sub_property.unique_id if sub_property else None,
                     "waste_type_ids": waste_type_ids,
                     "water_consumption_lpd": clean(row.get("water_consumption_lpd")) or None,
                     "waste_collection_kg_per_day": clean(row.get("waste_collection_kg_per_day")) or None,
