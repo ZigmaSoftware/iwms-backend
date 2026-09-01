@@ -353,6 +353,18 @@ def infer_app_surfaces(module_access, permissions, role_name=None, user_type=Non
         for screen in module.get("screens", [])
     }
 
+    ADMIN_MODULE_KEYS = {
+        "dashboard",
+        "screen-managements",
+        "role-assigns",
+        "user-creations",
+        "transport-masters",
+        "audits",
+        "masters",
+        "common-masters",
+        "grivences",
+    }
+
     surface_keys = []
     if user_type_key in {"customer", "citizen"} or role_key in {"customer", "citizen"}:
         surface_keys.append("citizen")
@@ -366,25 +378,23 @@ def infer_app_surfaces(module_access, permissions, role_name=None, user_type=Non
         surface_keys.append("supervisor")
     elif any(token in role_key for token in ("admin", "superadmin", "platform")):
         surface_keys.append("admin")
-    elif module_keys & {
-        "screen-managements",
-        "role-assigns",
-        "user-creations",
-        "transport-masters",
-        "audits",
-        "masters",
-        "common-masters",
-        "grivences",
-    }:
+    elif module_keys & ADMIN_MODULE_KEYS:
         surface_keys.append("admin")
     elif screen_keys & {
         "customercreations",
-        
+
         "trip_plan",
         "attendance-list",
         "alternative-stafftemplate",
     } or module_keys & {"customers", "process", "process-items"}:
         surface_keys.append("operator")
+
+    # A role with its own dedicated surface (driver/operator/supervisor) can
+    # still be explicitly granted admin-module screens (e.g. "Dashboard")
+    # through Role Management — in that case the admin panel should also be
+    # reachable, in addition to that role's own app.
+    if "admin" not in surface_keys and module_keys & ADMIN_MODULE_KEYS:
+        surface_keys.append("admin")
 
     if not surface_keys and permissions:
         surface_keys.append("admin")

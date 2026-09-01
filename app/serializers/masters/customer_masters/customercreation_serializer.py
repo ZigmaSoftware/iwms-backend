@@ -5,7 +5,6 @@ from app.models.common_masters.state import State
 from app.models.customers.customercreation import CustomerCreation
 from app.models.masters.city import City
 from app.models.masters.district import District
-from app.models.masters.block import Block
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
@@ -140,13 +139,6 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
 
     apartment_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     block_no = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    block_id = serializers.SlugRelatedField(
-        queryset=Block.objects.all(),
-        slug_field="unique_id",
-        required=False,
-        allow_null=True,
-    )
-    block_name = serializers.CharField(source="block_id.block_name", read_only=True)
     flat_no = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     villa_no = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     industry_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -196,8 +188,6 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "area",
             "apartment_name",
             "block_no",
-            "block_id",
-            "block_name",
             "flat_no",
             "villa_no",
             "industry_name",

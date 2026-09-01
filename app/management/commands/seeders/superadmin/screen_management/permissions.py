@@ -111,6 +111,7 @@ class PermissionSeeder(BaseSeeder):
                 "designation-masters",
                 "panchayat-leaders",
                 "district-leaders",
+                "plants",
             ],
             "waste-types": [
                 "properties",
@@ -140,14 +141,12 @@ class PermissionSeeder(BaseSeeder):
                 # "supervisor-zone-map",
                 # "unassigned-staff-pool",
             ],
-            "process": [
-                "zone-property-load-tracker",
+            "attendance": [
+                "attendance",
             ],
             "customers": [
                 "customercreations",
                 "apartment-list",
-                "feedbacks",
-                # "user-charge-rules",
             ],
             # "waste-management": [
             #     "collection monitoring",
@@ -176,7 +175,6 @@ class PermissionSeeder(BaseSeeder):
             "transport-masters": [
                 "vehicle-type",
                 "vehicle-creation",
-                # "trip-attendance",
                 "fuels",
             ],
             "schedule-setup": [
@@ -191,6 +189,7 @@ class PermissionSeeder(BaseSeeder):
                 "daily-trip-assignments",
                 "daily-trip-collection-points",
                 "daily-trip-household-collections",
+                "static-route-map",
                 "bin-collection-events",
                 "daily-trip-logs",
                 "wastecollections",
@@ -238,7 +237,6 @@ class PermissionSeeder(BaseSeeder):
                 "user-creations",
                 "common-masters",
                 "audits",
-                "process",
             ),
             "masters": (
                 "masters",
@@ -250,6 +248,7 @@ class PermissionSeeder(BaseSeeder):
                 "schedule-setup",
                 "schedule-operations",
                 "complaint-ticket",
+                "attendance",
             ),
             "reports": (
                 "schedule-masters",
