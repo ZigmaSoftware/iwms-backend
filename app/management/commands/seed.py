@@ -107,6 +107,9 @@ from app.management.commands.seeders.collections import COLLECTION_SEEDERS
 # and filtered down to just UserChargeRuleSeeder (company-agnostic; Blue
 # Planet's own customers are created directly in BluePlanetSeeder).
 from app.management.commands.seeders.masters.customer_masters.userChargeRule import UserChargeRuleSeeder
+# Replaces Noida (Greater Noida BP / Gamma-01 / Ward B) customers on every
+# run with the authoritative set from customer_creation_template_final.xlsx.
+from app.management.commands.seeders.masters.customer_masters.noidaCustomerImport import NoidaCustomerImportSeeder
 
 # complaint-ticket (router: complaint-ticket/tickets, categories, subcategories —
 # renamed from the legacy "grivences" group)
@@ -246,6 +249,10 @@ CUSTOMER_MASTERS_SEEDERS = [
     # created directly inside BluePlanetSeeder. UserChargeRuleSeeder is
     # company-agnostic (picks up whichever company exists) and kept.
     UserChargeRuleSeeder,
+    # Requires BluePlanetSeeder (Noida city/zone/ward B/property masters) to
+    # have run first; hard-deletes any Noida customer not in the xlsx-sourced
+    # list and creates/updates the 132 that are.
+    NoidaCustomerImportSeeder,
     # Re-Trip demo scenarios need customers (household stops) + daily
     # trip assignments (schedule-operations) to already exist.
     RetripDemoSeeder,
@@ -320,6 +327,9 @@ SEED_GROUPS = {
     # 20 Greater Noida BP household trip plans + their customers. Trip plans
     # only — requires the superadmin group (Blue Planet masters) to have run.
     "gno-trip-plans": [TripPlanGNOSeeder],
+    # Replaces Noida customers with the 132-row xlsx-sourced set (see
+    # noidaCustomerImport.py). Requires `blue-planet` to have run first.
+    "noida-customers": [NoidaCustomerImportSeeder],
     "retrip-demo":        [RetripDemoSeeder],
     "blue-planet":        [BluePlanetSeeder],
     "ticket-masters":     TICKET_SEEDERS,  # complaint-ticket/grievance-tickets masters only
