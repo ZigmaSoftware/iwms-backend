@@ -251,8 +251,12 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
     # 3. Sync household weight onto the log
     log.sync_from_household_collections()
 
-    # 4. Auto-complete the assignment once every household stop is resolved.
-    instance.trip_assignment_id.mark_completed_if_all_household_stops_collected()
+    # 4. Driver app write path — ending the trip is now a driver-confirmed
+    # action (see TripCompletionNudge on the app side) rather than an
+    # automatic side effect of the last WasteCollection save.
+    instance.trip_assignment_id.mark_completed_if_all_household_stops_collected(
+        auto_end=False
+    )
 
 
 @receiver(post_save, sender="app.BinCollectionEvent")
