@@ -10,7 +10,7 @@ from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignmen
 from app.models.schedule_masters.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 
 
 class OperatorFlowError(Exception):
@@ -228,7 +228,7 @@ def _assignment_waste_type_ids(assignment: DailyTripAssignment) -> set:
 
 def _assignment_waste_type_names(assignment: DailyTripAssignment) -> str:
     """Human-readable list of the trip's waste types, for error messages."""
-    from app.models.user_creations.waste_collection_bluetooth import WasteType
+    from app.models.staff_creations.waste_collection_bluetooth import WasteType
 
     ids = _assignment_waste_type_ids(assignment)
     if not ids:

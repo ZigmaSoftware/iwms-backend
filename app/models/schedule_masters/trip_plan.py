@@ -13,11 +13,11 @@ from app.models.masters.ward import Ward
 from app.models.masters.block_panchayat_union import BlockPanchayatUnion
 from app.models.schedule_masters.collection_point import Collection_point
 from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.schedule_masters.staff_template import StaffTemplate
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 

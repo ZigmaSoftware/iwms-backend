@@ -2,6 +2,7 @@ import math
 
 from app.management.commands.seeders.base import BaseSeeder
 from django.contrib.auth.hashers import make_password
+from django.core.files.storage import default_storage
 from django.db.models import F, Max
 from django.utils import timezone
 from app.models.common_masters.continent import Continent
@@ -26,8 +27,8 @@ from app.models.superadmin_masters.project import Project
 from app.models.transport_masters.fuel import Fuel
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 
@@ -71,7 +72,7 @@ class BluePlanetSeeder(BaseSeeder):
         {"vehicle_no": "UP16RT5635", "vehicle_type": "Truck", "latitude": 28.476191, "longitude": 77.480818},
         {"vehicle_no": "UP16KT1739", "vehicle_type": "Truck", "latitude": 28.475805, "longitude": 77.480743},
         {"vehicle_no": "UP16KT1907", "vehicle_type": "Van", "latitude": 28.447853, "longitude": 77.478098},
-        {"vehicle_no": "UP19KT1909", "vehicle_type": "Truck", "latitude": 28.475827, "longitude": 77.480693},
+        {"vehicle_no": "UP16KT1909", "vehicle_type": "Truck", "latitude": 28.475827, "longitude": 77.480693},
         {"vehicle_no": "UP16KT1911", "vehicle_type": "Truck", "latitude": 28.475796, "longitude": 77.480649},
         {"vehicle_no": "UP16KT1740", "vehicle_type": "Truck", "latitude": 28.476076, "longitude": 77.480649},
         {"vehicle_no": "UP16KT1738", "vehicle_type": "Truck", "latitude": 28.475704, "longitude": 77.480498},
@@ -235,10 +236,23 @@ class BluePlanetSeeder(BaseSeeder):
 
     # Named real staff for Greater Noida BP (prefix GNO) — this project uses
     # actual employee names instead of the generic Driver1/Operator1/... labels.
+    # Logo shown for the Greater Noida project. The file already lives under
+    # MEDIA_ROOT/project_logos/, so the field just stores that relative path
+    # rather than re-uploading a copy on every run.
+    PROJECT_LOGOS = {
+        "Blue Planet Integrated Waste Management": "project_logos/GNIDA_logo.png",
+    }
+
+    # (label, role, employee_name, username) — these three are real people
+    # with their own logins (see GnoNamedStaffSeeder), so they are keyed on
+    # those canonical usernames instead of the generic bp_gno_* pattern.
+    # Seeding them under a second username created a duplicate Staffcreation
+    # row per person, which in turn produced a duplicate StaffTemplate
+    # (ASHI-CHRE-01 + ASHI-CHRE-02).
     GNO_NAMED_STAFF = [
-        ("driver1", "Company Driver", "ASHISH KASANA"),
-        ("operator1", "Company Operator", "CHREN SINGH"),
-        ("supervisor", "Company Supervisor", "Mithun.M"),
+        ("driver1", "Company Driver", "ASHISH KASANA", "aashish"),
+        ("operator1", "Company Operator", "CHREN SINGH", "cheren"),
+        ("supervisor", "Company Supervisor", "Mithun.M", "bp_gno_supervisor"),
     ]
 
     def _create_staff(self, company, project, district, city, zones, wards, prefix):
@@ -253,21 +267,21 @@ class BluePlanetSeeder(BaseSeeder):
 
         if prefix == "GNO":
             staff_defs = [
-                (label, role_by_name[role_name], employee_name)
-                for label, role_name, employee_name in self.GNO_NAMED_STAFF
+                (label, role_by_name[role_name], employee_name, username)
+                for label, role_name, employee_name, username in self.GNO_NAMED_STAFF
             ]
         else:
             staff_defs = [
-                ("driver1", driver_role, f"BP {prefix} Driver1"),
-                ("driver2", driver_role, f"BP {prefix} Driver2"),
-                ("operator1", operator_role, f"BP {prefix} Operator1"),
-                ("operator2", operator_role, f"BP {prefix} Operator2"),
-                ("supervisor", supervisor_role, f"BP {prefix} Supervisor"),
+                ("driver1", driver_role, f"BP {prefix} Driver1", None),
+                ("driver2", driver_role, f"BP {prefix} Driver2", None),
+                ("operator1", operator_role, f"BP {prefix} Operator1", None),
+                ("operator2", operator_role, f"BP {prefix} Operator2", None),
+                ("supervisor", supervisor_role, f"BP {prefix} Supervisor", None),
             ]
 
         staff = {}
-        for label, role, employee_name in staff_defs:
-            username = f"bp_{prefix.lower()}_{label}"
+        for label, role, employee_name, explicit_username in staff_defs:
+            username = explicit_username or f"bp_{prefix.lower()}_{label}"
             defaults = {
                 "employee_name": employee_name,
                 "office_email": f"{username}@blueplanet.local",
@@ -285,6 +299,13 @@ class BluePlanetSeeder(BaseSeeder):
                 "approval_status": Staffcreation.APPROVAL_APPROVED,
                 "login_enabled": True,
             }
+            # The named GNO staff own their real credentials (set by
+            # GnoNamedStaffSeeder, Fernet-encrypted). Don't overwrite an
+            # existing password with the generic seed one.
+            if explicit_username and Staffcreation.objects.filter(
+                username=username
+            ).exclude(password="").exists():
+                defaults.pop("password", None)
             obj, _ = Staffcreation.objects.update_or_create(
                 username=username,
                 defaults=defaults,
@@ -622,11 +643,14 @@ class BluePlanetSeeder(BaseSeeder):
         vehicles = self._create_vehicles(company, project, prefix)
 
         staff_template, _ = StaffTemplate.objects.update_or_create(
+            # Scope the lookup to the project — without it the same
+            # driver/operator pair reused across projects would fight over
+            # one row instead of getting one template each.
+            company_id=company,
+            project_id=project,
             driver_id=staff["driver1"],
             operator_id=staff["operator1"],
             defaults={
-                "company_id": company,
-                "project_id": project,
                 "extra_operator_id": [],
                 "status": StaffTemplate.Status.ACTIVE,
                 "is_active": True,
@@ -660,110 +684,125 @@ class BluePlanetSeeder(BaseSeeder):
         # ------------------------------------------------------------
         # Bin-collection TripPlan — 1 per project, visiting every CP/bin
         # ------------------------------------------------------------
-        trip_plan, _ = TripPlan.objects.update_or_create(
-            company_id=company,
-            project_id=project,
-            staff_template_id=staff_template,
-            vehicle_id=vehicles[0],
-            panchayat_id=panchayats[0],
-            defaults={
-                "district_id": district,
-                "city_id": city,
-                "zone_id": None,
-                "supervisor_id": staff["supervisor"],
-                "property_id": agri_property,
-                "sub_property_id": agri_sub_property,
-                "waste_type_id": waste_types[0],
-                "waste_type_ids": [waste_type.unique_id for waste_type in waste_types],
-                "trip_trigger_weight_kg": 800,
-                "max_vehicle_capacity_kg": 3000,
-                "scheduled_time": "13:00",
-                "collection_type": TripPlan.COLLECTION_TYPE_BIN,
-                "is_auto_assign": True,
-                "approval_status": TripPlan.ApprovalStatus.APPROVED,
-                "status": TripPlan.Status.ACTIVE,
-                "is_active": True,
-                "is_deleted": False,
-            },
-        )
-
-        existing = TripPlanCollectionPoint.objects.filter(trip_plan_id=trip_plan)
-        if existing.exists():
-            max_sequence = existing.aggregate(max_sequence=Max("sequence"))["max_sequence"] or 0
-            existing.update(
-                sequence=F("sequence") + max_sequence + len(bins) + 1000,
-                is_deleted=True,
-                is_active=False,
-            )
-        for idx, bin_obj in enumerate(bins, start=1):
-            TripPlanCollectionPoint.objects.update_or_create(
-                trip_plan_id=trip_plan,
-                collection_point_id=bin_obj.collection_point_id,
-                bin_id=bin_obj,
+        # Skipped for Greater Noida (GNO): everything downstream of the staff
+        # template — trip plans, daily trip plans and their forms — is created
+        # through the app for that project, not seeded. Palakkad keeps its
+        # seeded plan.
+        if prefix == "GNO":
+            trip_plan = None
+        else:
+            trip_plan, _ = TripPlan.objects.update_or_create(
+                company_id=company,
+                project_id=project,
+                staff_template_id=staff_template,
+                vehicle_id=vehicles[0],
+                panchayat_id=panchayats[0],
                 defaults={
-                    "company_id": company,
-                    "project_id": project,
-                    "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_BIN,
-                    "sequence": idx,
+                    "district_id": district,
+                    "city_id": city,
+                    "zone_id": None,
+                    "supervisor_id": staff["supervisor"],
+                    "property_id": agri_property,
+                    "sub_property_id": agri_sub_property,
+                    "waste_type_id": waste_types[0],
+                    "waste_type_ids": [waste_type.unique_id for waste_type in waste_types],
+                    "trip_trigger_weight_kg": 800,
+                    "max_vehicle_capacity_kg": 3000,
+                    "scheduled_time": "13:00",
+                    "collection_type": TripPlan.COLLECTION_TYPE_BIN,
+                    "is_auto_assign": True,
+                    "approval_status": TripPlan.ApprovalStatus.APPROVED,
+                    "status": TripPlan.Status.ACTIVE,
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
 
+            existing = TripPlanCollectionPoint.objects.filter(trip_plan_id=trip_plan)
+            if existing.exists():
+                max_sequence = existing.aggregate(max_sequence=Max("sequence"))["max_sequence"] or 0
+                existing.update(
+                    sequence=F("sequence") + max_sequence + len(bins) + 1000,
+                    is_deleted=True,
+                    is_active=False,
+                )
+            for idx, bin_obj in enumerate(bins, start=1):
+                TripPlanCollectionPoint.objects.update_or_create(
+                    trip_plan_id=trip_plan,
+                    collection_point_id=bin_obj.collection_point_id,
+                    bin_id=bin_obj,
+                    defaults={
+                        "company_id": company,
+                        "project_id": project,
+                        "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_BIN,
+                        "sequence": idx,
+                        "is_active": True,
+                        "is_deleted": False,
+                    },
+                )
+
         # ------------------------------------------------------------
         # Household customers + complaints
         # ------------------------------------------------------------
-        customers = self._create_customers(
-            company, project, project.name, district, city, state, india,
-            zones[0], wards[0], panchayats[0], residential_property, residential_sub_property, waste_types,
-        )
-        complaints = self._create_complaints(company, project, customers)
-
+        # Greater Noida BP (GNO) seeds no customers: this project's customer
+        # records are managed outside the seeder. Complaints hang off a
+        # customer, so they are skipped with them.
         if prefix == "GNO":
-            self._create_gno_dedicated_vehicle_route(
-                company, project, district, city, state, india, zones[0], wards[0], panchayats[0],
-                staff_template, staff["supervisor"], residential_property, residential_sub_property, waste_types,
+            customers = []
+            complaints = []
+        else:
+            customers = self._create_customers(
+                company, project, project.name, district, city, state, india,
+                zones[0], wards[0], panchayats[0], residential_property, residential_sub_property, waste_types,
             )
+            complaints = self._create_complaints(company, project, customers)
+
+        # The GNO dedicated-vehicle route exists only to string together its
+        # five customer stops, so it is skipped along with the customers.
+        # (_create_gno_dedicated_vehicle_route is kept for reference.)
 
         # ------------------------------------------------------------
         # Household-collection TripPlan — 1 per project, one stop
         # ------------------------------------------------------------
-        household_plan, _ = TripPlan.objects.update_or_create(
-            company_id=company,
-            project_id=project,
-            staff_template_id=staff_template,
-            vehicle_id=vehicles[-1],
-            panchayat_id=None,
-            collection_type=TripPlan.COLLECTION_TYPE_HOUSEHOLD,
-            defaults={
-                "district_id": district,
-                "city_id": city,
-                "zone_id": zones[0],
-                "supervisor_id": staff["supervisor"],
-                "property_id": residential_property,
-                "sub_property_id": residential_sub_property,
-                "waste_type_id": waste_types[0],
-                "waste_type_ids": [waste_types[0].unique_id],
-                "trip_trigger_weight_kg": 400,
-                "max_vehicle_capacity_kg": 3000,
-                "scheduled_time": "09:00",
-                "is_auto_assign": True,
-                "approval_status": TripPlan.ApprovalStatus.APPROVED,
-                "status": TripPlan.Status.ACTIVE,
-                "is_active": True,
-                "is_deleted": False,
-            },
-        )
-        household_plan.wards.set([wards[0]])
-        TripPlanCollectionPoint.objects.get_or_create(
-            trip_plan_id=household_plan,
-            sequence=1,
-            defaults={
-                "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
-                "is_active": True,
-            },
-        )
-
+        # Skipped for GNO along with the bin-collection plan above.
+        if prefix == "GNO":
+            household_plan = None
+        else:
+            household_plan, _ = TripPlan.objects.update_or_create(
+                company_id=company,
+                project_id=project,
+                staff_template_id=staff_template,
+                vehicle_id=vehicles[-1],
+                panchayat_id=None,
+                collection_type=TripPlan.COLLECTION_TYPE_HOUSEHOLD,
+                defaults={
+                    "district_id": district,
+                    "city_id": city,
+                    "zone_id": zones[0],
+                    "supervisor_id": staff["supervisor"],
+                    "property_id": residential_property,
+                    "sub_property_id": residential_sub_property,
+                    "waste_type_id": waste_types[0],
+                    "waste_type_ids": [waste_types[0].unique_id],
+                    "trip_trigger_weight_kg": 400,
+                    "max_vehicle_capacity_kg": 3000,
+                    "scheduled_time": "09:00",
+                    "is_auto_assign": True,
+                    "approval_status": TripPlan.ApprovalStatus.APPROVED,
+                    "status": TripPlan.Status.ACTIVE,
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            household_plan.wards.set([wards[0]])
+            TripPlanCollectionPoint.objects.get_or_create(
+                trip_plan_id=household_plan,
+                sequence=1,
+                defaults={
+                    "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
+                    "is_active": True,
+                },
+            )
         self._finalize_ward_boundaries(wards, bins, customers)
 
         return {
@@ -1100,6 +1139,15 @@ class BluePlanetSeeder(BaseSeeder):
         created = 0
         updated = 0
         for name, defaults in project_defaults.items():
+            logo_path = self.PROJECT_LOGOS.get(name)
+            if logo_path:
+                # Only claim the logo if the file is actually on disk, so a
+                # checkout without media doesn't leave a broken image path.
+                if default_storage.exists(logo_path):
+                    defaults = {**defaults, "project_logo": logo_path}
+                else:
+                    self.log(f"Logo '{logo_path}' not found in media — leaving {name} without one.")
+
             project, was_created = Project.objects.update_or_create(
                 company_id=company,
                 name=name,

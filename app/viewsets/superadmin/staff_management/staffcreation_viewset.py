@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.permissions.platform import SuperAdminApprovalPermission
 from app.serializers.superadmin.staff_management.staffcreation_serializer import (
     StaffApprovalActionSerializer,
@@ -38,7 +38,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
     permission_resource = "StaffCreation"
     lookup_field = "staff_unique_id"
 
-    AUDIT_MODULE = "user-creations"
+    AUDIT_MODULE = "staff-creations"
     AUDIT_ENDPOINT = "staffcreation"
 
     filter_backends = [

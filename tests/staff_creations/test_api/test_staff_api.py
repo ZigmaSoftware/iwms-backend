@@ -1,11 +1,11 @@
 """API tests for Staff endpoints — CRUD operations."""
 import pytest
-from app.models.user_creations.staffcreation import (
+from app.models.staff_creations.staffcreation import (
     StaffcreationOfficeDetails,
     StaffPersonalDetails,
 )
 
-STAFF_BASE = "/api/v1/user-creations/staffcreation/"
+STAFF_BASE = "/api/v1/staff-creations/staffcreation/"
 
 
 @pytest.mark.django_db

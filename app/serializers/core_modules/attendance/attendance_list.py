@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.user_creations.attendance import Recognized
+from app.models.staff_creations.attendance import Recognized
 from django.conf import settings
 import os
 

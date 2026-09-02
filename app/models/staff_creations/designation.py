@@ -1,6 +1,6 @@
 from django.db import models
 
-from app.models.masters.department import Department
+from app.models.staff_creations.department import Department
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.base_models import BaseMaster

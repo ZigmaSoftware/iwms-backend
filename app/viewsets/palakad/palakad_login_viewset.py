@@ -15,8 +15,8 @@ from rest_framework.viewsets import ViewSet
 from rest_framework_simplejwt.tokens import AccessToken
 
 from app.models.superadmin_masters.project import Project
-from app.models.user_creations.loginAudit import LoginAudit
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.loginAudit import LoginAudit
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.password_encryption import decrypt_password
 from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
 

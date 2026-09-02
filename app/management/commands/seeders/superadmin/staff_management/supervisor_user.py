@@ -29,7 +29,7 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.hierarchy import copy_flat_geo
 
 
@@ -59,7 +59,7 @@ class SupervisorUserSeeder(BaseSeeder):
             username="driver_user", is_deleted=False
         ).first()
         if not driver:
-            self.log("driver_user not found — run the user-creations seed group first. Skipping.")
+            self.log("driver_user not found — run the staff-creations seed group first. Skipping.")
             return
 
         today = timezone.localdate()

@@ -16,7 +16,7 @@ from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
-from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
+from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
 from app.models.complaint_management.masters import (
     ComplaintCategory,
     ComplaintPriority,

@@ -36,7 +36,7 @@ class TestWasteTypeAPIRetrieve:
 @pytest.mark.django_db
 class TestWasteTypeAPIUpdate:
     def test_patch_returns_success(self, auth_client):
-        from app.models.user_creations.waste_collection_bluetooth import WasteType
+        from app.models.staff_creations.waste_collection_bluetooth import WasteType
         wt = WasteType.objects.create(waste_type_name="Mixed Waste")
         resp = auth_client.patch(
             f"{BASE}{wt.pk}/", {"waste_type_name": "Mixed Recyclable Waste"}, format="json"
@@ -47,7 +47,7 @@ class TestWasteTypeAPIUpdate:
 @pytest.mark.django_db
 class TestWasteTypeAPIDelete:
     def test_delete_returns_success(self, auth_client):
-        from app.models.user_creations.waste_collection_bluetooth import WasteType
+        from app.models.staff_creations.waste_collection_bluetooth import WasteType
         wt = WasteType.objects.create(waste_type_name="Temp Waste")
         resp = auth_client.delete(f"{BASE}{wt.pk}/")
         assert resp.status_code in (200, 204)

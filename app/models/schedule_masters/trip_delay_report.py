@@ -22,7 +22,7 @@ from app.utils.base_models import BaseMaster
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 
 
 def _generate_trip_delay_id():

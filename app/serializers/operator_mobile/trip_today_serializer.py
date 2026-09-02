@@ -303,7 +303,7 @@ class MyTripTodaySerializer(serializers.Serializer):
 
         extra_operators = []
         if extra_ids:
-            from app.models.user_creations.staffcreation import Staffcreation
+            from app.models.staff_creations.staffcreation import Staffcreation
             extra_operators = list(
                 Staffcreation.objects.filter(
                     staff_unique_id__in=extra_ids, is_deleted=False

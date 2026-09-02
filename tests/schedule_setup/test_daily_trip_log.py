@@ -34,8 +34,8 @@ from app.models.schedule_masters.alternative_staff_template import AlternativeSt
 from app.models.schedule_masters.trip_plan import TripPlan
 from app.models.assets.bins import Bins
 from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 
