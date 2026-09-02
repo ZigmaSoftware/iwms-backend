@@ -51,6 +51,16 @@ class ComplaintFeedbackViewSet(_SoftDeleteMixin, AuditViewSetMixin, viewsets.Mod
         ticket = self.request.query_params.get("ticket")
         if ticket:
             qs = qs.filter(ticket_id=ticket)
+        # Feedback carries no company/project of its own — it hangs off a
+        # ticket, which does. Filter through the parent so the Feedback list
+        # can offer the same Company/Project pickers as every other
+        # company-scoped list.
+        company_id = self.request.query_params.get("company_id")
+        if company_id:
+            qs = qs.filter(ticket__company_id=company_id)
+        project_id = self.request.query_params.get("project_id")
+        if project_id:
+            qs = qs.filter(ticket__project_id=project_id)
         return qs
 
 

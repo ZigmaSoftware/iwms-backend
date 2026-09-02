@@ -1,3 +1,5 @@
+from django.db.models import Max
+
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.screen_managements.mainscreentype import MainScreenType
 from app.models.screen_managements.userscreenaction import UserScreenAction
@@ -32,6 +34,22 @@ class PermissionSeeder(BaseSeeder):
         for idx, screen in enumerate(screens, start=1):
             screen.order_no = offset + idx
             screen.save(update_fields=["order_no"])
+
+    def _parked_order_no(self, main):
+        """A free, out-of-range `order_no` under `main`.
+
+        Used when adopting a screen from another mainscreen, so it lands in the
+        same high band `_move_userscreen_orders_out_of_range` uses rather than
+        keeping an old low number that the canonical renumber is about to
+        assign to someone else.
+        """
+        max_order = (
+            UserScreen.objects.filter(mainscreen_id=main).aggregate(
+                top=Max("order_no")
+            )["top"]
+            or 0
+        )
+        return max_order + 1001
 
     def _move_userscreen_orders_out_of_range(self, main):
         """Free per-main user screen orders before applying canonical order."""
@@ -155,20 +173,30 @@ class PermissionSeeder(BaseSeeder):
             #     "panchayat base collection",
             #     "ward base collection",
             # ],
+            # SUPER ADMIN — global complaint configuration. Split out of
+            # "complaint-ticket" because these tables have no company/project
+            # FK: one edit changes behaviour for every tenant.
+            #
+            # Only the three Complaint Types tabs get screens. The seeded
+            # reference tables (module/priority/status/source/language) are
+            # code-keyed vocabularies the routing and SLA resolvers depend on,
+            # so they stay seeder-owned with no UI; routing rules are an
+            # API-only override now that routing falls back to the category's
+            # default_team.
+            "complaint-masters": [
+                "types",
+                "categories",
+                "subcategories",
+                "sla-rules",
+            ],
+            # CORE MODULES — company/project-scoped complaint entries. The
+            # master screens are intentionally absent: staff read them through
+            # the view-only routes (MODULE_READONLY_RESOURCES) and never get
+            # add/edit/delete on them from here.
             "complaint-ticket": [
                 # renamed from the legacy "grivences" screen group
                 "tickets",
-                "categories",
-                "subcategories",
-                # stub sub-resources — see complaint_ticket_stub_viewsets.py
-                "modules",
-                "priorities",
-                "statuses",
-                "sources",
-                "languages",
                 "teams",
-                "sla-rules",
-                "routing-rules",
                 "feedback",
                 "reopen-history",
                 "notifications",
@@ -238,6 +266,7 @@ class PermissionSeeder(BaseSeeder):
                 "role-assigns",
                 "staff-creations",
                 "common-masters",
+                "complaint-masters",
                 "audits",
             ),
             "masters": (
@@ -341,9 +370,36 @@ class PermissionSeeder(BaseSeeder):
                     },
                 )
                 if screen.mainscreen_id_id != main.pk:
+                    # `_move_userscreen_orders_out_of_range` above only parked
+                    # the screens ALREADY under `main`. A screen arriving from
+                    # a different mainscreen — as the complaint masters do when
+                    # they split out of "complaint-ticket" into
+                    # "complaint-masters" — still carries its old `order_no`,
+                    # which may be a low number that the renumber loop below is
+                    # about to hand to a different screen. Park it into the same
+                    # out-of-range band on the way in so the two cannot collide
+                    # on (mainscreen_id, order_no).
                     screen.mainscreen_id = main
-                    screen.save(update_fields=["mainscreen_id"])
+                    screen.order_no = self._parked_order_no(main)
+                    screen.save(update_fields=["mainscreen_id", "order_no"])
                 ordered_screens.append(screen)
+
+            # Retire screens this main screen no longer defines. Without this
+            # they keep `is_active=True` and stay parked at the out-of-range
+            # order `_move_userscreen_orders_out_of_range` gave them, so they
+            # linger in permission grids as pickable rows for screens the UI
+            # no longer routes (e.g. the complaint reference tables once they
+            # lost their CRUD pages). Soft-delete only — the permission rows
+            # hanging off them are left intact in case a screen comes back.
+            canonical_ids = {screen.pk for screen in ordered_screens}
+            orphaned = UserScreen.objects.filter(mainscreen_id=main).exclude(
+                pk__in=canonical_ids
+            )
+            for screen in orphaned:
+                if screen.is_active or not screen.is_deleted:
+                    screen.is_active = False
+                    screen.is_deleted = True
+                    screen.save(update_fields=["is_active", "is_deleted"])
 
             for idx, screen in enumerate(ordered_screens, start=1):
                 screen.order_no = idx

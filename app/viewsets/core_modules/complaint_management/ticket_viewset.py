@@ -43,6 +43,10 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 User = get_user_model()
 
 
+# Source code written by `PublicGrievanceViewSet` for anonymous intake.
+PUBLIC_SOURCE_CODE = "PUBLIC_GRIEVANCE"
+
+
 def _actor_user(request):
     """Return the request user only if it is an auth User.
 
@@ -144,12 +148,32 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             district = params.get("district")
             if district:
                 qs = qs.filter(district_id=district)
+            # The Desk offers a panchayat dropdown; without this the selection
+            # was accepted and silently ignored, so the list never narrowed.
+            panchayat = params.get("panchayat")
+            if panchayat:
+                qs = qs.filter(panchayat_id=panchayat)
             zone = params.get("zone")
             if zone:
                 qs = qs.filter(zone_id=zone)
             ward = params.get("ward")
             if ward:
                 qs = qs.filter(ward_id=ward)
+            # Intake origin. "public" is anything raised through the no-login
+            # public grievance form; "internal" is everything else (admin,
+            # call-centre, mobile app). The Desk's tabs send these two words
+            # rather than a ComplaintSource id, because a deployment can have
+            # several internal sources and the tab means "not public".
+            source = (params.get("source") or "").strip().lower()
+            if source == "public":
+                qs = qs.filter(source__source_code=PUBLIC_SOURCE_CODE)
+            elif source == "internal":
+                qs = qs.exclude(source__source_code=PUBLIC_SOURCE_CODE)
+            elif source:
+                # Any other value is treated as a ComplaintSource id, so the
+                # API can still filter to one specific source.
+                qs = qs.filter(source_id=source)
+
             status_code = params.get("status")
             if status_code:
                 normalized = status_code.strip().lower()
@@ -181,7 +205,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def counts(self, request):
         qs = self.filter_queryset(self.get_queryset())
         total = qs.count()
-        public = qs.filter(source__source_code="PUBLIC_GRIEVANCE").count()
+        public = qs.filter(source__source_code=PUBLIC_SOURCE_CODE).count()
         return Response({
             "all": total,
             "public": public,
