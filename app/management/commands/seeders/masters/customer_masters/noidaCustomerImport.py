@@ -24,7 +24,7 @@ ZONE_NAME = "ZNE3-GAMMA-01"
 WARD_NAME = "B"
 PROPERTY_NAME = "Residential"
 SUB_PROPERTY_NAME = "Individual House"
-CUSTOMER_WASTE_TYPES = ["Wet Waste", "Dry Waste"]
+CUSTOMER_WASTE_TYPES = ["Mixed Waste"]
 
 # Sourced verbatim from customer_creation_template_final.xlsx (132 rows,
 # all Noida / Gamma-01 / Ward B individual houses). (customer_name,
@@ -166,10 +166,10 @@ NOIDA_CUSTOMER_DATA = [
 
 
 class NoidaCustomerImportSeeder(BaseSeeder):
-    """Replaces Noida (Greater Noida BP / Gamma-01 / Ward B) customers with
+    """Replaces Blue Planet's Greater Noida customers with
     the authoritative set from customer_creation_template_final.xlsx on
-    every run: any existing Noida customer not in NOIDA_CUSTOMER_DATA is
-    hard-deleted, and all 132 rows from the file are created/kept in sync."""
+    every run: any existing project customer not in NOIDA_CUSTOMER_DATA is
+    deactivated, and all 132 rows from the file are created/kept in sync."""
 
     name = "noida_customer_import"
 
@@ -222,10 +222,12 @@ class NoidaCustomerImportSeeder(BaseSeeder):
         authoritative_names = {name for name, _building, _sqft in NOIDA_CUSTOMER_DATA}
 
         stale_qs = CustomerCreation.objects.filter(
-            company_id=company, project_id=project, city=city,
+            company_id=company,
+            project_id=project,
+            is_deleted=False,
         ).exclude(customer_name__in=authoritative_names)
         deleted_count = stale_qs.count()
-        stale_qs.delete()
+        stale_qs.update(is_active=False, is_deleted=True)
 
         created_count = 0
         updated_count = 0
@@ -255,6 +257,6 @@ class NoidaCustomerImportSeeder(BaseSeeder):
 
         self.log(
             f"---Noida customers synced from xlsx: {created_count} created, "
-            f"{updated_count} updated, {deleted_count} stale removed "
+            f"{updated_count} updated, {deleted_count} stale deactivated "
             f"(total {len(NOIDA_CUSTOMER_DATA)})---"
         )

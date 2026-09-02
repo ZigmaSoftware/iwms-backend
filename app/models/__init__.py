@@ -18,7 +18,6 @@ from .masters.district import District
 from .masters.city import City
 from .masters.zone import Zone
 from .masters.ward import Ward
-from .masters.block import Block
 from .masters.department import Department
 from .masters.designation import Designation
 from .masters.panchayat_leader_login import PanchayatLeaderLogin
@@ -74,7 +73,6 @@ from .user_creations.staffcreation import (
 )
 from .schedule_masters.staff_template import StaffTemplate
 from .schedule_masters.alternative_staff_template import AlternativeStaffTemplate
-from .user_creations.unassigned_staff_pool import UnassignedStaffPool
 from .user_creations.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
@@ -88,8 +86,6 @@ from .user_creations.loginAudit import LoginAudit
 from .user_creations.auditlog import AuditLog
 from app.utils.common_audit import CommonAudit
 from .audits.permission_audit import PermissionAuditLog
-from .audits.supervisor_zone_access_audit import SupervisorZoneAccessAudit
-from .user_creations.supervisor_zone_map import SupervisorZoneMap
 
 
 # ============================================================
@@ -97,8 +93,6 @@ from .user_creations.supervisor_zone_map import SupervisorZoneMap
 # ============================================================
 from .customers.customercreation import CustomerCreation
 from .customers.wastecollection import WasteCollection
-from .customers.feedback import FeedBack
-from .customers.userchargerule import UserChargeRule
 from .customers.password_reset_otp import PasswordResetOTP
 
 
@@ -168,7 +162,6 @@ from .transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from .transport_masters.vehicleCreation import VehicleCreation
 from .schedule_masters.trip_plan import TripPlan
 from .schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
-from .transport_masters.trip_attendance import TripAttendance
 from .schedule_masters.daily_trip_assignment import DailyTripAssignment
 from .schedule_masters.daily_trip_log import DailyTripLog
 from .schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
@@ -193,7 +186,6 @@ __all__ = [
     "City",
     "Zone",
     "Ward",
-    "Block",
     "Department",
     "Designation",
     "PanchayatLeaderLogin",
@@ -230,8 +222,6 @@ __all__ = [
     "StaffPersonalDetails",
     "StaffTemplate",
     "AlternativeStaffTemplate",
-    "SupervisorZoneMap",
-    "UnassignedStaffPool",
     "StaffAccessConfiguration",
     "StaffAccessConfigurationPermission",
 
@@ -242,8 +232,6 @@ __all__ = [
     # Customers
     "CustomerCreation",
     "WasteCollection",
-    "FeedBack",
-    "UserChargeRule",
     "PasswordResetOTP",
 
     # Grievances
@@ -292,11 +280,9 @@ __all__ = [
     "VehicleCreation",
     "TripPlan",
     "TripPlanCollectionPoint",
-    "TripAttendance",
 
     # Audits
     "PermissionAuditLog",
-    "SupervisorZoneAccessAudit",
 
     # Daily Trip Assignment
     "DailyTripAssignment",

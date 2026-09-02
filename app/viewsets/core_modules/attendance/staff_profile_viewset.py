@@ -71,7 +71,12 @@ class StaffProfileViewSet(viewsets.ViewSet):
         blood_group = request.data.get("blood_group")
 
         personal, _ = StaffPersonalDetails.objects.get_or_create(
-            staff=staff
+            staff=staff,
+            defaults={
+                "staff_unique_id": staff.staff_unique_id,
+                "company_id": staff.company_id,
+                "project_id": staff.project_id,
+            },
         )
         if dob:
             personal.dob = dob

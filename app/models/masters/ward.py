@@ -5,7 +5,6 @@ from django.core.exceptions import ValidationError
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.masters.hierarchy import AdministrativeHierarchy
 from ..common_masters.state import State
 from .district import District
 from .city import City
@@ -52,14 +51,6 @@ class Ward(BaseMaster):
         Panchayat,
         on_delete=models.PROTECT,
         related_name="wards",
-        null=True,
-        blank=True
-    )
-
-    hierarchy_id = models.ForeignKey(
-        AdministrativeHierarchy,
-        on_delete=models.PROTECT,
-        limit_choices_to={"level_name": "Ward"},
         null=True,
         blank=True
     )

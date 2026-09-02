@@ -8,8 +8,6 @@ class BlockPanchayatUnionSerializer(TenancyReadSerializerMixin, serializers.Mode
 
     state_name = serializers.CharField(source="state_id.name", read_only=True)
     district_name = serializers.CharField(source="district_id.name", read_only=True)
-    hierarchy_name = serializers.CharField(source="hierarchy_id.level_name", read_only=True)
-    hierarchy_order = serializers.IntegerField(source="hierarchy_id.hierarchy_order", read_only=True)
 
     class Meta:
         model = BlockPanchayatUnion
@@ -23,9 +21,6 @@ class BlockPanchayatUnionSerializer(TenancyReadSerializerMixin, serializers.Mode
             "state_name",
             "district_id",
             "district_name",
-            "hierarchy_id",
-            "hierarchy_order",
-            "hierarchy_name",
             "block_name",
             "description",
             "latitude",
@@ -46,13 +41,7 @@ class BlockPanchayatUnionSerializer(TenancyReadSerializerMixin, serializers.Mode
         ]
 
     def validate(self, attrs):
-        hierarchy = attrs.get("hierarchy_id") or getattr(self.instance, "hierarchy_id", None)
         block_name = attrs.get("block_name")
-
-        if hierarchy and hierarchy.level_name.lower() != "block panchayat union":
-            raise serializers.ValidationError({
-                "hierarchy": "Hierarchy level must be Block Panchayat Union."
-            })
 
         if not self.instance or block_name:
             unique_name_validator(
