@@ -1,6 +1,6 @@
 """Unit tests for StaffcreationOfficeDetails model — CRUD + constraints."""
 import pytest
-from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
+from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
 
 
 @pytest.fixture

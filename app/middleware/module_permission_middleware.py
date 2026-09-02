@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
 from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.district_leader_login import DistrictLeaderLogin
@@ -52,9 +52,6 @@ AUTH_ONLY_SUFFIXES = (
     "register-fcm-token/",  # staff + citizen FCM device token self-registration
     "attendance/daily-attendance/",  # driver/operator/supervisor attendance screens
     "attendance/staff-profile/",     # same screens' profile calls
-    # Self-service permission refresh — authenticate the caller (so the
-    # viewset can resolve *their* bundle) but skip the module-permission
-    # check, since asking for your own permissions can't itself require one.
     "login/my-permissions/",
 )
 
@@ -103,16 +100,13 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Zone",
         "Ward",
         "Panchayat",
-        "Department",
-        "Designation",
+        # Department/Designation moved to the "staff-creations" module.
         "PanchayatLeaderLogin",
         "DistrictLeaderLogin",
     },
     "waste-types": {
         "Property",
         "SubProperty",
-        # merged in from the legacy "assets" module (assets/waste-types,
-        # assets/bins now route as waste-types/wastetypes, waste-types/bins)
         "Bin",
         "CollectionPoint",
         "WasteType",
@@ -131,11 +125,13 @@ MODULE_RESOURCE_ALLOWLIST = {
         "StaffUserType",
         "ContractorUserType",
     },
-    "user-creations": {
+    "staff-creations": {
         "StaffCreation",
-        "StaffTemplateCreation",
-        "AlternativeStaffTemplate",
         "staffaccessconfiguration",
+        # Moved here from the "masters" group along with their router
+        # registrations (see base_urls.py).
+        "Department",
+        "Designation",
     },
     "customer-masters": {
         "CustomerCreation",
@@ -260,6 +256,11 @@ RESOURCE_PERMISSION_ALIASES = {
     "Bin": ("bins",),
     "Department": ("departments", "department-masters"),
     "Designation": ("designations", "designation-masters"),
+    # Reverse direction: the router exposes these as /departments/ and
+    # /designations/, but the permission rows are seeded under the screen
+    # names, so the URL resource has to resolve to them too.
+    "departments": ("department-masters", "Department"),
+    "designations": ("designation-masters", "Designation"),
     "StaffTemplateCreation": ("StaffTemplate", "staff-templates"),
     "VehicleTypeCreation": ("vehicle-type", "vehicle-types"),
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),

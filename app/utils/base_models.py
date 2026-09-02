@@ -1,9 +1,6 @@
 from django.db import models
 from django.conf import settings
 
-
-
-
 class Account(models.Model):
 
     # Use string primary key

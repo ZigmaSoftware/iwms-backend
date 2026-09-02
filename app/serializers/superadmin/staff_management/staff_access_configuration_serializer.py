@@ -13,11 +13,11 @@ from app.models.screen_managements.companyuserscreenpermission import (
 )
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.user_creations.staff_access_configuration import (
+from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
-from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
+from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
 from app.serializers.superadmin.staff_management.staffcreation_serializer import StaffcreationSerializer
 
 

@@ -4,7 +4,7 @@ from django.db.models import UniqueConstraint
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
-from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
+from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.common_masters.state import State

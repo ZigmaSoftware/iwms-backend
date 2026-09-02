@@ -7,7 +7,7 @@ from rest_framework.exceptions import NotAuthenticated
 
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.schedule_masters.staff_template import StaffTemplate
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.audits.staff_template_audit_log import StaffTemplateAuditLog
@@ -35,7 +35,7 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     lookup_field = "unique_id"
     permission_resource = "StaffTemplateCreation"
 
-    AUDIT_MODULE = "user-creations"
+    AUDIT_MODULE = "staff-creations"
     AUDIT_ENDPOINT = "staff-templates"
 
     filter_backends = [

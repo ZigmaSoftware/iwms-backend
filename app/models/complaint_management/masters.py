@@ -10,8 +10,8 @@ from django.db import models
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.masters.department import Department
-from app.models.user_creations.staffcreation import StaffcreationOfficeDetails
+from app.models.staff_creations.department import Department
+from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
 
 
 def generate_source_id():

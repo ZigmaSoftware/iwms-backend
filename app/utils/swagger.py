@@ -10,7 +10,7 @@ GROUP_DISPLAY_NAMES = {
     "assets": "Assets",
     "screen-managements": "Screen Management",
     "role-assigns": "Role Assign",
-    "user-creations": "User Creation",
+    "staff-creations": "Staff Creation",
     "process": "Process",
     "login": "Login",
     "customers": "Customers",

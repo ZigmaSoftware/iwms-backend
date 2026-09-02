@@ -29,7 +29,7 @@ def collection_point(db, company, project, state, district, city, panchayat):
 
 @pytest.fixture
 def waste_type_obj(db):
-    from app.models.user_creations.waste_collection_bluetooth import WasteType
+    from app.models.staff_creations.waste_collection_bluetooth import WasteType
     return WasteType.objects.create(waste_type_name="General Waste")
 
 

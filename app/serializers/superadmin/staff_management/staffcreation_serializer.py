@@ -3,12 +3,12 @@ import re
 from rest_framework import serializers
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.contractorUserType import ContractorUserType
-from app.models.masters.department import Department
-from app.models.masters.designation import Designation
+from app.models.staff_creations.department import Department
+from app.models.staff_creations.designation import Designation
 from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
-from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
+from app.models.staff_creations.staffcreation import Staffcreation, StaffPersonalDetails
 
 from app.utils.password_encryption import encrypt_password, decrypt_password
 
@@ -333,7 +333,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         if not getattr(staff, "company_id_id", None) or not getattr(staff, "project_id_id", None):
             return
 
-        from app.models.user_creations.staff_access_configuration import StaffAccessConfiguration
+        from app.models.staff_creations.staff_access_configuration import StaffAccessConfiguration
 
         instance, _ = StaffAccessConfiguration.objects.update_or_create(
             staff_id=staff,

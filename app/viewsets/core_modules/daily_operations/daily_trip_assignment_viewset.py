@@ -410,7 +410,7 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         supervisor-approves Re-Trip flow (see
         app.services.retrip_service.proceed_to_next_trip).
         """
-        from app.models.user_creations.staffcreation import Staffcreation
+        from app.models.staff_creations.staffcreation import Staffcreation
         from app.services import retrip_service
 
         if not self._has_approval_role(request):

@@ -1,4 +1,4 @@
-from app.models.user_creations.staff_access_configuration import StaffAccessConfiguration
+from app.models.staff_creations.staff_access_configuration import StaffAccessConfiguration
 
 
 class LocationScopedViewSetMixin:

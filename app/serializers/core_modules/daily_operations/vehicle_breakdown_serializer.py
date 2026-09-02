@@ -4,7 +4,7 @@ from rest_framework import serializers
 from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 
 
 class VehicleBreakdownSerializer(serializers.ModelSerializer):
@@ -401,7 +401,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             approved_by_staff = None
             if account:
                 try:
-                    from app.models.user_creations.staffcreation import Staffcreation
+                    from app.models.staff_creations.staffcreation import Staffcreation
                     approved_by_staff = Staffcreation.objects.filter(
                         account=account
                     ).first()

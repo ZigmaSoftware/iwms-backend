@@ -1,6 +1,6 @@
 """New face-recognition attendance punch log.
 
-Sits alongside `app.models.user_creations.attendance.Recognized` (the older,
+Sits alongside `app.models.staff_creations.attendance.Recognized` (the older,
 simpler punch table `AttendanceListViewSet` already reads). This one mirrors
 a colleague's separate reference implementation (a standalone Django project
 using InsightFace + liveness detection) — same field shape, adapted onto
@@ -14,7 +14,7 @@ from django.db import models
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
