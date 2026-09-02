@@ -122,11 +122,54 @@ class HouseholdCollectionSerializer(serializers.Serializer):
         max_digits=10, decimal_places=2, allow_null=True
     )
     customer = serializers.SerializerMethodField()
+    # Per-waste-type split of what was collected — the "eye" button on the
+    # app's household tile opens a floating list built from this, so the
+    # driver can see "Wet Waste 3.5 kg / Dry Waste 1.2 kg" instead of only
+    # the single combined `collected_weight_kg` total.
+    waste_breakdown = serializers.SerializerMethodField()
 
     def get_customer(self, obj):
         if not obj.customer_id_id:
             return None
         return _HouseholdCustomerBriefSerializer(obj.customer_id).data
+
+    def get_waste_breakdown(self, obj):
+        if not obj.is_collected or not obj.trip_assignment_id_id or not obj.customer_id_id:
+            return []
+
+        from app.models.customers.wastecollection import WasteCollection
+
+        # A household can be re-collected (edit + re-finalize from the app),
+        # and WasteCollection rows are inserted fresh each time rather than
+        # updated in place — so there can be more than one row for this
+        # (customer, trip_assignment) pair. The latest one is what the
+        # driver's card actually reflects.
+        record = (
+            WasteCollection.objects
+            .filter(
+                trip_assignment_id_id=obj.trip_assignment_id_id,
+                customer_id=obj.customer_id_id,
+                is_deleted=False,
+            )
+            # collection_time is auto_now_add — the closest thing this model
+            # has to a "row created at" timestamp. No `created_at` field here.
+            .order_by("-collection_date", "-collection_time")
+            .first()
+        )
+        if record is None:
+            return []
+
+        buckets = (
+            ("Wet Waste", record.wet_waste),
+            ("Dry Waste", record.dry_waste),
+            ("Mixed Waste", record.mixed_waste),
+            ("Sanitary Waste", record.sanitary_waste),
+        )
+        return [
+            {"waste_type": name, "weight_kg": weight}
+            for name, weight in buckets
+            if weight and weight > 0
+        ]
 
 
 class _CrewMemberSerializer(serializers.Serializer):
