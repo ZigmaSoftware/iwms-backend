@@ -23,7 +23,7 @@ def bulk_waste_type_rows_for_trip_assignments(
     """Return non-zero per-assignment/per-waste-type weights in bulk."""
     from app.models.customers.wastecollection import WasteCollection
     from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
-    from app.models.user_creations.waste_collection_bluetooth import WasteType
+    from app.models.staff_creations.waste_collection_bluetooth import WasteType
 
     assignment_ids = list(trip_assignment_ids)
     if not assignment_ids:

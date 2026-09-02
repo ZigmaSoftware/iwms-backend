@@ -16,8 +16,8 @@ from app.management.commands.seeders.superadminmasters import (
 from app.management.commands.seeders.superadmin.common_masters import COMMON_MASTER_SEEDERS as _COMMON_MASTER_SEEDERS
 
 # masters (router: masters/districts, cities, zones, wards, panchayat, ...)
-# NOTE: DistrictSeeder/CitySeeder/ZoneSeeder/WardSeeder/PanchayatSeeder/
-# DepartmentSeeder/DesignationSeeder all bootstrap or hardcode the generic
+# NOTE: DistrictSeeder/CitySeeder/ZoneSeeder/WardSeeder/PanchayatSeeder all
+# bootstrap or hardcode the generic
 # "IWMS" company/project — intentionally NOT imported/registered below so
 # `seed all` produces exactly one company (Blue Planet). Files remain on
 # disk untouched.
@@ -32,7 +32,12 @@ from app.management.commands.seeders.masters.waste_masters.subproperties import 
 # role-assigns (router: role-assigns/user-type, staffusertypes, contractorusertypes)
 from app.management.commands.seeders.superadmin.role_management import ROLE_ASSIGN_SEEDERS
 
-# user-creations (router: user-creations/staffcreation, supervisor-zone-map, ...)
+# staff-creations (router: staff-creations/staffcreation, departments, designations, ...)
+from app.management.commands.seeders.superadmin.staff_management.staff_role_masters import StaffRoleMastersSeeder
+from app.management.commands.seeders.superadmin.staff_management.gno_named_staff import (
+    GnoNamedStaffSeeder,
+    MeghaProjectAdminPermissionSeeder,
+)
 from app.management.commands.seeders.superadmin.staff_management.auth_user_seeder import AuthUserSeeder
 from app.management.commands.seeders.superadmin.staff_management.supervisor_user import SupervisorUserSeeder
 
@@ -154,7 +159,16 @@ ROLE_ASSIGNS_SEEDERS = [
 ]
 
 USER_CREATIONS_SEEDERS = [
+    # Departments/designations for the operator-collector, driver and
+    # supervisor roles. Runs first so staff seeding can resolve them.
+    StaffRoleMastersSeeder,
     AuthUserSeeder,
+    # Named logins for the Blue Planet GNO project (megha > mukund >
+    # aashish/cheren). Runs after the masters it links to.
+    GnoNamedStaffSeeder,
+    # Full company/project permission grant for the project admin. Must run
+    # after the screen-managements catalog it mirrors.
+    MeghaProjectAdminPermissionSeeder,
     # StaffOfficeSeeder/StaffPersonalSeeder dropped — Blue Planet's staff
     # are already created inside BluePlanetSeeder.
 ]
@@ -172,12 +186,10 @@ TRANSPORT_MASTERS_SEEDERS = [
 # directly inside BluePlanetSeeder (superadmin group).
 # ============================================================
 SCHEDULE_SETUP_SEEDERS = [
-    # 20 household trip plans + their 100 customers for Greater Noida BP.
-    # Trip plans ONLY — the plans are created is_auto_assign=False so
-    # generate_daily_trips never turns them into daily trip rows. Requires
-    # BluePlanetSeeder (superadmin group) to have run; skips with a log line
-    # otherwise.
-    TripPlanGNOSeeder,
+    # TripPlanGNOSeeder dropped — its 20 household trip plans exist only to
+    # hold their 100 customer stops, and customer seeding is disabled for the
+    # "Blue Planet Integrated Waste Management" project. Still runnable
+    # explicitly via `seed --group gno-trip-plans` if it is ever needed.
 ]
 
 # ============================================================
@@ -228,10 +240,10 @@ SCREEN_MANAGEMENTS_SEEDERS = [
 CUSTOMER_MASTERS_SEEDERS = [
     # CustomerCreationSeeder dropped — Blue Planet's own customers are
     # created directly inside BluePlanetSeeder.
-    # Requires BluePlanetSeeder (Noida city/zone/ward B/property masters) to
-    # have run first; hard-deletes any Noida customer not in the xlsx-sourced
-    # list and creates/updates the 132 that are.
-    NoidaCustomerImportSeeder,
+    # NoidaCustomerImportSeeder dropped — customer seeding is disabled for the
+    # "Blue Planet Integrated Waste Management" project; its customer records
+    # are managed outside the seeders. Still available via
+    # `seed --group noida-customers` if it is ever needed explicitly.
     # Re-Trip demo scenarios need customers (household stops) + daily
     # trip assignments (schedule-operations) to already exist.
     RetripDemoSeeder,
@@ -256,7 +268,7 @@ ORDERED_GROUPS = [
     "masters",              # districts, cities, zones, wards, panchayat, ...
     "waste-types",          # properties, subproperties, wastetypes (merged from legacy `assets`)
     "role-assigns",         # user-type, staffusertypes, contractorusertypes
-    "user-creations",       # staff office, personal, auth-user, supervisor-zone-map
+    "staff-creations",      # staff office, personal, auth-user, supervisor-zone-map
     "transport-masters",    # vehicle-type, vehicle-creation, fuel
     "schedule-setup",       # collection-points, bins, staff-templates, alternative-staff-templates, trip-plans
     "schedule-operations",  # daily-trip-assignments, daily-trip-collection-points, trip-logs, bin-collection-events
@@ -275,8 +287,9 @@ SEED_GROUPS = {
     "waste-types":        WASTE_TYPES_SEEDERS,
     "assets":             ASSETS_SEEDERS,           # legacy alias for waste-types
     "role-assigns":       ROLE_ASSIGNS_SEEDERS,
-    "user-creations":     USER_CREATIONS_SEEDERS,
-    "user-creation":      USER_CREATIONS_SEEDERS,   # alias
+    "staff-creations":    USER_CREATIONS_SEEDERS,
+    "user-creations":     USER_CREATIONS_SEEDERS,   # legacy alias
+    "user-creation":      USER_CREATIONS_SEEDERS,   # legacy alias
     "transport-masters":  TRANSPORT_MASTERS_SEEDERS,
     "schedule-setup":     SCHEDULE_SETUP_SEEDERS,
     "schedule-operations": SCHEDULE_OPERATIONS_SEEDERS,
@@ -295,7 +308,7 @@ SEED_GROUPS = {
     "vehicle-breakdowns": [VehicleBreakdownSeeder],
     # driver_user's Wet/Dry bin-collection trips (see the seeder's own
     # module docstring). Requires the superadmin group (Blue Planet masters)
-    # and user-creations (driver_user/operator_user) to have run first.
+    # and staff-creations (driver_user/operator_user) to have run first.
     "driver-wet-dry-bin-trips": [DriverWetDryBinTripsSeeder],
     # One Plant each for Blue Planet/Palakkad BP and Blue Planet/Greater
     # Noida BP — requires the superadmin group to have run first.
@@ -310,7 +323,7 @@ SEED_GROUPS = {
     "blue-planet":        [BluePlanetSeeder],
     "ticket-masters":     TICKET_SEEDERS,  # complaint-ticket/grievance-tickets masters only
     # Requires driver_user + today's DailyTripAssignment rows to already
-    # exist (run `user-creations` and `schedule-operations` first, or `all`).
+    # exist (run `staff-creations` and `schedule-operations` first, or `all`).
     # driver_user currently has no seeded trips, so this is a no-op until
     # some other seeder gives it one.
     "supervisor-user":    [SupervisorUserSeeder],
@@ -341,7 +354,7 @@ class Command(BaseCommand):
             help=(
                 "Seeder group (mirrors URL router groups): "
                 "superadmin | common-masters | masters | waste-types | assets (legacy alias) | "
-                "role-assigns | user-creations | transport-masters | "
+                "role-assigns | staff-creations | transport-masters | "
                 "schedule-setup | schedule-operations | schedule-masters (legacy alias) | "
                 "screen-managements | customer-masters | "
                 "complaint-ticket | grivences (legacy alias) | audits | reports | all"
@@ -360,10 +373,17 @@ class Command(BaseCommand):
         group = options.get("group")
 
         if group:
+            # `is None` rather than falsy — a registered group whose seeder
+            # list is intentionally empty is valid, not a typo.
             seeders = SEED_GROUPS.get(group)
-            if not seeders:
+            if seeders is None:
                 valid = ", ".join(k for k in SEED_GROUPS if k not in ("all",))
                 self.stdout.write(self.style.ERROR(f"Invalid group '{group}'. Use one of: {valid}"))
+                return
+            if not seeders:
+                self.stdout.write(
+                    self.style.WARNING(f"Group '{group}' has no seeders registered — nothing to do.")
+                )
                 return
         else:
             seeders = SEED_GROUPS["all"]

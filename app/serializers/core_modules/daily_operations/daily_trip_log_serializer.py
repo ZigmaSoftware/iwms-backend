@@ -4,7 +4,7 @@ from rest_framework import serializers
 from app.models.assets.bins import Bins
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.daily_trip_log import DailyTripLog
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 from app.utils.waste_images import capture_images_for_customer
@@ -415,7 +415,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         scan validates against, which keeps the log consistent with what the
         app accepts.
         """
-        from app.models.user_creations.waste_collection_bluetooth import WasteType
+        from app.models.staff_creations.waste_collection_bluetooth import WasteType
         from app.viewsets.operator_mobile.helpers import _assignment_waste_type_ids
 
         assignment = obj.trip_assignment_id

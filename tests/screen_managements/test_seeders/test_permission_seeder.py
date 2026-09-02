@@ -12,7 +12,7 @@ EXPECTED_GROUPS = {
     "super-admin": [
         "screen-managements",
         "role-assigns",
-        "user-creations",
+        "staff-creations",
         "common-masters",
         "audits",
     ],
@@ -42,7 +42,12 @@ EXPECTED_SIDEBAR_SCREENS = {
         "userscreen-action",
         "companywisescreenpermissions",
     },
-    "user-creations": {"staffcreation", "staff-access-configuration"},
+    "staff-creations": {
+        "department-masters",
+        "designation-masters",
+        "staffcreation",
+        "staff-access-configuration",
+    },
     "schedule-setup": {
         "staff-templates",
         "alternative-staff-templates",

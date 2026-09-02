@@ -17,7 +17,7 @@ from app.models.role_assigns.userType import UserType
 
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 

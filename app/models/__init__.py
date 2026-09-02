@@ -18,8 +18,8 @@ from .masters.district import District
 from .masters.city import City
 from .masters.zone import Zone
 from .masters.ward import Ward
-from .masters.department import Department
-from .masters.designation import Designation
+from .staff_creations.department import Department
+from .staff_creations.designation import Designation
 from .masters.panchayat_leader_login import PanchayatLeaderLogin
 from .masters.district_leader_login import DistrictLeaderLogin
 from .masters.block_panchayat_union import BlockPanchayatUnion
@@ -67,13 +67,13 @@ from .screen_managements.companyuserscreencolumnpermission import CompanyUserScr
 # ============================================================
 # GROUP: USER CREATION & STAFF
 # ============================================================
-from .user_creations.staffcreation import (
+from .staff_creations.staffcreation import (
     StaffcreationOfficeDetails,
     StaffPersonalDetails,
 )
 from .schedule_masters.staff_template import StaffTemplate
 from .schedule_masters.alternative_staff_template import AlternativeStaffTemplate
-from .user_creations.staff_access_configuration import (
+from .staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
@@ -82,8 +82,8 @@ from .user_creations.staff_access_configuration import (
 # ============================================================
 # GROUP: AUTH / LOGIN / AUDIT (USER)
 # ============================================================
-from .user_creations.loginAudit import LoginAudit
-from .user_creations.auditlog import AuditLog
+from .staff_creations.loginAudit import LoginAudit
+from .staff_creations.auditlog import AuditLog
 from app.utils.common_audit import CommonAudit
 from .audits.permission_audit import PermissionAuditLog
 
@@ -141,7 +141,7 @@ from .notifications.staff_notification import StaffNotification
 # ============================================================
 # GROUP: BLUETOOTH / MOBILE WASTE COLLECTION
 # ============================================================
-from .user_creations.waste_collection_bluetooth import (
+from .staff_creations.waste_collection_bluetooth import (
     WasteCollectionSub,
     WasteType,
     WasteCollectionMain,
@@ -151,8 +151,8 @@ from .user_creations.waste_collection_bluetooth import (
 # ============================================================
 # GROUP: ATTENDANCE (MOBILE)
 # ============================================================
-from .user_creations.attendance import Employee, Recognized
-from .user_creations.attendance_new import AttendanceNew
+from .staff_creations.attendance import Employee, Recognized
+from .staff_creations.attendance_new import AttendanceNew
 
 
 # ============================================================

@@ -13,8 +13,8 @@ from app.models.schedule_masters.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
 from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.utils.hierarchy import copy_flat_geo

@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import AccessToken
 
 from app.serializers.superadmin_masters.platform_login_serializer import PlatformLoginSerializer
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 
 
 @method_decorator(csrf_exempt, name='dispatch')

@@ -209,7 +209,7 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     @action(detail=False, methods=["get"], url_path="available-staff")
     def available_staff(self, request):
-        from app.models.user_creations.staffcreation import Staffcreation
+        from app.models.staff_creations.staffcreation import Staffcreation
         from app.models.schedule_masters.staff_template import StaffTemplate
         from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
 

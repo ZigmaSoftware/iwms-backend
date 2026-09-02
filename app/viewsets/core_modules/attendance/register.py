@@ -9,8 +9,8 @@ from django.conf import settings
 from datetime import datetime
 from dateutil import parser
 
-from app.models.user_creations.attendance import Employee
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.attendance import Employee
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.qr import generate_qr
 
 

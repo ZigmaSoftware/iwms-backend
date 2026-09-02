@@ -7,7 +7,7 @@ from app.models.superadmin_masters.project import Project
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
 from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 
 
 def _generate_vehicle_breakdown_id():

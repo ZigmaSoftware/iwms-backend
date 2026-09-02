@@ -8,7 +8,7 @@ from app.models.screen_managements.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
-from app.models.user_creations.staff_access_configuration import (
+from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
@@ -357,7 +357,7 @@ def infer_app_surfaces(module_access, permissions, role_name=None, user_type=Non
         "dashboard",
         "screen-managements",
         "role-assigns",
-        "user-creations",
+        "staff-creations",
         "transport-masters",
         "audits",
         "masters",
@@ -569,7 +569,7 @@ ROLE_DEFAULT_PERMISSIONS = {
         "customers": {
             "customercreations": ["view"],
         },
-        "user-creations": {
+        "staff-creations": {
             "alternative-stafftemplate": ["view"],
         },
         "schedule-operations": {
@@ -600,7 +600,7 @@ ROLE_DEFAULT_PERMISSIONS = {
         "customers": {
             "customercreations": ["view"],
         },
-        "user-creations": {
+        "staff-creations": {
             "alternative-stafftemplate": ["view"],
         },
         "schedule-operations": {
@@ -656,7 +656,7 @@ ROLE_DEFAULT_PERMISSIONS = {
             "collection-points": ["view"],
             "trip-plans": ["view"],
         },
-        "user-creations": {
+        "staff-creations": {
             "staffcreation": ["view"],
         },
         "customers": {

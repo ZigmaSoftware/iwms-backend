@@ -10,8 +10,8 @@ from app.models.assets.bins import Bins
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
 from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.services.daily_trip_generation import ensure_assignment_collection_points
 from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin

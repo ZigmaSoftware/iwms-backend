@@ -1,8 +1,8 @@
 """API tests for Department endpoint — CRUD operations."""
 import pytest
-from app.models.masters.department import Department
+from app.models.staff_creations.department import Department
 
-BASE = "/api/v1/masters/departments/"
+BASE = "/api/v1/staff-creations/departments/"
 
 
 @pytest.fixture

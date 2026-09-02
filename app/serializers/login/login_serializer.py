@@ -3,7 +3,7 @@ from django.contrib.auth.hashers import check_password, identify_hasher
 from django.db.models import F, Q
 from django.utils import timezone
 
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
 from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.auth_user import User
@@ -17,7 +17,7 @@ from app.models.masters.city import City
 from app.models.masters.zone import Zone
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
-from app.models.user_creations.staff_access_configuration import StaffAccessConfiguration
+from app.models.staff_creations.staff_access_configuration import StaffAccessConfiguration
 from app.utils.permission_response import (
     apply_role_defaults,
     finalize_permission_payload,

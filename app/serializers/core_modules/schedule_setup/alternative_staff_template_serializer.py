@@ -3,7 +3,7 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
 from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 
 from app.models.superadmin_masters.company import Company

@@ -27,7 +27,7 @@ from app.models.complaint_management import (
     ComplaintTicket,
 )
 from app.models.notifications.staff_notification import StaffNotification
-from app.models.user_creations.staffcreation import Staffcreation, StaffcreationOfficeDetails
+from app.models.staff_creations.staffcreation import Staffcreation, StaffcreationOfficeDetails
 from app.serializers.core_modules.complaint_management.ticket_serializers import (
     ComplaintAttachmentSerializer,
     ComplaintCommentSerializer,

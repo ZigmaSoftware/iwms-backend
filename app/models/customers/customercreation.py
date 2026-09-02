@@ -13,7 +13,7 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.masters.ward import Ward
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.masters.panchayat import Panchayat

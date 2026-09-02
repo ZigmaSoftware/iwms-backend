@@ -60,7 +60,7 @@ class TripDelayReportViewSet(CompanyScopedViewSet):
         serializer's read_only_fields. company/project are filled by the
         model's save() from the assignment.
         """
-        from app.models.user_creations.staffcreation import Staffcreation
+        from app.models.staff_creations.staffcreation import Staffcreation
 
         user = self.request.user
         reporter = user if isinstance(user, Staffcreation) else None
@@ -111,7 +111,7 @@ class TripDelayReportViewSet(CompanyScopedViewSet):
         payload = TripDelayAcknowledgeSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
 
-        from app.models.user_creations.staffcreation import Staffcreation
+        from app.models.staff_creations.staffcreation import Staffcreation
 
         user = request.user
         changed = report.mark_acknowledged(

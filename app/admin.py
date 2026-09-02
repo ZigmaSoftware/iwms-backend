@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
+from app.models.staff_creations.staffcreation import Staffcreation, StaffPersonalDetails
 from app.models.customers.customercreation import CustomerCreation
 
 

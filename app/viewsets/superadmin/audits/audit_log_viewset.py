@@ -1,5 +1,5 @@
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.user_creations.auditlog import AuditLog
+from app.models.staff_creations.auditlog import AuditLog
 from app.serializers.superadmin.audits.audit_log_serializer import AuditLogSerializer
 
 

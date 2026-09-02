@@ -8,7 +8,7 @@ from app.models.masters.panchayat import Panchayat
 from app.models.schedule_masters.daily_waste_comparison import DailyWasteComparison
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 
 
 TARGET = 30

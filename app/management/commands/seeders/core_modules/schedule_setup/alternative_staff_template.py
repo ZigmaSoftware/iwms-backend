@@ -1,7 +1,7 @@
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
 from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 

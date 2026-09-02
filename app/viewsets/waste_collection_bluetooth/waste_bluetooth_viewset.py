@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Case, IntegerField, Q, Sum, Value, When
 from datetime import datetime, timedelta
-from app.models.user_creations.waste_collection_bluetooth import (
+from app.models.staff_creations.waste_collection_bluetooth import (
     WasteCollectionMain,
     WasteCollectionSub,
     WasteType,
