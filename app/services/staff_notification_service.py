@@ -1,26 +1,37 @@
-"""Single choke point for a staff member's in-app notification.
+"""Single choke point for a staff member's in-app + push notification.
 
 Every operational event that should alert a driver/operator/supervisor
 (vehicle breakdown reported/replacement approved/rejected, Re-Trip
 requested/approved/rejected) should call `notify_staff` instead of creating a
-`StaffNotification` directly, so every call site stays consistent if delivery
-(e.g. push) is added later.
+`StaffNotification` directly, so every call site stays consistent, and so the
+alert is always visible in-app (a `StaffNotification` row) even if the push
+never reaches the device (no token, app killed, Firebase not configured yet).
 """
 from app.models.notifications.staff_notification import StaffNotification
+from app.services.push_notification_service import send_push_to_staff
 
 
 def notify_staff(staff, notification_type, title, body, data=None):
-    """Create a StaffNotification row for `staff`.
+    """Create a StaffNotification row for `staff` and send the matching push.
 
     Returns the created StaffNotification, or None if `staff` is None.
     """
     if staff is None:
         return None
 
-    return StaffNotification.objects.create(
+    notification = StaffNotification.objects.create(
         recipient_staff=staff,
         notification_type=notification_type,
         title=title,
         message=body,
         data=data or {},
     )
+
+    send_push_to_staff(
+        staff,
+        title=title,
+        body=body,
+        data={**(data or {}), "type": notification_type},
+    )
+
+    return notification
