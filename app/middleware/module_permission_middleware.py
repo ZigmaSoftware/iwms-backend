@@ -136,27 +136,46 @@ MODULE_RESOURCE_ALLOWLIST = {
     "customer-masters": {
         "CustomerCreation",
     },
+    # Global complaint configuration, superadmin-only. These masters carry no
+    # company/project FK, so one edit here changes behaviour for every tenant
+    # — which is exactly why they live behind their own module key instead of
+    # inside "complaint-ticket" with the per-company entry screens.
+    "complaint-masters": {
+        "ComplaintModule",
+        "ComplaintPriority",
+        "ComplaintStatus",
+        "ComplaintSource",
+        "ComplaintLanguage",
+        "ComplaintCategory",
+        "ComplaintSubcategory",
+        "ComplaintSlaRule",
+        "ComplaintRoutingRule",
+    },
+    # Company/project-scoped complaint entries + the teams that work them.
     "complaint-ticket": {
         # renamed from the legacy "grivences" module
         "Complaint",
         "MainCategory",
         "SubCategory",
         # ticketed complaint workflow (app.models.complaint_management)
-        "ComplaintModule",
-        "ComplaintPriority",
-        "ComplaintStatus",
-        "ComplaintSource",
-        "ComplaintLanguage",
         "ComplaintTeam",
-        "ComplaintCategory",
-        "ComplaintSubcategory",
-        "ComplaintSlaRule",
-        "ComplaintRoutingRule",
         "ComplaintFeedback",
         "ComplaintReopenHistory",
         "ComplaintNotification",
         "ComplaintAddressChange",
         "ComplaintTicket",
+        # Read-only master access: the Complaint Desk's Type/Sub-type/Priority
+        # dropdowns are served from the "complaint-masters" tables, so staff
+        # who only hold "complaint-ticket" still need GET on them. Writes are
+        # blocked by MASTER_READONLY_RESOURCES below, not by this allowlist.
+        "ComplaintCategory",
+        "ComplaintSubcategory",
+        "ComplaintPriority",
+        "ComplaintStatus",
+        "ComplaintSource",
+        "ComplaintLanguage",
+        "ComplaintModule",
+        "ComplaintSlaRule",
     },
     "transport-masters": {
         "VehicleTypeCreation",
@@ -212,6 +231,29 @@ MODULE_RESOURCE_ALLOWLIST = {
 # alias safety
 MODULE_RESOURCE_ALLOWLIST["grivences"] = MODULE_RESOURCE_ALLOWLIST["complaint-ticket"]
 MODULE_RESOURCE_ALLOWLIST["grievance"] = MODULE_RESOURCE_ALLOWLIST["complaint-ticket"]
+
+# Resources reachable through a module purely so its screens can populate
+# dropdowns. Only "view" is ever granted here; every write must go through the
+# module that actually owns the resource. Keyed by module -> resource names.
+#
+# The complaint masters are global (no company/project FK), so letting a
+# company-scoped role write them would silently reconfigure every other
+# tenant. The Complaint Desk still needs to *read* them for its Type/Sub-type
+# pickers, hence read-only rather than removing them from the allowlist.
+MODULE_READONLY_RESOURCES = {
+    "complaint-ticket": {
+        "ComplaintCategory",
+        "ComplaintSubcategory",
+        "ComplaintPriority",
+        "ComplaintStatus",
+        "ComplaintSource",
+        "ComplaintLanguage",
+        "ComplaintModule",
+        "ComplaintSlaRule",
+    },
+}
+MODULE_READONLY_RESOURCES["grivences"] = MODULE_READONLY_RESOURCES["complaint-ticket"]
+MODULE_READONLY_RESOURCES["grievance"] = MODULE_READONLY_RESOURCES["complaint-ticket"]
 
 PROTECTED_MODULES = tuple(MODULE_RESOURCE_ALLOWLIST.keys())
 
@@ -538,6 +580,31 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         action = HTTP_ACTION_MAP.get(request.method)
         if not action:
             return JsonResponse({"detail": "Invalid HTTP method"}, status=405)
+
+        # Dropdown-only resources: readable through this module, never writable.
+        readonly_resources = MODULE_READONLY_RESOURCES.get(module, set())
+        if action != "view" and readonly_resources:
+            readonly_keys = {
+                self._normalize_permission_key(resource)
+                for resource in readonly_resources
+            }
+            if any(
+                self._normalize_permission_key(candidate) in readonly_keys
+                for candidate in resource_candidates
+            ):
+                return JsonResponse(
+                    {
+                        "detail": "Permission denied",
+                        "module": module,
+                        "resource": permission_resource,
+                        "reason": (
+                            "Complaint masters are global configuration and are "
+                            "read-only here. Edit them under the "
+                            "'complaint-masters' module."
+                        ),
+                    },
+                    status=403,
+                )
 
         permissions = _resolve_permissions_for_request(request)
         allowed_actions = self._resolve_allowed_actions(

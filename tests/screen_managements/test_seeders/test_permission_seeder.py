@@ -14,6 +14,11 @@ EXPECTED_GROUPS = {
         "role-assigns",
         "staff-creations",
         "common-masters",
+        # Global complaint configuration. Split out of "complaint-ticket"
+        # because none of those tables carry a company/project FK: one edit
+        # reconfigures every tenant, so it must not sit in a company-scoped
+        # module alongside the entry screens.
+        "complaint-masters",
         "audits",
     ],
     "masters": [
@@ -64,7 +69,11 @@ EXPECTED_SIDEBAR_SCREENS = {
         "vehicle-breakdowns",
         "retrip-requests",
     },
-    "complaint-ticket": {"tickets", "categories", "subcategories"},
+    # Category/sub-category moved to the superadmin-only "complaint-masters"
+    # module; what stays here is the company-scoped entry surface plus the
+    # teams that work it.
+    "complaint-masters": {"types", "categories", "subcategories", "sla-rules"},
+    "complaint-ticket": {"tickets", "teams", "feedback"},
     "audits": {"common-audit", "login-audit"},
     "transport-masters": {"vehicle-type", "vehicle-creation", "fuels"},
     "masters": {"panchayat-leaders", "district-leaders", "plants"},
