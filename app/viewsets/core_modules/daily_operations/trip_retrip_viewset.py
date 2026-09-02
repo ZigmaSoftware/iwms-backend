@@ -39,7 +39,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.serializers.core_modules.daily_operations.trip_retrip_serializer import (
     TripRetripRequestSerializer,
 )

@@ -129,7 +129,7 @@ def household_only_type_rows(
     for standalone household rows, keyed to line up with type_buckets in
     waste_collection_report.build_waste_collection_report. Location is
     panchayat if the customer has one, else zone."""
-    from app.models.user_creations.waste_collection_bluetooth import WasteType
+    from app.models.staff_creations.waste_collection_bluetooth import WasteType
 
     queryset = _scoped_queryset(company_id, project_id, panchayat_ids, zone_ids, date_filter)
     group_fields = [

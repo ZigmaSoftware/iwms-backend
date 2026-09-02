@@ -3,7 +3,7 @@ import pytest
 
 from app.models.customers.customercreation import CustomerCreation
 from app.models.masters.panchayat import Panchayat
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 

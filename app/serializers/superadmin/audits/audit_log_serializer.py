@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
-from app.models.user_creations.auditlog import AuditLog
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.auditlog import AuditLog
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.screen_managements.mainscreen import MainScreen
 from app.models.screen_managements.userscreen import UserScreen

@@ -76,7 +76,7 @@ class TestLoginFailure:
         assert resp.status_code in (400, 401)
 
     def test_failure_creates_login_audit(self, api_client):
-        from app.models.user_creations.loginAudit import LoginAudit
+        from app.models.staff_creations.loginAudit import LoginAudit
         before = LoginAudit.objects.filter(success=False).count()
         api_client.post(LOGIN_BASE, {"username": "audit_user", "password": "bad"}, format="json")
         after = LoginAudit.objects.filter(success=False).count()
@@ -136,7 +136,7 @@ class TestLoginPlatformSuccess:
         assert profile["is_superuser"] is True
 
     def test_platform_login_success_audit_created(self, api_client, db):
-        from app.models.user_creations.loginAudit import LoginAudit
+        from app.models.staff_creations.loginAudit import LoginAudit
         _make_platform_user(db)
         before = LoginAudit.objects.filter(success=True).count()
         api_client.post(
@@ -202,7 +202,7 @@ class TestLoginStaffBranch:
         user_type,
     ):
         from app.models.role_assigns.staffUserType import StaffUserType
-        from app.models.user_creations.staffcreation import Staffcreation
+        from app.models.staff_creations.staffcreation import Staffcreation
         from app.utils.password_encryption import encrypt_password
 
         staff_user_type = StaffUserType.objects.create(

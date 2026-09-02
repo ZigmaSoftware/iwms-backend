@@ -107,8 +107,6 @@ class PermissionSeeder(BaseSeeder):
                 "zones",
                 "wards",
                 "panchayat",
-                "department-masters",
-                "designation-masters",
                 "panchayat-leaders",
                 "district-leaders",
                 "plants",
@@ -132,8 +130,12 @@ class PermissionSeeder(BaseSeeder):
                 "staffusertypes",
                 "contractorusertypes",
             ],
-            "user-creations": [
+            "staff-creations": [
                 # "users-creation",
+                # moved out of the "masters" group so the org/staff setup
+                # screens live with the rest of staff management
+                "department-masters",
+                "designation-masters",
                 "staffcreation",
                 "staff-access-configuration",
                 # "stafftemplate-creation",
@@ -234,7 +236,7 @@ class PermissionSeeder(BaseSeeder):
             "super-admin": (
                 "screen-managements",
                 "role-assigns",
-                "user-creations",
+                "staff-creations",
                 "common-masters",
                 "audits",
             ),

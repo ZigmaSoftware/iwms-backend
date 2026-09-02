@@ -6,7 +6,7 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
+from app.models.staff_creations.staffcreation import Staffcreation, StaffPersonalDetails
 
 
 def _is_platform_super_admin(user):

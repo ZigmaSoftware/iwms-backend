@@ -46,8 +46,8 @@ from app.models.schedule_masters.trip_plan_collection_point import TripPlanColle
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 
@@ -143,7 +143,7 @@ class DriverHouseholdTripSeeder(BaseSeeder):
         driver = Staffcreation.objects.filter(username=DRIVER_USERNAME, is_deleted=False).first()
         operator = Staffcreation.objects.filter(username=OPERATOR_USERNAME, is_deleted=False).first()
         if not driver:
-            self.log(f"'{DRIVER_USERNAME}' not found — run the user-creations seeders first.")
+            self.log(f"'{DRIVER_USERNAME}' not found — run the staff-creations seeders first.")
             return None
         if not operator:
             operator = driver

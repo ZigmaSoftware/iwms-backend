@@ -4,7 +4,7 @@ lists for a date range, backed by the same `Recognized` punch records
 
 There is no leave-tracking model in this project, so `leave_count`/
 `leave_staff` are always empty; every staff member who didn't punch in the
-range counts as absent. Staff scope matches `user-creations/staffcreation/`
+range counts as absent. Staff scope matches `staff-creations/staffcreation/`
 (company-scoped via `CompanyScopedViewSet`) — no additional zone/team filter.
 """
 
@@ -13,8 +13,8 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from app.models.user_creations.staffcreation import Staffcreation
-from app.models.user_creations.attendance import Recognized
+from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.staff_creations.attendance import Recognized
 from app.serializers.superadmin.staff_management.staffcreation_serializer import (
     StaffcreationSerializer,
 )

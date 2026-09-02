@@ -23,8 +23,6 @@ from ..viewsets.masters.ward_viewset import WardViewSet
 from ..viewsets.masters.panchayat_viweset import PanhayatViewSet
 from ..viewsets.masters.leader_management.panchayat_leader_viewset import PanchayatLeaderLoginViewSet
 from ..viewsets.masters.leader_management.district_leader_viewset import DistrictLeaderLoginViewSet
-from ..viewsets.masters.department_viewset import DepartmentViewSet
-from ..viewsets.masters.designation_viewset import DesignationViewSet
 
 # Waste types (merged from the legacy "assets" group)
 from ..viewsets.masters.waste_masters.property_viewset import PropertyViewSet
@@ -51,6 +49,8 @@ from ..viewsets.superadmin.role_management.staffusertype_viewset import StaffUse
 from ..viewsets.superadmin.role_management.contractorusertype_viewset import ContractorUserTypeViewSet
 
 # User creations
+from ..viewsets.superadmin.staff_management.department_viewset import DepartmentViewSet
+from ..viewsets.superadmin.staff_management.designation_viewset import DesignationViewSet
 from ..viewsets.superadmin.staff_management.staffcreation_viewset import StaffcreationViewset
 from ..viewsets.superadmin.staff_management.staff_access_configuration_viewset import (
     StaffAccessConfigurationViewSet,
@@ -191,8 +191,6 @@ router.register_group("masters", "wards",         WardViewSet)
 router.register_group("masters", "panchayat",         PanhayatViewSet)
 router.register_group("masters", "panchayat-leaders", PanchayatLeaderLoginViewSet)
 router.register_group("masters", "district-leaders", DistrictLeaderLoginViewSet)
-router.register_group("masters", "departments",       DepartmentViewSet)
-router.register_group("masters", "designations",      DesignationViewSet)
 router.register_group("masters", "plants",         PlantViewSet)
 
 
@@ -229,9 +227,11 @@ router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeV
 # ============================================================
 # GROUP: USER CREATION
 # ============================================================
-router.register_group("user-creations", "staffcreation",   StaffcreationViewset)
+router.register_group("staff-creations", "departments",     DepartmentViewSet)
+router.register_group("staff-creations", "designations",    DesignationViewSet)
+router.register_group("staff-creations", "staffcreation",   StaffcreationViewset)
 router.register_group(
-    "user-creations", "staff-access-configuration", StaffAccessConfigurationViewSet
+    "staff-creations", "staff-access-configuration", StaffAccessConfigurationViewSet
 )
 
 # ============================================================

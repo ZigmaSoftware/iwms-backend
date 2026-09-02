@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.user_creations.staffcreation import Staffcreation, StaffPersonalDetails
-from app.models.user_creations.attendance import Employee
+from app.models.staff_creations.staffcreation import Staffcreation, StaffPersonalDetails
+from app.models.staff_creations.attendance import Employee
 from django.conf import settings
 
 

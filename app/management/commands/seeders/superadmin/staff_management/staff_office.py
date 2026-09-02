@@ -1,8 +1,8 @@
 from django.utils import timezone
 from django.db.models import Q
 
-from app.models.masters.department import Department
-from app.models.masters.designation import Designation
+from app.models.staff_creations.department import Department
+from app.models.staff_creations.designation import Designation
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.zone import Zone
@@ -11,7 +11,7 @@ from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.password_encryption import encrypt_password
 
 

@@ -1,5 +1,5 @@
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.user_creations.waste_collection_bluetooth import WasteCollectionMain
+from app.models.staff_creations.waste_collection_bluetooth import WasteCollectionMain
 from app.serializers.waste_collection_bluetooth.waste_collection_main_serializer import (
     WasteCollectionMainSerializer,
 )

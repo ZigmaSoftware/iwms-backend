@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from app.models.screen_managements.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
-from app.models.user_creations.staff_access_configuration import (
+from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
 )
 from app.serializers.superadmin.staff_management.staff_access_configuration_serializer import (
@@ -40,7 +40,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     ]
     ordering_fields = ["staff_id__employee_name", "staff_id__staff_unique_id", "staff_id__doj"]
 
-    AUDIT_MODULE = "user-creations"
+    AUDIT_MODULE = "staff-creations"
     AUDIT_ENDPOINT = "staff-access-configuration"
 
     permission_resource = "staffaccessconfiguration"

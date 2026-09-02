@@ -27,7 +27,7 @@ def test_department_master_permission_matches_departments_route():
         "department-masters": ["add", "delete", "edit", "show", "view"],
     }
 
-    assert _resource_is_allowed("masters", "Department", "departments")
+    assert _resource_is_allowed("staff-creations", "Department", "departments")
     assert middleware._resolve_allowed_actions(
         permissions,
         "Department",
@@ -41,7 +41,7 @@ def test_designation_master_permission_matches_designations_route():
         "designation-masters": ["add", "delete", "edit", "show", "view"],
     }
 
-    assert _resource_is_allowed("masters", "Designation", "designations")
+    assert _resource_is_allowed("staff-creations", "Designation", "designations")
     assert middleware._resolve_allowed_actions(
         permissions,
         "Designation",
@@ -88,7 +88,7 @@ def test_staff_access_configuration_permission_matches_hyphenated_screen_name():
     }
 
     assert _resource_is_allowed(
-        "user-creations",
+        "staff-creations",
         "staffaccessconfiguration",
         "staff-access-configuration",
     )

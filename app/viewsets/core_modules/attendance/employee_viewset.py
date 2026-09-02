@@ -1,7 +1,7 @@
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 # from attendance.models import Employee
-from app.models.user_creations.attendance import Employee
+from app.models.staff_creations.attendance import Employee
 import os
 
 class EmployeeViewSet(ViewSet):

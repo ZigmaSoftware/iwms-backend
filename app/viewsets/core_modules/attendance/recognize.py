@@ -11,7 +11,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from app.models.user_creations.attendance import Employee, Recognized
+from app.models.staff_creations.attendance import Employee, Recognized
 
 
 def _safe_filename(value: str) -> str:

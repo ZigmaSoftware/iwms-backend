@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from django.conf import settings
 from django.utils import timezone
 
-from app.models.user_creations.attendance import Recognized
+from app.models.staff_creations.attendance import Recognized
 
 
 class AttendanceListViewSet(ViewSet):

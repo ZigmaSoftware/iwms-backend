@@ -12,7 +12,7 @@ from app.models.schedule_masters.staff_template import StaffTemplate
 from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
-from app.models.user_creations.waste_collection_bluetooth import WasteType
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 
 
 def _generate_trip_assignment_unique_id(company_id, project_id):

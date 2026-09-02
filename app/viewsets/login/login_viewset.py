@@ -8,8 +8,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import AccessToken
 from django.utils import timezone
 
-from app.models.user_creations.loginAudit import LoginAudit
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.loginAudit import LoginAudit
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
 from app.serializers.login.login_serializer import LoginSerializer
 from app.utils.permission_response import resolve_permission_payload

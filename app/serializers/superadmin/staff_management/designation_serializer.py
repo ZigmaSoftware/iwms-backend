@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from app.models.masters.department import Department
-from app.models.masters.designation import Designation
+from app.models.staff_creations.department import Department
+from app.models.staff_creations.designation import Designation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 

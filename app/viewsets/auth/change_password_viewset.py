@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.models.customers.customercreation import CustomerCreation
-from app.models.user_creations.staffcreation import Staffcreation
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.password_encryption import decrypt_password, encrypt_password
 
 

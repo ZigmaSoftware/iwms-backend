@@ -85,7 +85,7 @@ class TestSharedPaginationEnvelope:
 @pytest.mark.django_db
 class TestStaffCreationRemainsUnpaginated:
     def test_staff_list_response_is_not_paginated(self, auth_client):
-        resp = auth_client.get("/api/v1/user-creations/staffcreation/")
+        resp = auth_client.get("/api/v1/staff-creations/staffcreation/")
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
