@@ -280,8 +280,16 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         token = (request.data.get("fcm_token") or "").strip()
         if not token:
             return Response({"error": "fcm_token is required"}, status=400)
-        customer.fcm_token = token
-        customer.save(update_fields=["fcm_token"])
+        from django.db import transaction
+        from app.models.staff_creations.staffcreation import Staffcreation
+
+        with transaction.atomic():
+            CustomerCreation.objects.filter(fcm_token=token).exclude(
+                unique_id=customer.unique_id
+            ).update(fcm_token=None)
+            Staffcreation.objects.filter(fcm_token=token).update(fcm_token=None)
+            customer.fcm_token = token
+            customer.save(update_fields=["fcm_token"])
         return Response({"status": "ok"})
 
     # -----------------------------------------------------

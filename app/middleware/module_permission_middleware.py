@@ -461,6 +461,28 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             auth_error = _authenticate_request(request)
             return auth_error
 
+        # FCM device-token self-registration — ANY authenticated staff or
+        # citizen may register their OWN token; this must never be gated by
+        # role/module permissions (a driver with no explicit
+        # StaffAccessConfiguration, for instance, would otherwise never be
+        # able to receive a push at all). `register-fcm-token/` is ALSO
+        # listed in AUTH_ONLY_SUFFIXES above, but that list is only ever
+        # checked via `startswith(prefix + suffix)` — a literal concatenation
+        # that can only match a SHALLOW route like `/api/v1/register-fcm-token/`.
+        # The real endpoints are nested under each viewset's own path
+        # (`.../staffcreation/register-fcm-token/`,
+        # `.../customercreations/register-fcm-token/`), which never starts
+        # with that literal string, so the listing there was never actually
+        # effective for this action — every register-fcm-token call was
+        # silently 403'ing for every role including citizen, which is why no
+        # push notification has ever been delivered. Matched by `endswith`
+        # here instead, deliberately independent of AUTH_ONLY_SUFFIXES so
+        # this fix cannot change the (working, startswith-based) semantics of
+        # any of that list's other entries.
+        if request.path.endswith("register-fcm-token/"):
+            auth_error = _authenticate_request(request)
+            return auth_error
+
         if any(request.path.startswith(p) for p in CITIZEN_PREFIXES):
             auth_error = _authenticate_request(request)
             return auth_error
