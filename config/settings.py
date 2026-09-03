@@ -293,6 +293,16 @@ OTP_MAX_REQUESTS_PER_WINDOW = int(os.getenv('OTP_MAX_REQUESTS_PER_WINDOW', 3))
 OTP_RATE_WINDOW_MINUTES = int(os.getenv('OTP_RATE_WINDOW_MINUTES', 10))
 
 # -------------------------------------------------------
+# PUSH NOTIFICATIONS (Firebase Cloud Messaging)
+# -------------------------------------------------------
+# See app/services/push_notification_service.py — self-gating: sending is a
+# safe no-op until this points at a real service-account JSON. Deliberately a
+# SEPARATE Firebase project from iwms-government-backend's — private and
+# government are distinct products for distinct customers and must never
+# share delivery credentials, quota, or Android app registration.
+FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH", "")
+
+# -------------------------------------------------------
 # JWT CONFIG (import at the end)
 # -------------------------------------------------------
 from .settings_jwt import *

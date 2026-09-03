@@ -21,6 +21,44 @@ def _resource_is_allowed(module, permission_resource, route_resource):
     )
 
 
+def test_nested_register_fcm_token_routes_are_auth_only(monkeypatch):
+    from django.test import RequestFactory
+    import app.middleware.module_permission_middleware as middleware_module
+
+    sentinel = object()
+    seen_paths = []
+
+    def fake_authenticate_request(request):
+        seen_paths.append(request.path)
+        return sentinel
+
+    monkeypatch.setattr(
+        middleware_module,
+        "_authenticate_request",
+        fake_authenticate_request,
+    )
+    middleware = ModulePermissionMiddleware(lambda request: None)
+    factory = RequestFactory()
+
+    for path in (
+        "/api/v1/staff-creations/staffcreation/register-fcm-token/",
+        "/api/v1/customer-masters/customercreations/register-fcm-token/",
+    ):
+        request = factory.post(
+            path,
+            {"fcm_token": "TEST-TOKEN"},
+            content_type="application/json",
+        )
+
+        result = middleware.process_view(request, lambda request: None, (), {})
+        assert result is sentinel
+
+    assert seen_paths == [
+        "/api/v1/staff-creations/staffcreation/register-fcm-token/",
+        "/api/v1/customer-masters/customercreations/register-fcm-token/",
+    ]
+
+
 def test_department_master_permission_matches_departments_route():
     middleware = ModulePermissionMiddleware(lambda request: None)
     permissions = {
