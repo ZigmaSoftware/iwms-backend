@@ -54,13 +54,41 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
 
         if self._is_platform_super_admin():
+            # StaffAccessConfiguration scopes to projects via an M2M
+            # ("projects"), not a singular project_id FK, so the generic
+            # superadmin filtering in CompanyScopedViewSet.filter_queryset
+            # (which only special-cases a plain project_id FK) never applies
+            # here — apply the query params explicitly instead.
+            company_id_param = (
+                self.request.query_params.get("company_id")
+                or self.request.query_params.get("company_unique_id")
+            )
+            project_id_param = (
+                self.request.query_params.get("project_id")
+                or self.request.query_params.get("project_unique_id")
+                or self.request.query_params.get("project")
+            )
+            if company_id_param:
+                qs = qs.filter(company_id_id=company_id_param)
+            if project_id_param and project_id_param != "none":
+                qs = qs.filter(projects__unique_id=project_id_param)
             return qs
 
         company = self._company()
         if not company:
             return qs.none()
 
-        return qs.filter(company_id_id=company.unique_id)
+        qs = qs.filter(company_id_id=company.unique_id)
+
+        if not self._is_admin_user():
+            qs = qs.filter(staff_id_id=self.request.user.staff_unique_id)
+        elif self._is_project_scoped_admin_user():
+            own_project_id = getattr(self.request.user, "project_id_id", None)
+            if not own_project_id:
+                return qs.none()
+            qs = qs.filter(projects__unique_id=own_project_id)
+
+        return qs
 
 
     def get_object(self):

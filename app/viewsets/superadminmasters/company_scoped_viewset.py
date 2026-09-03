@@ -33,6 +33,39 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
         return "supervisor" in role_name
 
+    def _is_admin_user(self):
+        """
+        True for company-wide/project-wide admin roles (Company Admin,
+        Company Project Admin) — the roles that should see every staff
+        member's data on admin-management screens, as opposed to a
+        supervisor/driver/operator/user who should only see their own.
+        """
+        user = getattr(self.request, "user", None)
+
+        if not user or not isinstance(user, Staffcreation):
+            return False
+
+        role_obj = getattr(user, "staffusertype_id", None)
+        role_name = (getattr(role_obj, "name", "") or "").lower()
+
+        return "admin" in role_name
+
+    def _is_project_scoped_admin_user(self):
+        """
+        True specifically for "Company Project Admin" — an admin role that
+        should still be narrowed to their own project(s), unlike a
+        company-wide "Company Admin" who sees the whole company.
+        """
+        user = getattr(self.request, "user", None)
+
+        if not user or not isinstance(user, Staffcreation):
+            return False
+
+        role_obj = getattr(user, "staffusertype_id", None)
+        role_name = (getattr(role_obj, "name", "") or "").lower()
+
+        return "admin" in role_name and "project" in role_name
+
     def _supervisor_trip_plan_filter(self, prefix=""):
         """
         Returns a Q object restricting a queryset to rows reachable from
