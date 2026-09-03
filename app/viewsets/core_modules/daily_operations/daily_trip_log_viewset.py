@@ -96,9 +96,13 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         search = params.get("search") or params.get("q")
         mine = params.get("mine")
 
-        if mine and str(mine).lower() in ("1", "true", "yes"):
-            # Supervisor app: logs whose trip plan this supervisor owns
-            # (TripPlan.supervisor_id == requester).
+        mine_requested = mine and str(mine).lower() in ("1", "true", "yes")
+
+        if mine_requested or self._is_supervisor_user():
+            # Logs whose trip plan this supervisor owns
+            # (TripPlan.supervisor_id == requester). Auto-enforced for any
+            # supervisor role on the admin web app too, not just when the
+            # mobile app explicitly passes mine=true.
             qs = qs.filter(trip_assignment_id__trip_plan_id__supervisor_id=self.request.user)
 
         if trip_date:

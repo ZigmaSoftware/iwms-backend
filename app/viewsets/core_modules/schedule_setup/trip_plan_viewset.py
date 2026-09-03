@@ -47,6 +47,14 @@ class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "trip-plans"
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        if self._is_supervisor_user():
+            qs = qs.filter(supervisor_id=self.request.user)
+
+        return qs
+
     @swagger_auto_schema(request_body=TripPlanSerializer)
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
