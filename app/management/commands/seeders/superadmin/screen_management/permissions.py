@@ -20,6 +20,131 @@ from app.models.screen_managements.companyuserscreencolumnpermission import (
 class PermissionSeeder(BaseSeeder):
     name = "permission_full"
 
+    def _grant_palakkad_project_admin_access(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        from app.models.staff_creations.staff_access_configuration import (
+            StaffAccessConfiguration,
+            StaffAccessConfigurationPermission,
+        )
+
+        staff = (
+            Staffcreation.objects.select_related("company_id", "project_id")
+            .filter(
+                username="haripillai",
+                project_id__name="Palakkad BP",
+                is_active=True,
+                is_deleted=False,
+            )
+            .first()
+        )
+        if not staff:
+            return
+
+        if not CompanyUserScreenPermission.objects.filter(
+            company_id=staff.company_id,
+            project_id=staff.project_id,
+            is_active=True,
+            is_deleted=False,
+        ).exists():
+            active_actions = list(
+                UserScreenAction.objects.filter(is_active=True, is_deleted=False)
+                .order_by("unique_id")
+            )
+            active_screens = (
+                UserScreen.objects.filter(is_active=True, is_deleted=False)
+                .select_related("mainscreen_id")
+                .order_by("mainscreen_id__order_no", "order_no", "unique_id")
+            )
+            for screen in active_screens:
+                for order_no, action in enumerate(active_actions, start=1):
+                    CompanyUserScreenPermission.objects.get_or_create(
+                        company_id=staff.company_id,
+                        project_id=staff.project_id,
+                        mainscreen_id=screen.mainscreen_id,
+                        userscreen_id=screen,
+                        userscreenaction_id=action,
+                        defaults={
+                            "order_no": order_no,
+                            "description": f"{action.variable_name} {screen.userscreen_name}",
+                            "is_active": True,
+                            "is_deleted": False,
+                        },
+                    )
+            self.log("Seeded Palakkad BP permission catalog for haripillai.")
+
+        catalog = list(
+            CompanyUserScreenPermission.objects.filter(
+                company_id=staff.company_id,
+                project_id=staff.project_id,
+                is_active=True,
+                is_deleted=False,
+            ).select_related("mainscreen_id", "userscreen_id", "userscreenaction_id")
+        )
+        if not catalog:
+            self.log(
+                "Palakkad project admin haripillai exists, but no Palakkad BP "
+                "permission catalog is available yet."
+            )
+            return
+
+        config, _ = StaffAccessConfiguration.objects.update_or_create(
+            staff_id=staff,
+            defaults={
+                "company_id": staff.company_id,
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
+        config.projects.set([staff.project_id])
+
+        seen = set()
+        granted = 0
+        for order, entry in enumerate(catalog, start=1):
+            key = (
+                entry.mainscreen_id_id,
+                entry.userscreen_id_id,
+                entry.userscreenaction_id_id,
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+
+            StaffAccessConfigurationPermission.objects.update_or_create(
+                staff_access_configuration_id=config,
+                mainscreen_id=entry.mainscreen_id,
+                userscreen_id=entry.userscreen_id,
+                userscreenaction_id=entry.userscreenaction_id,
+                defaults={
+                    "order_no": order,
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            granted += 1
+
+        stale_ids = [
+            perm.unique_id
+            for perm in StaffAccessConfigurationPermission.objects.filter(
+                staff_access_configuration_id=config,
+            )
+            if (
+                perm.mainscreen_id_id,
+                perm.userscreen_id_id,
+                perm.userscreenaction_id_id,
+            )
+            not in seen
+        ]
+        if stale_ids:
+            StaffAccessConfigurationPermission.objects.filter(
+                unique_id__in=stale_ids
+            ).delete()
+
+        screens = len({key[1] for key in seen})
+        self.log(
+            f"Granted Palakkad project-admin access to haripillai: "
+            f"{granted} permissions across {screens} screens."
+        )
+
     def _move_mainscreen_orders_out_of_range(self, mainscreentype, reserved_count):
         """Free the target 1..N order range without tripping MySQL unique checks."""
         screens = list(
@@ -590,5 +715,7 @@ class PermissionSeeder(BaseSeeder):
                             "is_deleted": False,
                         },
                     )
+
+        self._grant_palakkad_project_admin_access()
 
         self.log("--- Baseline permission seeding completed successfully ---")
