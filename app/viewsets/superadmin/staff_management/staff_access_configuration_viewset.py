@@ -10,6 +10,7 @@ from app.models.screen_managements.companyuserscreenpermission import (
 from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
 )
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.serializers.superadmin.staff_management.staff_access_configuration_serializer import (
     StaffAccessConfigurationSerializer,
 )
@@ -82,6 +83,64 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def perform_destroy(self, instance):
         instance.delete()
         cache.clear()
+
+    @action(detail=False, methods=["get"], url_path="employee-options")
+    def employee_options(self, request):
+        """Employees for the company (optionally narrowed to a project),
+        for the Basic Info tab's employee picker. Each row is flagged with
+        whether an active StaffAccessConfiguration already exists for it,
+        so the frontend can show/disable "already configured" employees
+        instead of letting them be picked again (this form only grants
+        access to employees who don't yet have it)."""
+        company, error = self._company_from_query(request)
+        if error:
+            return error
+
+        project_id = (
+            request.query_params.get("project_id")
+            or request.query_params.get("projectId")
+        )
+
+        queryset = Staffcreation.objects.filter(
+            company_id_id=company.unique_id,
+            is_deleted=False,
+            active_status=True,
+        ).select_related("personal_details", "staffusertype_id")
+
+        if project_id:
+            queryset = queryset.filter(project_id_id=project_id)
+
+        queryset = queryset.order_by("employee_name")
+
+        configured_staff_ids = set(
+            StaffAccessConfiguration.objects.filter(
+                staff_id_id__in=queryset.values_list("staff_unique_id", flat=True),
+                is_deleted=False,
+            ).values_list("staff_id_id", flat=True)
+        )
+
+        def _personal_details(staff):
+            try:
+                return staff.personal_details
+            except Staffcreation.personal_details.RelatedObjectDoesNotExist:
+                return None
+
+        data = [
+            {
+                "unique_id": staff.staff_unique_id,
+                "employee_name": staff.employee_name,
+                "mobile_number": getattr(_personal_details(staff), "contact_mobile", None),
+                "office_email": getattr(_personal_details(staff), "contact_email", None),
+                "doj": staff.doj,
+                "staffusertype_id": getattr(staff.staffusertype_id, "unique_id", None),
+                "staffusertype_name": getattr(staff.staffusertype_id, "name", None),
+                "username": staff.username,
+                "active_status": staff.active_status,
+                "has_access_configuration": staff.staff_unique_id in configured_staff_ids,
+            }
+            for staff in queryset[:500]
+        ]
+        return Response(data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], url_path="available-permissions")
     def available_permissions(self, request):

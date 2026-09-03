@@ -13,6 +13,37 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
     project_header = "X-Project-Id"
 
     # ==========================================================
+    # SUPERVISOR TEAM SCOPING
+    # ==========================================================
+
+    def _is_supervisor_user(self):
+        """
+        Role names are stored inconsistently (e.g. "Company Supervisor" vs
+        "company_supervisor"), so match on the significant keyword rather
+        than an exact value — see ticket_viewset.py's _has_supervisor_role
+        for the same fix applied to an earlier, silently-broken equality check.
+        """
+        user = getattr(self.request, "user", None)
+
+        if not user or not isinstance(user, Staffcreation):
+            return False
+
+        role_obj = getattr(user, "staffusertype_id", None)
+        role_name = (getattr(role_obj, "name", "") or "").lower()
+
+        return "supervisor" in role_name
+
+    def _supervisor_trip_plan_filter(self, prefix=""):
+        """
+        Returns a Q object restricting a queryset to rows reachable from
+        TripPlan.supervisor_id == the logged-in supervisor, for querysets
+        that aren't TripPlan itself. `prefix` is the ORM path to TripPlan
+        (e.g. "trip_plan_id" or "trip_assignment_id__trip_plan_id").
+        """
+        field = f"{prefix}__supervisor_id" if prefix else "supervisor_id"
+        return Q(**{field: self.request.user})
+
+    # ==========================================================
     # HELPER — only pass created_by/updated_by if model supports it
     # ==========================================================
 
