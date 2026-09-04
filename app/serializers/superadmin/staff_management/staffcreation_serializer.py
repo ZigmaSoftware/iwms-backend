@@ -234,6 +234,9 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "emp_id",
             "username",
             "password",
+            # Which mobile app this staff member lands in. Explicit rather
+            # than guessed from the role name (see app_feature_grants).
+            "app_module",
             "qr_code",
 
             # Office details

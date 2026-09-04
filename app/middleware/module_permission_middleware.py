@@ -50,8 +50,6 @@ AUTH_ONLY_SUFFIXES = (
     "localbody/",        # panchayat leader portal — auth only, no module permission check
     "district/",         # district portal — auth only, no module permission check
     "register-fcm-token/",  # staff + citizen FCM device token self-registration
-    "attendance/daily-attendance/",  # driver/operator/supervisor attendance screens
-    "attendance/staff-profile/",     # same screens' profile calls
     "login/my-permissions/",
 )
 
@@ -119,6 +117,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "CompanyUserScreenPermission",
         "companywisescreenpermissions",
         "column-permissions",
+        "AppModule",
     },
     "role-assigns": {
         "UserType",
@@ -135,6 +134,7 @@ MODULE_RESOURCE_ALLOWLIST = {
     },
     "customer-masters": {
         "CustomerCreation",
+        "CustomerAccessConfiguration",
     },
     # Global complaint configuration, superadmin-only. These masters carry no
     # company/project FK, so one edit here changes behaviour for every tenant
@@ -202,6 +202,24 @@ MODULE_RESOURCE_ALLOWLIST = {
         "TripRetripRequest",
         "StaffNotification",
     },
+    "operator-mobile": {
+        # Driver/operator app endpoints. These are mobile-shaped URLs, but
+        # they mutate/read the same operational resources governed by the web
+        # Staff Access Configuration checkboxes.
+        "DailyTripAssignment",
+        "DailyTripCollectionPoint",
+        "DailyTripHouseholdCollection",
+        "BinCollectionEvent",
+    },
+    "attendance": {
+        # Attendance routes are mobile-facing, but in strict mode they must be
+        # granted from Staff Access Configuration like every other app screen.
+        "AttendanceList",
+        "StaffProfile",
+        "Register",
+        "Recognize",
+        "AttendanceRecords",
+    },
     "schedule-masters": {
         # Legacy permission bucket retained for grants created before Schedule
         # Setup and Daily Operations became separate sidebar/router groups.
@@ -261,6 +279,9 @@ MODULE_PERMISSION_ALIASES = {
     "customer-masters": "customers",
     "process-items": "process",
     "grievance": "grivences",
+    # Mobile driver/operator URLs are not a separate permission namespace.
+    # They are authorized by the matching Daily Operations screen grants.
+    "operator-mobile": "schedule-operations",
     # "complaint-ticket" is the live URL module (see base_urls.py); permission
     # rows already seeded/granted under the old "grivences" module name keep
     # authorizing it without needing to be re-granted.
@@ -287,6 +308,11 @@ RESOURCE_MODULE_FALLBACKS = {
     "DailyTripCollectionPoint": "schedule-masters",
     "DailyTripHouseholdCollection": "schedule-masters",
     "BinCollectionEvent": "schedule-masters",
+    "AttendanceList": "attendance",
+    "StaffProfile": "attendance",
+    "Register": "attendance",
+    "Recognize": "attendance",
+    "AttendanceRecords": "attendance",
     "DailyTripLog": "schedule-masters",
     "WasteCollection": "schedule-masters",
     "VehicleBreakdown": "schedule-masters",
@@ -308,6 +334,23 @@ RESOURCE_PERMISSION_ALIASES = {
     "companywisescreenpermissions": ("CompanyUserScreenPermission",),
     "column-permissions": ("CompanyUserScreenPermission",),
     "staffaccessconfiguration": ("staff-access-configuration",),
+    "AppModule": ("app-modules",),
+    "CustomerAccessConfiguration": ("customer-access-configuration",),
+    "DailyTripAssignment": ("daily-trip-assignments",),
+    "DailyTripCollectionPoint": ("daily-trip-collection-points",),
+    "DailyTripHouseholdCollection": ("daily-trip-household-collections",),
+    "BinCollectionEvent": ("bin-collection-events",),
+    "AttendanceList": ("attendance", "daily-attendance"),
+    "StaffProfile": ("attendance", "staff-profile"),
+    "Register": ("attendance", "register"),
+    "Recognize": ("attendance", "recognize"),
+    "AttendanceRecords": ("attendance", "records"),
+    # `grievance-tickets` is an alias route onto the same ComplaintTicketViewSet
+    # as `tickets` (see base_urls.py), and the mobile app calls the alias. Only
+    # one screen is seeded — "tickets" — so without this pairing no ticket
+    # checkbox an admin can tick ever authorizes the app's grievance screen.
+    "ComplaintTicket": ("tickets", "grievance-tickets"),
+    "grievance-tickets": ("tickets", "ComplaintTicket"),
 }
 
 
@@ -345,6 +388,20 @@ def _route_resource_from_path(path, module):
     if resource and not resource.startswith("v"):
         return resource
     return None
+
+
+def _permission_resource_for_request(view_class, request, default_resource):
+    resolver = getattr(view_class, "permission_resource_for_request", None)
+    if callable(resolver):
+        return resolver(request, default_resource)
+    return default_resource
+
+
+def _permission_action_for_request(view_class, request, default_action):
+    resolver = getattr(view_class, "permission_action_for_request", None)
+    if callable(resolver):
+        return resolver(request, default_action)
+    return default_action
 
 
 def _resource_allowlist_candidates(permission_resource, route_resource=None):
@@ -444,18 +501,19 @@ def _permission_filters_for_user(user):
         or getattr(user, "contractorusertype_id", None)
     )
 
+    # app_module matters for the same reason role_name does: it selects the
+    # baseline the resolver falls back to. Omitting it here would let login
+    # hand the app a surface's permissions that every subsequent request then
+    # 403s against — the exact divergence this shared resolver exists to stop.
     return {
         "company_unique_id": company_unique_id,
         "staff_unique_id": staff_unique_id,
         "role_name": getattr(role_obj, "name", None),
+        "app_module": getattr(user, "app_module", None),
     }
 
 
 def _resolve_permissions_for_request(request):
-    payload_permissions = getattr(request, "jwt_payload", {}).get("permissions")
-    if payload_permissions:
-        return payload_permissions
-
     filters = _permission_filters_for_user(request.user)
     if not filters:
         return {}
@@ -464,7 +522,8 @@ def _resolve_permissions_for_request(request):
         "module-permissions:"
         f"{filters['staff_unique_id']}:"
         f"{filters['company_unique_id']}:"
-        f"{filters.get('role_name') or '-'}"
+        f"{filters.get('role_name') or '-'}:"
+        f"{filters.get('app_module') or '-'}"
     )
 
     permissions = cache.get(cache_key)
@@ -549,6 +608,11 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             "permission_resource",
             view_class.__name__.replace("ViewSet", "")
         )
+        permission_resource = _permission_resource_for_request(
+            view_class,
+            request,
+            permission_resource,
+        )
         route_resource = _route_resource_from_path(request.path, module)
 
         allowed_resources = MODULE_RESOURCE_ALLOWLIST.get(module, set())
@@ -580,6 +644,7 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         action = HTTP_ACTION_MAP.get(request.method)
         if not action:
             return JsonResponse({"detail": "Invalid HTTP method"}, status=405)
+        action = _permission_action_for_request(view_class, request, action)
 
         # Dropdown-only resources: readable through this module, never writable.
         readonly_resources = MODULE_READONLY_RESOURCES.get(module, set())
@@ -607,6 +672,7 @@ class ModulePermissionMiddleware(MiddlewareMixin):
                 )
 
         permissions = _resolve_permissions_for_request(request)
+        request.resolved_permissions = permissions
         allowed_actions = self._resolve_allowed_actions(
             permissions.get(module, {}),
             permission_resource,
