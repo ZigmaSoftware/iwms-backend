@@ -1,5 +1,16 @@
+from django.db.models import Max
+
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.screen_managements.mainscreentype import MainScreenType
+from app.models.screen_managements.app_module import AppModule
+from app.models.staff_creations.staff_access_configuration import (
+    StaffAccessConfigurationPermission,
+)
+from app.utils.app_feature_grants import (
+    APP_MODULE_SEED,
+    CITIZEN_APP_MAINSCREEN,
+    CITIZEN_APP_SCREENS,
+)
 from app.models.screen_managements.userscreenaction import UserScreenAction
 from app.models.screen_managements.mainscreen import MainScreen
 from app.models.screen_managements.userscreen import UserScreen
@@ -18,6 +29,132 @@ from app.models.screen_managements.companyuserscreencolumnpermission import (
 class PermissionSeeder(BaseSeeder):
     name = "permission_full"
 
+    def _grant_palakkad_project_admin_access(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        from app.models.staff_creations.staff_access_configuration import (
+            StaffAccessConfiguration,
+            StaffAccessConfigurationPermission,
+        )
+
+        staff = (
+            Staffcreation.objects.select_related("company_id", "project_id")
+            .filter(
+                username="haripillai",
+                project_id__name="Palakkad BP",
+                is_active=True,
+                is_deleted=False,
+            )
+            .first()
+        )
+        if not staff:
+            return
+
+        # Runs every time, not just when the catalog is empty. Guarding on
+        # "does a catalog already exist" meant a screen added later never got
+        # rows for this project, so it stayed invisible in Staff Access
+        # Configuration and could not be granted at all.
+        active_actions = list(
+            UserScreenAction.objects.filter(is_active=True, is_deleted=False)
+            .order_by("unique_id")
+        )
+        active_screens = (
+            UserScreen.objects.filter(is_active=True, is_deleted=False)
+            .select_related("mainscreen_id")
+            .order_by("mainscreen_id__order_no", "order_no", "unique_id")
+        )
+        created = 0
+        for screen in active_screens:
+            for order_no, action in enumerate(active_actions, start=1):
+                _, made = CompanyUserScreenPermission.objects.get_or_create(
+                    company_id=staff.company_id,
+                    project_id=staff.project_id,
+                    mainscreen_id=screen.mainscreen_id,
+                    userscreen_id=screen,
+                    userscreenaction_id=action,
+                    defaults={
+                        "order_no": order_no,
+                        "description": f"{action.variable_name} {screen.userscreen_name}",
+                        "is_active": True,
+                        "is_deleted": False,
+                    },
+                )
+                created += 1 if made else 0
+        if created:
+            self.log(f"Palakkad BP catalog: added {created} new permission rows.")
+
+        catalog = list(
+            CompanyUserScreenPermission.objects.filter(
+                company_id=staff.company_id,
+                project_id=staff.project_id,
+                is_active=True,
+                is_deleted=False,
+            ).select_related("mainscreen_id", "userscreen_id", "userscreenaction_id")
+        )
+        if not catalog:
+            self.log(
+                "Palakkad project admin haripillai exists, but no Palakkad BP "
+                "permission catalog is available yet."
+            )
+            return
+
+        config, _ = StaffAccessConfiguration.objects.update_or_create(
+            staff_id=staff,
+            defaults={
+                "company_id": staff.company_id,
+                "is_active": True,
+                "is_deleted": False,
+            },
+        )
+        config.projects.set([staff.project_id])
+
+        seen = set()
+        granted = 0
+        for order, entry in enumerate(catalog, start=1):
+            key = (
+                entry.mainscreen_id_id,
+                entry.userscreen_id_id,
+                entry.userscreenaction_id_id,
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+
+            StaffAccessConfigurationPermission.objects.update_or_create(
+                staff_access_configuration_id=config,
+                mainscreen_id=entry.mainscreen_id,
+                userscreen_id=entry.userscreen_id,
+                userscreenaction_id=entry.userscreenaction_id,
+                defaults={
+                    "order_no": order,
+                    "is_active": True,
+                    "is_deleted": False,
+                },
+            )
+            granted += 1
+
+        stale_ids = [
+            perm.unique_id
+            for perm in StaffAccessConfigurationPermission.objects.filter(
+                staff_access_configuration_id=config,
+            )
+            if (
+                perm.mainscreen_id_id,
+                perm.userscreen_id_id,
+                perm.userscreenaction_id_id,
+            )
+            not in seen
+        ]
+        if stale_ids:
+            StaffAccessConfigurationPermission.objects.filter(
+                unique_id__in=stale_ids
+            ).delete()
+
+        screens = len({key[1] for key in seen})
+        self.log(
+            f"Granted Palakkad project-admin access to haripillai: "
+            f"{granted} permissions across {screens} screens."
+        )
+
     def _move_mainscreen_orders_out_of_range(self, mainscreentype, reserved_count):
         """Free the target 1..N order range without tripping MySQL unique checks."""
         screens = list(
@@ -32,6 +169,22 @@ class PermissionSeeder(BaseSeeder):
         for idx, screen in enumerate(screens, start=1):
             screen.order_no = offset + idx
             screen.save(update_fields=["order_no"])
+
+    def _parked_order_no(self, main):
+        """A free, out-of-range `order_no` under `main`.
+
+        Used when adopting a screen from another mainscreen, so it lands in the
+        same high band `_move_userscreen_orders_out_of_range` uses rather than
+        keeping an old low number that the canonical renumber is about to
+        assign to someone else.
+        """
+        max_order = (
+            UserScreen.objects.filter(mainscreen_id=main).aggregate(
+                top=Max("order_no")
+            )["top"]
+            or 0
+        )
+        return max_order + 1001
 
     def _move_userscreen_orders_out_of_range(self, main):
         """Free per-main user screen orders before applying canonical order."""
@@ -58,6 +211,60 @@ class PermissionSeeder(BaseSeeder):
             return
 
         # --------------------------------------------------
+        # 0B. APP MODULE MASTER
+        # --------------------------------------------------
+        # module_key / surface_key / route are read-only in web because the
+        # screens and routes behind them ship inside the Flutter build. Only
+        # the label and ordering are maintained here.
+        for entry in APP_MODULE_SEED:
+            module, created = AppModule.objects.get_or_create(
+                module_key=entry["module_key"],
+                defaults={
+                    "surface_key": entry["surface_key"],
+                    "label": entry["label"],
+                    "route": entry["route"],
+                    "order_no": entry["order_no"],
+                    "description": entry["description"],
+                },
+            )
+            # Never overwrite a label or ordering an admin has changed in web;
+            # the read-only identity fields are kept in step with the app.
+            changed = []
+            if module.surface_key != entry["surface_key"]:
+                module.surface_key = entry["surface_key"]
+                changed.append("surface_key")
+            if module.route != entry["route"]:
+                module.route = entry["route"]
+                changed.append("route")
+            if module.is_deleted:
+                module.is_deleted = False
+                module.is_active = True
+                changed += ["is_deleted", "is_active"]
+            if changed:
+                module.save(update_fields=changed + ["updated_at"])
+
+        self.log(f"App Module master: {AppModule.objects.filter(is_deleted=False).count()} modules.")
+
+        # Retire the per-surface feature screens from the earlier design. There
+        # is one permission list now: a driver/supervisor screen is governed by
+        # the ordinary web permission it maps to, so these rows would only be a
+        # second, divergent place to tick.
+        retired = UserScreen.objects.filter(
+            userscreen_name__regex=r"^app-(supervisor|driver|operator)-",
+            is_deleted=False,
+        )
+        retired_ids = list(retired.values_list("unique_id", flat=True))
+        if retired_ids:
+            CompanyUserScreenPermission.objects.filter(
+                userscreen_id_id__in=retired_ids
+            ).update(is_active=False, is_deleted=True)
+            StaffAccessConfigurationPermission.objects.filter(
+                userscreen_id_id__in=retired_ids
+            ).update(is_active=False, is_deleted=True)
+            retired.update(is_active=False, is_deleted=True)
+            self.log(f"Retired {len(retired_ids)} per-surface app feature screens.")
+
+        # --------------------------------------------------
         # 1. MAIN SCREEN TYPE
         # --------------------------------------------------
         screen_type_names = (
@@ -65,6 +272,11 @@ class PermissionSeeder(BaseSeeder):
             "masters",
             "core-modules",
             "reports",
+            # Holds the citizen app screens. Every other mobile screen is
+            # governed by the ordinary web permission it maps to — see
+            # app/utils/app_feature_grants.py — so only the citizen app, which
+            # has no web screens at all, needs rows of its own here.
+            "mobile-app",
         )
         screen_types = {}
         for type_name in screen_type_names:
@@ -124,6 +336,7 @@ class PermissionSeeder(BaseSeeder):
                 "userscreens",
                 "userscreen-action",
                 "companywisescreenpermissions",
+                "app-modules",
             ],
             "role-assigns": [
                 "user-type",
@@ -148,6 +361,7 @@ class PermissionSeeder(BaseSeeder):
             ],
             "customers": [
                 "customercreations",
+                "customer-access-configuration",
                 "apartment-list",
             ],
             # "waste-management": [
@@ -155,20 +369,30 @@ class PermissionSeeder(BaseSeeder):
             #     "panchayat base collection",
             #     "ward base collection",
             # ],
+            # SUPER ADMIN — global complaint configuration. Split out of
+            # "complaint-ticket" because these tables have no company/project
+            # FK: one edit changes behaviour for every tenant.
+            #
+            # Only the three Complaint Types tabs get screens. The seeded
+            # reference tables (module/priority/status/source/language) are
+            # code-keyed vocabularies the routing and SLA resolvers depend on,
+            # so they stay seeder-owned with no UI; routing rules are an
+            # API-only override now that routing falls back to the category's
+            # default_team.
+            "complaint-masters": [
+                "types",
+                "categories",
+                "subcategories",
+                "sla-rules",
+            ],
+            # CORE MODULES — company/project-scoped complaint entries. The
+            # master screens are intentionally absent: staff read them through
+            # the view-only routes (MODULE_READONLY_RESOURCES) and never get
+            # add/edit/delete on them from here.
             "complaint-ticket": [
                 # renamed from the legacy "grivences" screen group
                 "tickets",
-                "categories",
-                "subcategories",
-                # stub sub-resources — see complaint_ticket_stub_viewsets.py
-                "modules",
-                "priorities",
-                "statuses",
-                "sources",
-                "languages",
                 "teams",
-                "sla-rules",
-                "routing-rules",
                 "feedback",
                 "reopen-history",
                 "notifications",
@@ -200,6 +424,10 @@ class PermissionSeeder(BaseSeeder):
                 "vehicle-breakdowns",
                 "trip-delay-reports",
                 "retrip-requests",
+                # Registered in base_urls.py and called by every mobile
+                # surface, but no UserScreen existed — so it could not be
+                # granted from web at all, only through the role baseline.
+                "staff-notifications",
             ],
             "schedule-masters": [
                 # legacy name — kept alive only for the reporting
@@ -216,6 +444,12 @@ class PermissionSeeder(BaseSeeder):
                 "common-audit",
                 "login-audit",
             ],
+            # CITIZEN APP — the one exception to "one permission list".
+            # Every citizen route is middleware-exempt and self-scoped, so
+            # there is nothing in the ordinary catalog to grant a customer;
+            # these rows are ticked on a CustomerAccessConfiguration and gate
+            # the app's UI only.
+            CITIZEN_APP_MAINSCREEN: CITIZEN_APP_SCREENS,
             "reports": [
                 "trip-summary",
                 "monthly-distance",
@@ -238,6 +472,7 @@ class PermissionSeeder(BaseSeeder):
                 "role-assigns",
                 "staff-creations",
                 "common-masters",
+                "complaint-masters",
                 "audits",
             ),
             "masters": (
@@ -256,6 +491,7 @@ class PermissionSeeder(BaseSeeder):
                 "schedule-masters",
                 "reports",
             ),
+            "mobile-app": (CITIZEN_APP_MAINSCREEN,),
         }
 
         module_group = {
@@ -341,9 +577,36 @@ class PermissionSeeder(BaseSeeder):
                     },
                 )
                 if screen.mainscreen_id_id != main.pk:
+                    # `_move_userscreen_orders_out_of_range` above only parked
+                    # the screens ALREADY under `main`. A screen arriving from
+                    # a different mainscreen — as the complaint masters do when
+                    # they split out of "complaint-ticket" into
+                    # "complaint-masters" — still carries its old `order_no`,
+                    # which may be a low number that the renumber loop below is
+                    # about to hand to a different screen. Park it into the same
+                    # out-of-range band on the way in so the two cannot collide
+                    # on (mainscreen_id, order_no).
                     screen.mainscreen_id = main
-                    screen.save(update_fields=["mainscreen_id"])
+                    screen.order_no = self._parked_order_no(main)
+                    screen.save(update_fields=["mainscreen_id", "order_no"])
                 ordered_screens.append(screen)
+
+            # Retire screens this main screen no longer defines. Without this
+            # they keep `is_active=True` and stay parked at the out-of-range
+            # order `_move_userscreen_orders_out_of_range` gave them, so they
+            # linger in permission grids as pickable rows for screens the UI
+            # no longer routes (e.g. the complaint reference tables once they
+            # lost their CRUD pages). Soft-delete only — the permission rows
+            # hanging off them are left intact in case a screen comes back.
+            canonical_ids = {screen.pk for screen in ordered_screens}
+            orphaned = UserScreen.objects.filter(mainscreen_id=main).exclude(
+                pk__in=canonical_ids
+            )
+            for screen in orphaned:
+                if screen.is_active or not screen.is_deleted:
+                    screen.is_active = False
+                    screen.is_deleted = True
+                    screen.save(update_fields=["is_active", "is_deleted"])
 
             for idx, screen in enumerate(ordered_screens, start=1):
                 screen.order_no = idx
@@ -485,8 +748,15 @@ class PermissionSeeder(BaseSeeder):
                 )
 
             for main in mainscreens.values():
+                # A citizen app screen answers only "can they see it", so
+                # add/edit/delete/use are not offered against one.
+                if main.mainscreen_name == CITIZEN_APP_MAINSCREEN:
+                    screen_actions = [actions["view"]] if "view" in actions else []
+                else:
+                    screen_actions = list(actions.values())
+
                 for screen in UserScreen.objects.filter(mainscreen_id=main, is_deleted=False):
-                    for order_no, action in enumerate(actions.values(), start=1):
+                    for order_no, action in enumerate(screen_actions, start=1):
                         CompanyUserScreenPermission.objects.get_or_create(
                             company_id=company,
                             project_id=company_project,
@@ -534,5 +804,7 @@ class PermissionSeeder(BaseSeeder):
                             "is_deleted": False,
                         },
                     )
+
+        self._grant_palakkad_project_admin_access()
 
         self.log("--- Baseline permission seeding completed successfully ---")

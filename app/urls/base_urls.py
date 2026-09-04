@@ -36,6 +36,8 @@ from ..viewsets.superadmin.screen_management.mainscreen_viewset import MainScree
 from ..viewsets.superadmin.screen_management.userscreen_viewset import UserScreenViewSet
 from ..viewsets.superadmin.screen_management.userscreenaction_viewset import UserScreenActionViewSet
 from ..viewsets.superadmin.screen_management.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
+from ..viewsets.superadmin.screen_management.app_module_viewset import AppModuleViewSet
+from ..viewsets.masters.customer_masters.customer_access_configuration_viewset import CustomerAccessConfigurationViewSet
 from ..viewsets.superadmin.screen_management.companyuserscreencolumnpermission_viewset import CompanyUserScreenColumnPermissionViewSet
 from ..viewsets.superadmin.screen_management.permission_api_views import (
     CompanyPermissionsAPIView,
@@ -214,6 +216,7 @@ router.register_group("screen-managements", "userscreens",           UserScreenV
 router.register_group("screen-managements", "userscreen-action",     UserScreenActionViewSet)
 router.register_group("screen-managements", "companywisescreenpermissions", CompanyUserScreenPermissionViewSet)
 router.register_group("screen-managements", "column-permissions", CompanyUserScreenColumnPermissionViewSet)
+router.register_group("screen-managements", "app-modules", AppModuleViewSet)
 
 # ============================================================
 # GROUP: USER & ROLE ASSIGNMENT 
@@ -243,11 +246,52 @@ router.register_group("login", "login-user",      DesktopLoginViewSet)
 # GROUP: CUSTOMER MODULES
 # ============================================================
 router.register_group("customer-masters", "customercreations", CustomerCreationViewSet)
+router.register_group(
+    "customer-masters", "customer-access-configuration", CustomerAccessConfigurationViewSet
+)
 
 # ============================================================
-# GROUP: COMPLAINT TICKETING
+# GROUP: COMPLAINT MASTERS (SUPER ADMIN)
+#
+# Global complaint configuration. None of these tables carry a
+# company/project FK, so a single edit reconfigures every tenant — they are
+# deliberately split out of "complaint-ticket" so a company-scoped role can
+# never hold write access. See MODULE_RESOURCE_ALLOWLIST /
+# MODULE_READONLY_RESOURCES in module_permission_middleware.py.
+#
+# The "types" prefix backs the tabbed Complaint Types screen (Category /
+# Sub-category / SLA), which is why the category viewset is registered under
+# both names.
+# ============================================================
+router.register_group("complaint-masters", "types", ComplaintTicketCategoryViewSet, basename="complaint-masters-types")
+router.register_group("complaint-masters", "categories", ComplaintTicketCategoryViewSet, basename="complaint-masters-categories")
+router.register_group("complaint-masters", "subcategories", ComplaintTicketSubcategoryViewSet, basename="complaint-masters-subcategories")
+router.register_group("complaint-masters", "sla-rules", ComplaintSlaRuleViewSet, basename="complaint-masters-sla-rules")
+router.register_group("complaint-masters", "routing-rules", ComplaintRoutingRuleViewSet, basename="complaint-masters-routing-rules")
+router.register_group("complaint-masters", "modules", ComplaintModuleViewSet, basename="complaint-masters-modules")
+router.register_group("complaint-masters", "priorities", ComplaintPriorityViewSet, basename="complaint-masters-priorities")
+router.register_group("complaint-masters", "statuses", ComplaintStatusViewSet, basename="complaint-masters-statuses")
+router.register_group("complaint-masters", "sources", ComplaintSourceViewSet, basename="complaint-masters-sources")
+router.register_group("complaint-masters", "languages", ComplaintLanguageViewSet, basename="complaint-masters-languages")
+
+# ============================================================
+# GROUP: COMPLAINT TICKETING (CORE MODULES)
+#
+# Company/project-scoped complaint entries plus the teams that work them.
+# The master prefixes below stay registered here so the Complaint Desk can
+# still populate its Type/Sub-type/Priority dropdowns; the middleware
+# downgrades them to view-only for this module.
 # ============================================================
 router.register_group("complaint-ticket", "tickets", ComplaintTicketViewSet, basename="complaint-ticket-tickets")
+router.register_group("complaint-ticket", "teams", ComplaintTeamViewSet, basename="complaint-ticket-teams")
+router.register_group("complaint-ticket", "feedback", ComplaintFeedbackViewSet, basename="complaint-ticket-feedback")
+router.register_group("complaint-ticket", "reopen-history", ComplaintReopenHistoryViewSet, basename="complaint-ticket-reopen-history")
+router.register_group("complaint-ticket", "notifications", ComplaintNotificationViewSet, basename="complaint-ticket-notifications")
+router.register_group("complaint-ticket", "address-change", ComplaintAddressChangeViewSet, basename="complaint-ticket-address-change")
+
+# Read-only master reads for the Desk's dropdowns (writes blocked by
+# MODULE_READONLY_RESOURCES). Kept at their original paths so existing
+# frontend calls and bookmarked links keep resolving.
 router.register_group("complaint-ticket", "categories", ComplaintTicketCategoryViewSet, basename="complaint-ticket-categories")
 router.register_group("complaint-ticket", "subcategories", ComplaintTicketSubcategoryViewSet, basename="complaint-ticket-subcategories")
 router.register_group("complaint-ticket", "modules", ComplaintModuleViewSet, basename="complaint-ticket-modules")
@@ -255,15 +299,10 @@ router.register_group("complaint-ticket", "priorities", ComplaintPriorityViewSet
 router.register_group("complaint-ticket", "statuses", ComplaintStatusViewSet, basename="complaint-ticket-statuses")
 router.register_group("complaint-ticket", "sources", ComplaintSourceViewSet, basename="complaint-ticket-sources")
 router.register_group("complaint-ticket", "languages", ComplaintLanguageViewSet, basename="complaint-ticket-languages")
-router.register_group("complaint-ticket", "teams", ComplaintTeamViewSet, basename="complaint-ticket-teams")
 router.register_group("complaint-ticket", "ticket-categories", ComplaintTicketCategoryViewSet, basename="complaint-ticket-ticket-categories")
 router.register_group("complaint-ticket", "ticket-subcategories", ComplaintTicketSubcategoryViewSet, basename="complaint-ticket-ticket-subcategories")
 router.register_group("complaint-ticket", "sla-rules", ComplaintSlaRuleViewSet, basename="complaint-ticket-sla-rules")
 router.register_group("complaint-ticket", "routing-rules", ComplaintRoutingRuleViewSet, basename="complaint-ticket-routing-rules")
-router.register_group("complaint-ticket", "feedback", ComplaintFeedbackViewSet, basename="complaint-ticket-feedback")
-router.register_group("complaint-ticket", "reopen-history", ComplaintReopenHistoryViewSet, basename="complaint-ticket-reopen-history")
-router.register_group("complaint-ticket", "notifications", ComplaintNotificationViewSet, basename="complaint-ticket-notifications")
-router.register_group("complaint-ticket", "address-change", ComplaintAddressChangeViewSet, basename="complaint-ticket-address-change")
 
 # Backward-compatible mobile alias used by the private app.
 router.register_group("complaint-ticket", "grievance-tickets", ComplaintTicketViewSet, basename="complaint-ticket-grievance-tickets")

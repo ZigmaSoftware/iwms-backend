@@ -190,6 +190,27 @@ def copy_trip_plan_stops_to_daily_assignment(sender, instance, created, **kwargs
     sync_daily_assignment_stops_from_plan(instance)
 
 
+def _describe_waste_collection(instance):
+    """Compact, customer-facing summary naming waste type(s) and weight."""
+    breakdown = [
+        (label, value)
+        for label, value in (
+            ("wet", instance.wet_waste),
+            ("dry", instance.dry_waste),
+            ("mixed", instance.mixed_waste),
+            ("sanitary", instance.sanitary_waste),
+        )
+        if value
+    ]
+    if not breakdown:
+        return "Your waste was just collected. Thank you!"
+    if len(breakdown) == 1:
+        label, value = breakdown[0]
+        return f"{value:g} kg of {label} waste collected. Thank you!"
+    parts = ", ".join(f"{value:g} kg {label}" for label, value in breakdown)
+    return f"{instance.total_quantity:g} kg collected ({parts}). Thank you!"
+
+
 @receiver(post_save, sender="app.WasteCollection")
 def sync_household_collection_on_waste_save(sender, instance, **kwargs):
     """When a WasteCollection is saved with a trip_assignment_id:
@@ -213,6 +234,7 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
         DailyTripHouseholdCollection,
     )
     from app.models.schedule_masters.daily_trip_log import DailyTripLog
+    from app.models.customers.wastecollection import WasteCollection
 
     collection_type = (
         DailyTripHouseholdCollection.COLLECTION_TYPE_BULK
@@ -227,7 +249,39 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
         collection_type=collection_type,
         defaults={"status": DailyTripHouseholdCollection.STATUS_PENDING},
     )
-    dthc.mark_collected(instance)
+
+    # The admin's "Waste Collected Data" form lets a WasteCollection be saved
+    # with status Not Available / Collect Later (no actual collection took
+    # place), so only stamp the stop Collected when that's really what
+    # happened — otherwise carry the chosen status through via mark_status,
+    # same as the mobile app's not-collected path.
+    if instance.status == WasteCollection.STATUS_COLLECTED:
+        dthc.mark_collected(instance)
+
+        # Notify the customer instantly that their waste was collected. Safe
+        # no-op if push isn't configured or they have no registered device.
+        from app.services.push_notification_service import send_push_to_customer
+        send_push_to_customer(
+            instance.customer,
+            "Waste collected",
+            _describe_waste_collection(instance),
+            data={
+                "event": "household_collected",
+                "trip_assignment_id": str(instance.trip_assignment_id_id),
+                "wet_waste": instance.wet_waste,
+                "dry_waste": instance.dry_waste,
+                "mixed_waste": instance.mixed_waste,
+                "sanitary_waste": instance.sanitary_waste,
+                "total_quantity": instance.total_quantity,
+            },
+        )
+    elif instance.status in (
+        WasteCollection.STATUS_NOT_AVAILABLE,
+        WasteCollection.STATUS_COLLECT_LATER,
+    ):
+        dthc.mark_status(instance.status)
+    else:
+        return
 
     # 2. Find or auto-create the trip log
     log = DailyTripLog.objects.filter(

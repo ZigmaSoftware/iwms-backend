@@ -19,6 +19,7 @@ class MyTripTodayViewSet(viewsets.ViewSet):
     """GET /api/v1/operator-mobile/my-trip-today/"""
 
     permission_classes = [IsOperatorRole]
+    permission_resource = "DailyTripAssignment"
 
     def list(self, request):
         try:
@@ -45,6 +46,7 @@ class MyTripsTodayViewSet(viewsets.ViewSet):
     """
 
     permission_classes = [IsOperatorRole]
+    permission_resource = "DailyTripAssignment"
 
     def list(self, request):
         try:

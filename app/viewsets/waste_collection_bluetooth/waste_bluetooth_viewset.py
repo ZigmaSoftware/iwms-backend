@@ -160,6 +160,22 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
         # auto_end=False: driver app write path — see that method's docstring.
         assignment.mark_completed_if_all_household_stops_collected(auto_end=False)
 
+        # Notify the customer instantly. Safe no-op if push isn't configured
+        # or they have no registered device.
+        from app.services.push_notification_service import send_push_to_customer
+        if normalized_status == DailyTripHouseholdCollection.STATUS_MISSED:  # "Not Available"
+            push_title, push_body = "Collection update", "Our driver could not access your location today."
+        else:  # Collect Later
+            push_title, push_body = "Collection update", "Your waste will be collected later today."
+        if reason:
+            push_body += f' ("{reason}")'
+        send_push_to_customer(
+            dthc.customer_id,
+            push_title,
+            push_body,
+            data={"event": "household_status", "status": dthc.status, "trip_assignment_id": str(dthc.trip_assignment_id_id)},
+        )
+
         return Response({
             "status": "success",
             "data": {
