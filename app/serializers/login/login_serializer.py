@@ -683,9 +683,8 @@ class LoginSerializer(serializers.Serializer):
 
     @staticmethod
     def _is_mobile_client(attrs):
-        return str(attrs.get("client") or "web").strip().lower() in {
-            "mobile", "app", "android", "ios",
-        }
+        from app.utils.request_client import is_mobile_client
+        return is_mobile_client(attrs)
 
     def _enforce_app_module_gate(self, attrs, data):
         """Refuse a mobile sign-in for someone with no App Module ticked.
