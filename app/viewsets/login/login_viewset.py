@@ -11,6 +11,7 @@ from django.utils import timezone
 from app.models.staff_creations.loginAudit import LoginAudit
 from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.customers.customercreation import CustomerCreation
+from app.models.customers.customer_access_configuration import CustomerAccessConfiguration
 from app.serializers.login.login_serializer import LoginSerializer
 from app.utils.permission_response import resolve_permission_payload
 from app.utils.captcha import verify_captcha
@@ -71,6 +72,8 @@ class LoginViewSet(ViewSet):
         user = serializer.validated_data["user"]
         permissions = serializer.validated_data["permissions"]
         app_surfaces = serializer.validated_data.get("app_surfaces", [])
+        app_modules = serializer.validated_data.get("app_modules", [])
+        app_screens = serializer.validated_data.get("app_screens", {})
         landing = serializer.validated_data.get("landing")
         permission_version = serializer.validated_data.get("permission_version")
         generated_at = serializer.validated_data.get("generated_at")
@@ -340,6 +343,8 @@ class LoginViewSet(ViewSet):
                 "role": role,
                 "permissions": permissions,
                 "app_surfaces": app_surfaces,
+                "app_modules": app_modules,
+                "app_screens": app_screens,
                 "landing": landing,
                 "permission_version": permission_version,
                 "generated_at": generated_at,
@@ -390,10 +395,31 @@ class LoginViewSet(ViewSet):
         company_unique_id = getattr(company, "unique_id", None)
 
         if isinstance(user, CustomerCreation):
+            config = (
+                CustomerAccessConfiguration.objects
+                .filter(customer_id_id=user.unique_id, is_deleted=False, is_active=True)
+                .prefetch_related("app_modules", "app_screens")
+                .first()
+            )
             payload = resolve_permission_payload(
                 company_unique_id=company_unique_id,
                 role_name="customer",
                 user_type="customer",
+                app_module=getattr(user, "app_module", None) or "citizen",
+                app_modules=(
+                    list(
+                        config.app_modules.filter(is_active=True, is_deleted=False)
+                        .values_list("surface_key", flat=True)
+                    )
+                    if config else None
+                ),
+                citizen_screens=(
+                    set(
+                        config.app_screens.filter(is_active=True, is_deleted=False)
+                        .values_list("userscreen_name", flat=True)
+                    )
+                    if config else None
+                ),
             )
         else:
             role_obj = (
@@ -409,6 +435,7 @@ class LoginViewSet(ViewSet):
                     if getattr(user, "contractorusertype_id", None)
                     else "staff"
                 ),
+                app_module=getattr(user, "app_module", None),
             )
 
         return Response(
@@ -418,6 +445,8 @@ class LoginViewSet(ViewSet):
                 "column_permissions": payload["column_permissions"],
                 "module_access": payload["module_access"],
                 "app_surfaces": payload["app_surfaces"],
+                "app_modules": payload.get("app_modules", []),
+                "app_screens": payload.get("app_screens", {}),
                 "landing": payload["landing"],
                 "permission_version": payload["permission_version"],
                 "generated_at": payload["generated_at"],

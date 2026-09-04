@@ -16,6 +16,7 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.customer_qr import generate_customer_qr_content
 from app.utils.scoped_display_id import lock_tenant_scope, next_scoped_display_id
+from app.utils.app_feature_grants import APP_MODULE_CHOICES
 
 
 def generate_staff_unique_id():
@@ -188,6 +189,18 @@ class StaffcreationOfficeDetails(BaseMaster):
         blank=True,
         db_column="staffusertype_id",
         related_name="staff_users"
+    )
+
+    # Which mobile app this staff member signs in to. Set explicitly here
+    # rather than guessed from the role name, so an unrelated web permission
+    # can never add a surface the person has no screens for.
+    app_module = models.CharField(
+        max_length=20,
+        choices=APP_MODULE_CHOICES,
+        null=True,
+        blank=True,
+        db_column="app_module",
+        help_text="Mobile app this user lands in. Leave blank for web-only staff.",
     )
 
     contractorusertype_id = models.ForeignKey(

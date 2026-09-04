@@ -52,9 +52,17 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             ]
         )
 
-        return VehicleCreation.objects.filter(is_deleted=False).select_related(
+        qs = VehicleCreation.objects.filter(is_deleted=False).select_related(
             "vehicle_type", "fuel_type", "company_id", "project_id"
         ).annotate(is_assigned_today=Exists(busy_today))
+
+        if self._is_supervisor_user():
+            qs = qs.filter(
+                Q(supervisor=self.request.user)
+                | Q(trip_plans__supervisor_id=self.request.user)
+            ).distinct()
+
+        return qs
 
     def get_object(self):
         lookup_field = self.lookup_field
