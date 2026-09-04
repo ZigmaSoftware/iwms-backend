@@ -15,6 +15,7 @@ from app.serializers.superadmin.staff_management.staff_access_configuration_seri
     StaffAccessConfigurationSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.password_encryption import decrypt_password
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.filters import (
     ModelFieldQueryFilter,
@@ -133,7 +134,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             company_id_id=company.unique_id,
             is_deleted=False,
             active_status=True,
-        ).select_related("personal_details", "staffusertype_id")
+        ).select_related("personal_details", "staffusertype_id", "user_type_id")
 
         if project_id:
             queryset = queryset.filter(project_id_id=project_id)
@@ -160,9 +161,11 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "mobile_number": getattr(_personal_details(staff), "contact_mobile", None),
                 "office_email": getattr(_personal_details(staff), "contact_email", None),
                 "doj": staff.doj,
+                "user_type_id": getattr(staff.user_type_id, "unique_id", None),
                 "staffusertype_id": getattr(staff.staffusertype_id, "unique_id", None),
                 "staffusertype_name": getattr(staff.staffusertype_id, "name", None),
                 "username": staff.username,
+                "password": decrypt_password(staff.password or ""),
                 "active_status": staff.active_status,
                 "has_access_configuration": staff.staff_unique_id in configured_staff_ids,
             }
