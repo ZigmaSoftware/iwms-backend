@@ -72,7 +72,27 @@ class StaffAccessConfiguration(BaseMaster):
         Ward, related_name="staff_access_configurations", blank=True,
     )
 
+    # Mobile apps this staff member may sign into. No module ticked means the
+    # mobile login is refused outright — what they can do once inside comes
+    # from the ordinary screen permissions below, which also govern web.
+    app_modules = models.ManyToManyField(
+        "app.AppModule",
+        related_name="staff_access_configurations",
+        blank=True,
+    )
+
     description = models.CharField(max_length=255, blank=True, null=True)
+
+    enforce_strict_permissions = models.BooleanField(
+        default=False,
+        help_text=(
+            "When off (the default), the staff member's role baseline still "
+            "applies on top of the grants below, so a partial configuration "
+            "cannot lock them out of their app. Turn it on only once their "
+            "grants have been verified — then these grants are the whole "
+            "of their access."
+        ),
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

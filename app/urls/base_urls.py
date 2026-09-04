@@ -36,6 +36,8 @@ from ..viewsets.superadmin.screen_management.mainscreen_viewset import MainScree
 from ..viewsets.superadmin.screen_management.userscreen_viewset import UserScreenViewSet
 from ..viewsets.superadmin.screen_management.userscreenaction_viewset import UserScreenActionViewSet
 from ..viewsets.superadmin.screen_management.companyuserscreenpermission_viewset import CompanyUserScreenPermissionViewSet
+from ..viewsets.superadmin.screen_management.app_module_viewset import AppModuleViewSet
+from ..viewsets.masters.customer_masters.customer_access_configuration_viewset import CustomerAccessConfigurationViewSet
 from ..viewsets.superadmin.screen_management.companyuserscreencolumnpermission_viewset import CompanyUserScreenColumnPermissionViewSet
 from ..viewsets.superadmin.screen_management.permission_api_views import (
     CompanyPermissionsAPIView,
@@ -214,6 +216,7 @@ router.register_group("screen-managements", "userscreens",           UserScreenV
 router.register_group("screen-managements", "userscreen-action",     UserScreenActionViewSet)
 router.register_group("screen-managements", "companywisescreenpermissions", CompanyUserScreenPermissionViewSet)
 router.register_group("screen-managements", "column-permissions", CompanyUserScreenColumnPermissionViewSet)
+router.register_group("screen-managements", "app-modules", AppModuleViewSet)
 
 # ============================================================
 # GROUP: USER & ROLE ASSIGNMENT 
@@ -243,6 +246,9 @@ router.register_group("login", "login-user",      DesktopLoginViewSet)
 # GROUP: CUSTOMER MODULES
 # ============================================================
 router.register_group("customer-masters", "customercreations", CustomerCreationViewSet)
+router.register_group(
+    "customer-masters", "customer-access-configuration", CustomerAccessConfigurationViewSet
+)
 
 # ============================================================
 # GROUP: COMPLAINT MASTERS (SUPER ADMIN)
