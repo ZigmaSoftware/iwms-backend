@@ -73,7 +73,6 @@ class TripHistoryViewSet(viewsets.ViewSet):
     """
 
     permission_classes = [IsOperatorRole]
-    permission_resource = "DailyTripAssignment"
     lookup_field = "unique_id"
 
     def _base_queryset(self, operator):

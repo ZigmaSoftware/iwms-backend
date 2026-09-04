@@ -12,19 +12,32 @@ from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
-from app.utils.app_feature_grants import (
-    APP_SURFACE_CONFIG as _APP_SURFACE_CONFIG,
-    APP_SURFACE_KEYS,
-    CITIZEN_APP_SCREENS,
-    ROLE_SCREEN_TEMPLATES,
-    SCREEN_PERMISSIONS,
-    visible_screens,
-)
 
 
 ACTION_KEYS = ("view", "add", "edit", "delete", "use")
 
-APP_SURFACE_CONFIG = _APP_SURFACE_CONFIG
+APP_SURFACE_CONFIG = {
+    "citizen": {
+        "label": "Citizen",
+        "route": "/citizen/home",
+    },
+    "operator": {
+        "label": "Operator",
+        "route": "/operator/home",
+    },
+    "driver": {
+        "label": "Driver",
+        "route": "/driver/home",
+    },
+    "supervisor": {
+        "label": "Supervisor",
+        "route": "/supervisor/home",
+    },
+    "admin": {
+        "label": "Admin",
+        "route": "/admin/home",
+    },
+}
 
 
 def base_action_map():
@@ -330,71 +343,75 @@ def build_fallback_module_access(permissions):
     return module_access
 
 
-def surfaces_from_app_modules(app_modules):
-    """Surfaces for the app modules ticked on an access configuration.
+def infer_app_surfaces(module_access, permissions, role_name=None, user_type=None):
+    role_key = normalize_permission_key(role_name)
+    user_type_key = normalize_permission_key(user_type)
+    module_keys = {module.get("moduleKey") for module in module_access}
+    screen_keys = {
+        screen.get("screenKey")
+        for module in module_access
+        for screen in module.get("screens", [])
+    }
 
-    This is the whole answer for the mobile app: a person may open the apps
-    they were ticked for, and no others. Nothing is inferred from a role name
-    or from which web screens they happen to hold, which is what used to hand
-    a driver an Admin tile because someone granted them the masters screens.
-    """
-    ordered = []
-    for surface in APP_SURFACE_KEYS:
-        if surface in (app_modules or []):
-            ordered.append(surface)
-    return ordered
+    ADMIN_MODULE_KEYS = {
+        "dashboard",
+        "screen-managements",
+        "role-assigns",
+        "staff-creations",
+        "transport-masters",
+        "audits",
+        "masters",
+        "common-masters",
+        "grivences",
+    }
 
+    surface_keys = []
+    if user_type_key in {"customer", "citizen"} or role_key in {"customer", "citizen"}:
+        surface_keys.append("citizen")
+    elif "driver" in role_key:
+        surface_keys.append("driver")
+    elif "operator" in role_key:
+        surface_keys.append("operator")
+    # Supervisor must be checked BEFORE the admin bucket: the supervisor app
+    # (module5_supervisor) is its own surface, not the admin dashboard.
+    elif "supervisor" in role_key:
+        surface_keys.append("supervisor")
+    elif any(token in role_key for token in ("admin", "superadmin", "platform")):
+        surface_keys.append("admin")
+    elif module_keys & ADMIN_MODULE_KEYS:
+        surface_keys.append("admin")
+    elif screen_keys & {
+        "customercreations",
 
-def infer_app_surfaces(
-    module_access,
-    permissions,
-    role_name=None,
-    user_type=None,
-    app_module=None,
-    app_modules=None,
-):
-    """The apps this user may open, most preferred first.
+        "trip_plan",
+        "attendance-list",
+        "alternative-stafftemplate",
+    } or module_keys & {"customers", "process", "process-items"}:
+        surface_keys.append("operator")
 
-    `app_modules` are the ticked App Module surfaces; `app_module` is the
-    default chosen on the creation form, used only to order them.
-    """
-    granted = surfaces_from_app_modules(app_modules)
+    # A role with its own dedicated surface (driver/operator/supervisor) can
+    # still be explicitly granted admin-module screens (e.g. "Dashboard")
+    # through Role Management — in that case the admin panel should also be
+    # reachable, in addition to that role's own app.
+    if "admin" not in surface_keys and module_keys & ADMIN_MODULE_KEYS:
+        surface_keys.append("admin")
 
-    if not granted:
-        # No module ticked. Web users are unaffected — they never consult this
-        # for anything but the admin landing route — but the mobile app is
-        # refused at login, so returning nothing here is correct.
-        role_key = normalize_permission_key(role_name)
-        user_type_key = normalize_permission_key(user_type)
-        is_web_admin = (
-            user_type_key in {"platform", "staff", "contractor"}
-            and any(token in role_key for token in ("admin", "superadmin", "platform"))
-        ) or user_type_key == "platform"
-        if is_web_admin:
-            return [{
-                "key": "admin",
-                "label": "Admin",
-                "route": "/admin/home",
-                "isDefault": True,
-            }]
-        return []
-
-    preferred = normalize_permission_key(app_module)
-    if preferred in granted:
-        granted.remove(preferred)
-        granted.insert(0, preferred)
+    if not surface_keys and permissions:
+        surface_keys.append("admin")
 
     surfaces = []
-    for index, key in enumerate(granted):
+    for index, key in enumerate(surface_keys):
         config = APP_SURFACE_CONFIG.get(key)
         if not config:
             continue
-        surfaces.append({
-            "key": key,
-            "label": config["label"],
-            "route": config["route"],
-            "isDefault": index == 0,
-        })
+        surfaces.append(
+            {
+                "key": key,
+                "label": config["label"],
+                "route": config["route"],
+                "isDefault": index == 0,
+            }
+        )
     return surfaces
 
 
@@ -422,19 +439,11 @@ def build_landing(app_surfaces, module_access):
     }
 
 
-def build_permission_version(
-    permissions,
-    column_permissions,
-    *,
-    app_modules=None,
-    app_screens=None,
-):
+def build_permission_version(permissions, column_permissions):
     raw_payload = json.dumps(
         {
             "permissions": permissions or {},
             "columns": (column_permissions or {}).get("flat", []),
-            "app_modules": app_modules or [],
-            "app_screens": app_screens or {},
         },
         sort_keys=True,
         default=str,
@@ -442,15 +451,7 @@ def build_permission_version(
     return hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()[:16]
 
 
-def finalize_permission_payload(
-    payload,
-    *,
-    permissions=None,
-    role_name=None,
-    user_type=None,
-    app_module=None,
-    app_modules=None,
-):
+def finalize_permission_payload(payload, *, permissions=None, role_name=None, user_type=None):
     effective_permissions = permissions if permissions is not None else payload.get("permissions", {})
     if permissions is not None and effective_permissions != payload.get("permissions", {}):
         module_access = build_fallback_module_access(effective_permissions)
@@ -464,8 +465,6 @@ def finalize_permission_payload(
         effective_permissions,
         role_name=role_name,
         user_type=user_type,
-        app_module=app_module,
-        app_modules=app_modules if app_modules is not None else payload.get("app_modules"),
     )
 
     return {
@@ -477,8 +476,6 @@ def finalize_permission_payload(
         "permission_version": build_permission_version(
             effective_permissions,
             payload.get("column_permissions", {}),
-            app_modules=app_modules if app_modules is not None else payload.get("app_modules"),
-            app_screens=payload.get("app_screens"),
         ),
         "generated_at": timezone.now().isoformat(),
     }
@@ -554,122 +551,185 @@ def permission_querysets(
     return action_queryset, column_queryset
 
 
-def role_key(role_name):
-    normalized = normalize_permission_key(role_name)
-    for key in ROLE_SCREEN_TEMPLATES:
-        if key in normalized:
-            return key
-    return None
+# ============================================================
+# ROLE DEFAULT PERMISSIONS
+# ============================================================
+# Baseline read-only grants for mobile-app roles that have no explicit
+# StaffAccessConfiguration rows. These MUST live here (not only in the login
+# serializer) because ModulePermissionMiddleware authorizes every subsequent
+# request through resolve_permission_payload() — if the defaults were applied
+# only at login, the app would receive permissions it then gets 403s against.
+ROLE_DEFAULT_PERMISSIONS = {
+    # Driver ("captain") — the driver and operator apps are merged, so this
+    # role also drives trips end to end: read its own assignments/stops and
+    # write collection progress. The operator-mobile/* scan endpoints are
+    # permission-exempt, but the driver screens also hit these directly
+    # (assignment detail, complete/skip, collection logs, household status).
+    "driver": {
+        "customers": {
+            "customercreations": ["view"],
+        },
+        "staff-creations": {
+            "alternative-stafftemplate": ["view"],
+        },
+        "schedule-operations": {
+            "daily-trip-assignments": ["view", "edit"],
+            "daily-trip-collection-points": ["view", "edit"],
+            "daily-trip-household-collections": ["view", "edit"],
+            "bin-collection-events": ["view", "add"],
+            "daily-trip-logs": ["view", "add", "edit"],
+            "vehicle-breakdowns": ["view", "add"],
+            "trip-delay-reports": ["view", "add"],
+            "staff-notifications": ["view", "edit"],
+            # Read-only: the driver app shows its own Re-Trip request's
+            # status while a supervisor decides it, but never approves/
+            # rejects/creates one directly — that's all via retrip_service.
+            "retrip-requests": ["view"],
+        },
+        "schedule-setup": {
+            "collection-points": ["view"],
+        },
+        # The trip header shows the assigned vehicle, and the breakdown flow
+        # reads the vehicle detail before reporting against it.
+        "transport-masters": {
+            "vehicle-creation": ["view"],
+            "vehicle-type": ["view"],
+        },
+    },
+    "operator": {
+        "customers": {
+            "customercreations": ["view"],
+        },
+        "staff-creations": {
+            "alternative-stafftemplate": ["view"],
+        },
+        "schedule-operations": {
+            "daily-trip-assignments": ["view", "edit"],
+            "daily-trip-collection-points": ["view", "edit"],
+            "daily-trip-household-collections": ["view", "edit"],
+            "bin-collection-events": ["view", "add"],
+            "daily-trip-logs": ["view", "add", "edit"],
+            "vehicle-breakdowns": ["view", "add"],
+            "trip-delay-reports": ["view", "add"],
+            "staff-notifications": ["view", "edit"],
+            "retrip-requests": ["view"],
+        },
+        "schedule-setup": {
+            "collection-points": ["view"],
+        },
+        # The trip header shows the assigned vehicle, and the breakdown flow
+        # reads the vehicle detail before reporting against it.
+        "transport-masters": {
+            "vehicle-creation": ["view"],
+            "vehicle-type": ["view"],
+        },
+    },
+    # Backs the supervisor app (module5_supervisor): assignments/trip logs
+    # for the home + trips screens, staff + templates for the crew/teams
+    # screens, collection points and customers for the households screen,
+    # grievance tickets for the supervisor grievance view.
+    "supervisor": {
+        "schedule-operations": {
+            "daily-trip-assignments": ["view"],
+            "daily-trip-logs": ["view"],
+            "daily-trip-collection-points": ["view"],
+            "daily-trip-household-collections": ["view"],
+            "vehicle-breakdowns": ["view", "edit"],
+            "trip-delay-reports": ["view", "edit"],
+            "staff-notifications": ["view", "edit"],
+            "bin-collection-events": ["view"],
+            # Household waste collections (WasteCollection model) — the
+            # supervisor waste-summary cards' `mine=true` fetch needs this
+            # alongside bin-collection-events, or every household collection
+            # a driver makes is silently invisible to the dashboard (only
+            # bin scans were ever visible before this was added).
+            "wastecollections": ["view"],
+            # Reviews Re-Trip requests via the approve/reject actions —
+            # both POST, so the middleware's HTTP_ACTION_MAP scores them as
+            # "add", not "edit"; create/update/destroy stay disabled in the
+            # viewset itself so nothing else can write here.
+            "retrip-requests": ["view", "add"],
+        },
+        "schedule-setup": {
+            "staff-templates": ["view"],
+            "alternative-staff-templates": ["view"],
+            "collection-points": ["view"],
+            "trip-plans": ["view"],
+        },
+        "staff-creations": {
+            "staffcreation": ["view"],
+        },
+        "customers": {
+            "customercreations": ["view"],
+        },
+        "transport-masters": {
+            "vehicle-creation": ["view"],
+        },
+        "complaint-ticket": {
+            # Every ticket action (resolve/escalate/assign/comments/
+            # attachments/reopen/feedback/status) is a POST, so the
+            # middleware's HTTP_ACTION_MAP scores them "add", not "edit" —
+            # a plain PATCH/PUT on the ticket resource itself is the only
+            # thing "edit" actually gates here.
+            "grievance-tickets": ["view", "edit", "add"],
+            "tickets": ["view", "edit", "add"],
+        },
+    },
+}
 
 
 def role_default_permissions(role_name):
-    """Compatibility baseline for mobile roles while strict mode is off."""
-    key = role_key(role_name)
-    if not key:
+    """Baseline permissions for a role, or {} when the role has none.
+
+    Roles are stored as display names ("Company Supervisor", "Company
+    Driver"), so match on the significant token rather than an exact key.
+    """
+    if not role_name:
         return {}
-    return ROLE_SCREEN_TEMPLATES.get(key, {})
+
+    normalized = str(role_name).strip().lower()
+    defaults = ROLE_DEFAULT_PERMISSIONS.get(normalized)
+    if defaults is None:
+        for key, value in ROLE_DEFAULT_PERMISSIONS.items():
+            if key in normalized:
+                defaults = value
+                break
+    return defaults or {}
 
 
 def apply_role_defaults(permissions, role_name):
-    """Merge a role template into explicit grants without removing anything."""
+    """Merge a role's baseline grants into `permissions` (non-destructive:
+    explicitly granted actions always win / are preserved)."""
     defaults = role_default_permissions(role_name)
     if not defaults:
         return permissions
 
-    merged = {
-        module: {
-            screen: list(actions)
-            for screen, actions in (screens or {}).items()
-        }
-        for module, screens in (permissions or {}).items()
-    }
+    permissions = permissions or {}
     for module_name, screens in defaults.items():
-        module_perms = merged.setdefault(module_name, {})
+        module_perms = permissions.setdefault(module_name, {})
         for screen_name, actions in screens.items():
             existing = set(module_perms.get(screen_name, []))
             module_perms[screen_name] = sorted(existing.union(actions))
-    return merged
-
-
-def fallback_app_module(role_name, app_module):
-    preferred = normalize_permission_key(app_module)
-    if preferred in APP_SURFACE_KEYS:
-        return preferred
-    key = role_key(role_name)
-    if key in APP_SURFACE_KEYS:
-        return key
-    return None
-
-
-def staff_access_config(staff_unique_id):
-    """The staff member's active access configuration, or None."""
-    if not staff_unique_id:
-        return None
-    return StaffAccessConfiguration.objects.filter(
-        staff_id_id=staff_unique_id,
-        is_active=True,
-        is_deleted=False,
-    ).first()
-
-
-def staff_app_modules(config):
-    """Surface keys ticked on a StaffAccessConfiguration."""
-    if config is None:
-        return []
-    return list(
-        config.app_modules.filter(is_active=True, is_deleted=False)
-        .values_list("surface_key", flat=True)
-    )
+    return permissions
 
 
 def resolve_permission_payload(**filters):
     action_queryset, column_queryset = permission_querysets(**filters)
-    config = staff_access_config(filters.get("staff_unique_id"))
-    strict = bool(config and config.enforce_strict_permissions)
-
-    # ONE permission list. A screen ticked here governs the web screen and the
-    # mobile screen alike. While strict mode is off, mobile-role templates are
-    # a compatibility floor so a partial web configuration cannot remove an
-    # existing Driver/Operator/Supervisor flow. Once strict mode is enabled for
-    # a staff member, the checked boxes are the whole of their access.
     permissions = build_action_permissions(action_queryset)
-    if not strict:
+
+    # Fall back to role baselines only when the staff member has no explicit
+    # grants at all, so configured permissions are never silently widened.
+    if not permissions:
         permissions = apply_role_defaults(permissions, filters.get("role_name"))
 
-    app_modules = filters.get("app_modules")
-    if app_modules is None:
-        app_modules = staff_app_modules(config)
-        if not app_modules and not strict:
-            fallback = fallback_app_module(
-                filters.get("role_name"),
-                filters.get("app_module"),
-            )
-            app_modules = [fallback] if fallback else []
-
-    citizen_screens = filters.get("citizen_screens")
-    app_module = filters.get("app_module")
-
-    # Which mobile screens the app should render, derived from the same
-    # permissions the middleware enforces, so a visible tab and a 403 can
-    # never disagree.
-    screens = {}
-    for surface in app_modules:
-        screens[surface] = visible_screens(
-            permissions, surface, citizen_screens=citizen_screens
-        )
-
     payload = {
-        "app_modules": app_modules,
-        "app_screens": screens,
+        "permissions": permissions,
         "permission_details": build_permission_details(action_queryset, column_queryset),
         "column_permissions": build_column_permissions(column_queryset),
         "module_access": build_module_access(action_queryset, column_queryset),
-        "permissions": permissions,
     }
     return finalize_permission_payload(
         payload,
         role_name=filters.get("role_name"),
         user_type=filters.get("user_type"),
-        app_module=app_module,
-        app_modules=app_modules,
     )

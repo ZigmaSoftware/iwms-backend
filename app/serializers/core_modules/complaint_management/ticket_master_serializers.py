@@ -100,14 +100,7 @@ class ComplaintSubcategorySerializer(AutoSortOrderSerializerMixin, serializers.M
 
 class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
     category_code = serializers.CharField(source="category.category_code", read_only=True)
-    category_name = serializers.CharField(source="category.category_name", read_only=True)
-    # A rule may target one sub-category or the whole category ("any"), so
-    # these are nullable — the SLA list renders a blank as "All".
-    subcategory_code = serializers.CharField(source="subcategory.subcategory_code", read_only=True)
-    subcategory_name = serializers.CharField(source="subcategory.subcategory_name", read_only=True)
     priority_code = serializers.CharField(source="priority.priority_code", read_only=True)
-    source_code = serializers.CharField(source="source.source_code", read_only=True)
-    escalation_team_name = serializers.CharField(source="escalation_team.team_name", read_only=True)
 
     class Meta:
         model = ComplaintSlaRule

@@ -254,28 +254,6 @@ class MyTripTodaySerializer(serializers.Serializer):
     # not just in the direct response to the `end` action that created it.
     retrip_request = serializers.SerializerMethodField()
 
-    def _has_screen_permission(self, module, screen, action="view"):
-        request = self.context.get("request")
-        permissions = getattr(request, "resolved_permissions", None) if request else None
-        if not permissions:
-            return False
-
-        def normalize(value):
-            return str(value or "").strip().lower().replace("_", "-")
-
-        target_module = normalize(module)
-        target_screen = normalize(screen)
-        target_action = normalize(action)
-
-        for module_name, screens in permissions.items():
-            if normalize(module_name) != target_module or not isinstance(screens, dict):
-                continue
-            for screen_name, actions in screens.items():
-                if normalize(screen_name) != target_screen:
-                    continue
-                return any(normalize(item) == target_action for item in actions or [])
-        return False
-
     def get_retrip_request(self, obj):
         pending = obj.retrip_requests.filter(status="Pending").first()
         if not pending:
@@ -336,11 +314,6 @@ class MyTripTodaySerializer(serializers.Serializer):
         }
 
     def get_collection_points(self, obj):
-        if not self._has_screen_permission(
-            "schedule-operations",
-            "daily-trip-collection-points",
-        ):
-            return []
         # Capped to the first page — see STOPS_PAGE_SIZE's comment. The app
         # fetches the rest, 20 at a time, via TripStopsViewSet as the driver
         # scrolls; this first page is embedded so the common case (a trip
@@ -354,11 +327,6 @@ class MyTripTodaySerializer(serializers.Serializer):
         return TripCollectionPointSerializer(children, many=True).data
 
     def get_household_collections(self, obj):
-        if not self._has_screen_permission(
-            "schedule-operations",
-            "daily-trip-household-collections",
-        ):
-            return []
         # See get_collection_points — same capping, same reason.
         children = (
             obj.trip_household_collections

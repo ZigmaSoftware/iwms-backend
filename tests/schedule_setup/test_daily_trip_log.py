@@ -17,7 +17,6 @@ Covers:
 """
 from datetime import date, time
 from decimal import Decimal
-from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -351,26 +350,6 @@ class TestWeightSync:
         )
         log = DailyTripLog.objects.get(trip_assignment_id=assignment)
         assert log.household_collected_weight_kg == Decimal("3.5")
-
-    def test_household_collection_sends_customer_push(
-        self, assignment, household_customer
-    ):
-        with patch(
-            "app.services.push_notification_service.send_push_to_customer"
-        ) as send_push:
-            WasteCollection.objects.create(
-                trip_assignment_id=assignment,
-                customer=household_customer,
-                wet_waste=2.5,
-            )
-
-        send_push.assert_called_once()
-        args, kwargs = send_push.call_args
-        assert args[0] == household_customer
-        assert args[1] == "Waste collected"
-        assert args[2] == "2.5 kg of wet waste collected. Thank you!"
-        assert kwargs["data"]["event"] == "household_collected"
-        assert kwargs["data"]["total_quantity"] == 2.5
 
     def test_household_weight_not_overridden_when_no_records(self, assignment):
         log = _make_log(assignment, household_collected_weight_kg=Decimal("9.00"))

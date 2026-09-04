@@ -1,5 +1,4 @@
 from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from rest_framework import viewsets, status
@@ -117,14 +116,6 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
 
         if login_enabled in ["0", "1", "true", "false", "True", "False"]:
             queryset = queryset.filter(login_enabled=str(login_enabled).lower() in ["1", "true"])
-
-        if self._is_supervisor_user():
-            queryset = queryset.filter(
-                Q(staff_unique_id=self.request.user.staff_unique_id)
-                | Q(staff_head_id=self.request.user.staff_unique_id)
-                | Q(driver_templates__trip_plans__supervisor_id=self.request.user)
-                | Q(operator_templates__trip_plans__supervisor_id=self.request.user)
-            ).distinct()
 
         return queryset.order_by("-created_at")
 

@@ -12,8 +12,6 @@ from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.models.staff_creations.department import Department
 from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 def generate_source_id():
@@ -171,19 +169,7 @@ class ComplaintModule(BaseMaster):
 
 
 class ComplaintTeam(BaseMaster):
-    """Teams that complaint tickets are routed/assigned to.
-
-    The one company/project-scoped table in this module. Every other master
-    here is global configuration, but a team points at company-scoped data
-    (`Department`, `StaffcreationOfficeDetails`), so each company owns its own
-    crews and escalation chain — which is why it stays under the CORE MODULES
-    "complaint-ticket" module rather than moving to the superadmin-only
-    "complaint-masters" one.
-
-    `team_code` is unique per company/project rather than globally: two
-    companies both having a "SANITATION" team is normal, and a global unique
-    would make the second one impossible to create.
-    """
+    """Teams that complaint tickets are routed/assigned to."""
 
     unique_id = models.CharField(
         max_length=30,
@@ -192,24 +178,7 @@ class ComplaintTeam(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_teams",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_teams",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
-
-    team_code = models.CharField(max_length=80)
+    team_code = models.CharField(max_length=80, unique=True)
     team_name = models.CharField(max_length=150)
     department = models.ForeignKey(
         Department,
@@ -239,47 +208,19 @@ class ComplaintTeam(BaseMaster):
         ordering = ["team_code"]
         verbose_name = "Complaint Team"
         verbose_name_plural = "Complaint Teams"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["company_id", "project_id", "team_code"],
-                name="unique_complaint_team_code_per_project",
-            )
-        ]
 
     def __str__(self):
         return self.team_name
 
 
 class ComplaintCategory(BaseMaster):
-    """Top-level complaint categories (Missed Pickup, Change Address, ...).
-
-    Scoped to a company/project: the categories a citizen is offered, their
-    default priority and the team they route to are all operational choices
-    that differ per project, so one project's edit must not change another's.
-    """
+    """Top-level complaint categories (Missed Pickup, Change Address, ...)."""
 
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
         default=generate_category_id,
         editable=False,
-    )
-
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_categories",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_categories",
-        db_column="project_id",
-        null=True,
-        blank=True,
     )
 
     module = models.ForeignKey(
@@ -289,7 +230,7 @@ class ComplaintCategory(BaseMaster):
         blank=True,
         related_name="categories",
     )
-    category_code = models.CharField(max_length=80)
+    category_code = models.CharField(max_length=80, unique=True)
     category_name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
 
@@ -318,47 +259,19 @@ class ComplaintCategory(BaseMaster):
         ordering = ["sort_order"]
         verbose_name = "Complaint Category"
         verbose_name_plural = "Complaint Categories"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["company_id", "project_id", "category_code"],
-                name="unique_complaint_category_code_per_project",
-            )
-        ]
 
     def __str__(self):
         return self.category_name
 
 
 class ComplaintSubcategory(BaseMaster):
-    """Subcategories under a complaint category.
-
-    Carries the same company/project as its parent category — denormalised so
-    the list can be filtered without a join, and stamped from the category on
-    save so the two can never disagree.
-    """
+    """Subcategories under a complaint category."""
 
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
         default=generate_subcategory_id,
         editable=False,
-    )
-
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_subcategories",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_subcategories",
-        db_column="project_id",
-        null=True,
-        blank=True,
     )
 
     category = models.ForeignKey(
@@ -383,47 +296,18 @@ class ComplaintSubcategory(BaseMaster):
         verbose_name_plural = "Complaint Subcategories"
         unique_together = ("category", "subcategory_code")
 
-    def save(self, *args, **kwargs):
-        # A subcategory belongs to exactly one category, so its tenancy is
-        # never an independent choice — always take it from the parent.
-        if self.category_id:
-            self.company_id_id = self.category.company_id_id
-            self.project_id_id = self.category.project_id_id
-        super().save(*args, **kwargs)
-
     def __str__(self):
         return self.subcategory_name
 
 
 class ComplaintSlaRule(BaseMaster):
-    """Configurable assign/resolve SLA + escalation per category/priority/source.
-
-    Scoped like its category: resolution targets are a per-project commitment,
-    so one project's SLA must not bind another's.
-    """
+    """Configurable assign/resolve SLA + escalation per category/priority/source."""
 
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
         default=generate_sla_rule_id,
         editable=False,
-    )
-
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_sla_rules",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_sla_rules",
-        db_column="project_id",
-        null=True,
-        blank=True,
     )
 
     category = models.ForeignKey(
@@ -467,13 +351,6 @@ class ComplaintSlaRule(BaseMaster):
         ordering = ["unique_id"]
         verbose_name = "Complaint SLA Rule"
         verbose_name_plural = "Complaint SLA Rules"
-
-    def save(self, *args, **kwargs):
-        # Same reasoning as ComplaintSubcategory: tenancy follows the category.
-        if self.category_id:
-            self.company_id_id = self.category.company_id_id
-            self.project_id_id = self.category.project_id_id
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"SLA {self.category_id} / {self.priority_id}"

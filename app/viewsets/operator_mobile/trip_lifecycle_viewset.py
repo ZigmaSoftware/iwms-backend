@@ -39,11 +39,6 @@ class TripLifecycleViewSet(viewsets.ViewSet):
     """Driver-initiated start / end for one of *their own* trips today."""
 
     permission_classes = [IsOperatorRole]
-    permission_resource = "DailyTripAssignment"
-
-    @staticmethod
-    def permission_action_for_request(request, default_action):
-        return "edit"
 
     # ------------------------------------------------------------------
     def _resolve_own_assignment(self, request, unique_id):

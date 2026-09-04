@@ -1,16 +1,5 @@
 """Complaint ticket transaction + audit tables.
 
-Only `ComplaintRoutingRule` carries company/project here. Everything else in
-this module hangs off a single `ComplaintTicket` by a CASCADE foreign key —
-attachments, comments, the status/assignment/escalation/reopen histories,
-feedback and notifications — so the ticket already answers "which tenant?".
-Duplicating the pair onto each child row would add a column that can drift out
-of sync with its parent for no gain: those tables are always reached through
-their ticket, and the ticket queryset is already company-scoped by
-`CompanyScopedViewSet`. Where a child list needs filtering directly (the
-Feedback screen), it filters through the parent — see
-`ComplaintFeedbackViewSet.get_queryset`.
-
 Ported from the government backend. These are geo-agnostic, so they carry
 over unchanged apart from import paths and the routing rule, whose optional
 geo scope follows this project's Zone/Ward model (see `ticket.py`).
@@ -28,8 +17,6 @@ from app.models.masters.panchayat import Panchayat
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 from app.models.complaint_management.masters import (
     ComplaintCategory,
     ComplaintPriority,
@@ -356,23 +343,6 @@ class ComplaintRoutingRule(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_routing_rules",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_routing_rules",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
-
     category = models.ForeignKey(
         ComplaintCategory,
         on_delete=models.PROTECT,
@@ -456,13 +426,6 @@ class ComplaintRoutingRule(BaseMaster):
         ordering = ["unique_id"]
         verbose_name = "Complaint Routing Rule"
         verbose_name_plural = "Complaint Routing Rules"
-
-    def save(self, *args, **kwargs):
-        # Tenancy follows the category, as with the SLA rule.
-        if self.category_id:
-            self.company_id_id = self.category.company_id_id
-            self.project_id_id = self.category.project_id_id
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Route {self.category_id} -> {self.team_id}"

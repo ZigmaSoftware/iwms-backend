@@ -2,11 +2,19 @@ from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 
 
+# class ApiConfig(AppConfig):
+#     default_auto_field = 'django.db.models.BigAutoField'
+#     name = 'app'
+
+
+
 class ApiConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'app'
     
     def ready(self):
+        import app.signals.permission_signals  # Register signals on app startup
+        import app.signals.trip_plan_signals  # Register transport plan signals
         from app.services.daily_trip_scheduler import start_daily_trip_scheduler
 
         start_daily_trip_scheduler()

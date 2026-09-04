@@ -31,7 +31,6 @@ class ScanBinViewSet(viewsets.ViewSet):
     """POST /api/v1/operator-mobile/scan-bin/"""
 
     permission_classes = [IsOperatorRole]
-    permission_resource = "BinCollectionEvent"
 
     def create(self, request):
         serializer = ScanBinRequestSerializer(data=request.data)

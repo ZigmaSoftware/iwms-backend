@@ -146,13 +146,9 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         waste_type = params.get("waste_type_id")
         mine = params.get("mine")
 
-        mine_requested = mine and str(mine).lower() in ("1", "true", "yes")
-
-        if mine_requested or self._is_supervisor_user():
-            # Assignments whose trip plan this supervisor owns
-            # (TripPlan.supervisor_id == requester). Auto-enforced for any
-            # supervisor role on the admin web app too, not just when the
-            # mobile app explicitly passes mine=true.
+        if mine and str(mine).lower() in ("1", "true", "yes"):
+            # Supervisor app: assignments whose trip plan this supervisor owns
+            # (TripPlan.supervisor_id == requester), replacing zone-based scoping.
             qs = qs.filter(trip_plan_id__supervisor_id=self.request.user)
 
         if trip_date:

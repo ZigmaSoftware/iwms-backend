@@ -234,9 +234,6 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "emp_id",
             "username",
             "password",
-            # Which mobile app this staff member lands in. Explicit rather
-            # than guessed from the role name (see app_feature_grants).
-            "app_module",
             "qr_code",
 
             # Office details
@@ -332,6 +329,29 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             if field in personal_data
         }
 
+    def _sync_staff_access_configuration(self, staff):
+        if not getattr(staff, "company_id_id", None) or not getattr(staff, "project_id_id", None):
+            return
+
+        from app.models.staff_creations.staff_access_configuration import StaffAccessConfiguration
+
+        instance, _ = StaffAccessConfiguration.objects.update_or_create(
+            staff_id=staff,
+            defaults={
+                "company_id": staff.company_id,
+                "is_deleted": False,
+                "is_active": True,
+            },
+        )
+        instance.projects.set([staff.project_id_id])
+        for accessor, related in (
+            ("districts", getattr(staff, "district_id", None)),
+            ("cities", getattr(staff, "city_id", None)),
+            ("zones", getattr(staff, "zone_id", None)),
+            ("wards", getattr(staff, "ward_id", None)),
+        ):
+            getattr(instance, accessor).set([related] if related else [])
+
     # --------------------------------------------------
     # Create
     # --------------------------------------------------
@@ -368,6 +388,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             **personal_data,
         )
 
+        self._sync_staff_access_configuration(staff)
         return staff
 
     # --------------------------------------------------
@@ -415,4 +436,5 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
                     personal_details.staff_unique_id = staff.staff_unique_id
                     personal_details.save()
 
+        self._sync_staff_access_configuration(staff)
         return staff

@@ -5,7 +5,6 @@ from .vehicleTypeCreation import VehicleTypeCreation
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.staff_creations.staffcreation import Staffcreation
 
 
 def generate_vehicle_creation_id():
@@ -37,14 +36,6 @@ class VehicleCreation(models.Model):
     )
     vehicle_type = models.ForeignKey(
         VehicleTypeCreation, on_delete=models.SET_NULL, null=True, blank=True
-    )
-    supervisor = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        to_field="staff_unique_id",
-        related_name="supervised_vehicles",
-        null=True,
-        blank=True,
     )
     company_id = models.ForeignKey(
         Company,

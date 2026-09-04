@@ -21,10 +21,8 @@ from app.models.complaint_management import (
     ComplaintEscalationHistory,
     ComplaintFeedback,
     ComplaintNotification,
-    ComplaintPriority,
     ComplaintReopenHistory,
     ComplaintRoutingRule,
-    ComplaintStatus,
     ComplaintStatusHistory,
     ComplaintTicket,
     ComplaintTicketExtraDetail,
@@ -91,12 +89,6 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
             "unique_id", "ticket_no", "resolved_at", "closed_at", "reopened_count",
             "sla_breached", "sla_breached_at",
         ]
-        # Derived in `_apply_derived_defaults` when omitted, so the staff form
-        # need not ask for them. Still accepted if a caller sends one.
-        extra_kwargs = {
-            "priority": {"required": False},
-            "status": {"required": False},
-        }
 
     def get_reporter_type(self, obj):
         return "Customer" if obj.customer_id or self._matched_customer_name(obj) else "Public Grievance"
@@ -162,35 +154,8 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
                 row.is_active = False
                 row.save(update_fields=["is_deleted", "is_active"])
 
-    def _apply_derived_defaults(self, validated_data):
-        """Fill priority/status when the caller did not send them.
-
-        Both are non-null `PROTECT` FKs on the model, but neither is a
-        decision the person raising a ticket should have to make: priority
-        comes from the chosen subcategory or category (the same precedence
-        `PublicGrievanceViewSet` uses), and a new ticket is always SUBMITTED.
-        Leaving them out of the staff form removes two required pickers whose
-        answer is already implied by the category.
-        """
-        if not validated_data.get("priority"):
-            subcategory = validated_data.get("subcategory")
-            category = validated_data.get("category")
-            validated_data["priority"] = (
-                getattr(subcategory, "default_priority", None)
-                or getattr(category, "default_priority", None)
-                or ComplaintPriority.objects.filter(
-                    priority_code="P3", is_deleted=False
-                ).first()
-            )
-        if not validated_data.get("status"):
-            validated_data["status"] = ComplaintStatus.objects.filter(
-                status_code="SUBMITTED", is_deleted=False
-            ).first()
-        return validated_data
-
     def create(self, validated_data):
         context = self._pop_operational_context(validated_data)
-        validated_data = self._apply_derived_defaults(validated_data)
         ticket = super().create(validated_data)
         self._save_operational_context(ticket, context)
         return ticket

@@ -105,9 +105,6 @@ from app.management.commands.seeders.superadmin.screen_management import PERMISS
 # run with the authoritative set from customer_creation_template_final.xlsx.
 from app.management.commands.seeders.masters.customer_masters.noidaCustomerImport import NoidaCustomerImportSeeder
 
-# masters (router: masters/panchayat-leaders) — PLB leader logins + trip logs
-from app.management.commands.seeders.masters.leader_management.palakkad_leader import PalakkadLeaderSeeder
-
 # complaint-ticket (router: complaint-ticket/tickets, categories, subcategories —
 # renamed from the legacy "grivences" group)
 from app.management.commands.seeders.core_modules.complaint_management import (
@@ -144,10 +141,6 @@ COMMON_MASTER_SEEDERS = [
 MASTERS_SEEDERS = [
     PlantSeeder,
     PlantGNOSeeder,
-    # Panchayat (PLB) leader logins + the trip logs their localbody dashboard
-    # reads. Runs last in this group: needs the PAL panchayats and their
-    # collection points to already exist.
-    PalakkadLeaderSeeder,
 ]
 
 WASTE_TYPES_SEEDERS = [

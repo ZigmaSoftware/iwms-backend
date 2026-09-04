@@ -58,14 +58,6 @@ class TripStopsViewSet(viewsets.ViewSet):
     """
 
     permission_classes = [IsOperatorRole]
-    permission_resource = "DailyTripCollectionPoint"
-
-    @staticmethod
-    def permission_resource_for_request(request, default_resource):
-        stop_type = (request.query_params.get("type") or "").strip().lower()
-        if stop_type == "household":
-            return "DailyTripHouseholdCollection"
-        return default_resource
 
     def list(self, request):
         try:

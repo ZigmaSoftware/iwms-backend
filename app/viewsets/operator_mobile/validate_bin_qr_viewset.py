@@ -21,11 +21,6 @@ class ValidateBinQrViewSet(viewsets.ViewSet):
     """POST /api/v1/operator-mobile/validate-bin-qr/"""
 
     permission_classes = [IsOperatorRole]
-    permission_resource = "DailyTripCollectionPoint"
-
-    @staticmethod
-    def permission_action_for_request(request, default_action):
-        return "view"
 
     def create(self, request):
         serializer = ValidateBinQrRequestSerializer(data=request.data)

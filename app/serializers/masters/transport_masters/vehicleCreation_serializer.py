@@ -2,7 +2,6 @@ from rest_framework import serializers
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.models.transport_masters.fuel import Fuel
-from app.models.staff_creations.staffcreation import Staffcreation
 from app.validators.unique_name_validator import unique_name_validator
 
 
@@ -54,13 +53,6 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    supervisor_id = UniqueIdOrPkField(
-        source="supervisor",
-        slug_field="staff_unique_id",
-        queryset=Staffcreation.objects.filter(is_deleted=False),
-        required=False,
-        allow_null=True,
-    )
 
     vehicle_type_name = serializers.CharField(
         source="vehicle_type.vehicleType",
@@ -68,10 +60,6 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
     )
     fuel_type_name = serializers.CharField(
         source="fuel_type.fuel_type",
-        read_only=True
-    )
-    supervisor_name = serializers.CharField(
-        source="supervisor.employee_name",
         read_only=True
     )
 
@@ -92,8 +80,6 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
             "project_name",
             "vehicle_type_id",
             "fuel_type_id",
-            "supervisor_id",
-            "supervisor_name",
             "vehicle_no",
             "capacity",
             "mileage_per_liter",

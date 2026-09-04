@@ -215,7 +215,6 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
             "waste_type_ids",
             "waste_types",
             "username",
-            "app_module",
             "email",
             "password",
             "password_crt_date",

@@ -10,19 +10,10 @@ from app.models.screen_managements.companyuserscreenpermission import (
 from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
 )
-from app.models.staff_creations.staffcreation import Staffcreation
 from app.serializers.superadmin.staff_management.staff_access_configuration_serializer import (
     StaffAccessConfigurationSerializer,
 )
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.screen_managements.app_module import AppModule
-from app.utils.app_feature_grants import (
-    CITIZEN_APP_MAINSCREEN,
-    ROLE_SCREEN_TEMPLATES,
-)
 from app.utils.audit_mixin import AuditViewSetMixin
-from app.utils.password_encryption import decrypt_password
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.filters import (
     ModelFieldQueryFilter,
@@ -62,41 +53,13 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
 
         if self._is_platform_super_admin():
-            # StaffAccessConfiguration scopes to projects via an M2M
-            # ("projects"), not a singular project_id FK, so the generic
-            # superadmin filtering in CompanyScopedViewSet.filter_queryset
-            # (which only special-cases a plain project_id FK) never applies
-            # here — apply the query params explicitly instead.
-            company_id_param = (
-                self.request.query_params.get("company_id")
-                or self.request.query_params.get("company_unique_id")
-            )
-            project_id_param = (
-                self.request.query_params.get("project_id")
-                or self.request.query_params.get("project_unique_id")
-                or self.request.query_params.get("project")
-            )
-            if company_id_param:
-                qs = qs.filter(company_id_id=company_id_param)
-            if project_id_param and project_id_param != "none":
-                qs = qs.filter(projects__unique_id=project_id_param)
             return qs
 
         company = self._company()
         if not company:
             return qs.none()
 
-        qs = qs.filter(company_id_id=company.unique_id)
-
-        if not self._is_admin_user():
-            qs = qs.filter(staff_id_id=self.request.user.staff_unique_id)
-        elif self._is_project_scoped_admin_user():
-            own_project_id = getattr(self.request.user, "project_id_id", None)
-            if not own_project_id:
-                return qs.none()
-            qs = qs.filter(projects__unique_id=own_project_id)
-
-        return qs
+        return qs.filter(company_id_id=company.unique_id)
 
 
     def get_object(self):
@@ -119,140 +82,6 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def perform_destroy(self, instance):
         instance.delete()
         cache.clear()
-
-    @action(detail=False, methods=["get"], url_path="employee-options")
-    def employee_options(self, request):
-        """Employees for the company (optionally narrowed to a project),
-        for the Basic Info tab's employee picker. Each row is flagged with
-        whether an active StaffAccessConfiguration already exists for it,
-        so the frontend can show/disable "already configured" employees
-        instead of letting them be picked again (this form only grants
-        access to employees who don't yet have it)."""
-        company, error = self._company_from_query(request)
-        if error:
-            return error
-
-        project_id = (
-            request.query_params.get("project_id")
-            or request.query_params.get("projectId")
-        )
-
-        queryset = Staffcreation.objects.filter(
-            company_id_id=company.unique_id,
-            is_deleted=False,
-            active_status=True,
-        ).select_related("personal_details", "staffusertype_id", "user_type_id")
-
-        if project_id:
-            queryset = queryset.filter(project_id_id=project_id)
-
-        queryset = queryset.order_by("employee_name")
-
-        configured_staff_ids = set(
-            StaffAccessConfiguration.objects.filter(
-                staff_id_id__in=queryset.values_list("staff_unique_id", flat=True),
-                is_deleted=False,
-            ).values_list("staff_id_id", flat=True)
-        )
-
-        def _personal_details(staff):
-            try:
-                return staff.personal_details
-            except Staffcreation.personal_details.RelatedObjectDoesNotExist:
-                return None
-
-        data = [
-            {
-                "unique_id": staff.staff_unique_id,
-                "employee_name": staff.employee_name,
-                "mobile_number": getattr(_personal_details(staff), "contact_mobile", None),
-                "office_email": getattr(_personal_details(staff), "contact_email", None),
-                "doj": staff.doj,
-                "user_type_id": getattr(staff.user_type_id, "unique_id", None),
-                "staffusertype_id": getattr(staff.staffusertype_id, "unique_id", None),
-                "staffusertype_name": getattr(staff.staffusertype_id, "name", None),
-                "username": staff.username,
-                "password": decrypt_password(staff.password or ""),
-                "active_status": staff.active_status,
-                "has_access_configuration": staff.staff_unique_id in configured_staff_ids,
-            }
-            for staff in queryset[:500]
-        ]
-        return Response(data, status=status.HTTP_200_OK)
-
-    @action(detail=False, methods=["get"], url_path="app-modules")
-    def app_modules(self, request):
-        """The App Module master, for the tick list on this form.
-
-        Ticking a module decides whether the person may sign into that app at
-        all. What they can do inside comes from the ordinary screen
-        permissions, which are the same rows that govern web.
-        """
-        modules = AppModule.objects.filter(is_active=True, is_deleted=False)
-        return Response([
-            {
-                "uniqueId": module.unique_id,
-                "moduleKey": module.module_key,
-                "surfaceKey": module.surface_key,
-                "label": module.label,
-                "route": module.route,
-                "orderNo": module.order_no,
-                "description": module.description,
-            }
-            for module in modules
-        ])
-
-    @action(detail=False, methods=["get"], url_path="role-template")
-    def role_template(self, request):
-        """The screens a given app role actually calls.
-
-        Backs the "Apply defaults" button. Every one of these is an ordinary
-        screen permission the admin could tick by hand — this only saves them
-        knowing which ones the Driver app happens to read.
-        """
-        role = (request.query_params.get("role") or "").strip().lower()
-        template = ROLE_SCREEN_TEMPLATES.get(role)
-        if template is None:
-            return Response(
-                {
-                    "detail": f"No template for '{role}'.",
-                    "available": sorted(ROLE_SCREEN_TEMPLATES),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        wanted = {screen for screens in template.values() for screen in screens}
-        rows = UserScreen.objects.filter(
-            userscreen_name__in=wanted, is_deleted=False
-        ).select_related("mainscreen_id")
-
-        actions = {
-            (row.variable_name or row.action_name or "").lower(): row
-            for row in UserScreenAction.objects.filter(is_deleted=False)
-        }
-
-        screens = []
-        for row in rows:
-            module_name = row.mainscreen_id.mainscreen_name
-            granted = template.get(module_name, {}).get(row.userscreen_name)
-            if granted is None:
-                for screen_map in template.values():
-                    if row.userscreen_name in screen_map:
-                        granted = screen_map[row.userscreen_name]
-                        break
-            screens.append({
-                "userScreenId": row.unique_id,
-                "userScreenName": row.userscreen_name,
-                "mainScreenId": row.mainscreen_id_id,
-                "mainScreenName": module_name,
-                "actions": [
-                    {"actionId": actions[a].unique_id, "actionName": a}
-                    for a in (granted or [])
-                    if a in actions
-                ],
-            })
-
-        return Response({"role": role, "screens": screens})
 
     @action(detail=False, methods=["get"], url_path="available-permissions")
     def available_permissions(self, request):
@@ -282,8 +111,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             Q(userscreenaction_id__action_name__iexact="show")
             | Q(userscreenaction_id__variable_name__iexact="show")
         ).select_related(
-            "mainscreen_id", "mainscreen_id__mainscreentype_id",
-            "userscreen_id", "userscreenaction_id", "project_id",
+            "mainscreen_id", "userscreen_id", "userscreenaction_id", "project_id",
         ).order_by(
             "project_id__name", "mainscreen_id__order_no", "userscreen_id__order_no", "order_no"
         )
@@ -308,17 +136,6 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 {
                     "mainScreenId": perm.mainscreen_id_id,
                     "mainScreenName": perm.mainscreen_id.mainscreen_name,
-                    # The group this module belongs to. "mobile-app" modules
-                    # are app features, not web sidebar routes, so the form
-                    # renders them in their own "App Access" tab.
-                    "screenType": getattr(
-                        perm.mainscreen_id.mainscreentype_id, "type_name", None
-                    ),
-                    # The citizen app screens are the one group that is not a
-                    # web sidebar route; they belong on the customer form.
-                    "isCitizenApp": (
-                        perm.mainscreen_id.mainscreen_name == CITIZEN_APP_MAINSCREEN
-                    ),
                     "screens": {},
                 },
             )

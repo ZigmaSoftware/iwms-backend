@@ -62,7 +62,6 @@ from .screen_managements.userscreenaction import UserScreenAction
 from .screen_managements.userscreencolumn import UserScreenColumn
 from .screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
 from .screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
-from .screen_managements.app_module import AppModule
 
 
 # ============================================================
@@ -93,7 +92,6 @@ from .audits.permission_audit import PermissionAuditLog
 # GROUP: CUSTOMER MODULES
 # ============================================================
 from .customers.customercreation import CustomerCreation
-from .customers.customer_access_configuration import CustomerAccessConfiguration
 from .customers.wastecollection import WasteCollection
 from .customers.password_reset_otp import PasswordResetOTP
 

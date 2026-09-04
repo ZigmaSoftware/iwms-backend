@@ -13,7 +13,6 @@ from app.models.screen_managements.companyuserscreenpermission import (
 )
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.screen_managements.app_module import AppModule
 from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
@@ -97,34 +96,19 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
     staffusertype_name = serializers.CharField(source="staff_id.staffusertype_id.name", read_only=True, default=None)
     company_name = serializers.CharField(source="company_id.name", read_only=True)
 
-    # Apps this staff member may sign into. Ticking a module is what makes
-    # the mobile login succeed at all; what they can do inside comes from the
-    # screen permissions below, which are the same rows that govern web.
-    app_module_ids = serializers.ListField(
-        child=serializers.CharField(), required=False, write_only=True
-    )
-
     granted_permissions = serializers.SerializerMethodField()
     main_screen_count = serializers.SerializerMethodField()
     screen_count = serializers.SerializerMethodField()
 
     class Meta:
         model = StaffAccessConfiguration
-        exclude = (
-            "projects", "states", "districts", "cities", "zones",
-            "panchayats", "wards", "app_modules",
-        )
+        exclude = ("projects", "states", "districts", "cities", "zones", "panchayats", "wards")
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["staff_id"] = instance.staff_id_id
         data["staff_unique_id"] = instance.staff_id_id
         data["company_id"] = instance.company_id_id
-
-        modules = instance.app_modules.filter(is_deleted=False)
-        data["app_module_ids"] = [module.unique_id for module in modules]
-        data["app_module_keys"] = [module.surface_key for module in modules]
-        data["app_module_labels"] = [module.label for module in modules]
 
         data["project_ids"] = list(instance.projects.values_list("unique_id", flat=True))
         data["project_names"] = list(instance.projects.values_list("name", flat=True))
@@ -395,37 +379,11 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
                 )
             })
 
-        app_module_ids = data.get("app_module_ids")
-        if app_module_ids is None and isinstance(self.initial_data, dict):
-            app_module_ids = self.initial_data.get("app_module_ids")
-        app_module_ids = list(dict.fromkeys(app_module_ids or []))
-        app_modules = list(
-            AppModule.objects.filter(
-                unique_id__in=app_module_ids,
-                is_active=True,
-                is_deleted=False,
-            )
-        )
-        found_app_module_ids = {module.unique_id for module in app_modules}
-        missing_app_module_ids = [
-            module_id
-            for module_id in app_module_ids
-            if module_id not in found_app_module_ids
-        ]
-        if missing_app_module_ids:
-            raise serializers.ValidationError({
-                "app_module_ids": (
-                    "Invalid app module(s): "
-                    f"{', '.join(missing_app_module_ids)}"
-                )
-            })
-
         data["resolved_staff"] = staff
         data["resolved_company"] = company
         data["resolved_projects"] = projects
         data["resolved_locations"] = resolved_locations
         data["resolved_permissions"] = normalized_permissions
-        data["resolved_app_modules"] = app_modules
         return data
 
     @transaction.atomic
@@ -440,9 +398,6 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
             defaults={
                 "company_id": validated_data["resolved_company"],
                 "description": validated_data.get("description", ""),
-                "enforce_strict_permissions": validated_data.get(
-                    "enforce_strict_permissions", False
-                ),
                 "is_deleted": False,
                 "is_active": True,
             },
@@ -450,7 +405,6 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         instance.projects.set(validated_data["resolved_projects"])
         for accessor, instances in validated_data["resolved_locations"].items():
             getattr(instance, accessor).set(instances)
-        self._sync_app_modules(instance, validated_data)
         self._sync_permissions(instance, validated_data["resolved_permissions"])
         return instance
 
@@ -465,29 +419,15 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         instance.staff_id = staff
         instance.company_id = validated_data["resolved_company"]
         instance.description = validated_data.get("description", instance.description)
-        if "enforce_strict_permissions" in validated_data:
-            instance.enforce_strict_permissions = validated_data["enforce_strict_permissions"]
         instance.save()
 
         instance.projects.set(validated_data["resolved_projects"])
         for accessor, instances in validated_data["resolved_locations"].items():
             getattr(instance, accessor).set(instances)
 
-        self._sync_app_modules(instance, validated_data)
-
         if "permissions" in self.initial_data:
             self._sync_permissions(instance, validated_data["resolved_permissions"])
         return instance
-
-    def _sync_app_modules(self, instance, validated_data):
-        """Replace the ticked app modules, when the caller sent them.
-
-        Omitting the field leaves the existing ticks alone, so a partial
-        update cannot silently revoke someone's app access.
-        """
-        if "app_module_ids" not in self.initial_data:
-            return
-        instance.app_modules.set(validated_data.get("resolved_app_modules", []))
 
     def _sync_permissions(self, instance, permissions):
         existing = {
