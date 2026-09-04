@@ -517,6 +517,17 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 company_id=assignment.company_id,
                 project_id=assignment.project_id,
                 collection_date=timezone.localdate(),
+                # REQUIRED: the model defaults to STATUS_PENDING, and
+                # sync_household_collection_on_waste_save (trip_plan_signals.py)
+                # only acts on Collected/Not Available/Collect Later — anything
+                # else falls through a silent `else: return`. Omitting this was
+                # why a household collected through this bridge never flipped
+                # DailyTripHouseholdCollection.is_collected: the create()
+                # "succeeded" (household_sync: "synced") but the signal did
+                # nothing, so the driver app's card stayed Pending while the
+                # legacy WasteCollectionMain/Sub tables (what the web collect
+                # sheet reads) already showed it collected.
+                status=WasteCollection.STATUS_COLLECTED,
                 **buckets,
                 # total_quantity is recomputed in WasteCollection.save() from
                 # the buckets above; the post_save signal marks the matching
