@@ -60,6 +60,7 @@ from ..viewsets.superadmin.staff_management.staff_access_configuration_viewset i
 
 # Authentication
 from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
+from ..viewsets.login.captcha_viewset import CaptchaViewSet
 from ..viewsets.auth.forgot_password_viewset import (
     ForgotPasswordView,
     VerifyOTPView,
@@ -197,10 +198,7 @@ router.register_group("masters", "plants",         PlantViewSet)
 
 
 # ============================================================
-# GROUP: Waste-Type (merged from the legacy "assets" group — the
-# old assets/waste-types + assets/bins endpoints now live here as
-# waste-types/wastetypes + waste-types/bins, matching the government
-# reference app's grouping exactly)
+# GROUP: Waste-Types
 # ============================================================
 router.register_group("waste-types", "properties",    PropertyViewSet)
 router.register_group("waste-types", "subproperties", SubPropertyViewSet)
@@ -241,6 +239,7 @@ router.register_group(
 # GROUP: AUTHENTICATION
 # ============================================================
 router.register_group("login", "login-user",      DesktopLoginViewSet)
+router.register_group("login", "captcha",         CaptchaViewSet)
 
 # ============================================================
 # GROUP: CUSTOMER MODULES
