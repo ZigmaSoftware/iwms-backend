@@ -8,9 +8,6 @@ REAL data — not just a bare login — so the supervisor app module
   to `TripPlan.supervisor_id == requester` (see the `mine` param added to
   DailyTripAssignmentViewSet / DailyTripLogViewSet), so this points
   driver_user's trip plan(s) today at the new supervisor.
-- Every ComplaintTeam gets `lead_staff` = this supervisor, so tickets routed
-  to those teams surface in the supervisor grievance view (the ticket
-  queryset's `_staff_ticket_scope` checks `assigned_team__lead_staff`).
 
 Unlike government, this project has no GovernmentStaffUserType / "level"
 concept and no `sync_staff_data_scope` (StaffDataScope) — tenancy here is
@@ -24,7 +21,6 @@ trip assignment seeders) so driver_user has a trip today to attach to.
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.complaint_management import ComplaintTeam
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
@@ -113,15 +109,8 @@ class SupervisorUserSeeder(BaseSeeder):
             supervisor_id=supervisor
         )
 
-        # Make the supervisor lead every complaint team so tickets routed to
-        # those teams surface in the supervisor grievance view.
-        teams = ComplaintTeam.objects.filter(is_deleted=False).update(
-            lead_staff=supervisor
-        )
-
         self.log(
             f"{'Created' if created else 'Updated'} supervisor login: "
             f"{self.USERNAME} / {self.PASSWORD} — owns {updated} trip plan(s) "
-            f"covering {len(assignments)} of driver_user's trips today; "
-            f"leads {teams} complaint team(s)."
+            f"covering {len(assignments)} of driver_user's trips today."
         )

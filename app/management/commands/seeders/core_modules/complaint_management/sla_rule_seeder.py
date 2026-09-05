@@ -16,8 +16,8 @@ dates. Since `_sla_specificity` ranks a sub-category match above a bare
 category match, the specific rule still wins whenever a sub-category is set.
 
 Must run AFTER `complaint_ticket_category` and `complaint_ticket_subcategory`
-(needs both, plus each category's `default_priority`/`default_team`) and
-BEFORE `complaint_routing_rule` (which looks up the rules created here).
+(needs both, plus each category's `default_priority`) and BEFORE
+`complaint_routing_rule` (which looks up the rules created here).
 """
 
 from app.management.commands.seeders.base import BaseSeeder
@@ -61,10 +61,6 @@ class ComplaintSlaRuleSeeder(BaseSeeder):
                 "assign_within_minutes": assign_within,
                 "resolve_within_minutes": resolve_within,
                 "escalation_after_minutes": escalate_after,
-                # `escalation_team` is deliberately left unset. Escalation
-                # targets come from `ComplaintTeam.escalates_to` — see
-                # `perform_escalation` — so a value here would look like
-                # configuration while changing nothing.
                 "is_active": True,
                 "is_deleted": False,
             },
@@ -78,7 +74,7 @@ class ComplaintSlaRuleSeeder(BaseSeeder):
 
         for category in ComplaintCategory.objects.filter(
             is_deleted=False
-        ).select_related("default_priority", "default_team"):
+        ).select_related("default_priority"):
             category_priority = category.default_priority
             if not category_priority:
                 skipped.append(category.category_code)

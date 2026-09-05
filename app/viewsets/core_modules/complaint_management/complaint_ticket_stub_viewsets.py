@@ -60,10 +60,6 @@ class ComplaintLanguageViewSet(ComplaintTicketStubViewSet):
     permission_resource = "ComplaintLanguage"
 
 
-class ComplaintTeamViewSet(ComplaintTicketStubViewSet):
-    permission_resource = "ComplaintTeam"
-
-
 class ComplaintSlaRuleViewSet(ComplaintTicketStubViewSet):
     permission_resource = "ComplaintSlaRule"
 

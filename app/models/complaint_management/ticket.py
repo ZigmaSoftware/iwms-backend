@@ -25,6 +25,7 @@ from app.models.masters.ward import Ward
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+from app.models.staff_creations.department import Department
 from app.models.complaint_management.masters import (
     ComplaintCategory,
     ComplaintLanguage,
@@ -32,7 +33,6 @@ from app.models.complaint_management.masters import (
     ComplaintSource,
     ComplaintStatus,
     ComplaintSubcategory,
-    ComplaintTeam,
 )
 
 
@@ -191,13 +191,6 @@ class ComplaintTicket(BaseMaster):
         db_column="ward_id",
     )
 
-    assigned_team = models.ForeignKey(
-        ComplaintTeam,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="assigned_tickets",
-    )
     assigned_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -211,6 +204,21 @@ class ComplaintTicket(BaseMaster):
         null=True,
         blank=True,
         related_name="assigned_complaint_tickets_staff",
+    )
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="complaint_tickets",
+    )
+    is_escalated = models.BooleanField(default=False)
+    escalated_to_staff = models.ForeignKey(
+        StaffcreationOfficeDetails,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="escalated_complaint_tickets",
     )
 
     sla_due_at = models.DateTimeField(null=True, blank=True)

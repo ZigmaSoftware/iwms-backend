@@ -44,12 +44,12 @@ def generate_subcategory_id():
     return f"CPTSUB-{generate_unique_id()}"
 
 
-def generate_team_id():
-    return f"CPTTEAM-{generate_unique_id()}"
-
-
 def generate_sla_rule_id():
     return f"CPTSLA-{generate_unique_id()}"
+
+
+def generate_department_member_id():
+    return f"CPTDM-{generate_unique_id()}"
 
 
 class ComplaintSource(BaseMaster):
@@ -170,92 +170,13 @@ class ComplaintModule(BaseMaster):
         return self.module_name
 
 
-class ComplaintTeam(BaseMaster):
-    """Teams that complaint tickets are routed/assigned to.
-
-    The one company/project-scoped table in this module. Every other master
-    here is global configuration, but a team points at company-scoped data
-    (`Department`, `StaffcreationOfficeDetails`), so each company owns its own
-    crews and escalation chain — which is why it stays under the CORE MODULES
-    "complaint-ticket" module rather than moving to the superadmin-only
-    "complaint-masters" one.
-
-    `team_code` is unique per company/project rather than globally: two
-    companies both having a "SANITATION" team is normal, and a global unique
-    would make the second one impossible to create.
-    """
-
-    unique_id = models.CharField(
-        max_length=30,
-        primary_key=True,
-        default=generate_team_id,
-        editable=False,
-    )
-
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_teams",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_teams",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
-
-    team_code = models.CharField(max_length=80)
-    team_name = models.CharField(max_length=150)
-    department = models.ForeignKey(
-        Department,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_teams",
-    )
-    lead_staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="led_complaint_teams",
-    )
-    escalates_to = models.ForeignKey(
-        "self",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="escalation_sources",
-    )
-    escalation_level = models.IntegerField(default=1)
-    is_field_team = models.BooleanField(default=False)
-
-    class Meta:
-        ordering = ["team_code"]
-        verbose_name = "Complaint Team"
-        verbose_name_plural = "Complaint Teams"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["company_id", "project_id", "team_code"],
-                name="unique_complaint_team_code_per_project",
-            )
-        ]
-
-    def __str__(self):
-        return self.team_name
-
-
 class ComplaintCategory(BaseMaster):
     """Top-level complaint categories (Missed Pickup, Change Address, ...).
 
     Scoped to a company/project: the categories a citizen is offered, their
-    default priority and the team they route to are all operational choices
-    that differ per project, so one project's edit must not change another's.
+    default priority and the department they route to are all operational
+    choices that differ per project, so one project's edit must not change
+    another's.
     """
 
     unique_id = models.CharField(
@@ -300,12 +221,12 @@ class ComplaintCategory(BaseMaster):
         blank=True,
         related_name="default_for_categories",
     )
-    default_team = models.ForeignKey(
-        ComplaintTeam,
+    default_department = models.ForeignKey(
+        Department,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="default_for_categories",
+        related_name="default_for_complaint_categories",
     )
 
     requires_location = models.BooleanField(default=True)
@@ -455,13 +376,6 @@ class ComplaintSlaRule(BaseMaster):
     resolve_within_minutes = models.IntegerField(null=True, blank=True)
     working_hours_only = models.BooleanField(default=False)
     escalation_after_minutes = models.IntegerField(null=True, blank=True)
-    escalation_team = models.ForeignKey(
-        ComplaintTeam,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="escalation_sla_rules",
-    )
 
     class Meta:
         ordering = ["unique_id"]
@@ -477,3 +391,71 @@ class ComplaintSlaRule(BaseMaster):
 
     def __str__(self):
         return f"SLA {self.category_id} / {self.priority_id}"
+
+
+class ComplaintDepartmentMember(BaseMaster):
+    """A staff member's membership on a department's complaint-ticket roster.
+
+    Tickets are assigned to a `Department`, and within that department to
+    whichever active, non-supervisor member currently holds the fewest open
+    tickets (see `app.services.complaint_ticket_routing`).
+    """
+
+    unique_id = models.CharField(
+        max_length=30,
+        primary_key=True,
+        default=generate_department_member_id,
+        editable=False,
+    )
+
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        related_name="complaint_department_members",
+        db_column="company_id",
+        null=True,
+        blank=True,
+    )
+    project_id = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        related_name="complaint_department_members",
+        db_column="project_id",
+        null=True,
+        blank=True,
+    )
+
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        related_name="complaint_roster",
+    )
+    staff = models.ForeignKey(
+        StaffcreationOfficeDetails,
+        on_delete=models.CASCADE,
+        related_name="complaint_department_memberships",
+    )
+    is_supervisor = models.BooleanField(default=False)
+    max_active_tickets = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["department", "staff"]
+        verbose_name = "Complaint Department Member"
+        verbose_name_plural = "Complaint Department Members"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["department", "staff"],
+                name="unique_complaint_department_member",
+            ),
+            # At most one active supervisor per department — enforced at the
+            # DB level since escalation always resolves to a single supervisor.
+            models.UniqueConstraint(
+                fields=["department"],
+                condition=models.Q(is_supervisor=True, is_deleted=False),
+                name="unique_supervisor_per_department",
+            ),
+        ]
+
+    def __str__(self):
+        role = "Supervisor" if self.is_supervisor else "Member"
+        return f"{self.staff} ({role} @ {self.department})"

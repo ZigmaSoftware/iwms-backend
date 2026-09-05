@@ -55,12 +55,9 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.customer_name", read_only=True)
     reporter_type = serializers.SerializerMethodField()
     reporter_name = serializers.SerializerMethodField()
-    assigned_team_name = serializers.CharField(source="assigned_team.team_name", read_only=True)
     assigned_staff_name = serializers.CharField(source="assigned_staff.employee_name", read_only=True)
-    assigned_department_name = serializers.CharField(
-        source="assigned_team.department.department_name", read_only=True
-    )
-    escalation_level = serializers.IntegerField(source="assigned_team.escalation_level", read_only=True)
+    department_name = serializers.CharField(source="department.department_name", read_only=True)
+    escalated_to_staff_name = serializers.CharField(source="escalated_to_staff.employee_name", read_only=True)
 
     state_name = serializers.CharField(source="state.name", read_only=True)
     district_name = serializers.CharField(source="district.name", read_only=True)
@@ -327,8 +324,6 @@ class ComplaintStatusHistorySerializer(serializers.ModelSerializer):
 
 
 class ComplaintAssignmentHistorySerializer(serializers.ModelSerializer):
-    to_team_name = serializers.CharField(source="to_team.team_name", read_only=True)
-    from_team_name = serializers.CharField(source="from_team.team_name", read_only=True)
     to_staff_name = serializers.CharField(source="to_staff.employee_name", read_only=True)
     from_staff_name = serializers.CharField(source="from_staff.employee_name", read_only=True)
 
@@ -347,7 +342,7 @@ class ComplaintCommentSerializer(serializers.ModelSerializer):
 
 class ComplaintRoutingRuleSerializer(serializers.ModelSerializer):
     category_code = serializers.CharField(source="category.category_code", read_only=True)
-    team_name = serializers.CharField(source="team.team_name", read_only=True)
+    department_name = serializers.CharField(source="department.department_name", read_only=True)
 
     class Meta:
         model = ComplaintRoutingRule
@@ -356,8 +351,6 @@ class ComplaintRoutingRuleSerializer(serializers.ModelSerializer):
 
 
 class ComplaintEscalationHistorySerializer(serializers.ModelSerializer):
-    escalated_from_team_name = serializers.CharField(source="escalated_from_team.team_name", read_only=True)
-    escalated_to_team_name = serializers.CharField(source="escalated_to_team.team_name", read_only=True)
     escalated_to_staff_name = serializers.CharField(source="escalated_to_staff.employee_name", read_only=True)
 
     class Meta:

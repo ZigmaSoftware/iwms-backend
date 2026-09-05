@@ -10,6 +10,7 @@ from rest_framework import serializers
 
 from app.models.complaint_management import (
     ComplaintCategory,
+    ComplaintDepartmentMember,
     ComplaintLanguage,
     ComplaintModule,
     ComplaintPriority,
@@ -17,7 +18,6 @@ from app.models.complaint_management import (
     ComplaintSource,
     ComplaintStatus,
     ComplaintSubcategory,
-    ComplaintTeam,
 )
 
 
@@ -57,16 +57,24 @@ class ComplaintStatusSerializer(AutoSortOrderSerializerMixin, serializers.ModelS
         read_only_fields = ["unique_id", "sort_order"]
 
 
-class ComplaintTeamSerializer(serializers.ModelSerializer):
+class ComplaintDepartmentMemberSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source="department.department_name", read_only=True)
-    lead_staff_name = serializers.CharField(source="lead_staff.employee_name", read_only=True)
-    escalates_to_name = serializers.CharField(source="escalates_to.team_name", read_only=True)
-    escalates_to_code = serializers.CharField(source="escalates_to.team_code", read_only=True)
+    staff_name = serializers.CharField(source="staff.employee_name", read_only=True)
+    open_ticket_count = serializers.SerializerMethodField()
 
     class Meta:
-        model = ComplaintTeam
+        model = ComplaintDepartmentMember
         fields = "__all__"
         read_only_fields = ["unique_id"]
+
+    def get_open_ticket_count(self, obj):
+        from app.services.complaint_ticket_routing import CLOSED_STATUS_CODES
+
+        return (
+            obj.staff.assigned_complaint_tickets_staff.filter(is_deleted=False)
+            .exclude(status__status_code__in=CLOSED_STATUS_CODES)
+            .count()
+        )
 
 
 class ComplaintModuleSerializer(AutoSortOrderSerializerMixin, serializers.ModelSerializer):
@@ -78,7 +86,7 @@ class ComplaintModuleSerializer(AutoSortOrderSerializerMixin, serializers.ModelS
 
 class ComplaintCategorySerializer(AutoSortOrderSerializerMixin, serializers.ModelSerializer):
     default_priority_code = serializers.CharField(source="default_priority.priority_code", read_only=True)
-    default_team_name = serializers.CharField(source="default_team.team_name", read_only=True)
+    default_department_name = serializers.CharField(source="default_department.department_name", read_only=True)
     module_code = serializers.CharField(source="module.module_code", read_only=True)
     module_name = serializers.CharField(source="module.module_name", read_only=True)
 
@@ -107,7 +115,6 @@ class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
     subcategory_name = serializers.CharField(source="subcategory.subcategory_name", read_only=True)
     priority_code = serializers.CharField(source="priority.priority_code", read_only=True)
     source_code = serializers.CharField(source="source.source_code", read_only=True)
-    escalation_team_name = serializers.CharField(source="escalation_team.team_name", read_only=True)
 
     class Meta:
         model = ComplaintSlaRule

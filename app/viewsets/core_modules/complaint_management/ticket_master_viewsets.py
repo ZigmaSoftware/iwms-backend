@@ -8,6 +8,7 @@ from rest_framework import viewsets
 
 from app.models.complaint_management import (
     ComplaintCategory,
+    ComplaintDepartmentMember,
     ComplaintLanguage,
     ComplaintModule,
     ComplaintPriority,
@@ -16,10 +17,10 @@ from app.models.complaint_management import (
     ComplaintSource,
     ComplaintStatus,
     ComplaintSubcategory,
-    ComplaintTeam,
 )
 from app.serializers.core_modules.complaint_management.ticket_master_serializers import (
     ComplaintCategorySerializer,
+    ComplaintDepartmentMemberSerializer,
     ComplaintLanguageSerializer,
     ComplaintModuleSerializer,
     ComplaintPrioritySerializer,
@@ -27,7 +28,6 @@ from app.serializers.core_modules.complaint_management.ticket_master_serializers
     ComplaintSourceSerializer,
     ComplaintStatusSerializer,
     ComplaintSubcategorySerializer,
-    ComplaintTeamSerializer,
 )
 from app.serializers.core_modules.complaint_management.ticket_serializers import (
     ComplaintRoutingRuleSerializer,
@@ -93,48 +93,13 @@ class ComplaintLanguageViewSet(_BaseComplaintMasterViewSet):
     AUDIT_ENDPOINT = "languages"
 
 
-class ComplaintTeamViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    """Teams stay in the CORE MODULES "complaint-ticket" module.
-
-    Unlike the other masters in this file, a team points at company-scoped
-    data (Department, StaffcreationOfficeDetails), so it is operational rather
-    than global configuration and each company owns its own crews / escalation
-    chain. It therefore extends `CompanyScopedViewSet` — not the plain
-    `_BaseComplaintMasterViewSet` the global masters use — so every list is
-    filtered to the caller's company/project and creates are stamped with it.
-    Without that, one company's supervisor would see every other company's
-    teams in the assign dropdown.
-    """
-
-    queryset = ComplaintTeam.objects.select_related("department", "lead_staff", "escalates_to")
-    serializer_class = ComplaintTeamSerializer
-    permission_resource = "ComplaintTeam"
-    lookup_field = "unique_id"
-    AUDIT_MODULE = "complaint-ticket"
-    AUDIT_ENDPOINT = "teams"
-
-    def get_queryset(self):
-        # The company/project filter is applied by
-        # `CompanyScopedViewSet.filter_queryset`, not here — this only adds
-        # the soft-delete filter every master in this module uses.
-        return self.queryset.filter(is_deleted=False)
-
-    def perform_destroy(self, instance):
-        # The base soft-deletes and stamps `updated_by`; deactivating as well
-        # is this module's convention, so defer to it and then clear the flag.
-        super().perform_destroy(instance)
-        if instance.is_active:
-            instance.is_active = False
-            instance.save(update_fields=["is_active"])
-
-
 class _ScopedComplaintMasterViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     """Soft-deleting CRUD for the company/project-scoped complaint masters.
 
     Category, Sub-category, SLA and routing rules all carry company/project
     (migration 0003), because which complaint types a project offers, their
-    priorities, the team they route to and the resolution targets are all
-    per-project operational choices. `CompanyScopedViewSet.filter_queryset`
+    priorities, the department they route to and the resolution targets are
+    all per-project operational choices. `CompanyScopedViewSet.filter_queryset`
     applies the scope and stamps it on create; this only adds the
     soft-delete filter the module uses everywhere.
     """
@@ -153,7 +118,9 @@ class _ScopedComplaintMasterViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
 
 class ComplaintTicketCategoryViewSet(_ScopedComplaintMasterViewSet):
-    queryset = ComplaintCategory.objects.select_related("module", "default_priority", "default_team")
+    queryset = ComplaintCategory.objects.select_related(
+        "module", "default_priority", "default_department"
+    )
     serializer_class = ComplaintCategorySerializer
     permission_resource = "ComplaintCategory"
     AUDIT_ENDPOINT = "ticket-categories"
@@ -175,7 +142,7 @@ class ComplaintTicketSubcategoryViewSet(_ScopedComplaintMasterViewSet):
 
 class ComplaintSlaRuleViewSet(_ScopedComplaintMasterViewSet):
     queryset = ComplaintSlaRule.objects.select_related(
-        "category", "subcategory", "priority", "source", "escalation_team"
+        "category", "subcategory", "priority", "source"
     )
     serializer_class = ComplaintSlaRuleSerializer
     permission_resource = "ComplaintSlaRule"
@@ -184,8 +151,34 @@ class ComplaintSlaRuleViewSet(_ScopedComplaintMasterViewSet):
 
 class ComplaintRoutingRuleViewSet(_ScopedComplaintMasterViewSet):
     queryset = ComplaintRoutingRule.objects.select_related(
-        "category", "subcategory", "priority", "team", "sla_rule"
+        "category", "subcategory", "priority", "department", "sla_rule"
     )
     serializer_class = ComplaintRoutingRuleSerializer
     permission_resource = "ComplaintRoutingRule"
     AUDIT_ENDPOINT = "routing-rules"
+
+
+class ComplaintDepartmentMemberViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+    """Department roster CRUD: who belongs to a department for complaint
+    assignment purposes, and who its (single) supervisor is.
+
+    Company-scoped since a roster row points at company-scoped
+    `Department`/`StaffcreationOfficeDetails` data, so each company owns
+    its own roster.
+    """
+
+    queryset = ComplaintDepartmentMember.objects.select_related("department", "staff")
+    serializer_class = ComplaintDepartmentMemberSerializer
+    permission_resource = "ComplaintDepartmentMember"
+    lookup_field = "unique_id"
+    AUDIT_MODULE = "complaint-ticket"
+    AUDIT_ENDPOINT = "department-members"
+
+    def get_queryset(self):
+        return self.queryset.filter(is_deleted=False)
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        if instance.is_active:
+            instance.is_active = False
+            instance.save(update_fields=["is_active"])

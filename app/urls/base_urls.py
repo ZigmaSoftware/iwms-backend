@@ -83,7 +83,7 @@ from ..viewsets.core_modules.complaint_management.ticket_master_viewsets import 
     ComplaintStatusViewSet,
     ComplaintSourceViewSet,
     ComplaintLanguageViewSet,
-    ComplaintTeamViewSet,
+    ComplaintDepartmentMemberViewSet,
     ComplaintTicketCategoryViewSet,
     ComplaintTicketSubcategoryViewSet,
     ComplaintSlaRuleViewSet,
@@ -283,7 +283,7 @@ router.register_group("complaint-masters", "languages", ComplaintLanguageViewSet
 # downgrades them to view-only for this module.
 # ============================================================
 router.register_group("complaint-ticket", "tickets", ComplaintTicketViewSet, basename="complaint-ticket-tickets")
-router.register_group("complaint-ticket", "teams", ComplaintTeamViewSet, basename="complaint-ticket-teams")
+router.register_group("complaint-ticket", "department-members", ComplaintDepartmentMemberViewSet, basename="complaint-ticket-department-members")
 router.register_group("complaint-ticket", "feedback", ComplaintFeedbackViewSet, basename="complaint-ticket-feedback")
 router.register_group("complaint-ticket", "reopen-history", ComplaintReopenHistoryViewSet, basename="complaint-ticket-reopen-history")
 router.register_group("complaint-ticket", "notifications", ComplaintNotificationViewSet, basename="complaint-ticket-notifications")

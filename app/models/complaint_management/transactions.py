@@ -28,6 +28,7 @@ from app.models.masters.panchayat import Panchayat
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+from app.models.staff_creations.department import Department
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.complaint_management.masters import (
@@ -36,7 +37,6 @@ from app.models.complaint_management.masters import (
     ComplaintSlaRule,
     ComplaintStatus,
     ComplaintSubcategory,
-    ComplaintTeam,
 )
 from app.models.complaint_management.ticket import ComplaintTicket
 
@@ -235,20 +235,6 @@ class ComplaintAssignmentHistory(BaseMaster):
         on_delete=models.CASCADE,
         related_name="assignment_history",
     )
-    from_team = models.ForeignKey(
-        ComplaintTeam,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="assignment_history_from",
-    )
-    to_team = models.ForeignKey(
-        ComplaintTeam,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="assignment_history_to",
-    )
     from_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -294,7 +280,7 @@ class ComplaintAssignmentHistory(BaseMaster):
         verbose_name_plural = "Complaint Assignment History"
 
     def __str__(self):
-        return f"{self.ticket_id} -> {self.to_team_id}"
+        return f"{self.ticket_id} -> {self.to_staff_id}"
 
 
 class ComplaintComment(BaseMaster):
@@ -342,7 +328,7 @@ class ComplaintComment(BaseMaster):
 
 
 class ComplaintRoutingRule(BaseMaster):
-    """Resolves a team/user/SLA for a ticket by category + geo + priority.
+    """Resolves a department/user/SLA for a ticket by category + geo + priority.
 
     Geo scope follows this project's model (state/district/panchayat/zone/
     ward) rather than government's local-body hierarchy. Empty fields mean
@@ -432,10 +418,12 @@ class ComplaintRoutingRule(BaseMaster):
         blank=True,
         related_name="routing_rules",
     )
-    team = models.ForeignKey(
-        ComplaintTeam,
-        on_delete=models.PROTECT,
-        related_name="routing_rules",
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="complaint_routing_rules",
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -465,7 +453,7 @@ class ComplaintRoutingRule(BaseMaster):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Route {self.category_id} -> {self.team_id}"
+        return f"Route {self.category_id} -> {self.department_id}"
 
 
 class ComplaintEscalationHistory(BaseMaster):
@@ -484,20 +472,6 @@ class ComplaintEscalationHistory(BaseMaster):
         related_name="escalation_history",
     )
     escalation_level = models.IntegerField(default=1)
-    escalated_from_team = models.ForeignKey(
-        ComplaintTeam,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="escalation_from",
-    )
-    escalated_to_team = models.ForeignKey(
-        ComplaintTeam,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="escalation_to",
-    )
     escalated_to_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
