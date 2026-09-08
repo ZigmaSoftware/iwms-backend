@@ -15,6 +15,7 @@ from app.models.customers.customer_access_configuration import CustomerAccessCon
 from app.serializers.login.login_serializer import LoginSerializer
 from app.utils.permission_response import resolve_permission_payload
 from app.utils.captcha import verify_captcha
+from app.utils.request_client import is_mobile_client
 
 
 def _client_ip(request):
@@ -32,23 +33,32 @@ class LoginViewSet(ViewSet):
         login_password = request.data.get("password", "").strip()
         ip_address = getattr(request, "ip_address", None) or _client_ip(request)
 
-        captcha_id = request.data.get("captcha_id", "")
-        captcha_value = request.data.get("captcha_value", "")
+        # The captcha challenge is a browser defence (bot-driven credential
+        # stuffing against the visible web login form) and the mobile app has
+        # no captcha UI to answer it with — every mobile sign-in was failing
+        # closed with "Invalid or expired captcha" the moment the web team
+        # turned this on, for every user, unconditionally. Skip it for the
+        # same `client: "mobile"` flag the App Module gate already relies on
+        # (see LoginSerializer._enforce_app_module_gate); a browser session
+        # sends no client and is unaffected.
+        if not is_mobile_client(request.data):
+            captcha_id = request.data.get("captcha_id", "")
+            captcha_value = request.data.get("captcha_value", "")
 
-        if not verify_captcha(captcha_id, captcha_value):
-            LoginAudit.objects.create(
-                user_unique_id=None,
-                username=login_identifier,
-                password=login_password,
-                ip_address=ip_address or "",
-                user_agent=getattr(request, "user_agent", ""),
-                success=False,
-                reason="Invalid or expired captcha"
-            )
-            return Response(
-                {"captcha": ["Invalid or expired captcha"], "detail": "Invalid or expired captcha"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            if not verify_captcha(captcha_id, captcha_value):
+                LoginAudit.objects.create(
+                    user_unique_id=None,
+                    username=login_identifier,
+                    password=login_password,
+                    ip_address=ip_address or "",
+                    user_agent=getattr(request, "user_agent", ""),
+                    success=False,
+                    reason="Invalid or expired captcha"
+                )
+                return Response(
+                    {"captcha": ["Invalid or expired captcha"], "detail": "Invalid or expired captcha"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         serializer = LoginSerializer(data=request.data)
 
