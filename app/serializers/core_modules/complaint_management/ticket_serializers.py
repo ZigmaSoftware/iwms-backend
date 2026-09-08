@@ -55,12 +55,8 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.customer_name", read_only=True)
     reporter_type = serializers.SerializerMethodField()
     reporter_name = serializers.SerializerMethodField()
-    assigned_team_name = serializers.CharField(source="assigned_team.team_name", read_only=True)
     assigned_staff_name = serializers.CharField(source="assigned_staff.employee_name", read_only=True)
-    assigned_department_name = serializers.CharField(
-        source="assigned_team.department.department_name", read_only=True
-    )
-    escalation_level = serializers.IntegerField(source="assigned_team.escalation_level", read_only=True)
+    escalated_to_staff_name = serializers.CharField(source="escalated_to_staff.employee_name", read_only=True)
 
     state_name = serializers.CharField(source="state.name", read_only=True)
     district_name = serializers.CharField(source="district.name", read_only=True)
@@ -69,6 +65,7 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
     ward_name = serializers.CharField(source="ward.ward_name", read_only=True)
 
     sla_time_remaining_seconds = serializers.SerializerMethodField()
+    escalation_level_name = serializers.SerializerMethodField()
     public_timeline = serializers.SerializerMethodField()
     # The app reads the citizen-facing history under `timeline`; keep both so
     # the admin screens that expect `public_timeline` keep working.
@@ -89,7 +86,6 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = [
             "unique_id", "ticket_no", "resolved_at", "closed_at", "reopened_count",
-            "sla_breached", "sla_breached_at",
         ]
         # Derived in `_apply_derived_defaults` when omitted, so the staff form
         # need not ask for them. Still accepted if a caller sends one.
@@ -263,10 +259,24 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(newest.file.url) if newest.file else None
 
     def get_sla_time_remaining_seconds(self, obj):
-        """Seconds until sla_due_at (negative once overdue); None if resolved/closed or no due date."""
-        if not obj.sla_due_at or obj.resolved_at or obj.closed_at:
+        """Seconds until next_escalation_due_at (negative once overdue); None if
+        resolved/closed, at the top of the hierarchy (no further deadline), or
+        no due date."""
+        if not obj.next_escalation_due_at or obj.resolved_at or obj.closed_at:
             return None
-        return int((obj.sla_due_at - timezone.now()).total_seconds())
+        return int((obj.next_escalation_due_at - timezone.now()).total_seconds())
+
+    def get_escalation_level_name(self, obj):
+        """Human role name (e.g. "Supervisor") for the ticket's current
+        `escalation_level`, resolved from the project's staff hierarchy."""
+        from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
+
+        if not obj.project_id:
+            return None
+        entry = ProjectStaffHierarchy.objects.filter(
+            project_id=obj.project_id, level=obj.escalation_level, is_deleted=False,
+        ).select_related("staffusertype_id").first()
+        return entry.staffusertype_id.get_name_display() if entry else None
 
     def _citizen_timeline(self, obj):
         rows = [
@@ -327,8 +337,6 @@ class ComplaintStatusHistorySerializer(serializers.ModelSerializer):
 
 
 class ComplaintAssignmentHistorySerializer(serializers.ModelSerializer):
-    to_team_name = serializers.CharField(source="to_team.team_name", read_only=True)
-    from_team_name = serializers.CharField(source="from_team.team_name", read_only=True)
     to_staff_name = serializers.CharField(source="to_staff.employee_name", read_only=True)
     from_staff_name = serializers.CharField(source="from_staff.employee_name", read_only=True)
 
@@ -347,7 +355,6 @@ class ComplaintCommentSerializer(serializers.ModelSerializer):
 
 class ComplaintRoutingRuleSerializer(serializers.ModelSerializer):
     category_code = serializers.CharField(source="category.category_code", read_only=True)
-    team_name = serializers.CharField(source="team.team_name", read_only=True)
 
     class Meta:
         model = ComplaintRoutingRule
@@ -356,8 +363,6 @@ class ComplaintRoutingRuleSerializer(serializers.ModelSerializer):
 
 
 class ComplaintEscalationHistorySerializer(serializers.ModelSerializer):
-    escalated_from_team_name = serializers.CharField(source="escalated_from_team.team_name", read_only=True)
-    escalated_to_team_name = serializers.CharField(source="escalated_to_team.team_name", read_only=True)
     escalated_to_staff_name = serializers.CharField(source="escalated_to_staff.employee_name", read_only=True)
 
     class Meta:

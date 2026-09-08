@@ -1,20 +1,21 @@
-"""Routing + SLA resolution for complaint tickets.
+"""Assignment + SLA resolution for complaint tickets.
 
-Ported from the government backend's `app/utils/complaint_ticket_routing.py`.
-Given a ticket's category/subcategory/flat geo (state/district/panchayat/
-zone/ward)/priority/source, finds the most specific matching
-`ComplaintRoutingRule` (to assign a team/user) and the most specific
-matching `ComplaintSlaRule` (to compute due dates), then fills only the
-ticket fields that are still empty — an explicit assignment or a manually
-set due date is never overwritten.
+A new ticket is assigned to whoever holds level 0 of its project's staff
+hierarchy (`ProjectStaffHierarchy` + `StaffUserType`) — there is no
+department roster or load-balancing step. Multiple staff can hold the same
+hierarchy level in a project (e.g. a Supervisor per zone); which one a given
+ticket goes to is narrowed by geography via `StaffAccessConfiguration`
+(zones/panchayats/wards), using the same "narrowest non-empty grant wins,
+empty means unrestricted" rule as `LocationScopedViewSetMixin` elsewhere in
+this app. If nobody at that level covers the ticket's zone/panchayat/ward,
+the ticket is left unassigned rather than guessed at.
 
-Geo scope differs from government: this project has no Corporation/
-Municipality/TownPanchayat/PanchayatUnion local-body hierarchy, so
-`ROUTING_GEO_ATTNAMES` uses state/district/panchayat/zone/ward instead.
+SLA due dates still come from `ComplaintSlaRule`/`ComplaintRoutingRule`
+(geo/category/priority matching) — that part is unrelated to who the ticket
+is assigned to.
 """
 from datetime import timedelta, time
 
-from django.db.models import Max
 from django.utils import timezone
 
 BUSINESS_START = time(9, 0)
@@ -63,6 +64,12 @@ ROUTING_GEO_ATTNAMES = (
     "ward_id",
 )
 
+# A ticket in one of these statuses is done — it doesn't count toward a
+# staff member's load and won't be picked up as "the next queued ticket".
+# Matches the "resolved"/"open" buckets in `ticket_viewset._status_bucket_q`;
+# keep the two in sync.
+CLOSED_STATUS_CODES = ("RESOLVED", "CLOSED", "REJECTED", "CANCELLED")
+
 
 def _routing_matches(rule, ticket):
     if rule.subcategory_id and rule.subcategory_id != ticket.subcategory_id:
@@ -85,13 +92,16 @@ def _routing_specificity(rule):
 
 
 def _best_routing_rule(ticket):
+    """Best-matching `ComplaintRoutingRule` for this ticket, used only to
+    pin a specific SLA rule by geo/category/priority — it no longer carries
+    a department."""
     from app.models.complaint_management.transactions import ComplaintRoutingRule
 
     candidates = ComplaintRoutingRule.objects.filter(
         is_deleted=False,
         is_active=True,
         category_id=ticket.category_id,
-    ).select_related("team", "user", "sla_rule")
+    ).select_related("sla_rule")
 
     matching = [rule for rule in candidates if _routing_matches(rule, ticket)]
     if not matching:
@@ -134,31 +144,120 @@ def _best_sla_rule(ticket):
     return matching[0]
 
 
+def _staff_geo_matches(staff, ticket):
+    """Whether `staff`'s `StaffAccessConfiguration` geo grants cover
+    `ticket`'s zone/panchayat/ward, using the same "narrowest non-empty
+    grant wins, empty means unrestricted at that level" rule as
+    `LocationScopedViewSetMixin`. A staff member with no access
+    configuration row at all (or none of the three grants populated) is
+    treated as unrestricted, so existing single-zone deployments that never
+    configured Data Scope keep working unchanged.
+    """
+    access_config = staff.access_configuration.filter(
+        is_active=True, is_deleted=False,
+    ).first()
+    if not access_config:
+        return True
+
+    if ticket.ward_id:
+        wards = access_config.wards.all()
+        if wards.exists():
+            return wards.filter(unique_id=ticket.ward_id).exists()
+    if ticket.panchayat_id:
+        panchayats = access_config.panchayats.all()
+        if panchayats.exists():
+            return panchayats.filter(unique_id=ticket.panchayat_id).exists()
+    if ticket.zone_id:
+        zones = access_config.zones.all()
+        if zones.exists():
+            return zones.filter(unique_id=ticket.zone_id).exists()
+    return True
+
+
+def _staff_for_hierarchy_level(project_id, level_num, ticket):
+    """Active staff at `level_num` of `project_id`'s staff hierarchy whose
+    geo grants cover `ticket` — see `_staff_geo_matches`. None if the level
+    isn't configured or nobody at it covers this ticket's geography.
+    """
+    from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
+    from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+
+    hierarchy_entry = ProjectStaffHierarchy.objects.filter(
+        project_id=project_id, level=level_num, is_deleted=False,
+    ).first()
+    if not hierarchy_entry:
+        return None
+
+    candidates = (
+        StaffcreationOfficeDetails.objects.filter(
+            project_id=project_id,
+            staffusertype_id=hierarchy_entry.staffusertype_id_id,
+            approval_status=StaffcreationOfficeDetails.APPROVAL_APPROVED,
+            is_active=True,
+            is_deleted=False,
+        )
+        .prefetch_related("access_configuration__zones", "access_configuration__panchayats", "access_configuration__wards")
+        .order_by("staff_unique_id")
+    )
+    for staff in candidates:
+        if _staff_geo_matches(staff, ticket):
+            return staff
+    return None
+
+
+def get_entry_level_staff(ticket):
+    """The geo-matching active staff member holding the lowest-numbered
+    *enabled* escalation level of `ticket.project_id`'s staff hierarchy, or
+    None if the project has no enabled level configured or nobody at that
+    level covers this ticket's zone/panchayat/ward.
+
+    Which levels are "enabled" is per-SLA-rule (`ComplaintSlaEscalationLevel.
+    is_enabled`) — a project's hierarchy may define Driver/Operator/Supervisor/
+    Project Admin/Company Admin, but a given SLA rule can disable the lower
+    ones so tickets start at Supervisor instead. Falls back to the project's
+    raw level 0 if no SLA rule (and so no escalation_levels) matches yet.
+    """
+    if not ticket.project_id:
+        return None
+
+    entry_level_num = _entry_level_number(ticket)
+    if entry_level_num is None:
+        return None
+
+    return _staff_for_hierarchy_level(ticket.project_id, entry_level_num, ticket)
+
+
+def _entry_level_number(ticket):
+    """Lowest-numbered enabled `ComplaintSlaEscalationLevel.level` for the
+    ticket's best-matching SLA rule, or 0 if no SLA rule/no enabled levels are
+    configured yet (falls back to the hierarchy's raw level 0)."""
+    sla_rule = _best_sla_rule(ticket)
+    if not sla_rule:
+        return 0
+
+    lowest_enabled = (
+        sla_rule.escalation_levels.filter(is_enabled=True, is_deleted=False)
+        .order_by("level")
+        .values_list("level", flat=True)
+        .first()
+    )
+    return lowest_enabled if lowest_enabled is not None else 0
+
+
 def apply_routing_and_sla(ticket, save=True):
-    """Fill assigned_team/assigned_user and sla_due_at/first_response_due_at
-    on `ticket` from the best-matching routing + SLA rules — only touching
-    fields that are currently empty. Returns the list of updated field names.
+    """Fill `assigned_staff` (from the project's lowest enabled hierarchy
+    level) and `first_response_due_at` (from the best-matching SLA rule) on
+    `ticket` — only touching fields that are currently empty. Returns the
+    list of updated field names.
     """
     updated_fields = []
     now = timezone.now()
 
-    routing_rule = None
-    if not ticket.assigned_team_id:
-        routing_rule = _best_routing_rule(ticket)
-        if routing_rule:
-            ticket.assigned_team = routing_rule.team
-            updated_fields.append("assigned_team")
-            if routing_rule.user_id and not ticket.assigned_user_id:
-                ticket.assigned_user = routing_rule.user
-                updated_fields.append("assigned_user")
-        elif ticket.category_id and ticket.category.default_team_id:
-            # No routing rule matched — fall back to the category's default
-            # team. This is what makes ComplaintRoutingRule optional: a
-            # deployment only needs rules when a category must route to
-            # different teams by area. Configuring the team on the Complaint
-            # Type is enough for the common single-tenant case.
-            ticket.assigned_team = ticket.category.default_team
-            updated_fields.append("assigned_team")
+    if not ticket.assigned_staff_id:
+        staff = get_entry_level_staff(ticket)
+        if staff:
+            ticket.assigned_staff = staff
+            updated_fields.append("assigned_staff")
 
     # Prefer the most specific SLA rule that actually matches this ticket over
     # the one pinned on the routing rule.
@@ -171,8 +270,10 @@ def apply_routing_and_sla(ticket, save=True):
     # `_best_sla_rule` never ran. The pinned rule is now the fallback for when
     # nothing more specific matches.
     sla_rule = _best_sla_rule(ticket)
-    if not sla_rule and routing_rule and routing_rule.sla_rule_id:
-        sla_rule = routing_rule.sla_rule
+    if not sla_rule:
+        routing_rule = _best_routing_rule(ticket)
+        if routing_rule and routing_rule.sla_rule_id:
+            sla_rule = routing_rule.sla_rule
 
     if sla_rule:
         add_minutes = _add_business_minutes if sla_rule.working_hours_only else (
@@ -181,9 +282,13 @@ def apply_routing_and_sla(ticket, save=True):
         if not ticket.first_response_due_at and sla_rule.assign_within_minutes:
             ticket.first_response_due_at = add_minutes(now, sla_rule.assign_within_minutes)
             updated_fields.append("first_response_due_at")
-        if not ticket.sla_due_at and sla_rule.resolve_within_minutes:
-            ticket.sla_due_at = add_minutes(now, sla_rule.resolve_within_minutes)
-            updated_fields.append("sla_due_at")
+
+    if ticket.next_escalation_due_at is None:
+        from app.services.complaint_escalation import set_initial_escalation_due_date
+
+        set_initial_escalation_due_date(ticket, save=False)
+        updated_fields.append("escalation_level")
+        updated_fields.append("next_escalation_due_at")
 
     if save and updated_fields:
         ticket.save(update_fields=updated_fields)
@@ -191,97 +296,14 @@ def apply_routing_and_sla(ticket, save=True):
     return updated_fields
 
 
-def perform_escalation(ticket, target_team=None, reason=None, actor_user=None, by_system=False):
-    """Escalate `ticket` to `target_team` (or the current team's `escalates_to`).
+def perform_escalation(ticket, reason=None, actor_user=None, by_system=False):
+    """Manually escalate `ticket` one hop up its project's staff hierarchy.
 
-    Shared by the manual `/escalate/` API action and any future automated
-    SLA-breach detection job so both paths write identical history rows.
-    Raises ValueError if there is no team to escalate to.
+    Thin wrapper over `complaint_escalation.escalate_ticket` kept so the
+    `/escalate/` API action's import doesn't need to change; the actual
+    hierarchy walk/notification logic lives there (shared with the automated
+    SLA-breach sweep).
     """
-    from app.models.complaint_management.masters import ComplaintStatus
-    from app.models.complaint_management.transactions import (
-        ComplaintAssignmentHistory,
-        ComplaintEscalationHistory,
-        ComplaintStatusHistory,
-    )
-    from app.services.staff_notification_service import notify_staff
-    from app.models.notifications.staff_notification import StaffNotification
+    from app.services.complaint_escalation import escalate_ticket
 
-    current_team = ticket.assigned_team
-    target = target_team or (current_team.escalates_to if current_team else None)
-    if not target:
-        raise ValueError("Already at the top of the escalation chain.")
-
-    escalated_status = ComplaintStatus.objects.filter(status_code="ESCALATED", is_deleted=False).first()
-
-    from_team = current_team
-    from_staff = ticket.assigned_staff
-
-    last_level = (
-        ticket.escalation_history.aggregate(m=Max("escalation_level"))["m"]
-        if hasattr(ticket, "escalation_history") else None
-    )
-    base_level = last_level or (current_team.escalation_level if current_team else 1)
-    next_level = base_level + 1
-
-    ticket.assigned_team = target
-    ticket.assigned_staff = target.lead_staff
-    old_status = ticket.status
-    if escalated_status:
-        ticket.status = escalated_status
-        ticket.save(update_fields=["assigned_team", "assigned_staff", "status"])
-    else:
-        ticket.save(update_fields=["assigned_team", "assigned_staff"])
-
-    escalation = ComplaintEscalationHistory.objects.create(
-        ticket=ticket,
-        escalation_level=next_level,
-        escalated_from_team=from_team,
-        escalated_to_team=target,
-        escalated_to_staff=target.lead_staff,
-        reason=reason,
-        escalated_by_system=by_system,
-    )
-    ComplaintAssignmentHistory.objects.create(
-        ticket=ticket,
-        from_team=from_team,
-        to_team=target,
-        from_staff=from_staff,
-        to_staff=target.lead_staff,
-        assigned_by=actor_user,
-        assignment_reason=reason or ("SLA breach auto-escalation" if by_system else "Escalated"),
-    )
-    if escalated_status:
-        ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=old_status,
-            to_status=escalated_status,
-            changed_by_user=actor_user,
-            changed_by_system=by_system,
-            remarks=f"Escalated to {target.team_name}" + (f": {reason}" if reason else ""),
-            visible_to_citizen=True,
-        )
-
-    new_staff = target.lead_staff
-    if new_staff and (not from_staff or new_staff.staff_unique_id != from_staff.staff_unique_id):
-        notify_staff(
-            new_staff,
-            StaffNotification.TYPE_TICKET_ESCALATED_TO,
-            "Ticket escalated to you",
-            f"Ticket {ticket.ticket_no} escalated to you (Level {next_level}, {target.team_name})." + (
-                f" Reason: {reason}" if reason else ""
-            ),
-            data={"event": "ticket_escalated_to", "ticket_id": str(ticket.unique_id)},
-        )
-    if from_staff and (not new_staff or from_staff.staff_unique_id != new_staff.staff_unique_id):
-        notify_staff(
-            from_staff,
-            StaffNotification.TYPE_TICKET_ESCALATED,
-            "Ticket escalated",
-            f"Ticket {ticket.ticket_no} has been escalated to {target.team_name}." + (
-                f" Reason: {reason}" if reason else ""
-            ),
-            data={"event": "ticket_escalated", "ticket_id": str(ticket.unique_id)},
-        )
-
-    return escalation
+    return escalate_ticket(ticket, reason=reason, escalated_by=actor_user, by_system=by_system)

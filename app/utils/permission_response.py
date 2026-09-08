@@ -562,35 +562,6 @@ def role_key(role_name):
     return None
 
 
-def role_default_permissions(role_name):
-    """Compatibility baseline for mobile roles while strict mode is off."""
-    key = role_key(role_name)
-    if not key:
-        return {}
-    return ROLE_SCREEN_TEMPLATES.get(key, {})
-
-
-def apply_role_defaults(permissions, role_name):
-    """Merge a role template into explicit grants without removing anything."""
-    defaults = role_default_permissions(role_name)
-    if not defaults:
-        return permissions
-
-    merged = {
-        module: {
-            screen: list(actions)
-            for screen, actions in (screens or {}).items()
-        }
-        for module, screens in (permissions or {}).items()
-    }
-    for module_name, screens in defaults.items():
-        module_perms = merged.setdefault(module_name, {})
-        for screen_name, actions in screens.items():
-            existing = set(module_perms.get(screen_name, []))
-            module_perms[screen_name] = sorted(existing.union(actions))
-    return merged
-
-
 def fallback_app_module(role_name, app_module):
     preferred = normalize_permission_key(app_module)
     if preferred in APP_SURFACE_KEYS:
@@ -625,21 +596,17 @@ def staff_app_modules(config):
 def resolve_permission_payload(**filters):
     action_queryset, column_queryset = permission_querysets(**filters)
     config = staff_access_config(filters.get("staff_unique_id"))
-    strict = bool(config and config.enforce_strict_permissions)
 
-    # ONE permission list. A screen ticked here governs the web screen and the
-    # mobile screen alike. While strict mode is off, mobile-role templates are
-    # a compatibility floor so a partial web configuration cannot remove an
-    # existing Driver/Operator/Supervisor flow. Once strict mode is enabled for
-    # a staff member, the checked boxes are the whole of their access.
+    # ONE permission list, with no role-based defaults: the explicitly granted
+    # StaffAccessConfiguration rows (or, for platform superadmin, the full
+    # `include_all` catalog) are the whole of a user's access. No role name
+    # or screen ever gets permissions it wasn't explicitly given.
     permissions = build_action_permissions(action_queryset)
-    if not strict:
-        permissions = apply_role_defaults(permissions, filters.get("role_name"))
 
     app_modules = filters.get("app_modules")
     if app_modules is None:
         app_modules = staff_app_modules(config)
-        if not app_modules and not strict:
+        if not app_modules:
             fallback = fallback_app_module(
                 filters.get("role_name"),
                 filters.get("app_module"),

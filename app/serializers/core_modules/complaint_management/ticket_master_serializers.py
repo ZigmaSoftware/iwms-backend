@@ -13,11 +13,11 @@ from app.models.complaint_management import (
     ComplaintLanguage,
     ComplaintModule,
     ComplaintPriority,
+    ComplaintSlaEscalationLevel,
     ComplaintSlaRule,
     ComplaintSource,
     ComplaintStatus,
     ComplaintSubcategory,
-    ComplaintTeam,
 )
 
 
@@ -57,18 +57,6 @@ class ComplaintStatusSerializer(AutoSortOrderSerializerMixin, serializers.ModelS
         read_only_fields = ["unique_id", "sort_order"]
 
 
-class ComplaintTeamSerializer(serializers.ModelSerializer):
-    department_name = serializers.CharField(source="department.department_name", read_only=True)
-    lead_staff_name = serializers.CharField(source="lead_staff.employee_name", read_only=True)
-    escalates_to_name = serializers.CharField(source="escalates_to.team_name", read_only=True)
-    escalates_to_code = serializers.CharField(source="escalates_to.team_code", read_only=True)
-
-    class Meta:
-        model = ComplaintTeam
-        fields = "__all__"
-        read_only_fields = ["unique_id"]
-
-
 class ComplaintModuleSerializer(AutoSortOrderSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = ComplaintModule
@@ -78,7 +66,7 @@ class ComplaintModuleSerializer(AutoSortOrderSerializerMixin, serializers.ModelS
 
 class ComplaintCategorySerializer(AutoSortOrderSerializerMixin, serializers.ModelSerializer):
     default_priority_code = serializers.CharField(source="default_priority.priority_code", read_only=True)
-    default_team_name = serializers.CharField(source="default_team.team_name", read_only=True)
+    default_department_name = serializers.CharField(source="default_department.department_name", read_only=True)
     module_code = serializers.CharField(source="module.module_code", read_only=True)
     module_name = serializers.CharField(source="module.module_name", read_only=True)
 
@@ -98,6 +86,13 @@ class ComplaintSubcategorySerializer(AutoSortOrderSerializerMixin, serializers.M
         read_only_fields = ["unique_id", "sort_order"]
 
 
+class ComplaintSlaEscalationLevelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ComplaintSlaEscalationLevel
+        fields = ["unique_id", "level", "is_enabled", "resolve_within_minutes"]
+        read_only_fields = ["unique_id"]
+
+
 class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
     category_code = serializers.CharField(source="category.category_code", read_only=True)
     category_name = serializers.CharField(source="category.category_name", read_only=True)
@@ -107,9 +102,37 @@ class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
     subcategory_name = serializers.CharField(source="subcategory.subcategory_name", read_only=True)
     priority_code = serializers.CharField(source="priority.priority_code", read_only=True)
     source_code = serializers.CharField(source="source.source_code", read_only=True)
-    escalation_team_name = serializers.CharField(source="escalation_team.team_name", read_only=True)
+    # Per-hierarchy-level resolve windows (level 0 = first assignee, level 1 =
+    # one hop up, ...). Written wholesale on every save: the incoming list
+    # replaces whatever rows existed before, same as how the ticket
+    # serializer's `extra_details` are handled.
+    escalation_levels = ComplaintSlaEscalationLevelSerializer(many=True, required=False)
 
     class Meta:
         model = ComplaintSlaRule
         fields = "__all__"
         read_only_fields = ["unique_id"]
+
+    def create(self, validated_data):
+        levels = validated_data.pop("escalation_levels", None)
+        rule = super().create(validated_data)
+        self._save_escalation_levels(rule, levels)
+        return rule
+
+    def update(self, instance, validated_data):
+        levels = validated_data.pop("escalation_levels", None)
+        rule = super().update(instance, validated_data)
+        self._save_escalation_levels(rule, levels)
+        return rule
+
+    def _save_escalation_levels(self, rule, levels):
+        if levels is None:
+            return
+        rule.escalation_levels.filter(is_deleted=False).update(is_deleted=True, is_active=False)
+        for row in levels:
+            ComplaintSlaEscalationLevel.objects.create(
+                sla_rule=rule,
+                level=row["level"],
+                is_enabled=row.get("is_enabled", True),
+                resolve_within_minutes=row["resolve_within_minutes"],
+            )

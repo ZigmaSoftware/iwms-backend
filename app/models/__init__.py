@@ -50,6 +50,7 @@ from .waste_types.subproperty import SubProperty
 # ============================================================
 from .role_assigns.userType import UserType
 from .role_assigns.staffUserType import StaffUserType
+from .role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
 
 
 # ============================================================
@@ -117,7 +118,6 @@ from .complaint_management import (
     ComplaintModule,
     ComplaintCategory,
     ComplaintSubcategory,
-    ComplaintTeam,
     ComplaintSlaRule,
     ComplaintTicket,
     ComplaintTicketExtraDetail,
@@ -209,6 +209,7 @@ __all__ = [
     # Users & Roles
     "UserType",
     "StaffUserType",
+    "ProjectStaffHierarchy",
 
     # Screen Management
     "MainScreenType",
@@ -249,7 +250,6 @@ __all__ = [
     "ComplaintModule",
     "ComplaintCategory",
     "ComplaintSubcategory",
-    "ComplaintTeam",
     "ComplaintSlaRule",
     "ComplaintTicket",
     "ComplaintTicketExtraDetail",

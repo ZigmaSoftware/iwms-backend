@@ -158,7 +158,6 @@ MODULE_RESOURCE_ALLOWLIST = {
         "MainCategory",
         "SubCategory",
         # ticketed complaint workflow (app.models.complaint_management)
-        "ComplaintTeam",
         "ComplaintFeedback",
         "ComplaintReopenHistory",
         "ComplaintNotification",

@@ -211,6 +211,18 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
         queryset = super().filter_queryset(queryset)
 
+        return self._scope_to_tenant(queryset)
+
+    def _scope_to_tenant(self, queryset):
+        """Company/project scoping only — no generic list-filter backends.
+
+        Split out of filter_queryset() so actions like staff-head-options
+        can reuse the tenant scoping without going through
+        ModelFieldQueryFilter, which would treat any of their own query
+        params (e.g. staffusertype_id naming the *new* record's role, not a
+        "filter list to this type" request) as a literal field filter.
+        """
+
         if self._is_platform_super_admin():
             # Apply optional company/project filters from query params for superadmin list views
             company_id_param = (

@@ -314,6 +314,24 @@ class StaffcreationOfficeDetails(BaseMaster):
     def save(self, *args, **kwargs):
         is_new = self._state.adding
 
+        if not is_new and self.staff_unique_id and self.staff_id:
+            previous_scope = (
+                type(self)
+                .objects.filter(staff_unique_id=self.staff_unique_id)
+                .values("company_id", "project_id")
+                .first()
+            )
+            if previous_scope and (
+                previous_scope["company_id"] != self.company_id_id
+                or previous_scope["project_id"] != self.project_id_id
+            ):
+                self.staff_id = ""
+                update_fields = kwargs.get("update_fields")
+                if update_fields is not None:
+                    update_fields = set(update_fields)
+                    update_fields.add("staff_id")
+                    kwargs["update_fields"] = list(update_fields)
+
         if not self.emp_id:
             self._ensure_emp_id()
             update_fields = kwargs.get("update_fields")
