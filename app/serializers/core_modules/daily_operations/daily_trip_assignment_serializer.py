@@ -16,6 +16,7 @@ from app.services.daily_trip_generation import ensure_assignment_collection_poin
 from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.utils.name_or_id_field import NameOrUniqueIdField
 
 
 class DailyTripCollectionPointInlineSerializer(serializers.ModelSerializer):
@@ -106,8 +107,9 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         required=False,
         allow_null=True,
     )
-    panchayat_id = UniqueIdOrPkField(
+    panchayat_id = NameOrUniqueIdField(
         slug_field="unique_id",
+        name_field="panchayat_name",
         queryset=Panchayat.objects.filter(is_deleted=False),
         write_only=True,
         required=False,
@@ -125,15 +127,17 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         required=False,
         allow_empty=False,
     )
-    household_waste_type_ids = serializers.SlugRelatedField(
+    household_waste_type_ids = NameOrUniqueIdField(
         slug_field="unique_id",
+        name_field="waste_type_name",
         queryset=WasteType.objects.filter(is_deleted=False),
         many=True,
         required=False,
     )
     household_waste_types = serializers.SerializerMethodField(read_only=True)
-    vehicle_id = UniqueIdOrPkField(
+    vehicle_id = NameOrUniqueIdField(
         slug_field="unique_id",
+        name_field="vehicle_no",
         queryset=VehicleCreation.objects.filter(is_deleted=False),
         write_only=True,
         required=False,
@@ -158,8 +162,9 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     waste_types = serializers.SerializerMethodField(read_only=True)
     # New M2M waste types mirroring TripPlan.waste_types / TN_Iwms's
     # DailyTripAssignment.waste_types. Written via waste_types_ids.
-    waste_types_ids = serializers.SlugRelatedField(
+    waste_types_ids = NameOrUniqueIdField(
         slug_field="unique_id",
+        name_field="waste_type_name",
         queryset=WasteType.objects.filter(is_deleted=False),
         many=True,
         required=False,

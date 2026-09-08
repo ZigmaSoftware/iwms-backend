@@ -14,6 +14,7 @@ from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
 
 from app.utils.password_encryption import encrypt_password, decrypt_password
@@ -32,101 +33,94 @@ RESIDENTIAL_SUB_PROPERTY_KEYWORDS = (
 
 
 class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
-    company_id = serializers.SlugRelatedField(
-        # source="company_id",
+    company_id = NameOrUniqueIdField(
         queryset=Company.objects.all(),
-        slug_field="unique_id",
+        name_field="name",
         required=False,
         allow_null=True,
         )
 
-    project_id = serializers.SlugRelatedField(
-        # source="project_id",
+    project_id = NameOrUniqueIdField(
         queryset=Project.objects.all(),
-        slug_field="unique_id",
+        name_field="name",
+        scope_fields=["company_id"],
         required=False,
         allow_null=True,
     )
-    ward_id = serializers.SlugRelatedField(
+    ward_id = NameOrUniqueIdField(
         source="ward",
         queryset=Ward.objects.all(),
-        slug_field="unique_id",
+        name_field="ward_name",
         required=False,
         allow_null=True,
     )
-    zone_id = serializers.SlugRelatedField(
+    zone_id = NameOrUniqueIdField(
         source="zone",
         queryset=Zone.objects.all(),
-        slug_field="unique_id",
+        name_field="zone_name",
         required=False,
         allow_null=True,
     )
-    city_id = serializers.SlugRelatedField (
+    city_id = NameOrUniqueIdField(
         source="city",
         queryset=City.objects.all(),
-        slug_field="unique_id",
+        name_field="name",
         required=False,
         allow_null=True,
     )
-    district_id = serializers.SlugRelatedField(
+    district_id = NameOrUniqueIdField(
         source="district",
         queryset=District.objects.all(),
-        slug_field="unique_id",
+        name_field="name",
         required=False,
         allow_null=True,
     )
-    state_id = serializers.SlugRelatedField(
+    state_id = NameOrUniqueIdField(
         source="state",
         queryset=State.objects.all(),
-        slug_field="unique_id",
+        name_field="name",
         required=False,
         allow_null=True,
     )
-    country_id = serializers.SlugRelatedField(
+    country_id = NameOrUniqueIdField(
         source="country",
         queryset=Country.objects.all(),
-        slug_field="unique_id",
+        name_field="name",
         required=False,
         allow_null=True,
     )
-    panchayat_id = serializers.SlugRelatedField(
-        # source="panchayat_id",
+    panchayat_id = NameOrUniqueIdField(
         queryset=Panchayat.objects.all(),
-        slug_field="unique_id",
+        name_field="panchayat_name",
         required=False,
         allow_null=True,
     )
-    property_id = serializers.SlugRelatedField(
+    property_id = NameOrUniqueIdField(
         source="property_ref",
         queryset=Property.objects.all(),
-        slug_field="unique_id",
+        name_field="property_name",
         required=False,
         allow_null=True,
     )
-    sub_property_id = serializers.SlugRelatedField(
+    sub_property_id = NameOrUniqueIdField(
         source="sub_property",
         queryset=SubProperty.objects.all(),
-        slug_field="unique_id",
+        name_field="sub_property_name",
+        scope_fields=["property_id"],
         required=False,
         allow_null=True,
     )
-    waste_type_ids = serializers.SlugRelatedField(
+    waste_type_ids = NameOrUniqueIdField(
         source="waste_types",
         queryset=WasteType.objects.filter(is_deleted=False),
-        slug_field="unique_id",
+        name_field="waste_type_name",
+        scope_fields=["project_id", "company_id"],
         many=True,
         required=False,
     )
     waste_types = serializers.SerializerMethodField(read_only=True)
     # Local-body emblem for the project, printed on the customer QR sticker.
     project_logo = serializers.SerializerMethodField(read_only=True)
-    panchayat_id = serializers.SlugRelatedField(
-        # source="panchayat_id",
-        queryset=Panchayat.objects.all(),
-        slug_field="unique_id",
-        required=False,
-        allow_null=True,
-    )
     panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
     ward_name = serializers.CharField(source="ward.ward_name", read_only=True)
     zone_name = serializers.CharField(source="zone.zone_name", read_only=True)

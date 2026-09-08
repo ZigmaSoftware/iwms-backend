@@ -3,6 +3,7 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.schedule_masters.staff_template import StaffTemplate
 from app.models.staff_creations.staffcreation import Staffcreation
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -16,22 +17,27 @@ class CommaSeparatedListField(serializers.ListField):
 
 class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    driver_id = UniqueIdOrPkField(
+    driver_id = NameOrUniqueIdField(
         slug_field="staff_unique_id",
+        name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False)
     )
 
-    operator_id = UniqueIdOrPkField(
+    operator_id = NameOrUniqueIdField(
         slug_field="staff_unique_id",
+        name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False)
     )
 
-    company_id = serializers.PrimaryKeyRelatedField(
-        queryset=Company.objects.all()
+    company_id = NameOrUniqueIdField(
+        queryset=Company.objects.all(),
+        name_field="name",
     )
 
-    project_id = serializers.PrimaryKeyRelatedField(
-        queryset=Project.objects.all()
+    project_id = NameOrUniqueIdField(
+        queryset=Project.objects.all(),
+        name_field="name",
+        scope_fields=["company_id"],
     )
 
 
