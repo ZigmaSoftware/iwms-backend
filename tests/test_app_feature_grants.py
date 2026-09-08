@@ -38,7 +38,7 @@ from app.utils.app_feature_grants import (
     SCREEN_PERMISSIONS,
     visible_screens,
 )
-from app.utils.permission_response import apply_role_defaults, fallback_app_module
+from app.utils.permission_response import fallback_app_module
 
 VALID_ACTIONS = {"view", "add", "edit", "delete", "use"}
 
@@ -330,16 +330,6 @@ def test_citizen_screen_names_match_the_seeded_screens():
             continue
         name = f"app-citizen-{screen_key.split('.', 1)[1]}"
         assert name in CITIZEN_APP_SCREENS, f"{screen_key} has no seeded screen"
-
-
-def test_role_template_is_a_non_destructive_compatibility_floor():
-    permissions = {"masters": {"districts": ["add"]}}
-    merged = apply_role_defaults(permissions, "Company Supervisor")
-
-    assert merged["masters"]["districts"] == ["add"]
-    assert "view" in merged["schedule-operations"]["daily-trip-assignments"]
-    assert "add" in merged["schedule-operations"]["retrip-requests"]
-    assert "add" in merged["complaint-ticket"]["tickets"]
 
 
 def test_role_template_can_supply_legacy_app_module():

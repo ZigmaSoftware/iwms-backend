@@ -1,20 +1,21 @@
-"""Routing + SLA resolution for complaint tickets.
+"""Assignment + SLA resolution for complaint tickets.
 
-Ported from the government backend's `app/utils/complaint_ticket_routing.py`.
-Given a ticket's category/subcategory/flat geo (state/district/panchayat/
-zone/ward)/priority/source, finds the most specific matching
-`ComplaintRoutingRule` (to assign a department/user) and the most specific
-matching `ComplaintSlaRule` (to compute due dates), then fills only the
-ticket fields that are still empty — an explicit assignment or a manually
-set due date is never overwritten.
+A new ticket is assigned to whoever holds level 0 of its project's staff
+hierarchy (`ProjectStaffHierarchy` + `StaffUserType`) — there is no
+department roster or load-balancing step. Multiple staff can hold the same
+hierarchy level in a project (e.g. a Supervisor per zone); which one a given
+ticket goes to is narrowed by geography via `StaffAccessConfiguration`
+(zones/panchayats/wards), using the same "narrowest non-empty grant wins,
+empty means unrestricted" rule as `LocationScopedViewSetMixin` elsewhere in
+this app. If nobody at that level covers the ticket's zone/panchayat/ward,
+the ticket is left unassigned rather than guessed at.
 
-Geo scope differs from government: this project has no Corporation/
-Municipality/TownPanchayat/PanchayatUnion local-body hierarchy, so
-`ROUTING_GEO_ATTNAMES` uses state/district/panchayat/zone/ward instead.
+SLA due dates still come from `ComplaintSlaRule`/`ComplaintRoutingRule`
+(geo/category/priority matching) — that part is unrelated to who the ticket
+is assigned to.
 """
 from datetime import timedelta, time
 
-from django.db import models
 from django.utils import timezone
 
 BUSINESS_START = time(9, 0)
@@ -91,13 +92,16 @@ def _routing_specificity(rule):
 
 
 def _best_routing_rule(ticket):
+    """Best-matching `ComplaintRoutingRule` for this ticket, used only to
+    pin a specific SLA rule by geo/category/priority — it no longer carries
+    a department."""
     from app.models.complaint_management.transactions import ComplaintRoutingRule
 
     candidates = ComplaintRoutingRule.objects.filter(
         is_deleted=False,
         is_active=True,
         category_id=ticket.category_id,
-    ).select_related("department", "user", "sla_rule")
+    ).select_related("sla_rule")
 
     matching = [rule for rule in candidates if _routing_matches(rule, ticket)]
     if not matching:
@@ -124,39 +128,6 @@ def _sla_specificity(rule):
     ])
 
 
-def _pick_least_loaded_staff(department):
-    """Return the active, non-supervisor department member with the fewest
-    open tickets, or None if the department has no eligible members.
-
-    Ties break on `unique_id` so the pick is deterministic (and testable)
-    rather than depending on incidental row order.
-    """
-    from app.models.complaint_management.masters import ComplaintDepartmentMember
-
-    members = (
-        ComplaintDepartmentMember.objects.filter(
-            department=department,
-            is_supervisor=False,
-            is_active=True,
-            is_deleted=False,
-        )
-        .select_related("staff")
-        .annotate(
-            open_count=models.Count(
-                "staff__assigned_complaint_tickets_staff",
-                filter=~models.Q(
-                    staff__assigned_complaint_tickets_staff__status__status_code__in=CLOSED_STATUS_CODES
-                )
-                & models.Q(staff__assigned_complaint_tickets_staff__is_deleted=False),
-                distinct=True,
-            )
-        )
-        .order_by("open_count", "unique_id")
-    )
-    first = members.first()
-    return first.staff if first else None
-
-
 def _best_sla_rule(ticket):
     from app.models.complaint_management.masters import ComplaintSlaRule
 
@@ -173,37 +144,120 @@ def _best_sla_rule(ticket):
     return matching[0]
 
 
+def _staff_geo_matches(staff, ticket):
+    """Whether `staff`'s `StaffAccessConfiguration` geo grants cover
+    `ticket`'s zone/panchayat/ward, using the same "narrowest non-empty
+    grant wins, empty means unrestricted at that level" rule as
+    `LocationScopedViewSetMixin`. A staff member with no access
+    configuration row at all (or none of the three grants populated) is
+    treated as unrestricted, so existing single-zone deployments that never
+    configured Data Scope keep working unchanged.
+    """
+    access_config = staff.access_configuration.filter(
+        is_active=True, is_deleted=False,
+    ).first()
+    if not access_config:
+        return True
+
+    if ticket.ward_id:
+        wards = access_config.wards.all()
+        if wards.exists():
+            return wards.filter(unique_id=ticket.ward_id).exists()
+    if ticket.panchayat_id:
+        panchayats = access_config.panchayats.all()
+        if panchayats.exists():
+            return panchayats.filter(unique_id=ticket.panchayat_id).exists()
+    if ticket.zone_id:
+        zones = access_config.zones.all()
+        if zones.exists():
+            return zones.filter(unique_id=ticket.zone_id).exists()
+    return True
+
+
+def _staff_for_hierarchy_level(project_id, level_num, ticket):
+    """Active staff at `level_num` of `project_id`'s staff hierarchy whose
+    geo grants cover `ticket` — see `_staff_geo_matches`. None if the level
+    isn't configured or nobody at it covers this ticket's geography.
+    """
+    from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
+    from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+
+    hierarchy_entry = ProjectStaffHierarchy.objects.filter(
+        project_id=project_id, level=level_num, is_deleted=False,
+    ).first()
+    if not hierarchy_entry:
+        return None
+
+    candidates = (
+        StaffcreationOfficeDetails.objects.filter(
+            project_id=project_id,
+            staffusertype_id=hierarchy_entry.staffusertype_id_id,
+            approval_status=StaffcreationOfficeDetails.APPROVAL_APPROVED,
+            is_active=True,
+            is_deleted=False,
+        )
+        .prefetch_related("access_configuration__zones", "access_configuration__panchayats", "access_configuration__wards")
+        .order_by("staff_unique_id")
+    )
+    for staff in candidates:
+        if _staff_geo_matches(staff, ticket):
+            return staff
+    return None
+
+
+def get_entry_level_staff(ticket):
+    """The geo-matching active staff member holding the lowest-numbered
+    *enabled* escalation level of `ticket.project_id`'s staff hierarchy, or
+    None if the project has no enabled level configured or nobody at that
+    level covers this ticket's zone/panchayat/ward.
+
+    Which levels are "enabled" is per-SLA-rule (`ComplaintSlaEscalationLevel.
+    is_enabled`) — a project's hierarchy may define Driver/Operator/Supervisor/
+    Project Admin/Company Admin, but a given SLA rule can disable the lower
+    ones so tickets start at Supervisor instead. Falls back to the project's
+    raw level 0 if no SLA rule (and so no escalation_levels) matches yet.
+    """
+    if not ticket.project_id:
+        return None
+
+    entry_level_num = _entry_level_number(ticket)
+    if entry_level_num is None:
+        return None
+
+    return _staff_for_hierarchy_level(ticket.project_id, entry_level_num, ticket)
+
+
+def _entry_level_number(ticket):
+    """Lowest-numbered enabled `ComplaintSlaEscalationLevel.level` for the
+    ticket's best-matching SLA rule, or 0 if no SLA rule/no enabled levels are
+    configured yet (falls back to the hierarchy's raw level 0)."""
+    sla_rule = _best_sla_rule(ticket)
+    if not sla_rule:
+        return 0
+
+    lowest_enabled = (
+        sla_rule.escalation_levels.filter(is_enabled=True, is_deleted=False)
+        .order_by("level")
+        .values_list("level", flat=True)
+        .first()
+    )
+    return lowest_enabled if lowest_enabled is not None else 0
+
+
 def apply_routing_and_sla(ticket, save=True):
-    """Fill department/assigned_staff and sla_due_at/first_response_due_at
-    on `ticket` from the best-matching routing + SLA rules — only touching
-    fields that are currently empty. Returns the list of updated field names.
+    """Fill `assigned_staff` (from the project's lowest enabled hierarchy
+    level) and `first_response_due_at` (from the best-matching SLA rule) on
+    `ticket` — only touching fields that are currently empty. Returns the
+    list of updated field names.
     """
     updated_fields = []
     now = timezone.now()
 
-    # Department-based routing + load-balanced individual assignment: a
-    # ticket is routed to a `Department`, then handed to whichever active
-    # member of that department currently has the fewest open tickets.
-    routing_rule = None
-    if not ticket.department_id:
-        routing_rule = _best_routing_rule(ticket)
-        department = None
-        if routing_rule and routing_rule.department_id:
-            department = routing_rule.department
-        elif ticket.category_id and ticket.category.default_department_id:
-            # No routing rule matched — fall back to the category's default
-            # department. A deployment only needs rules when a category must
-            # route differently by area.
-            department = ticket.category.default_department
-
-        if department:
-            ticket.department = department
-            updated_fields.append("department")
-            if not ticket.assigned_staff_id:
-                staff = _pick_least_loaded_staff(department)
-                if staff:
-                    ticket.assigned_staff = staff
-                    updated_fields.append("assigned_staff")
+    if not ticket.assigned_staff_id:
+        staff = get_entry_level_staff(ticket)
+        if staff:
+            ticket.assigned_staff = staff
+            updated_fields.append("assigned_staff")
 
     # Prefer the most specific SLA rule that actually matches this ticket over
     # the one pinned on the routing rule.
@@ -216,8 +270,10 @@ def apply_routing_and_sla(ticket, save=True):
     # `_best_sla_rule` never ran. The pinned rule is now the fallback for when
     # nothing more specific matches.
     sla_rule = _best_sla_rule(ticket)
-    if not sla_rule and routing_rule and routing_rule.sla_rule_id:
-        sla_rule = routing_rule.sla_rule
+    if not sla_rule:
+        routing_rule = _best_routing_rule(ticket)
+        if routing_rule and routing_rule.sla_rule_id:
+            sla_rule = routing_rule.sla_rule
 
     if sla_rule:
         add_minutes = _add_business_minutes if sla_rule.working_hours_only else (
@@ -226,9 +282,13 @@ def apply_routing_and_sla(ticket, save=True):
         if not ticket.first_response_due_at and sla_rule.assign_within_minutes:
             ticket.first_response_due_at = add_minutes(now, sla_rule.assign_within_minutes)
             updated_fields.append("first_response_due_at")
-        if not ticket.sla_due_at and sla_rule.resolve_within_minutes:
-            ticket.sla_due_at = add_minutes(now, sla_rule.resolve_within_minutes)
-            updated_fields.append("sla_due_at")
+
+    if ticket.next_escalation_due_at is None:
+        from app.services.complaint_escalation import set_initial_escalation_due_date
+
+        set_initial_escalation_due_date(ticket, save=False)
+        updated_fields.append("escalation_level")
+        updated_fields.append("next_escalation_due_at")
 
     if save and updated_fields:
         ticket.save(update_fields=updated_fields)
@@ -237,117 +297,13 @@ def apply_routing_and_sla(ticket, save=True):
 
 
 def perform_escalation(ticket, reason=None, actor_user=None, by_system=False):
-    """Escalate `ticket` to its department's supervisor.
+    """Manually escalate `ticket` one hop up its project's staff hierarchy.
 
-    The ticket's single supervisor is looked up from
-    `ComplaintDepartmentMember` and notified. `assigned_staff` is
-    deliberately left unchanged — the member who owns the ticket keeps it
-    (and it keeps counting toward their open-ticket load for round-robin
-    purposes); the ticket becomes additionally visible to the supervisor via
-    `is_escalated`/`escalated_to_staff`. This is what lets an escalated
-    ticket stay visible to both the member and the supervisor.
-
-    Shared by the manual `/escalate/` API action and any future automated
-    SLA-breach detection job so both paths write identical history rows.
-    Raises ValueError if the ticket has no department, or the department has
-    no supervisor configured.
+    Thin wrapper over `complaint_escalation.escalate_ticket` kept so the
+    `/escalate/` API action's import doesn't need to change; the actual
+    hierarchy walk/notification logic lives there (shared with the automated
+    SLA-breach sweep).
     """
-    from app.models.complaint_management.masters import ComplaintDepartmentMember, ComplaintStatus
-    from app.models.complaint_management.transactions import (
-        ComplaintEscalationHistory,
-        ComplaintStatusHistory,
-    )
-    from app.services.staff_notification_service import notify_staff
-    from app.models.notifications.staff_notification import StaffNotification
+    from app.services.complaint_escalation import escalate_ticket
 
-    if not ticket.department_id:
-        raise ValueError("Ticket has no department to escalate within.")
-
-    escalated_status = ComplaintStatus.objects.filter(status_code="ESCALATED", is_deleted=False).first()
-    old_status = ticket.status
-
-    supervisor_member = (
-        ComplaintDepartmentMember.objects.filter(
-            department_id=ticket.department_id,
-            is_supervisor=True,
-            is_active=True,
-            is_deleted=False,
-        )
-        .select_related("staff")
-        .first()
-    )
-    if not supervisor_member:
-        raise ValueError("No supervisor configured for this department.")
-    supervisor = supervisor_member.staff
-    from_staff = ticket.assigned_staff
-
-    ticket.is_escalated = True
-    ticket.escalated_to_staff = supervisor
-    update_fields = ["is_escalated", "escalated_to_staff"]
-    if escalated_status:
-        ticket.status = escalated_status
-        update_fields.append("status")
-    ticket.save(update_fields=update_fields)
-
-    escalation = ComplaintEscalationHistory.objects.create(
-        ticket=ticket,
-        escalation_level=1,
-        escalated_to_staff=supervisor,
-        reason=reason,
-        escalated_by_system=by_system,
-    )
-    # No ComplaintAssignmentHistory row: assigned_staff did not change, so
-    # an "assignment" entry here would misrepresent this as a handoff.
-    if escalated_status:
-        ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=old_status,
-            to_status=escalated_status,
-            changed_by_user=actor_user,
-            changed_by_system=by_system,
-            remarks=f"Escalated to supervisor {supervisor.employee_name}" + (f": {reason}" if reason else ""),
-            visible_to_citizen=True,
-        )
-    notify_staff(
-        supervisor,
-        StaffNotification.TYPE_TICKET_ESCALATED_TO,
-        "Ticket escalated to you",
-        f"Ticket {ticket.ticket_no} escalated to you by "
-        f"{getattr(from_staff, 'employee_name', 'a member')}." + (
-            f" Reason: {reason}" if reason else ""
-        ),
-        data={"event": "ticket_escalated_to", "ticket_id": str(ticket.unique_id)},
-    )
-    return escalation
-
-
-def backfill_department_queue(department, save=True):
-    """After a ticket in `department` frees capacity (resolved/closed/etc.),
-    auto-assign the oldest unassigned ticket in that department's queue to
-    the now-least-loaded member — the "real-time" part of customer-care
-    assignment: freed capacity doesn't sit idle.
-
-    Returns the ticket that was assigned, or None if there was no queued
-    ticket or no eligible member to give it to.
-    """
-    from app.models.complaint_management.ticket import ComplaintTicket
-
-    next_ticket = (
-        ComplaintTicket.objects.filter(
-            department=department,
-            assigned_staff__isnull=True,
-            is_deleted=False,
-        )
-        .exclude(status__status_code__in=CLOSED_STATUS_CODES)
-        .order_by("created")
-        .first()
-    )
-    if not next_ticket:
-        return None
-    staff = _pick_least_loaded_staff(department)
-    if not staff:
-        return None
-    next_ticket.assigned_staff = staff
-    if save:
-        next_ticket.save(update_fields=["assigned_staff"])
-    return next_ticket
+    return escalate_ticket(ticket, reason=reason, escalated_by=actor_user, by_system=by_system)

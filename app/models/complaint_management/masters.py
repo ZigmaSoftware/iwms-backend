@@ -49,6 +49,9 @@ def generate_sla_rule_id():
 
 
 def generate_department_member_id():
+    # Kept only because migration 0003 references it as a field default
+    # callable; ComplaintDepartmentMember itself was removed in migration
+    # 0006 (hierarchy-based ticket assignment replaced department routing).
     return f"CPTDM-{generate_unique_id()}"
 
 
@@ -373,8 +376,9 @@ class ComplaintSlaRule(BaseMaster):
     )
 
     assign_within_minutes = models.IntegerField(null=True, blank=True)
-    resolve_within_minutes = models.IntegerField(null=True, blank=True)
     working_hours_only = models.BooleanField(default=False)
+    # DEPRECATED: superseded by ComplaintSlaEscalationLevel, which gives each
+    # hierarchy hop its own window instead of one fixed value for all of them.
     escalation_after_minutes = models.IntegerField(null=True, blank=True)
 
     class Meta:
@@ -393,69 +397,56 @@ class ComplaintSlaRule(BaseMaster):
         return f"SLA {self.category_id} / {self.priority_id}"
 
 
-class ComplaintDepartmentMember(BaseMaster):
-    """A staff member's membership on a department's complaint-ticket roster.
+def generate_sla_escalation_level_id():
+    return f"CPTSLAL-{generate_unique_id()}"
 
-    Tickets are assigned to a `Department`, and within that department to
-    whichever active, non-supervisor member currently holds the fewest open
-    tickets (see `app.services.complaint_ticket_routing`).
+
+class ComplaintSlaEscalationLevel(BaseMaster):
+    """Resolution window for one hop of a project's staff hierarchy.
+
+    `level` matches `ProjectStaffHierarchy.level` for the ticket's project.
+    Only `is_enabled` rows participate in escalation: a ticket is first
+    assigned to the lowest-numbered enabled level's staff, and on breach hops
+    to the next enabled level above it — disabled levels (e.g. Driver,
+    Operator) are skipped entirely, both as an entry point and as a hop
+    target. Kept as its own table (not fixed l1/l2/l3 columns) because
+    hierarchy depth is configured per project and can vary.
     """
 
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
-        default=generate_department_member_id,
+        default=generate_sla_escalation_level_id,
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_department_members",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_department_members",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
-
-    department = models.ForeignKey(
-        Department,
+    sla_rule = models.ForeignKey(
+        ComplaintSlaRule,
         on_delete=models.CASCADE,
-        related_name="complaint_roster",
+        related_name="escalation_levels",
     )
-    staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.CASCADE,
-        related_name="complaint_department_memberships",
+    level = models.PositiveIntegerField(
+        help_text="Hierarchy level this window applies to (matches ProjectStaffHierarchy.level).",
     )
-    is_supervisor = models.BooleanField(default=False)
-    max_active_tickets = models.IntegerField(null=True, blank=True)
+    is_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether this hierarchy level participates in escalation for this SLA rule.",
+    )
+    resolve_within_minutes = models.IntegerField(
+        help_text="Minutes this level has to resolve the ticket before it escalates further.",
+    )
 
     class Meta:
-        ordering = ["department", "staff"]
-        verbose_name = "Complaint Department Member"
-        verbose_name_plural = "Complaint Department Members"
+        ordering = ["sla_rule", "level"]
+        verbose_name = "Complaint SLA Escalation Level"
+        verbose_name_plural = "Complaint SLA Escalation Levels"
         constraints = [
             models.UniqueConstraint(
-                fields=["department", "staff"],
-                name="unique_complaint_department_member",
-            ),
-            # At most one active supervisor per department — enforced at the
-            # DB level since escalation always resolves to a single supervisor.
-            models.UniqueConstraint(
-                fields=["department"],
-                condition=models.Q(is_supervisor=True, is_deleted=False),
-                name="unique_supervisor_per_department",
-            ),
+                fields=["sla_rule", "level"],
+                condition=models.Q(is_deleted=False),
+                name="unique_sla_escalation_level_per_rule",
+            )
         ]
 
     def __str__(self):
-        role = "Supervisor" if self.is_supervisor else "Member"
-        return f"{self.staff} ({role} @ {self.department})"
+        return f"{self.sla_rule_id} L{self.level}: {self.resolve_within_minutes}m"

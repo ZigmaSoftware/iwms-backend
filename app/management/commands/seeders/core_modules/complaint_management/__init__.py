@@ -9,8 +9,7 @@ from .ticket_category_seeder import ComplaintCategorySeeder
 from .ticket_subcategory_seeder import ComplaintSubcategorySeeder
 from .sla_rule_seeder import ComplaintSlaRuleSeeder
 from .routing_rule_seeder import ComplaintRoutingRuleSeeder
-from .department_roster_seeder import ComplaintDepartmentRosterSeeder
-from .sample_ticket_seeder import ComplaintSampleTicketSeeder
+from .current_ticket_seeder import ComplaintCurrentTicketSeeder
 
 GRIEVANCE_SEEDERS = [
     MainCategorySeeder,
@@ -24,15 +23,14 @@ GRIEVANCE_SEEDERS = [
 #   2. categories — sla_rule looks up category.default_priority.
 #   2b. subcategories — each row looks up its parent category by code.
 #   3. sla_rule — routing_rule looks up the SLA rule this seeder creates.
-#   4. department_roster — the Customer Care department + its 1 supervisor/5
-#      member roster, and the default_department every category routes to.
-#      Must precede routing_rule (which routes by default_department) and
-#      sample_ticket (so seeded tickets route to a real member via the
-#      round-robin picker instead of landing unassigned).
-#   5. routing_rule — needs the SLA rules and every category's
-#      default_department to already exist.
-#   6. sample_ticket — demo rows; runs `apply_routing_and_sla`, so it needs
-#      the routing/SLA rules and the department roster to already exist.
+#   4. routing_rule — needs the SLA rules to already exist.
+#   5. current_ticket — a snapshot of the tickets that existed in the dev DB
+#      on 2026-09-07 (replaces the old hardcoded ComplaintSampleTicketSeeder
+#      demo set — that seeder is kept in the repo but no longer runs by
+#      default, same convention as team_seeder.py/grievance_staff_seeder.py).
+#      Runs `apply_routing_and_sla`, which assigns each ticket from the
+#      project's hierarchy level 0 (ProjectStaffHierarchy) — that must exist
+#      first, or seeded tickets land unassigned.
 TICKET_SEEDERS = [
     ComplaintModuleSeeder,
     ComplaintSourceSeeder,
@@ -42,7 +40,6 @@ TICKET_SEEDERS = [
     ComplaintCategorySeeder,
     ComplaintSubcategorySeeder,
     ComplaintSlaRuleSeeder,
-    ComplaintDepartmentRosterSeeder,
     ComplaintRoutingRuleSeeder,
-    ComplaintSampleTicketSeeder,
+    ComplaintCurrentTicketSeeder,
 ]

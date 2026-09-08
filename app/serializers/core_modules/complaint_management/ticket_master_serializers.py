@@ -10,10 +10,10 @@ from rest_framework import serializers
 
 from app.models.complaint_management import (
     ComplaintCategory,
-    ComplaintDepartmentMember,
     ComplaintLanguage,
     ComplaintModule,
     ComplaintPriority,
+    ComplaintSlaEscalationLevel,
     ComplaintSlaRule,
     ComplaintSource,
     ComplaintStatus,
@@ -57,26 +57,6 @@ class ComplaintStatusSerializer(AutoSortOrderSerializerMixin, serializers.ModelS
         read_only_fields = ["unique_id", "sort_order"]
 
 
-class ComplaintDepartmentMemberSerializer(serializers.ModelSerializer):
-    department_name = serializers.CharField(source="department.department_name", read_only=True)
-    staff_name = serializers.CharField(source="staff.employee_name", read_only=True)
-    open_ticket_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ComplaintDepartmentMember
-        fields = "__all__"
-        read_only_fields = ["unique_id"]
-
-    def get_open_ticket_count(self, obj):
-        from app.services.complaint_ticket_routing import CLOSED_STATUS_CODES
-
-        return (
-            obj.staff.assigned_complaint_tickets_staff.filter(is_deleted=False)
-            .exclude(status__status_code__in=CLOSED_STATUS_CODES)
-            .count()
-        )
-
-
 class ComplaintModuleSerializer(AutoSortOrderSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = ComplaintModule
@@ -106,6 +86,13 @@ class ComplaintSubcategorySerializer(AutoSortOrderSerializerMixin, serializers.M
         read_only_fields = ["unique_id", "sort_order"]
 
 
+class ComplaintSlaEscalationLevelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ComplaintSlaEscalationLevel
+        fields = ["unique_id", "level", "is_enabled", "resolve_within_minutes"]
+        read_only_fields = ["unique_id"]
+
+
 class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
     category_code = serializers.CharField(source="category.category_code", read_only=True)
     category_name = serializers.CharField(source="category.category_name", read_only=True)
@@ -115,8 +102,37 @@ class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
     subcategory_name = serializers.CharField(source="subcategory.subcategory_name", read_only=True)
     priority_code = serializers.CharField(source="priority.priority_code", read_only=True)
     source_code = serializers.CharField(source="source.source_code", read_only=True)
+    # Per-hierarchy-level resolve windows (level 0 = first assignee, level 1 =
+    # one hop up, ...). Written wholesale on every save: the incoming list
+    # replaces whatever rows existed before, same as how the ticket
+    # serializer's `extra_details` are handled.
+    escalation_levels = ComplaintSlaEscalationLevelSerializer(many=True, required=False)
 
     class Meta:
         model = ComplaintSlaRule
         fields = "__all__"
         read_only_fields = ["unique_id"]
+
+    def create(self, validated_data):
+        levels = validated_data.pop("escalation_levels", None)
+        rule = super().create(validated_data)
+        self._save_escalation_levels(rule, levels)
+        return rule
+
+    def update(self, instance, validated_data):
+        levels = validated_data.pop("escalation_levels", None)
+        rule = super().update(instance, validated_data)
+        self._save_escalation_levels(rule, levels)
+        return rule
+
+    def _save_escalation_levels(self, rule, levels):
+        if levels is None:
+            return
+        rule.escalation_levels.filter(is_deleted=False).update(is_deleted=True, is_active=False)
+        for row in levels:
+            ComplaintSlaEscalationLevel.objects.create(
+                sla_rule=rule,
+                level=row["level"],
+                is_enabled=row.get("is_enabled", True),
+                resolve_within_minutes=row["resolve_within_minutes"],
+            )

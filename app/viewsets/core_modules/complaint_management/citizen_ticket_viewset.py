@@ -75,7 +75,7 @@ class CitizenComplaintTicketViewSet(viewsets.ViewSet):
             ComplaintTicket.objects.filter(is_deleted=False)
             .select_related(
                 "category", "subcategory", "priority", "status", "source",
-                "department", "assigned_staff",
+                "assigned_staff",
             )
             .prefetch_related("status_history", "status_history__to_status", "attachments")
             .filter(Q(customer=customer) | Q(wa_phone=customer.contact_no))

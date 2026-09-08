@@ -4,15 +4,16 @@ These replace the `complaint_ticket_stub_viewsets` placeholders, which
 returned an empty list / 501 while the models did not exist here yet.
 """
 
+from django.db.models import Prefetch
 from rest_framework import viewsets
 
 from app.models.complaint_management import (
     ComplaintCategory,
-    ComplaintDepartmentMember,
     ComplaintLanguage,
     ComplaintModule,
     ComplaintPriority,
     ComplaintRoutingRule,
+    ComplaintSlaEscalationLevel,
     ComplaintSlaRule,
     ComplaintSource,
     ComplaintStatus,
@@ -20,7 +21,6 @@ from app.models.complaint_management import (
 )
 from app.serializers.core_modules.complaint_management.ticket_master_serializers import (
     ComplaintCategorySerializer,
-    ComplaintDepartmentMemberSerializer,
     ComplaintLanguageSerializer,
     ComplaintModuleSerializer,
     ComplaintPrioritySerializer,
@@ -143,6 +143,11 @@ class ComplaintTicketSubcategoryViewSet(_ScopedComplaintMasterViewSet):
 class ComplaintSlaRuleViewSet(_ScopedComplaintMasterViewSet):
     queryset = ComplaintSlaRule.objects.select_related(
         "category", "subcategory", "priority", "source"
+    ).prefetch_related(
+        Prefetch(
+            "escalation_levels",
+            queryset=ComplaintSlaEscalationLevel.objects.filter(is_deleted=False).order_by("level"),
+        )
     )
     serializer_class = ComplaintSlaRuleSerializer
     permission_resource = "ComplaintSlaRule"
@@ -151,34 +156,8 @@ class ComplaintSlaRuleViewSet(_ScopedComplaintMasterViewSet):
 
 class ComplaintRoutingRuleViewSet(_ScopedComplaintMasterViewSet):
     queryset = ComplaintRoutingRule.objects.select_related(
-        "category", "subcategory", "priority", "department", "sla_rule"
+        "category", "subcategory", "priority", "sla_rule"
     )
     serializer_class = ComplaintRoutingRuleSerializer
     permission_resource = "ComplaintRoutingRule"
     AUDIT_ENDPOINT = "routing-rules"
-
-
-class ComplaintDepartmentMemberViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    """Department roster CRUD: who belongs to a department for complaint
-    assignment purposes, and who its (single) supervisor is.
-
-    Company-scoped since a roster row points at company-scoped
-    `Department`/`StaffcreationOfficeDetails` data, so each company owns
-    its own roster.
-    """
-
-    queryset = ComplaintDepartmentMember.objects.select_related("department", "staff")
-    serializer_class = ComplaintDepartmentMemberSerializer
-    permission_resource = "ComplaintDepartmentMember"
-    lookup_field = "unique_id"
-    AUDIT_MODULE = "complaint-ticket"
-    AUDIT_ENDPOINT = "department-members"
-
-    def get_queryset(self):
-        return self.queryset.filter(is_deleted=False)
-
-    def perform_destroy(self, instance):
-        super().perform_destroy(instance)
-        if instance.is_active:
-            instance.is_active = False
-            instance.save(update_fields=["is_active"])

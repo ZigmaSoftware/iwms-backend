@@ -25,7 +25,6 @@ from app.models.masters.ward import Ward
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
-from app.models.staff_creations.department import Department
 from app.models.complaint_management.masters import (
     ComplaintCategory,
     ComplaintLanguage,
@@ -205,13 +204,6 @@ class ComplaintTicket(BaseMaster):
         blank=True,
         related_name="assigned_complaint_tickets_staff",
     )
-    department = models.ForeignKey(
-        Department,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_tickets",
-    )
     is_escalated = models.BooleanField(default=False)
     escalated_to_staff = models.ForeignKey(
         StaffcreationOfficeDetails,
@@ -220,13 +212,19 @@ class ComplaintTicket(BaseMaster):
         blank=True,
         related_name="escalated_complaint_tickets",
     )
+    escalation_level = models.PositiveIntegerField(
+        default=0,
+        help_text="Current hop in the project's staff hierarchy (0 = first assignee, matches ProjectStaffHierarchy.level).",
+    )
+    next_escalation_due_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Deadline for the current escalation_level. If passed and unresolved, auto-escalate to the next hierarchy level.",
+    )
 
-    sla_due_at = models.DateTimeField(null=True, blank=True)
     first_response_due_at = models.DateTimeField(null=True, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
-    sla_breached = models.BooleanField(default=False)
-    sla_breached_at = models.DateTimeField(null=True, blank=True)
 
     reopened_count = models.IntegerField(default=0)
     parent_ticket = models.ForeignKey(
@@ -249,7 +247,7 @@ class ComplaintTicket(BaseMaster):
         indexes = [
             models.Index(fields=["ticket_no"]),
             models.Index(fields=["wa_phone"]),
-            models.Index(fields=["sla_due_at"]),
+            models.Index(fields=["next_escalation_due_at"]),
         ]
 
     def __str__(self):

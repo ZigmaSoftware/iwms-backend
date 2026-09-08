@@ -28,7 +28,6 @@ from app.models.masters.panchayat import Panchayat
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
-from app.models.staff_creations.department import Department
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.complaint_management.masters import (
@@ -418,13 +417,6 @@ class ComplaintRoutingRule(BaseMaster):
         blank=True,
         related_name="routing_rules",
     )
-    department = models.ForeignKey(
-        Department,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_routing_rules",
-    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -453,7 +445,7 @@ class ComplaintRoutingRule(BaseMaster):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Route {self.category_id} -> {self.department_id}"
+        return f"Route {self.category_id} -> {self.sla_rule_id}"
 
 
 class ComplaintEscalationHistory(BaseMaster):

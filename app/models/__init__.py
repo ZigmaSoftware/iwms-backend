@@ -50,6 +50,7 @@ from .waste_types.subproperty import SubProperty
 # ============================================================
 from .role_assigns.userType import UserType
 from .role_assigns.staffUserType import StaffUserType
+from .role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
 
 
 # ============================================================
@@ -208,6 +209,7 @@ __all__ = [
     # Users & Roles
     "UserType",
     "StaffUserType",
+    "ProjectStaffHierarchy",
 
     # Screen Management
     "MainScreenType",
