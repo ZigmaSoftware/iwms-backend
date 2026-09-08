@@ -1,10 +1,45 @@
 from rest_framework import serializers
 from app.models.masters.ward import Ward
+from app.models.masters.city import City
+from app.models.masters.district import District
+from app.models.masters.zone import Zone
+from app.models.masters.panchayat import Panchayat
+from app.models.common_masters.state import State
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
 
 
 class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+
+    state_id = NameOrUniqueIdField(
+        queryset=State.objects.filter(is_deleted=False),
+        name_field="name",
+    )
+    district_id = NameOrUniqueIdField(
+        queryset=District.objects.filter(is_deleted=False),
+        name_field="name",
+        scope_fields=["state_id"],
+    )
+    city_id = NameOrUniqueIdField(
+        queryset=City.objects.filter(is_deleted=False),
+        name_field="name",
+        scope_fields=["district_id", "state_id"],
+    )
+    zone_id = NameOrUniqueIdField(
+        queryset=Zone.objects.filter(is_deleted=False),
+        name_field="zone_name",
+        scope_fields=["city_id", "district_id", "state_id"],
+        required=False,
+        allow_null=True,
+    )
+    panchayat_id = NameOrUniqueIdField(
+        queryset=Panchayat.objects.filter(is_deleted=False),
+        name_field="panchayat_name",
+        scope_fields=["city_id", "district_id", "state_id"],
+        required=False,
+        allow_null=True,
+    )
 
     state_name = serializers.CharField(source="state_id.name", read_only=True)
     city_name = serializers.CharField(source="city_id.name", read_only=True)

@@ -4,11 +4,13 @@ from django.contrib.auth.hashers import make_password
 from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.panchayat import Panchayat
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.utils.name_or_id_field import NameOrUniqueIdField
 
 
 class PanchayatLeaderLoginSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    panchayat_id = serializers.PrimaryKeyRelatedField(
+    panchayat_id = NameOrUniqueIdField(
+        name_field="panchayat_name",
         queryset=Panchayat.objects.filter(is_deleted=False),
         required=True,
     )

@@ -7,11 +7,15 @@ from app.models.schedule_masters.daily_trip_log import DailyTripLog
 from app.models.staff_creations.staffcreation import Staffcreation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.utils.waste_images import capture_images_for_customer
 from app.utils.waste_type_breakdown import bulk_waste_type_rows_for_trip_assignments
 
 
 class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+    # Trip assignments have no separate "name" — they're identified by their
+    # unique_id/display code — so this stays ID-based (unlike name-driven
+    # master lookups below).
     trip_assignment_id = UniqueIdOrPkField(
         slug_field="unique_id",
         queryset=DailyTripAssignment.objects.select_related(
@@ -36,8 +40,9 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         many=True,
         required=False,
     )
-    extra_operator_ids = serializers.SlugRelatedField(
+    extra_operator_ids = NameOrUniqueIdField(
         slug_field="staff_unique_id",
+        name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         many=True,
         required=False,

@@ -1,9 +1,17 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.common_masters.country import Country
+from app.models.common_masters.continent import Continent
+from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
 
 class CountrySerializer(serializers.ModelSerializer):
+    # Accepts/returns the continent's name (e.g. "Asia") instead of its
+    # opaque unique_id, so Excel upload/download and the API all speak names.
+    continent_id = NameOrUniqueIdField(
+        queryset=Continent.objects.filter(is_deleted=False),
+        name_field="name",
+    )
     continent_name = serializers.CharField(
         source="continent_id.name", read_only=True
     )

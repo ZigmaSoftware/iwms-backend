@@ -5,6 +5,7 @@ from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.staff_creations.staffcreation import Staffcreation
+from app.utils.name_or_id_field import NameOrUniqueIdField
 
 
 class VehicleBreakdownSerializer(serializers.ModelSerializer):
@@ -17,33 +18,38 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
         write_only=True, required=False, allow_blank=True, allow_null=True
     )
 
-    # Write fields — accept unique_id strings
+    # Trip assignments have no separate name, so they stay ID-based.
     trip_assignment_id = serializers.SlugRelatedField(
         slug_field="unique_id",
         queryset=DailyTripAssignment.objects.filter(is_deleted=False),
     )
-    breakdown_vehicle_id = serializers.SlugRelatedField(
-        slug_field="unique_id",
+    # Vehicles/staff accept either their unique_id or their human-readable
+    # vehicle number / employee name (e.g. Excel upload column "TN01AB1234"
+    # or "Ramesh Kumar" instead of the opaque VEH-xxxx / STAFF-xxxx id).
+    breakdown_vehicle_id = NameOrUniqueIdField(
+        name_field="vehicle_no",
         queryset=VehicleCreation.objects.filter(is_deleted=False),
     )
     # Optional on create — the driver reporting a breakdown usually doesn't
     # know the replacement yet; the supervisor picks these at `/verify/`
     # (see VehicleBreakdownVerifySerializer below), which then requires all
     # three be set (from here or there) before approving.
-    replacement_vehicle_id = serializers.SlugRelatedField(
-        slug_field="unique_id",
+    replacement_vehicle_id = NameOrUniqueIdField(
+        name_field="vehicle_no",
         queryset=VehicleCreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
-    replacement_driver_id = serializers.SlugRelatedField(
+    replacement_driver_id = NameOrUniqueIdField(
         slug_field="staff_unique_id",
+        name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
-    replacement_operator_id = serializers.SlugRelatedField(
+    replacement_operator_id = NameOrUniqueIdField(
         slug_field="staff_unique_id",
+        name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
@@ -298,20 +304,22 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
     vehicle/driver/operator here (if not already set at creation) and
     approves the breakdown."""
     remarks = serializers.CharField(required=False, allow_blank=True, default="")
-    replacement_vehicle_id = serializers.SlugRelatedField(
-        slug_field="unique_id",
+    replacement_vehicle_id = NameOrUniqueIdField(
+        name_field="vehicle_no",
         queryset=VehicleCreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
-    replacement_driver_id = serializers.SlugRelatedField(
+    replacement_driver_id = NameOrUniqueIdField(
         slug_field="staff_unique_id",
+        name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
-    replacement_operator_id = serializers.SlugRelatedField(
+    replacement_operator_id = NameOrUniqueIdField(
         slug_field="staff_unique_id",
+        name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,

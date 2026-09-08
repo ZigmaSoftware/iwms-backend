@@ -3,6 +3,7 @@ from rest_framework import serializers
 from app.models.staff_creations.department import Department
 from app.models.staff_creations.designation import Designation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.utils.name_or_id_field import NameOrUniqueIdField
 
 
 class DesignationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -12,7 +13,8 @@ class DesignationSerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
         required=False,
     )
     status_label = serializers.SerializerMethodField(read_only=True)
-    department_id = serializers.PrimaryKeyRelatedField(
+    department_id = NameOrUniqueIdField(
+        name_field="department_name",
         queryset=Department.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,

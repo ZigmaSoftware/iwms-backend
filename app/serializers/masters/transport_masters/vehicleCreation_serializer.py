@@ -3,21 +3,8 @@ from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.models.transport_masters.fuel import Fuel
 from app.models.staff_creations.staffcreation import Staffcreation
+from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
-
-
-class UniqueIdOrPkField(serializers.SlugRelatedField):
-    def to_representation(self, value):
-        return getattr(value, self.slug_field, None) or super().to_representation(value)
-
-    def to_internal_value(self, data):
-        try:
-            return super().to_internal_value(data)
-        except Exception:
-            try:
-                return self.get_queryset().get(pk=data)
-            except Exception:
-                raise
 
 
 class VehicleCreationSerializer(serializers.ModelSerializer):
@@ -40,23 +27,24 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
         allow_blank=True,
     )
 
-    vehicle_type_id = UniqueIdOrPkField(
+    vehicle_type_id = NameOrUniqueIdField(
         source="vehicle_type",
-        slug_field="unique_id",
+        name_field="vehicleType",
         queryset=VehicleTypeCreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
-    fuel_type_id = UniqueIdOrPkField(
+    fuel_type_id = NameOrUniqueIdField(
         source="fuel_type",
-        slug_field="unique_id",
+        name_field="fuel_type",
         queryset=Fuel.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
-    supervisor_id = UniqueIdOrPkField(
+    supervisor_id = NameOrUniqueIdField(
         source="supervisor",
         slug_field="staff_unique_id",
+        name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
