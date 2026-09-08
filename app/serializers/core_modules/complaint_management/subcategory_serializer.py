@@ -3,24 +3,13 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.grivences.sub_category_citizenGrievance import SubCategory
 from app.models.grivences.main_category_citizenGrievance import MainCategory
+from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
 
 
-class FlexibleMainCategoryField(serializers.PrimaryKeyRelatedField):
-    """
-    Accept either the numeric PK or the exposed `unique_id` for main categories.
-    """
-
-    def to_internal_value(self, data):
-        queryset = self.get_queryset()
-        try:
-            return queryset.get(unique_id=str(data))
-        except queryset.model.DoesNotExist:
-            self.fail("does_not_exist", pk_value=data)
-
-
 class SubCategorySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
-    mainCategory = FlexibleMainCategoryField(
+    mainCategory = NameOrUniqueIdField(
+        name_field="main_categoryName",
         queryset=MainCategory.objects.filter(is_deleted=False)
     )
     mainCategory_name = serializers.CharField(

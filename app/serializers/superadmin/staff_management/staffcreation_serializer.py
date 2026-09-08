@@ -7,6 +7,7 @@ from app.models.staff_creations.department import Department
 from app.models.staff_creations.designation import Designation
 from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.utils.name_or_id_field import NameOrUniqueIdField
 
 from app.models.staff_creations.staffcreation import Staffcreation, StaffPersonalDetails
 
@@ -27,7 +28,8 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     # --------------------------------------------------
     unique_id = serializers.CharField(source="staff_unique_id",read_only=True)
     emp_id = serializers.CharField(read_only=True)
-    staffusertype_id = serializers.PrimaryKeyRelatedField(
+    staffusertype_id = NameOrUniqueIdField(
+    name_field="name",
     queryset=StaffUserType.objects.all(),
     required=False,
     allow_null=True
@@ -43,7 +45,8 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     read_only=True
 )
 
-    contractorusertype_id = serializers.PrimaryKeyRelatedField(
+    contractorusertype_id = NameOrUniqueIdField(
+        name_field="name",
         queryset=ContractorUserType.objects.all(),
         required=False,
         allow_null=True,
@@ -52,17 +55,21 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         source="contractorusertype_id.name",
         read_only=True,
     )
-    department_id = serializers.PrimaryKeyRelatedField(
+    department_id = NameOrUniqueIdField(
+        name_field="department_name",
         queryset=Department.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
-    designation_id = serializers.PrimaryKeyRelatedField(
+    designation_id = NameOrUniqueIdField(
+        name_field="designation_name",
         queryset=Designation.objects.filter(is_deleted=False),
+        scope_fields=["department_id"],
         required=False,
         allow_null=True,
     )
-    project_id = serializers.PrimaryKeyRelatedField(
+    project_id = NameOrUniqueIdField(
+        name_field="name",
         queryset=Project.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,

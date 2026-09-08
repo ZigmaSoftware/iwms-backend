@@ -592,7 +592,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         for index, row in enumerate(reader, start=1):
             row = {(key or "").strip().lower(): value for key, value in row.items()}
             try:
-                company_id_value = (row.get("company_id") or company_override or "")
+                company_id_value = (
+                    row.get("company_name") or row.get("company_id") or company_override or ""
+                )
                 company_id_value = str(company_id_value).strip() if company_id_value else ""
 
                 company = None
@@ -601,7 +603,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                         errors.append({"row": index, "error": "company_id is required for superadmin"})
                         continue
                     company = Company.objects.filter(
-                        unique_id=company_id_value, is_deleted=False
+                        is_deleted=False
+                    ).filter(
+                        Q(unique_id__iexact=company_id_value) | Q(name__iexact=company_id_value)
                     ).first()
                     if not company:
                         errors.append({"row": index, "error": f"Invalid company_id: {company_id_value}"})
@@ -612,7 +616,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                         errors.append({"row": index, "error": "Failed to resolve company context"})
                         continue
 
-                project_id_value = (row.get("project_id") or project_override or "")
+                project_id_value = (
+                    row.get("project_name") or row.get("project_id") or project_override or ""
+                )
                 project_id_value = str(project_id_value).strip() if project_id_value else ""
 
                 project = None
@@ -622,9 +628,11 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                         errors.append({"row": index, "error": f"Invalid project_id: {project_id_value}"})
                         continue
 
-                mainscreen_value = (row.get("main_screen_id_or_name") or "").strip()
+                mainscreen_value = (
+                    row.get("main_screen_name") or row.get("main_screen_id_or_name") or ""
+                ).strip()
                 if not mainscreen_value:
-                    errors.append({"row": index, "error": "main_screen_id_or_name is required"})
+                    errors.append({"row": index, "error": "main_screen_name is required"})
                     continue
                 mainscreen = MainScreen.objects.filter(
                     is_deleted=False
@@ -632,12 +640,14 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     Q(unique_id__iexact=mainscreen_value) | Q(mainscreen_name__iexact=mainscreen_value)
                 ).first()
                 if not mainscreen:
-                    errors.append({"row": index, "error": f"Invalid main_screen_id_or_name: {mainscreen_value}"})
+                    errors.append({"row": index, "error": f"Invalid main_screen_name: {mainscreen_value}"})
                     continue
 
-                userscreen_value = (row.get("user_screen_id_or_name") or "").strip()
+                userscreen_value = (
+                    row.get("user_screen_name") or row.get("user_screen_id_or_name") or ""
+                ).strip()
                 if not userscreen_value:
-                    errors.append({"row": index, "error": "user_screen_id_or_name is required"})
+                    errors.append({"row": index, "error": "user_screen_name is required"})
                     continue
                 userscreen = UserScreen.objects.filter(
                     is_deleted=False,
@@ -649,20 +659,20 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     errors.append({
                         "row": index,
                         "error": (
-                            f"Invalid user_screen_id_or_name '{userscreen_value}' "
+                            f"Invalid user_screen_name '{userscreen_value}' "
                             f"for main screen '{mainscreen_value}'"
                         ),
                     })
                     continue
 
                 action_value = (
-                    row.get("action_id_or_name")
-                    or row.get("action_name")
+                    row.get("action_name")
+                    or row.get("action_id_or_name")
                     or row.get("variable_name")
                     or ""
                 ).strip()
                 if not action_value:
-                    errors.append({"row": index, "error": "action_id_or_name/action_name/variable_name is required"})
+                    errors.append({"row": index, "error": "action_name is required"})
                     continue
                 userscreenaction = UserScreenAction.objects.filter(
                     is_deleted=False
@@ -680,12 +690,13 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     errors.append({"row": index, "error": "permission_type must be 'screen' or 'field'"})
                     continue
 
-                def _resolve_optional(model, field_value):
+                def _resolve_optional(model, field_value, name_field="name"):
                     field_value = (field_value or "").strip()
                     if not field_value:
                         return None
-                    obj = model.objects.filter(unique_id=field_value, is_deleted=False).first()
-                    return obj
+                    return model.objects.filter(is_deleted=False).filter(
+                        Q(unique_id__iexact=field_value) | Q(**{f"{name_field}__iexact": field_value})
+                    ).first()
 
                 state = _resolve_optional(State, row.get("state_id"))
                 if row.get("state_id") and not state:
@@ -702,17 +713,17 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     errors.append({"row": index, "error": f"Invalid city_id: {row.get('city_id')}"})
                     continue
 
-                zone = _resolve_optional(Zone, row.get("zone_id"))
+                zone = _resolve_optional(Zone, row.get("zone_id"), name_field="zone_name")
                 if row.get("zone_id") and not zone:
                     errors.append({"row": index, "error": f"Invalid zone_id: {row.get('zone_id')}"})
                     continue
 
-                panchayat = _resolve_optional(Panchayat, row.get("panchayat_id"))
+                panchayat = _resolve_optional(Panchayat, row.get("panchayat_id"), name_field="panchayat_name")
                 if row.get("panchayat_id") and not panchayat:
                     errors.append({"row": index, "error": f"Invalid panchayat_id: {row.get('panchayat_id')}"})
                     continue
 
-                ward = _resolve_optional(Ward, row.get("ward_id"))
+                ward = _resolve_optional(Ward, row.get("ward_id"), name_field="ward_name")
                 if row.get("ward_id") and not ward:
                     errors.append({"row": index, "error": f"Invalid ward_id: {row.get('ward_id')}"})
                     continue

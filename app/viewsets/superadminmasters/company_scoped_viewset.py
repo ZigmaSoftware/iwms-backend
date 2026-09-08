@@ -6,6 +6,7 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.base_models import Account
+from app.utils.name_or_id_field import resolve_by_name_or_id
 
 
 class CompanyScopedViewSet(viewsets.ModelViewSet):
@@ -274,7 +275,13 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
                             raise ValidationError({"company_id": "company_id cannot be null"})
                         save_kwargs["company_id"] = None
                     else:
-                        company = Company.objects.filter(unique_id=company_input).first()
+                        # Accepts the company's unique_id OR its name — Excel
+                        # bulk upload (and any direct API caller) sends a name
+                        # like "myTech" here, which this superadmin branch
+                        # resolves itself ahead of the serializer.
+                        company = resolve_by_name_or_id(
+                            Company.objects.filter(is_deleted=False), company_input
+                        )
                         if not company:
                             raise ValidationError({"company_id": "Invalid company_id"})
                         save_kwargs["company_id"] = company
@@ -305,7 +312,16 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
                         raise ValidationError({"project_id": "project_id cannot be null"})
                     save_kwargs["project_id"] = None
                 elif project_unique_id is not None:
-                    project = Project.objects.filter(unique_id=project_unique_id).first()
+                    project_qs = Project.objects.filter(is_deleted=False)
+                    resolved_company = save_kwargs.get("company_id")
+                    if resolved_company is not None:
+                        # Scope the name match to the company just resolved
+                        # above, so "techCity" can't match another company's
+                        # identically named project.
+                        scoped = project_qs.filter(company_id=resolved_company)
+                        project = resolve_by_name_or_id(scoped, project_unique_id)
+                    else:
+                        project = resolve_by_name_or_id(project_qs, project_unique_id)
                     if not project:
                         raise ValidationError({"project_id": "Invalid project_id"})
                     save_kwargs["project_id"] = project
@@ -371,7 +387,9 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
                             raise ValidationError({"company_id": "company_id cannot be null"})
                         save_kwargs["company_id"] = None
                     else:
-                        company = Company.objects.filter(unique_id=company_input).first()
+                        company = resolve_by_name_or_id(
+                            Company.objects.filter(is_deleted=False), company_input
+                        )
                         if not company:
                             raise ValidationError({"company_id": "Invalid company_id"})
                         save_kwargs["company_id"] = company
@@ -402,7 +420,15 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
                         raise ValidationError({"project_id": "project_id cannot be null"})
                     save_kwargs["project_id"] = None
                 elif project_unique_id is not None:
-                    project = Project.objects.filter(unique_id=project_unique_id).first()
+                    project_qs = Project.objects.filter(is_deleted=False)
+                    resolved_company = save_kwargs.get("company_id") or getattr(
+                        instance, "company_id", None
+                    )
+                    if resolved_company is not None:
+                        scoped = project_qs.filter(company_id=resolved_company)
+                        project = resolve_by_name_or_id(scoped, project_unique_id)
+                    else:
+                        project = resolve_by_name_or_id(project_qs, project_unique_id)
                     if not project:
                         raise ValidationError({"project_id": "Invalid project_id"})
                     save_kwargs["project_id"] = project

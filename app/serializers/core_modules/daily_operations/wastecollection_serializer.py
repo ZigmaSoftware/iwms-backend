@@ -4,6 +4,7 @@ from app.models.customers.wastecollection import WasteCollection
 from app.models.customers.customercreation import CustomerCreation
 from app.models.masters.ward import Ward
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.utils.name_or_id_field import NameOrUniqueIdField
 
 
 class CustomerField(serializers.SlugRelatedField):
@@ -39,8 +40,9 @@ class WasteCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     # `ward` is now a real FK on WasteCollection (auto-inherited from the
     # household via copy_flat_geo when left blank, see the model's save()),
     # but selectable/editable so a collection can be scoped independently.
-    ward_id = serializers.SlugRelatedField(
-        source="ward", slug_field="unique_id",
+    ward_id = NameOrUniqueIdField(
+        source="ward",
+        name_field="ward_name",
         queryset=Ward.objects.filter(is_deleted=False),
         required=False, allow_null=True,
     )
