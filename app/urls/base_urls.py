@@ -48,6 +48,7 @@ from ..viewsets.superadmin.screen_management.permission_api_views import (
 # Role assignments
 from ..viewsets.superadmin.role_management.usertype_viewset import UserTypeViewSet
 from ..viewsets.superadmin.role_management.staffusertype_viewset import StaffUserTypeViewSet
+from ..viewsets.superadmin.role_management.project_staff_hierarchy_viewset import ProjectStaffHierarchyViewSet
 from ..viewsets.superadmin.role_management.contractorusertype_viewset import ContractorUserTypeViewSet
 
 # User creations
@@ -84,7 +85,6 @@ from ..viewsets.core_modules.complaint_management.ticket_master_viewsets import 
     ComplaintStatusViewSet,
     ComplaintSourceViewSet,
     ComplaintLanguageViewSet,
-    ComplaintTeamViewSet,
     ComplaintTicketCategoryViewSet,
     ComplaintTicketSubcategoryViewSet,
     ComplaintSlaRuleViewSet,
@@ -222,6 +222,7 @@ router.register_group("screen-managements", "app-modules", AppModuleViewSet)
 router.register_group("role-assigns", "user-type",           UserTypeViewSet)
 router.register_group("role-assigns", "staffusertypes",      StaffUserTypeViewSet)
 router.register_group("role-assigns", "staffusertypes",      StaffUserTypeViewSet, basename="staffusertype-roletype")
+router.register_group("role-assigns", "project-staff-hierarchy", ProjectStaffHierarchyViewSet)
 router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeViewSet)
 router.register_group("role-assigns", "contractorusertypes", ContractorUserTypeViewSet, basename="contractorusertype-roletype")
 
@@ -282,7 +283,6 @@ router.register_group("complaint-masters", "languages", ComplaintLanguageViewSet
 # downgrades them to view-only for this module.
 # ============================================================
 router.register_group("complaint-ticket", "tickets", ComplaintTicketViewSet, basename="complaint-ticket-tickets")
-router.register_group("complaint-ticket", "teams", ComplaintTeamViewSet, basename="complaint-ticket-teams")
 router.register_group("complaint-ticket", "feedback", ComplaintFeedbackViewSet, basename="complaint-ticket-feedback")
 router.register_group("complaint-ticket", "reopen-history", ComplaintReopenHistoryViewSet, basename="complaint-ticket-reopen-history")
 router.register_group("complaint-ticket", "notifications", ComplaintNotificationViewSet, basename="complaint-ticket-notifications")

@@ -100,3 +100,20 @@ class TestStaffCreationUpdate:
         staff.refresh_from_db()
 
         assert staff.staff_id == "STF0001"
+
+    def test_update_reassigns_staff_id_on_project_change(self, staff, company):
+        from app.models.superadmin_masters.project import Project
+
+        other_project = Project.objects.create(name="Other Project", company_id=company)
+        existing = StaffcreationOfficeDetails.objects.create(
+            employee_name="Existing Driver",
+            company_id=company,
+            project_id=other_project,
+        )
+        assert existing.staff_id == "STF0001"
+
+        staff.project_id = other_project
+        staff.save()
+        staff.refresh_from_db()
+
+        assert staff.staff_id == "STF0002"

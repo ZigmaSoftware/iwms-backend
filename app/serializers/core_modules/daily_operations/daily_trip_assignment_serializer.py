@@ -16,6 +16,7 @@ from app.services.daily_trip_generation import ensure_assignment_collection_poin
 from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.utils.name_or_id_field import NameOrUniqueIdField
 
 
 class DailyTripCollectionPointInlineSerializer(serializers.ModelSerializer):
@@ -106,8 +107,9 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         required=False,
         allow_null=True,
     )
-    panchayat_id = UniqueIdOrPkField(
+    panchayat_id = NameOrUniqueIdField(
         slug_field="unique_id",
+        name_field="panchayat_name",
         queryset=Panchayat.objects.filter(is_deleted=False),
         write_only=True,
         required=False,
@@ -125,15 +127,17 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         required=False,
         allow_empty=False,
     )
-    household_waste_type_ids = serializers.SlugRelatedField(
+    household_waste_type_ids = NameOrUniqueIdField(
         slug_field="unique_id",
+        name_field="waste_type_name",
         queryset=WasteType.objects.filter(is_deleted=False),
         many=True,
         required=False,
     )
     household_waste_types = serializers.SerializerMethodField(read_only=True)
-    vehicle_id = UniqueIdOrPkField(
+    vehicle_id = NameOrUniqueIdField(
         slug_field="unique_id",
+        name_field="vehicle_no",
         queryset=VehicleCreation.objects.filter(is_deleted=False),
         write_only=True,
         required=False,
@@ -158,8 +162,9 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     waste_types = serializers.SerializerMethodField(read_only=True)
     # New M2M waste types mirroring TripPlan.waste_types / TN_Iwms's
     # DailyTripAssignment.waste_types. Written via waste_types_ids.
-    waste_types_ids = serializers.SlugRelatedField(
+    waste_types_ids = NameOrUniqueIdField(
         slug_field="unique_id",
+        name_field="waste_type_name",
         queryset=WasteType.objects.filter(is_deleted=False),
         many=True,
         required=False,
@@ -182,6 +187,8 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     # same trip plan: 1 for the ordinary run, 2+ for a Re-Trip continuation
     # (and any further same-day re-trips of that continuation).
     trip_count = serializers.SerializerMethodField(read_only=True)
+    trip_log_summary = serializers.SerializerMethodField(read_only=True)
+    trip_events = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
         write_only=True,
@@ -227,6 +234,10 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "scheduled_time",
             "actual_start_time",
             "actual_end_time",
+            "actual_start_at",
+            "actual_end_at",
+            "trip_log_summary",
+            "trip_events",
             "total_trip_time_seconds",
             "trip_count",
             "status",
@@ -241,12 +252,57 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "unique_id",
             "actual_start_time",
             "actual_end_time",
+            "actual_start_at",
+            "actual_end_at",
             "approval_status",
             "breakdown_info",
             "retrip_info",
             "created_at",
             "updated_at",
         ]
+
+    def get_trip_events(self, obj):
+        events = []
+        for report in obj.delay_reports.all():
+            if report.is_deleted:
+                continue
+            events.append({"label": "Delay: " + report.get_delay_reason_display(),
+                           "detail": report.delay_remarks, "at": report.created_at,
+                           "status": report.status})
+        for request in obj.retrip_requests.all():
+            if request.is_deleted:
+                continue
+            events.append({"label": "Re-Trip requested", "detail": request.reason,
+                           "at": request.created_at, "status": request.status,
+                           "actor": getattr(request.requested_by, "employee_name", None)})
+            if request.reviewed_at:
+                events.append({"label": "Re-Trip " + request.status.lower(),
+                               "detail": request.review_remarks, "at": request.reviewed_at,
+                               "actor": getattr(request.reviewed_by, "employee_name", None),
+                               "related_trip_id": request.new_assignment_id})
+        for source in obj.retrip_source_requests.all():
+            if not source.is_deleted:
+                events.append({"label": "Continuation of " + str(source.assignment_id),
+                               "detail": source.review_remarks, "at": source.reviewed_at,
+                               "related_trip_id": source.assignment_id})
+        return sorted(events, key=lambda event: str(event.get("at") or ""))
+
+    def get_trip_log_summary(self, obj):
+        log = getattr(obj, "daily_trip_log", None)
+        if not log or log.is_deleted:
+            return None
+        return {
+            "unique_id": log.unique_id,
+            "status": log.log_status,
+            "verified_at": log.verified_at,
+            "verified_by": str(log.verified_by) if log.verified_by else None,
+            "bin_weight_kg": log.collected_weight_kg,
+            "customer_weight_kg": log.household_collected_weight_kg,
+            "driver": getattr(log.driver_id, "employee_name", None),
+            "operator": getattr(log.operator_id, "employee_name", None),
+            "vehicle_no": getattr(log.vehicle_id, "vehicle_no", None),
+            "remarks": log.remarks,
+        }
 
     def get_total_trip_time_seconds(self, obj):
         duration = obj.total_trip_time

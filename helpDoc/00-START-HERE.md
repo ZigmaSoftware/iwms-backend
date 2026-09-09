@@ -43,6 +43,8 @@ Everything else below explains why, and how.
    suite is wired (pytest + SQLite in-memory), how to write a model test,
    and how to run coverage.
 
+9. **[09-supervisor-trips.md](09-supervisor-trips.md)** — Supervisor Active/History behaviour, API filters, counts and rollout checks.
+
 ## The one-paragraph map of the whole project
 
 ```text

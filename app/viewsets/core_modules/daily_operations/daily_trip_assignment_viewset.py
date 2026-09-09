@@ -1,9 +1,11 @@
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Q
 from django.db.models import Prefetch
 from datetime import datetime, time as datetime_time, timedelta
 
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -54,6 +56,11 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         "alt_staff_template_id__operator_id",
         "panchayat_id",
         "vehicle_id",
+        "daily_trip_log",
+        "daily_trip_log__driver_id",
+        "daily_trip_log__operator_id",
+        "daily_trip_log__vehicle_id",
+        "daily_trip_log__verified_by",
         # Breakdown reverse OneToOne — used by DailyTripAssignmentSerializer.get_breakdown_info
         "vehicle_breakdown",
         "vehicle_breakdown__breakdown_vehicle_id",
@@ -62,6 +69,8 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         "vehicle_breakdown__replacement_operator_id",
         "vehicle_breakdown__new_assignment",
     ).prefetch_related(
+        "delay_reports",
+        "retrip_source_requests",
         "wards",
         "wards__zone_id",
         "trip_plan_id__wards",
@@ -69,7 +78,7 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         Prefetch(
             "retrip_requests",
             queryset=TripRetripRequest.objects.filter(is_deleted=False)
-            .select_related("new_assignment")
+            .select_related("new_assignment", "reviewed_by", "requested_by")
             .order_by("-created_at"),
         ),
         Prefetch(
@@ -99,8 +108,13 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     pagination_class = LimitOffsetWithPage
-    search_fields = ["unique_id", "vehicle_id__vehicle_no", "staff_template_id__driver_id__employee_name"]
-    ordering_fields = ["trip_date", "scheduled_time", "status", "approval_status"]
+    search_fields = [
+        "unique_id", "trip_plan_id__display_code", "vehicle_id__vehicle_no",
+        "staff_template_id__driver_id__employee_name",
+        "alt_staff_template_id__driver_id__employee_name",
+        "panchayat_id__panchayat_name", "wards__ward_name", "trip_plan_id__zone_id__zone_name",
+    ]
+    ordering_fields = ["unique_id", "trip_date", "scheduled_time", "status", "approval_status"]
 
     AUDIT_MODULE = "trip-assignments"
     AUDIT_ENDPOINT = "daily-trip-assignments"
@@ -155,6 +169,49 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             # mobile app explicitly passes mine=true.
             qs = qs.filter(trip_plan_id__supervisor_id=self.request.user)
 
+        # Workbench date comes from the server, including for devices left open
+        # overnight. Explicit modes preserve the existing desktop list contract.
+        mode = params.get("trip_view")
+        if mode and mode not in {"workbench", "history"}:
+            raise ValidationError({"trip_view": "Use workbench or history."})
+        self.trip_as_of = timezone.localtime()
+        service_date = self.trip_as_of.date()
+        closed = [DailyTripAssignment.STATUS_COMPLETED, DailyTripAssignment.STATUS_CANCELLED]
+        if mode == "workbench":
+            qs = qs.filter(Q(trip_date=service_date) | (Q(trip_date__lt=service_date) & ~Q(status__in=closed)))
+        elif mode == "history":
+            qs = qs.filter(status__in=closed)
+            # Initial history window is seven service dates, newest first.
+            if not params.get("from_date") and not params.get("to_date"):
+                qs = qs.filter(trip_date__range=(service_date - timedelta(days=6), service_date))
+            qs = qs.order_by("-trip_date", "-created_at", "-unique_id")
+
+        dates = {}
+        for key in ("from_date", "to_date"):
+            if params.get(key):
+                try:
+                    dates[key] = datetime.strptime(params[key], "%Y-%m-%d").date()
+                except (TypeError, ValueError):
+                    raise ValidationError({key: "Use YYYY-MM-DD."})
+        if dates.get("from_date") and dates.get("to_date") and dates["from_date"] > dates["to_date"]:
+            raise ValidationError({"to_date": "Must be on or after from_date."})
+        if "from_date" in dates:
+            qs = qs.filter(trip_date__gte=dates["from_date"])
+        if "to_date" in dates:
+            qs = qs.filter(trip_date__lte=dates["to_date"])
+        if params.get("retrip_only") == "true":
+            qs = qs.filter(
+                unique_id__in=TripRetripRequest.objects.filter(is_deleted=False, new_assignment__isnull=False).values("new_assignment__unique_id")
+            )
+        if params.get("exceptions_only") == "true":
+            qs = qs.filter(
+                Q(trip_collection_points__is_deleted=False) & ~Q(trip_collection_points__status__in=["Pending", "In Progress", "Collected"])
+                | Q(trip_household_collections__is_deleted=False) & ~Q(trip_household_collections__status__in=["Pending", "Collected"])
+                | Q(vehicle_breakdown__is_deleted=False)
+                | Q(retrip_requests__is_deleted=False)
+                | Q(delay_reports__is_deleted=False)
+            ).distinct()
+
         if trip_date:
             qs = qs.filter(trip_date=trip_date)
 
@@ -184,6 +241,16 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             qs = qs.filter(waste_type_ids__contains=waste_type)
 
         return qs
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        if request.query_params.get("trip_view"):
+            as_of = getattr(self, "trip_as_of", timezone.localtime())
+            if isinstance(response.data, list):
+                response.data = {"results": response.data, "next": None, "count": len(response.data)}
+            response.data["service_date"] = as_of.date().isoformat()
+            response.data["as_of"] = as_of.isoformat()
+        return response
 
     # ----------------------------------------------------------
     # UPDATE — cancelled trips remain locked, other daily trips can be edited
@@ -331,8 +398,13 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     # ----------------------------------------------------------
 
     @action(detail=True, methods=["patch"], url_path="status")
+    @transaction.atomic
     def update_status(self, request, unique_id=None):
         instance = self.get_object()
+        instance = DailyTripAssignment.objects.select_for_update().get(pk=instance.pk)
+        expected = request.data.get("expected_status")
+        if expected and instance.status != expected:
+            return Response({"detail": "This trip has changed. Refresh before taking action."}, status=409)
 
         serializer = DailyTripAssignmentStatusSerializer(
             data=request.data,
@@ -342,6 +414,10 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         new_status = serializer.validated_data["status"]
         previous_data = self._serialize_instance(instance)
+        reason = str(request.data.get("reason") or "").strip()
+        if reason:
+            instance.remarks = "\n".join(filter(None, [instance.remarks, f"{new_status}: {reason}"]))
+            instance.save(update_fields=["remarks", "updated_at"])
 
         if new_status == DailyTripAssignment.STATUS_IN_PROGRESS:
             instance.mark_started()
@@ -386,7 +462,10 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         previous_data = self._serialize_instance(instance)
         instance.approval_status = serializer.validated_data["approval_status"]
-        instance.save(update_fields=["approval_status", "updated_at"])
+        reason = str(request.data.get("reason") or "").strip()
+        if reason:
+            instance.remarks = "\n".join(filter(None, [instance.remarks, f"Assignment {instance.approval_status.lower()}: {reason}"]))
+        instance.save(update_fields=["approval_status", "remarks", "updated_at"])
 
         self.log_audit(
             request,

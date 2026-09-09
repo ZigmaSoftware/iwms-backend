@@ -6,8 +6,8 @@ from .masters import (
     ComplaintModule,
     ComplaintCategory,
     ComplaintSubcategory,
-    ComplaintTeam,
     ComplaintSlaRule,
+    ComplaintSlaEscalationLevel,
 )
 from .ticket import ComplaintTicket
 from .transactions import (
@@ -32,8 +32,8 @@ __all__ = [
     "ComplaintModule",
     "ComplaintCategory",
     "ComplaintSubcategory",
-    "ComplaintTeam",
     "ComplaintSlaRule",
+    "ComplaintSlaEscalationLevel",
     "ComplaintTicket",
     "ComplaintTicketExtraDetail",
     "ComplaintAttachment",

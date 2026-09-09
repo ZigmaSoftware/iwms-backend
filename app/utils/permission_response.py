@@ -16,7 +16,6 @@ from app.utils.app_feature_grants import (
     APP_SURFACE_CONFIG as _APP_SURFACE_CONFIG,
     APP_SURFACE_KEYS,
     CITIZEN_APP_SCREENS,
-    ROLE_SCREEN_TEMPLATES,
     SCREEN_PERMISSIONS,
     visible_screens,
 )
@@ -554,51 +553,19 @@ def permission_querysets(
     return action_queryset, column_queryset
 
 
-def role_key(role_name):
-    normalized = normalize_permission_key(role_name)
-    for key in ROLE_SCREEN_TEMPLATES:
-        if key in normalized:
-            return key
-    return None
+def fallback_app_module(app_module):
+    """The surface named by an explicitly supplied `app_module`, or None.
 
-
-def role_default_permissions(role_name):
-    """Compatibility baseline for mobile roles while strict mode is off."""
-    key = role_key(role_name)
-    if not key:
-        return {}
-    return ROLE_SCREEN_TEMPLATES.get(key, {})
-
-
-def apply_role_defaults(permissions, role_name):
-    """Merge a role template into explicit grants without removing anything."""
-    defaults = role_default_permissions(role_name)
-    if not defaults:
-        return permissions
-
-    merged = {
-        module: {
-            screen: list(actions)
-            for screen, actions in (screens or {}).items()
-        }
-        for module, screens in (permissions or {}).items()
-    }
-    for module_name, screens in defaults.items():
-        module_perms = merged.setdefault(module_name, {})
-        for screen_name, actions in screens.items():
-            existing = set(module_perms.get(screen_name, []))
-            module_perms[screen_name] = sorted(existing.union(actions))
-    return merged
-
-
-def fallback_app_module(role_name, app_module):
+    Deliberately does NOT infer anything from a role name. A role called
+    "Company Supervisor" used to be enough on its own to return "supervisor",
+    which handed the Supervisor app to any staff member whose access
+    configuration did not exist yet — the login gate saw a non-empty
+    `app_modules` list and let them straight in, so an admin who had granted
+    nothing had in fact granted an app. The app is now only ever what
+    somebody explicitly selected.
+    """
     preferred = normalize_permission_key(app_module)
-    if preferred in APP_SURFACE_KEYS:
-        return preferred
-    key = role_key(role_name)
-    if key in APP_SURFACE_KEYS:
-        return key
-    return None
+    return preferred if preferred in APP_SURFACE_KEYS else None
 
 
 def staff_access_config(staff_unique_id):
@@ -613,37 +580,43 @@ def staff_access_config(staff_unique_id):
 
 
 def staff_app_modules(config):
-    """Surface keys ticked on a StaffAccessConfiguration."""
-    if config is None:
+    """Surface key of the app selected on a StaffAccessConfiguration.
+
+    Returned as a list because the payload shape (`app_modules`, and
+    `app_screens` keyed by surface) is shared with customers and with older
+    app builds. A staff member belongs to exactly one app, so the list holds
+    at most one entry.
+    """
+    if config is None or not config.app_module_id:
         return []
-    return list(
-        config.app_modules.filter(is_active=True, is_deleted=False)
-        .values_list("surface_key", flat=True)
-    )
+    module = config.app_module
+    if not module or not module.is_active or module.is_deleted:
+        return []
+    return [module.surface_key]
 
 
 def resolve_permission_payload(**filters):
     action_queryset, column_queryset = permission_querysets(**filters)
     config = staff_access_config(filters.get("staff_unique_id"))
-    strict = bool(config and config.enforce_strict_permissions)
 
-    # ONE permission list. A screen ticked here governs the web screen and the
-    # mobile screen alike. While strict mode is off, mobile-role templates are
-    # a compatibility floor so a partial web configuration cannot remove an
-    # existing Driver/Operator/Supervisor flow. Once strict mode is enabled for
-    # a staff member, the checked boxes are the whole of their access.
+    # ONE permission list, with no role-based defaults: the explicitly granted
+    # StaffAccessConfiguration rows (or, for platform superadmin, the full
+    # `include_all` catalog) are the whole of a user's access. No role name
+    # or screen ever gets permissions it wasn't explicitly given.
     permissions = build_action_permissions(action_queryset)
-    if not strict:
-        permissions = apply_role_defaults(permissions, filters.get("role_name"))
 
     app_modules = filters.get("app_modules")
     if app_modules is None:
         app_modules = staff_app_modules(config)
-        if not app_modules and not strict:
-            fallback = fallback_app_module(
-                filters.get("role_name"),
-                filters.get("app_module"),
-            )
+        # The access configuration is the single source of a staff member's
+        # app. Staff reach this with `app_module` resolved from that same
+        # configuration (see the `Staffcreation.app_module` property), so an
+        # unconfigured staff member correctly falls through to no app and the
+        # login gate refuses their mobile sign-in. The fallback exists for
+        # customers on the legacy citizen path, who are passed a literal
+        # "citizen" before their CustomerAccessConfiguration is backfilled.
+        if not app_modules:
+            fallback = fallback_app_module(filters.get("app_module"))
             app_modules = [fallback] if fallback else []
 
     citizen_screens = filters.get("citizen_screens")

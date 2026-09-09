@@ -9,6 +9,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
 from app.permissions.platform import SuperAdminApprovalPermission
 from app.serializers.superadmin.staff_management.staffcreation_serializer import (
     StaffApprovalActionSerializer,
@@ -230,11 +231,45 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
 
     @action(detail=False, methods=["get"], url_path="staff-head-options")
     def staff_head_options(self, request):
-        queryset = self.filter_queryset(self.get_queryset()).filter(active_status=True)
+        # staffusertype_id here names the *new* staff's own role, not a
+        # "show me staff of this type" list filter. But the generic
+        # ModelFieldQueryFilter backend (reached via self.filter_queryset)
+        # treats any ?staffusertype_id= as exactly that — an exact-match
+        # filter — which would pre-filter the candidate pool to the selected
+        # role itself before the hierarchy lookup below ever runs. So we
+        # apply only the tenant (company/project) scoping directly here,
+        # bypassing the generic list-filter backend chain entirely, and let
+        # the hierarchy config below be the sole source of role filtering.
+        base_queryset = Staffcreation.objects.select_related(
+            "department_id", "staffusertype_id", "contractorusertype_id"
+        )
+        queryset = self._scope_to_tenant(base_queryset).filter(active_status=True)
 
         current_id = request.query_params.get("exclude")
         if current_id:
             queryset = queryset.exclude(staff_unique_id=current_id)
+
+        # When the caller tells us which project + role the new/edited staff
+        # belongs to, narrow "Staff Head" candidates to whichever role that
+        # project's hierarchy config says this role reports to, instead of
+        # showing every staff member.
+        project_id = request.query_params.get("project_id")
+        staffusertype_id = request.query_params.get("staffusertype_id")
+        if project_id and staffusertype_id:
+            hierarchy_entry = ProjectStaffHierarchy.objects.filter(
+                project_id=project_id,
+                staffusertype_id=staffusertype_id,
+                is_deleted=False,
+            ).first()
+
+            if hierarchy_entry and hierarchy_entry.reports_to_staffusertype_id_id:
+                queryset = queryset.filter(
+                    project_id=project_id,
+                    staffusertype_id=hierarchy_entry.reports_to_staffusertype_id_id,
+                )
+            elif hierarchy_entry:
+                # Top of the configured chain (e.g. Company Admin) — no head.
+                queryset = queryset.none()
 
         data = [
             {

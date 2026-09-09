@@ -135,3 +135,58 @@ def test_staff_access_configuration_permission_matches_hyphenated_screen_name():
         "staffaccessconfiguration",
         "staff-access-configuration",
     ) == ["view", "add", "edit", "delete"]
+
+
+def test_permission_resource_for_request_hook_gets_raw_wsgi_request():
+    """`process_view` calls a viewset's `permission_resource_for_request`
+    hook with the raw `WSGIRequest`, before DRF wraps it into its own
+    `Request` — so a hook reading query params must use `request.GET`, not
+    `request.query_params` (that attribute doesn't exist yet at this point).
+
+    `TripStopsViewSet` used `.query_params` and 500'd on every single call to
+    `/api/v1/operator-mobile/trip-stops/` as a result — this pins the fix and
+    guards the contract for the next resolver hook written against it.
+    """
+    from django.test import RequestFactory
+
+    from app.middleware.module_permission_middleware import (
+        _permission_resource_for_request,
+    )
+    from app.viewsets.operator_mobile.trip_stops_viewset import (
+        TripStopsViewSet,
+    )
+
+    factory = RequestFactory()
+
+    household_request = factory.get(
+        "/api/v1/operator-mobile/trip-stops/",
+        {"assignment_id": "TRIP-1", "type": "household", "page": "2"},
+    )
+    assert not hasattr(household_request, "query_params")
+    assert (
+        _permission_resource_for_request(
+            TripStopsViewSet, household_request, "DailyTripCollectionPoint"
+        )
+        == "DailyTripHouseholdCollection"
+    )
+
+    bin_request = factory.get(
+        "/api/v1/operator-mobile/trip-stops/",
+        {"assignment_id": "TRIP-1", "type": "bin"},
+    )
+    assert (
+        _permission_resource_for_request(
+            TripStopsViewSet, bin_request, "DailyTripCollectionPoint"
+        )
+        == "DailyTripCollectionPoint"
+    )
+
+    no_type_request = factory.get(
+        "/api/v1/operator-mobile/trip-stops/", {"assignment_id": "TRIP-1"}
+    )
+    assert (
+        _permission_resource_for_request(
+            TripStopsViewSet, no_type_request, "DailyTripCollectionPoint"
+        )
+        == "DailyTripCollectionPoint"
+    )

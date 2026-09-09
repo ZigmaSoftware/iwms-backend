@@ -44,12 +44,15 @@ def generate_subcategory_id():
     return f"CPTSUB-{generate_unique_id()}"
 
 
-def generate_team_id():
-    return f"CPTTEAM-{generate_unique_id()}"
-
-
 def generate_sla_rule_id():
     return f"CPTSLA-{generate_unique_id()}"
+
+
+def generate_department_member_id():
+    # Kept only because migration 0003 references it as a field default
+    # callable; ComplaintDepartmentMember itself was removed in migration
+    # 0006 (hierarchy-based ticket assignment replaced department routing).
+    return f"CPTDM-{generate_unique_id()}"
 
 
 class ComplaintSource(BaseMaster):
@@ -170,92 +173,13 @@ class ComplaintModule(BaseMaster):
         return self.module_name
 
 
-class ComplaintTeam(BaseMaster):
-    """Teams that complaint tickets are routed/assigned to.
-
-    The one company/project-scoped table in this module. Every other master
-    here is global configuration, but a team points at company-scoped data
-    (`Department`, `StaffcreationOfficeDetails`), so each company owns its own
-    crews and escalation chain — which is why it stays under the CORE MODULES
-    "complaint-ticket" module rather than moving to the superadmin-only
-    "complaint-masters" one.
-
-    `team_code` is unique per company/project rather than globally: two
-    companies both having a "SANITATION" team is normal, and a global unique
-    would make the second one impossible to create.
-    """
-
-    unique_id = models.CharField(
-        max_length=30,
-        primary_key=True,
-        default=generate_team_id,
-        editable=False,
-    )
-
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_teams",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_teams",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
-
-    team_code = models.CharField(max_length=80)
-    team_name = models.CharField(max_length=150)
-    department = models.ForeignKey(
-        Department,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_teams",
-    )
-    lead_staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="led_complaint_teams",
-    )
-    escalates_to = models.ForeignKey(
-        "self",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="escalation_sources",
-    )
-    escalation_level = models.IntegerField(default=1)
-    is_field_team = models.BooleanField(default=False)
-
-    class Meta:
-        ordering = ["team_code"]
-        verbose_name = "Complaint Team"
-        verbose_name_plural = "Complaint Teams"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["company_id", "project_id", "team_code"],
-                name="unique_complaint_team_code_per_project",
-            )
-        ]
-
-    def __str__(self):
-        return self.team_name
-
-
 class ComplaintCategory(BaseMaster):
     """Top-level complaint categories (Missed Pickup, Change Address, ...).
 
     Scoped to a company/project: the categories a citizen is offered, their
-    default priority and the team they route to are all operational choices
-    that differ per project, so one project's edit must not change another's.
+    default priority and the department they route to are all operational
+    choices that differ per project, so one project's edit must not change
+    another's.
     """
 
     unique_id = models.CharField(
@@ -300,12 +224,12 @@ class ComplaintCategory(BaseMaster):
         blank=True,
         related_name="default_for_categories",
     )
-    default_team = models.ForeignKey(
-        ComplaintTeam,
+    default_department = models.ForeignKey(
+        Department,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="default_for_categories",
+        related_name="default_for_complaint_categories",
     )
 
     requires_location = models.BooleanField(default=True)
@@ -452,16 +376,10 @@ class ComplaintSlaRule(BaseMaster):
     )
 
     assign_within_minutes = models.IntegerField(null=True, blank=True)
-    resolve_within_minutes = models.IntegerField(null=True, blank=True)
     working_hours_only = models.BooleanField(default=False)
+    # DEPRECATED: superseded by ComplaintSlaEscalationLevel, which gives each
+    # hierarchy hop its own window instead of one fixed value for all of them.
     escalation_after_minutes = models.IntegerField(null=True, blank=True)
-    escalation_team = models.ForeignKey(
-        ComplaintTeam,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="escalation_sla_rules",
-    )
 
     class Meta:
         ordering = ["unique_id"]
@@ -477,3 +395,58 @@ class ComplaintSlaRule(BaseMaster):
 
     def __str__(self):
         return f"SLA {self.category_id} / {self.priority_id}"
+
+
+def generate_sla_escalation_level_id():
+    return f"CPTSLAL-{generate_unique_id()}"
+
+
+class ComplaintSlaEscalationLevel(BaseMaster):
+    """Resolution window for one hop of a project's staff hierarchy.
+
+    `level` matches `ProjectStaffHierarchy.level` for the ticket's project.
+    Only `is_enabled` rows participate in escalation: a ticket is first
+    assigned to the lowest-numbered enabled level's staff, and on breach hops
+    to the next enabled level above it — disabled levels (e.g. Driver,
+    Operator) are skipped entirely, both as an entry point and as a hop
+    target. Kept as its own table (not fixed l1/l2/l3 columns) because
+    hierarchy depth is configured per project and can vary.
+    """
+
+    unique_id = models.CharField(
+        max_length=30,
+        primary_key=True,
+        default=generate_sla_escalation_level_id,
+        editable=False,
+    )
+
+    sla_rule = models.ForeignKey(
+        ComplaintSlaRule,
+        on_delete=models.CASCADE,
+        related_name="escalation_levels",
+    )
+    level = models.PositiveIntegerField(
+        help_text="Hierarchy level this window applies to (matches ProjectStaffHierarchy.level).",
+    )
+    is_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether this hierarchy level participates in escalation for this SLA rule.",
+    )
+    resolve_within_minutes = models.IntegerField(
+        help_text="Minutes this level has to resolve the ticket before it escalates further.",
+    )
+
+    class Meta:
+        ordering = ["sla_rule", "level"]
+        verbose_name = "Complaint SLA Escalation Level"
+        verbose_name_plural = "Complaint SLA Escalation Levels"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sla_rule", "level"],
+                condition=models.Q(is_deleted=False),
+                name="unique_sla_escalation_level_per_rule",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.sla_rule_id} L{self.level}: {self.resolve_within_minutes}m"

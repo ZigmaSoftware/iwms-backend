@@ -16,7 +16,6 @@ from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.customer_qr import generate_customer_qr_content
 from app.utils.scoped_display_id import lock_tenant_scope, next_scoped_display_id
-from app.utils.app_feature_grants import APP_MODULE_CHOICES
 
 
 def generate_staff_unique_id():
@@ -191,18 +190,6 @@ class StaffcreationOfficeDetails(BaseMaster):
         related_name="staff_users"
     )
 
-    # Which mobile app this staff member signs in to. Set explicitly here
-    # rather than guessed from the role name, so an unrelated web permission
-    # can never add a surface the person has no screens for.
-    app_module = models.CharField(
-        max_length=20,
-        choices=APP_MODULE_CHOICES,
-        null=True,
-        blank=True,
-        db_column="app_module",
-        help_text="Mobile app this user lands in. Leave blank for web-only staff.",
-    )
-
     contractorusertype_id = models.ForeignKey(
         ContractorUserType,
         on_delete=models.SET_NULL,
@@ -314,6 +301,24 @@ class StaffcreationOfficeDetails(BaseMaster):
     def save(self, *args, **kwargs):
         is_new = self._state.adding
 
+        if not is_new and self.staff_unique_id and self.staff_id:
+            previous_scope = (
+                type(self)
+                .objects.filter(staff_unique_id=self.staff_unique_id)
+                .values("company_id", "project_id")
+                .first()
+            )
+            if previous_scope and (
+                previous_scope["company_id"] != self.company_id_id
+                or previous_scope["project_id"] != self.project_id_id
+            ):
+                self.staff_id = ""
+                update_fields = kwargs.get("update_fields")
+                if update_fields is not None:
+                    update_fields = set(update_fields)
+                    update_fields.add("staff_id")
+                    kwargs["update_fields"] = list(update_fields)
+
         if not self.emp_id:
             self._ensure_emp_id()
             update_fields = kwargs.get("update_fields")
@@ -359,6 +364,26 @@ class StaffcreationOfficeDetails(BaseMaster):
         Required by Django REST Framework's permission system.
         """
         return True
+
+    @property
+    def app_module(self):
+        """Surface key of the ONE mobile app this staff member signs into.
+
+        Read-only, and resolved from the staff member's active
+        `StaffAccessConfiguration` — the single place the app is stored. It
+        used to be a column here as well, which let "which app opens after
+        sign-in" (this field) and "which apps may they sign in to" (the
+        access configuration) disagree, stranding the user on a shell with
+        no tabs. None means no mobile access, and the login gate refuses a
+        mobile sign-in for that.
+        """
+        config = self.access_configuration.filter(
+            is_active=True, is_deleted=False,
+        ).first()
+        if not config or not config.app_module_id:
+            return None
+        module = config.app_module
+        return module.surface_key if module and module.is_active and not module.is_deleted else None
 
 
 class StaffPersonalDetails(models.Model):

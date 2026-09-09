@@ -97,9 +97,14 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
     staffusertype_name = serializers.CharField(source="staff_id.staffusertype_id.name", read_only=True, default=None)
     company_name = serializers.CharField(source="company_id.name", read_only=True)
 
-    # Apps this staff member may sign into. Ticking a module is what makes
-    # the mobile login succeed at all; what they can do inside comes from the
-    # screen permissions below, which are the same rows that govern web.
+    # The one app this staff member signs into. Selecting a module is what
+    # makes the mobile login succeed at all; what they can do inside comes
+    # from the screen permissions below, which are the same rows that govern
+    # web. `app_module_ids` is still accepted (and must hold at most one id)
+    # so an older web build's payload does not start failing mid-rollout.
+    app_module_id = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, write_only=True
+    )
     app_module_ids = serializers.ListField(
         child=serializers.CharField(), required=False, write_only=True
     )
@@ -112,7 +117,7 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         model = StaffAccessConfiguration
         exclude = (
             "projects", "states", "districts", "cities", "zones",
-            "panchayats", "wards", "app_modules",
+            "panchayats", "wards", "app_module",
         )
 
     def to_representation(self, instance):
@@ -121,10 +126,12 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         data["staff_unique_id"] = instance.staff_id_id
         data["company_id"] = instance.company_id_id
 
-        modules = instance.app_modules.filter(is_deleted=False)
-        data["app_module_ids"] = [module.unique_id for module in modules]
-        data["app_module_keys"] = [module.surface_key for module in modules]
-        data["app_module_labels"] = [module.label for module in modules]
+        module = instance.app_module if instance.app_module_id else None
+        if module and module.is_deleted:
+            module = None
+        data["app_module_id"] = module.unique_id if module else None
+        data["app_module_key"] = module.surface_key if module else None
+        data["app_module_label"] = module.label if module else None
 
         data["project_ids"] = list(instance.projects.values_list("unique_id", flat=True))
         data["project_names"] = list(instance.projects.values_list("name", flat=True))
@@ -395,38 +402,66 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
                 )
             })
 
-        app_module_ids = data.get("app_module_ids")
-        if app_module_ids is None and isinstance(self.initial_data, dict):
-            app_module_ids = self.initial_data.get("app_module_ids")
-        app_module_ids = list(dict.fromkeys(app_module_ids or []))
-        app_modules = list(
-            AppModule.objects.filter(
-                unique_id__in=app_module_ids,
-                is_active=True,
-                is_deleted=False,
-            )
-        )
-        found_app_module_ids = {module.unique_id for module in app_modules}
-        missing_app_module_ids = [
-            module_id
-            for module_id in app_module_ids
-            if module_id not in found_app_module_ids
-        ]
-        if missing_app_module_ids:
-            raise serializers.ValidationError({
-                "app_module_ids": (
-                    "Invalid app module(s): "
-                    f"{', '.join(missing_app_module_ids)}"
-                )
-            })
+        data["resolved_app_module"] = self._resolve_app_module(data)
 
         data["resolved_staff"] = staff
         data["resolved_company"] = company
         data["resolved_projects"] = projects
         data["resolved_locations"] = resolved_locations
         data["resolved_permissions"] = normalized_permissions
-        data["resolved_app_modules"] = app_modules
         return data
+
+    def _app_module_field_sent(self):
+        """Whether the caller addressed the app at all in this payload.
+
+        Both the current `app_module_id` and the older `app_module_ids` list
+        count, so a web build mid-rollout keeps working. Omitting both leaves
+        the existing selection alone, so a partial update cannot silently
+        revoke someone's app access.
+        """
+        source = self.initial_data if isinstance(self.initial_data, dict) else {}
+        return "app_module_id" in source or "app_module_ids" in source
+
+    def _resolve_app_module(self, data):
+        """The single AppModule this configuration grants, or None.
+
+        A person belongs to one app, so `app_module_ids` (the legacy list) is
+        rejected outright when it carries more than one id rather than
+        silently keeping the first — an admin who ticked two apps needs to be
+        told which one actually took effect.
+        """
+        source = self.initial_data if isinstance(self.initial_data, dict) else {}
+
+        module_id = data.get("app_module_id")
+        if module_id is None:
+            module_id = source.get("app_module_id")
+
+        if not module_id:
+            legacy_ids = data.get("app_module_ids")
+            if legacy_ids is None:
+                legacy_ids = source.get("app_module_ids")
+            legacy_ids = list(dict.fromkeys(legacy_ids or []))
+            if len(legacy_ids) > 1:
+                raise serializers.ValidationError({
+                    "app_module_id": (
+                        "A staff member can belong to only one mobile app. "
+                        f"Received {len(legacy_ids)}: {', '.join(legacy_ids)}"
+                    )
+                })
+            module_id = legacy_ids[0] if legacy_ids else None
+
+        module_id = (module_id or "").strip()
+        if not module_id:
+            return None
+
+        module = AppModule.objects.filter(
+            unique_id=module_id, is_active=True, is_deleted=False,
+        ).first()
+        if not module:
+            raise serializers.ValidationError({
+                "app_module_id": f"Invalid app module: {module_id}"
+            })
+        return module
 
     @transaction.atomic
     def create(self, validated_data):
@@ -440,9 +475,6 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
             defaults={
                 "company_id": validated_data["resolved_company"],
                 "description": validated_data.get("description", ""),
-                "enforce_strict_permissions": validated_data.get(
-                    "enforce_strict_permissions", False
-                ),
                 "is_deleted": False,
                 "is_active": True,
             },
@@ -450,7 +482,7 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         instance.projects.set(validated_data["resolved_projects"])
         for accessor, instances in validated_data["resolved_locations"].items():
             getattr(instance, accessor).set(instances)
-        self._sync_app_modules(instance, validated_data)
+        self._sync_app_module(instance, validated_data)
         self._sync_permissions(instance, validated_data["resolved_permissions"])
         return instance
 
@@ -465,29 +497,26 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         instance.staff_id = staff
         instance.company_id = validated_data["resolved_company"]
         instance.description = validated_data.get("description", instance.description)
-        if "enforce_strict_permissions" in validated_data:
-            instance.enforce_strict_permissions = validated_data["enforce_strict_permissions"]
         instance.save()
 
         instance.projects.set(validated_data["resolved_projects"])
         for accessor, instances in validated_data["resolved_locations"].items():
             getattr(instance, accessor).set(instances)
 
-        self._sync_app_modules(instance, validated_data)
+        self._sync_app_module(instance, validated_data)
 
         if "permissions" in self.initial_data:
             self._sync_permissions(instance, validated_data["resolved_permissions"])
         return instance
 
-    def _sync_app_modules(self, instance, validated_data):
-        """Replace the ticked app modules, when the caller sent them.
-
-        Omitting the field leaves the existing ticks alone, so a partial
-        update cannot silently revoke someone's app access.
-        """
-        if "app_module_ids" not in self.initial_data:
+    def _sync_app_module(self, instance, validated_data):
+        """Set the selected app, when the caller addressed it in this payload."""
+        if not self._app_module_field_sent():
             return
-        instance.app_modules.set(validated_data.get("resolved_app_modules", []))
+        module = validated_data.get("resolved_app_module")
+        if instance.app_module_id != (module.unique_id if module else None):
+            instance.app_module = module
+            instance.save(update_fields=["app_module"])
 
     def _sync_permissions(self, instance, permissions):
         existing = {

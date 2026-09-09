@@ -308,6 +308,10 @@ class PermissionSeeder(BaseSeeder):
         # 3. SCREEN STRUCTURE (MATCHES ROUTER GROUPS)
         # --------------------------------------------------
         screen_structure = {
+            "superadmin-masters": [
+                "company",
+                "project",
+            ],
             "common-masters": [
                 "continents",
                 "countries",
@@ -378,7 +382,7 @@ class PermissionSeeder(BaseSeeder):
             # code-keyed vocabularies the routing and SLA resolvers depend on,
             # so they stay seeder-owned with no UI; routing rules are an
             # API-only override now that routing falls back to the category's
-            # default_team.
+            # default_department.
             "complaint-masters": [
                 "types",
                 "categories",
@@ -392,7 +396,9 @@ class PermissionSeeder(BaseSeeder):
             "complaint-ticket": [
                 # renamed from the legacy "grivences" screen group
                 "tickets",
-                "teams",
+                "department-members",
+                "supervisor-dashboard",
+                "my-tasks",
                 "feedback",
                 "reopen-history",
                 "notifications",
@@ -426,7 +432,7 @@ class PermissionSeeder(BaseSeeder):
                 "retrip-requests",
                 # Registered in base_urls.py and called by every mobile
                 # surface, but no UserScreen existed — so it could not be
-                # granted from web at all, only through the role baseline.
+                # granted from web at all.
                 "staff-notifications",
             ],
             "schedule-masters": [
@@ -468,6 +474,7 @@ class PermissionSeeder(BaseSeeder):
         # MainScreenType provides the parent group shown in screen management.
         screen_groups = {
             "super-admin": (
+                "superadmin-masters",
                 "screen-managements",
                 "role-assigns",
                 "staff-creations",

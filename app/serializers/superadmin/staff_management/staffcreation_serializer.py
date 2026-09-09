@@ -7,6 +7,7 @@ from app.models.staff_creations.department import Department
 from app.models.staff_creations.designation import Designation
 from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.utils.name_or_id_field import NameOrUniqueIdField
 
 from app.models.staff_creations.staffcreation import Staffcreation, StaffPersonalDetails
 
@@ -27,7 +28,8 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     # --------------------------------------------------
     unique_id = serializers.CharField(source="staff_unique_id",read_only=True)
     emp_id = serializers.CharField(read_only=True)
-    staffusertype_id = serializers.PrimaryKeyRelatedField(
+    staffusertype_id = NameOrUniqueIdField(
+    name_field="name",
     queryset=StaffUserType.objects.all(),
     required=False,
     allow_null=True
@@ -43,7 +45,8 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     read_only=True
 )
 
-    contractorusertype_id = serializers.PrimaryKeyRelatedField(
+    contractorusertype_id = NameOrUniqueIdField(
+        name_field="name",
         queryset=ContractorUserType.objects.all(),
         required=False,
         allow_null=True,
@@ -52,17 +55,21 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         source="contractorusertype_id.name",
         read_only=True,
     )
-    department_id = serializers.PrimaryKeyRelatedField(
+    department_id = NameOrUniqueIdField(
+        name_field="department_name",
         queryset=Department.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
-    designation_id = serializers.PrimaryKeyRelatedField(
+    designation_id = NameOrUniqueIdField(
+        name_field="designation_name",
         queryset=Designation.objects.filter(is_deleted=False),
+        scope_fields=["department_id"],
         required=False,
         allow_null=True,
     )
-    project_id = serializers.PrimaryKeyRelatedField(
+    project_id = NameOrUniqueIdField(
+        name_field="name",
         queryset=Project.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
@@ -234,8 +241,12 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "emp_id",
             "username",
             "password",
-            # Which mobile app this staff member lands in. Explicit rather
-            # than guessed from the role name (see app_feature_grants).
+            # Which mobile app this staff member lands in. Read-only here:
+            # the app is selected once, on the Staff Access Configuration,
+            # and this reads back through it (see the `app_module` property
+            # on StaffcreationOfficeDetails). Keeping a writable copy on the
+            # staff record let the two disagree and strand the user in an
+            # app they had no screens for.
             "app_module",
             "qr_code",
 
@@ -300,6 +311,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         read_only_fields = [
             "unique_id",
             "staff_id",
+            "app_module",
             "qr_code",
             "approval_status",
             "approved_by",
