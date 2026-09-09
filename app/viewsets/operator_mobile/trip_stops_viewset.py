@@ -62,7 +62,11 @@ class TripStopsViewSet(viewsets.ViewSet):
 
     @staticmethod
     def permission_resource_for_request(request, default_resource):
-        stop_type = (request.query_params.get("type") or "").strip().lower()
+        # Called from ModulePermissionMiddleware.process_view, which runs
+        # before DRF wraps the request — `request` here is the raw
+        # WSGIRequest, which has `.GET`, not `.query_params` (that only
+        # exists once DRF's `Request` wrapper is built for `list()` below).
+        stop_type = (request.GET.get("type") or "").strip().lower()
         if stop_type == "household":
             return "DailyTripHouseholdCollection"
         return default_resource

@@ -432,7 +432,7 @@ class PermissionSeeder(BaseSeeder):
                 "retrip-requests",
                 # Registered in base_urls.py and called by every mobile
                 # surface, but no UserScreen existed — so it could not be
-                # granted from web at all, only through the role baseline.
+                # granted from web at all.
                 "staff-notifications",
             ],
             "schedule-masters": [

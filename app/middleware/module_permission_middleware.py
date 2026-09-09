@@ -211,8 +211,8 @@ MODULE_RESOURCE_ALLOWLIST = {
         "BinCollectionEvent",
     },
     "attendance": {
-        # Attendance routes are mobile-facing, but in strict mode they must be
-        # granted from Staff Access Configuration like every other app screen.
+        # Attendance routes are mobile-facing, but they must still be granted
+        # from Staff Access Configuration like every other app screen.
         "AttendanceList",
         "StaffProfile",
         "Register",
@@ -390,6 +390,17 @@ def _route_resource_from_path(path, module):
 
 
 def _permission_resource_for_request(view_class, request, default_resource):
+    """Call a viewset's optional `permission_resource_for_request` hook.
+
+    `request` here is the raw Django `WSGIRequest` passed into
+    `process_view` — DRF hasn't wrapped it into its own `Request` yet (that
+    only exists inside the view, e.g. the `list()`/`create()` method this
+    same viewset defines). A hook that reads query params MUST use
+    `request.GET`, not `request.query_params` — that attribute doesn't
+    exist yet at this point and raises `AttributeError`, which surfaces as a
+    500 on every request to that endpoint (see trip_stops_viewset.py's
+    `permission_resource_for_request` for the fix once this bit).
+    """
     resolver = getattr(view_class, "permission_resource_for_request", None)
     if callable(resolver):
         return resolver(request, default_resource)
@@ -397,6 +408,8 @@ def _permission_resource_for_request(view_class, request, default_resource):
 
 
 def _permission_action_for_request(view_class, request, default_action):
+    """Same `request.GET`-not-`.query_params` contract as
+    `_permission_resource_for_request` above."""
     resolver = getattr(view_class, "permission_action_for_request", None)
     if callable(resolver):
         return resolver(request, default_action)
@@ -491,24 +504,23 @@ def _permission_filters_for_user(user):
     if not company_unique_id or not staff_unique_id:
         return None
 
-    # role_name is required so staff with no explicit StaffAccessConfiguration
-    # rows still resolve their role's baseline grants (see
-    # ROLE_DEFAULT_PERMISSIONS) — otherwise the login response would hand the
-    # app permissions that every subsequent request then 403s against.
+    # `permissions` — the only part of the payload this middleware reads —
+    # comes purely from the staff member's own StaffAccessConfiguration rows
+    # (see `permission_querysets`, which ignores everything else). There is no
+    # role baseline underneath any more, so role_name is passed only to keep
+    # this call shaped like the login one, and `app_module` is deliberately
+    # NOT passed: it is now a property that queries the access configuration,
+    # which would cost an extra query on every authenticated request to
+    # produce a value the resolver does not consult here.
     role_obj = (
         getattr(user, "staffusertype_id", None)
         or getattr(user, "contractorusertype_id", None)
     )
 
-    # app_module matters for the same reason role_name does: it selects the
-    # baseline the resolver falls back to. Omitting it here would let login
-    # hand the app a surface's permissions that every subsequent request then
-    # 403s against — the exact divergence this shared resolver exists to stop.
     return {
         "company_unique_id": company_unique_id,
         "staff_unique_id": staff_unique_id,
         "role_name": getattr(role_obj, "name", None),
-        "app_module": getattr(user, "app_module", None),
     }
 
 
@@ -521,8 +533,7 @@ def _resolve_permissions_for_request(request):
         "module-permissions:"
         f"{filters['staff_unique_id']}:"
         f"{filters['company_unique_id']}:"
-        f"{filters.get('role_name') or '-'}:"
-        f"{filters.get('app_module') or '-'}"
+        f"{filters.get('role_name') or '-'}"
     )
 
     permissions = cache.get(cache_key)

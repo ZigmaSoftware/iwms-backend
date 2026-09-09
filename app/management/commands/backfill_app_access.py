@@ -115,6 +115,22 @@ class Command(BaseCommand):
                 staff_id_id=staff.staff_unique_id, is_deleted=False
             ).first()
             if existing and not options["overwrite"]:
+                # The app now lives only on the access configuration, so a
+                # config that has none leaves the person unable to sign in at
+                # all. Fill just that — their screen ticks are left exactly as
+                # the admin set them, which plain --overwrite would rewrite.
+                if not existing.app_module_id:
+                    module = self.modules.get(surface)
+                    if module:
+                        self.stdout.write(
+                            f"  {staff.username:24} {surface:11} app module only "
+                            "(screens already configured)"
+                        )
+                        if apply_changes:
+                            existing.app_module = module
+                            existing.save(update_fields=["app_module"])
+                        done += 1
+                        continue
                 self.stdout.write(f"  {staff.username:24} skipped (already configured)")
                 continue
 
@@ -135,8 +151,9 @@ class Command(BaseCommand):
                 config.projects.set([staff.project_id])
 
             module = self.modules.get(surface)
-            if module:
-                config.app_modules.add(module)
+            if module and not config.app_module_id:
+                config.app_module = module
+                config.save(update_fields=["app_module"])
 
             for order, (screen, action_names) in enumerate(screens, start=1):
                 for name in action_names:
@@ -151,9 +168,6 @@ class Command(BaseCommand):
                         defaults={"order_no": order, "is_active": True, "is_deleted": False},
                     )
 
-            if not staff.app_module:
-                staff.app_module = surface
-                staff.save(update_fields=["app_module", "updated_at"])
             done += 1
 
         return done
