@@ -187,6 +187,8 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     # same trip plan: 1 for the ordinary run, 2+ for a Re-Trip continuation
     # (and any further same-day re-trips of that continuation).
     trip_count = serializers.SerializerMethodField(read_only=True)
+    trip_log_summary = serializers.SerializerMethodField(read_only=True)
+    trip_events = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
         write_only=True,
@@ -232,6 +234,10 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "scheduled_time",
             "actual_start_time",
             "actual_end_time",
+            "actual_start_at",
+            "actual_end_at",
+            "trip_log_summary",
+            "trip_events",
             "total_trip_time_seconds",
             "trip_count",
             "status",
@@ -246,12 +252,57 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "unique_id",
             "actual_start_time",
             "actual_end_time",
+            "actual_start_at",
+            "actual_end_at",
             "approval_status",
             "breakdown_info",
             "retrip_info",
             "created_at",
             "updated_at",
         ]
+
+    def get_trip_events(self, obj):
+        events = []
+        for report in obj.delay_reports.all():
+            if report.is_deleted:
+                continue
+            events.append({"label": "Delay: " + report.get_delay_reason_display(),
+                           "detail": report.delay_remarks, "at": report.created_at,
+                           "status": report.status})
+        for request in obj.retrip_requests.all():
+            if request.is_deleted:
+                continue
+            events.append({"label": "Re-Trip requested", "detail": request.reason,
+                           "at": request.created_at, "status": request.status,
+                           "actor": getattr(request.requested_by, "employee_name", None)})
+            if request.reviewed_at:
+                events.append({"label": "Re-Trip " + request.status.lower(),
+                               "detail": request.review_remarks, "at": request.reviewed_at,
+                               "actor": getattr(request.reviewed_by, "employee_name", None),
+                               "related_trip_id": request.new_assignment_id})
+        for source in obj.retrip_source_requests.all():
+            if not source.is_deleted:
+                events.append({"label": "Continuation of " + str(source.assignment_id),
+                               "detail": source.review_remarks, "at": source.reviewed_at,
+                               "related_trip_id": source.assignment_id})
+        return sorted(events, key=lambda event: str(event.get("at") or ""))
+
+    def get_trip_log_summary(self, obj):
+        log = getattr(obj, "daily_trip_log", None)
+        if not log or log.is_deleted:
+            return None
+        return {
+            "unique_id": log.unique_id,
+            "status": log.log_status,
+            "verified_at": log.verified_at,
+            "verified_by": str(log.verified_by) if log.verified_by else None,
+            "bin_weight_kg": log.collected_weight_kg,
+            "customer_weight_kg": log.household_collected_weight_kg,
+            "driver": getattr(log.driver_id, "employee_name", None),
+            "operator": getattr(log.operator_id, "employee_name", None),
+            "vehicle_no": getattr(log.vehicle_id, "vehicle_no", None),
+            "remarks": log.remarks,
+        }
 
     def get_total_trip_time_seconds(self, obj):
         duration = obj.total_trip_time

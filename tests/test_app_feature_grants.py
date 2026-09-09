@@ -229,8 +229,16 @@ def test_attendance_permission_resources_resolve_to_seeded_screen_key():
 
 
 def test_operator_mobile_household_stops_use_household_collection_permission():
+    # `_permission_resource_for_request` is called from
+    # `ModulePermissionMiddleware.process_view`, which runs before DRF wraps
+    # the request — the real object at that point is a plain `WSGIRequest`,
+    # which has `.GET`, not `.query_params` (that attribute only exists once
+    # DRF's own `Request` wrapper is built inside the view). This stub used to
+    # expose `query_params` instead, which meant it never would have caught
+    # `TripStopsViewSet.permission_resource_for_request` reading the wrong
+    # attribute and 500ing on every real request.
     class Request:
-        query_params = {"type": "household"}
+        GET = {"type": "household"}
 
     viewset = _registered_routes()[("operator-mobile", "trip-stops")]
     resource = _permission_resource_for_request(
@@ -242,8 +250,12 @@ def test_operator_mobile_household_stops_use_household_collection_permission():
 
 
 def test_operator_mobile_post_actions_match_the_real_write_permission():
+    # None of these three `permission_action_for_request` hooks read the
+    # request at all, so this stub's shape doesn't matter for them today —
+    # but see the WSGIRequest-vs-Request note on the household-stops test
+    # above before adding a hook here that does.
     class Request:
-        query_params = {}
+        GET = {}
 
     lifecycle = _registered_routes()[("operator-mobile", "trip-lifecycle")]
     validate_qr = _registered_routes()[("operator-mobile", "validate-bin-qr")]

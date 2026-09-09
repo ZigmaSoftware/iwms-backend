@@ -314,9 +314,11 @@ class LoginSerializer(serializers.Serializer):
             user_type="contractor" if contractor_usertype else "staff",
             app_module=getattr(staff_record, "app_module", None),
         )
-        # resolve_permission_payload already applies the role baseline as a
-        # floor (unless the staff member is in strict mode), so there is no
-        # second, divergent copy of that logic here any more.
+        # resolve_permission_payload is the single resolver — the same one the
+        # permission middleware authorizes against — so there is no second,
+        # divergent copy of this logic here. There is no role baseline under
+        # it any more either: a staff member's explicitly granted
+        # StaffAccessConfiguration rows are the whole of their access.
         permissions = permission_payload["permissions"]
 
         password_expired = _is_password_expired(getattr(staff_record, "password_crt_date", None))
