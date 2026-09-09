@@ -241,8 +241,12 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "emp_id",
             "username",
             "password",
-            # Which mobile app this staff member lands in. Explicit rather
-            # than guessed from the role name (see app_feature_grants).
+            # Which mobile app this staff member lands in. Read-only here:
+            # the app is selected once, on the Staff Access Configuration,
+            # and this reads back through it (see the `app_module` property
+            # on StaffcreationOfficeDetails). Keeping a writable copy on the
+            # staff record let the two disagree and strand the user in an
+            # app they had no screens for.
             "app_module",
             "qr_code",
 
@@ -307,6 +311,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         read_only_fields = [
             "unique_id",
             "staff_id",
+            "app_module",
             "qr_code",
             "approval_status",
             "approved_by",

@@ -182,11 +182,12 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     @action(detail=False, methods=["get"], url_path="app-modules")
     def app_modules(self, request):
-        """The App Module master, for the tick list on this form.
+        """The App Module master, for the app picker on this form.
 
-        Ticking a module decides whether the person may sign into that app at
-        all. What they can do inside comes from the ordinary screen
-        permissions, which are the same rows that govern web.
+        A staff member belongs to exactly one app, so the form selects a
+        single module here; selecting one decides whether the person may sign
+        into that app at all. What they can do inside comes from the ordinary
+        screen permissions, which are the same rows that govern web.
         """
         modules = AppModule.objects.filter(is_active=True, is_deleted=False)
         return Response([

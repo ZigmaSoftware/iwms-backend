@@ -95,6 +95,9 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         search = params.get("search") or params.get("q")
         project = params.get("project_id")
 
+        if str(params.get("mine", "")).lower() in {"true", "1", "yes"}:
+            qs = qs.filter(trip_assignment_id__trip_plan_id__supervisor_id=self.request.user)
+
         if trip_date:
             qs = qs.filter(trip_assignment_id__trip_date=trip_date)
         if trip_assignment:
