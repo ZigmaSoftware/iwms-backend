@@ -505,9 +505,23 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 else:
                     buckets["mixed_waste"] += float(weight or 0)
 
+            # A household visit is usually one photo (one waste-type row),
+            # but the sheet lets the driver add several rows, each with its
+            # own capture — WasteCollection only has room for one, so take
+            # the earliest non-blank shot as representative proof for the
+            # eye-button popup, rather than losing the photo entirely.
+            proof_image = (
+                sub_rows.exclude(image__isnull=True)
+                .exclude(image="")
+                .order_by("date_time")
+                .values_list("image", flat=True)
+                .first()
+            )
+
             WasteCollection.objects.create(
                 customer=customer,
                 trip_assignment_id=assignment,
+                image=proof_image,
                 # Inherited from the assignment, not left blank: WasteCollection
                 # is a CompanyScopedViewSet model, and any company-scoped list
                 # (e.g. the supervisor app's `wastecollections/?mine=true`)
