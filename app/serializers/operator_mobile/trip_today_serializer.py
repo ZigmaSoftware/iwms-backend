@@ -30,6 +30,12 @@ class _PanchayatBriefSerializer(serializers.Serializer):
 class _WardBriefSerializer(serializers.Serializer):
     unique_id = serializers.CharField()
     name = serializers.CharField(source="ward_name")
+    # A ward belongs to either a Zone or a Panchayat (see Ward.clean()), so
+    # this is None for panchayat-scoped wards.
+    zone_name = serializers.SerializerMethodField()
+
+    def get_zone_name(self, obj):
+        return getattr(obj.zone_id, "zone_name", None)
 
 
 class _WasteTypeBriefSerializer(serializers.Serializer):
@@ -127,35 +133,52 @@ class HouseholdCollectionSerializer(serializers.Serializer):
     # driver can see "Wet Waste 3.5 kg / Dry Waste 1.2 kg" instead of only
     # the single combined `collected_weight_kg` total.
     waste_breakdown = serializers.SerializerMethodField()
+    # The proof photo the driver captured for this collection (best-effort —
+    # see WasteCollection.image / _sync_to_household_collection). Shown as an
+    # expandable image alongside the weight breakdown in that same popup.
+    collection_image_url = serializers.SerializerMethodField()
 
     def get_customer(self, obj):
         if not obj.customer_id_id:
             return None
         return _HouseholdCustomerBriefSerializer(obj.customer_id).data
 
-    def get_waste_breakdown(self, obj):
-        if not obj.is_collected or not obj.trip_assignment_id_id or not obj.customer_id_id:
-            return []
+    def _latest_waste_collection(self, obj):
+        # Both get_waste_breakdown and get_collection_image_url need this
+        # same row; memoize on the instance for the life of this
+        # serialization pass so the household tile doesn't fire the query
+        # twice per stop.
+        if hasattr(obj, "_cached_waste_collection"):
+            return obj._cached_waste_collection
 
-        from app.models.customers.wastecollection import WasteCollection
+        record = None
+        if obj.is_collected and obj.trip_assignment_id_id and obj.customer_id_id:
+            from app.models.customers.wastecollection import WasteCollection
 
-        # A household can be re-collected (edit + re-finalize from the app),
-        # and WasteCollection rows are inserted fresh each time rather than
-        # updated in place — so there can be more than one row for this
-        # (customer, trip_assignment) pair. The latest one is what the
-        # driver's card actually reflects.
-        record = (
-            WasteCollection.objects
-            .filter(
-                trip_assignment_id_id=obj.trip_assignment_id_id,
-                customer_id=obj.customer_id_id,
-                is_deleted=False,
+            # A household can be re-collected (edit + re-finalize from the
+            # app), and WasteCollection rows are inserted fresh each time
+            # rather than updated in place — so there can be more than one
+            # row for this (customer, trip_assignment) pair. The latest one
+            # is what the driver's card actually reflects.
+            record = (
+                WasteCollection.objects
+                .filter(
+                    trip_assignment_id_id=obj.trip_assignment_id_id,
+                    customer_id=obj.customer_id_id,
+                    is_deleted=False,
+                )
+                # collection_time is auto_now_add — the closest thing this
+                # model has to a "row created at" timestamp. No `created_at`
+                # field here.
+                .order_by("-collection_date", "-collection_time")
+                .first()
             )
-            # collection_time is auto_now_add — the closest thing this model
-            # has to a "row created at" timestamp. No `created_at` field here.
-            .order_by("-collection_date", "-collection_time")
-            .first()
-        )
+
+        obj._cached_waste_collection = record
+        return record
+
+    def get_waste_breakdown(self, obj):
+        record = self._latest_waste_collection(obj)
         if record is None:
             return []
 
@@ -170,6 +193,25 @@ class HouseholdCollectionSerializer(serializers.Serializer):
             for name, weight in buckets
             if weight and weight > 0
         ]
+
+    def get_collection_image_url(self, obj):
+        record = self._latest_waste_collection(obj)
+        if record is None or not record.image:
+            return None
+
+        request = self.context.get("request")
+        if not request:
+            return None
+
+        relative_path = record.image.lstrip("/")
+        # Rows written before upload_image()'s "uploads/" typo was fixed
+        # still carry that stray prefix, which never matched where the file
+        # is actually saved (MEDIA_ROOT/waste_collection_images/, not
+        # MEDIA_ROOT/uploads/waste_collection_images/) — strip it so photos
+        # captured before the fix resolve too, not just new ones.
+        if relative_path.startswith("uploads/waste_collection_images/"):
+            relative_path = relative_path[len("uploads/") :]
+        return request.build_absolute_uri(settings.MEDIA_URL + relative_path)
 
 
 class _CrewMemberSerializer(serializers.Serializer):
@@ -293,7 +335,7 @@ class MyTripTodaySerializer(serializers.Serializer):
     def get_ward(self, obj):
         # An assignment can carry several wards; the trip header only needs
         # a single area label, so the first is authoritative here.
-        ward = obj.wards.first()
+        ward = obj.wards.select_related("zone_id").first()
         if not ward:
             return None
         return _WardBriefSerializer(ward).data
@@ -366,7 +408,9 @@ class MyTripTodaySerializer(serializers.Serializer):
             .select_related("customer_id", "customer_id__city")
             .order_by("sequence")[:STOPS_PAGE_SIZE]
         )
-        return HouseholdCollectionSerializer(children, many=True).data
+        return HouseholdCollectionSerializer(
+            children, many=True, context=self.context
+        ).data
 
     def get_crew(self, obj):
         template = obj.staff_template_id

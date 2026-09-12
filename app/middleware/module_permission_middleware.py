@@ -43,6 +43,11 @@ AUTH_ONLY_SUFFIXES = (
     "sub-category/",
     "register/",
     "recognize/",
+    # NOT "face-config/" — that endpoint is nested (`attendance/face-config/`)
+    # like register-fcm-token/ is, so a bare-concatenation entry here would
+    # never actually match it. It has its own dedicated `endswith` bypass
+    # right next to register-fcm-token/'s below; adding a dead entry here too
+    # would just be a second, misleading place to look for the real gate.
     "employee/",
     "staff-profile/",
     "waste/",
@@ -218,6 +223,12 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Register",
         "Recognize",
         "AttendanceRecords",
+        # NOT "FaceConfig" — that endpoint bypasses this whole check (see the
+        # `attendance/face-config/` block above, next to register-fcm-token).
+        # It has no UserScreen catalog row, so listing it here would look
+        # like it does something when it cannot: `allowed_actions` for an
+        # un-seeded resource is always empty, so every request would still
+        # 403 regardless of this set.
     },
     "schedule-masters": {
         # Legacy permission bucket retained for grants created before Schedule
@@ -591,6 +602,23 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         # this fix cannot change the (working, startswith-based) semantics of
         # any of that list's other entries.
         if request.path.endswith("register-fcm-token/"):
+            auth_error = _authenticate_request(request)
+            return auth_error
+
+        # Attendance face-config — which face engine is active and its
+        # capture rules. Carries nothing about any individual, and is server
+        # config metadata every authenticated staff member needs just to use
+        # attendance at all, regardless of role. Putting it behind the
+        # granular per-role permission catalog (as first tried) meant it
+        # could NEVER be granted at all: that catalog only recognises
+        # UserScreen rows that a seeder creates and an admin ticks in Staff
+        # Access Configuration, and no such row exists (there is nothing to
+        # tick — this isn't a business screen), so `allowed_actions` was
+        # permanently empty and every request 403'd regardless of what the
+        # staff member's role held. Bypassed the same way
+        # `register-fcm-token/` above is, for the same reason: some
+        # endpoints are "may I use this app" plumbing, not a screen to grant.
+        if request.path.endswith("attendance/face-config/"):
             auth_error = _authenticate_request(request)
             return auth_error
 

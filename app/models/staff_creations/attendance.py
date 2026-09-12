@@ -50,6 +50,22 @@ class Employee(models.Model):
     qr_code_path = models.CharField(max_length=255, null=True, blank=True)
     dob = models.DateField(null=True, blank=True)
     blood_group = models.CharField(max_length=10, null=True, blank=True)
+    # Face vector for the reference photo at image_path, written when
+    # attendance is running on a provider that compares embeddings
+    # (InsightFace) so a punch only has to process the incoming selfie.
+    # Stays null under CompreFace, which compares the two image files on its
+    # own server and has nothing to cache here. Because it is only a cache of
+    # `image_path`, it is cleared whenever that image is replaced and can
+    # always be rebuilt from it.
+    face_embedding = models.JSONField(
+        blank=True,
+        null=True,
+        editable=False,
+        help_text=(
+            "Cached face vector derived from image_path. Provider-specific; "
+            "cleared and recomputed when the reference image changes."
+        ),
+    )
 
     class Meta:
         indexes = [

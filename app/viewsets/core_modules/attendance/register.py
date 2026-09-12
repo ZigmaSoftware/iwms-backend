@@ -1,16 +1,36 @@
-from rest_framework.viewsets import ViewSet
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import AllowAny
-from rest_framework.parsers import MultiPartParser, FormParser
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
-from django.conf import settings
+"""Attendance face registration.
+
+Saves a staff member's reference selfie (as an `Employee` row — this
+project's holder of the attendance profile, distinct from `Staffcreation`)
+and, on providers that compare face vectors, the embedding derived from it.
+Which engine validates the photo is decided by `FACE_RECOGNITION_PROVIDER` in
+`.env` (see `app/services/face_recognition/__init__.py`); this viewset never
+names one.
+
+The HTTP contract is unchanged from the CompreFace-only version — same URL,
+same form fields, same response keys — so the mobile app works against either
+engine with no rebuild. One real behaviour change: registration now actually
+validates the photo (single clear face) before saving, which it never did
+before — every other project already applies this at register time, and
+accepting an unusable reference photo silently would only surface as
+"employee not registered" confusion at the first punch attempt.
+"""
+
+import os
 from datetime import datetime
+
+from django.conf import settings
 from dateutil import parser
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.viewsets import ViewSet
 
 from app.models.staff_creations.attendance import Employee
 from app.models.staff_creations.staffcreation import Staffcreation
+from app.services import face_recognition
 from app.utils.qr import generate_qr
 
 
@@ -24,6 +44,10 @@ class RegisterViewSet(ViewSet):
     parser_classes = [MultiPartParser, FormParser]
 
     @swagger_auto_schema(
+        operation_description=(
+            "Register a staff member's reference face for attendance. Validated "
+            "by whichever engine FACE_RECOGNITION_PROVIDER selects."
+        ),
         manual_parameters=[
             openapi.Parameter(
                 "emp_id", openapi.IN_FORM,
@@ -56,7 +80,8 @@ class RegisterViewSet(ViewSet):
                 type=openapi.TYPE_STRING,
                 required=False
             ),
-        ]
+        ],
+        consumes=["multipart/form-data"],
     )
     def create(self, request):
         emp_id = request.data.get("emp_id")
@@ -83,13 +108,13 @@ class RegisterViewSet(ViewSet):
             # Handle potential binary data in image_path and qr_code_path
             image_value = existing.image_path
             qr_value = existing.qr_code_path
-            
+
             # If the field contains binary data, convert to empty string
             if isinstance(image_value, (bytes, bytearray, memoryview)):
                 image_value = ""
             if isinstance(qr_value, (bytes, bytearray, memoryview)):
                 qr_value = ""
-            
+
             return Response({
                 "message": "Employee already registered",
                 "emp_id": emp_id,
@@ -118,6 +143,22 @@ class RegisterViewSet(ViewSet):
             return Response({"error": "Invalid dob"}, status=400)
 
         blood_group = _clean_text(request.data.get("blood_group"))
+
+        # Read once: the face provider needs the bytes and the file also has
+        # to be written to disk, and an UploadedFile stream can only be
+        # consumed once.
+        image_bytes = source_image.read()
+
+        provider = face_recognition.get_provider()
+        try:
+            reference = provider.validate_reference(image_bytes)
+        except face_recognition.FaceUnavailable as exc:
+            # The engine is down/misconfigured — not a bad photo. Answer 503 so
+            # the app can tell the user to retry rather than blame their face.
+            return Response({"error": str(exc)}, status=503)
+        except face_recognition.FaceError as exc:
+            return Response({"error": str(exc)}, status=400)
+
         # Ensure display ID exists
         if not staff.emp_id:
             staff._ensure_emp_id()
@@ -126,21 +167,16 @@ class RegisterViewSet(ViewSet):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         qr_filename = generate_qr(emp_id, name, timestamp)
 
-        # Save the uploaded image file
-        import os
+        # Only written once the photo has been accepted, so a rejected
+        # registration leaves no orphan file behind.
         emp_image_folder = os.path.join(settings.MEDIA_ROOT, "emp_image")
         os.makedirs(emp_image_folder, exist_ok=True)
-        
-        # Create a safe filename
+
         image_filename = f"{emp_id}_{timestamp}.jpg"
         image_path = os.path.join(emp_image_folder, image_filename)
-        
-        # Save the file
-        with open(image_path, "wb+") as f:
-            for chunk in source_image.chunks():
-                f.write(chunk)
-        
-        # Store relative path in database
+        with open(image_path, "wb") as f:
+            f.write(image_bytes)
+
         relative_image_path = f"emp_image/{image_filename}"
 
         emp = Employee.objects.create(
@@ -154,8 +190,9 @@ class RegisterViewSet(ViewSet):
             qr_code_path=qr_filename,
             dob=dob,
             blood_group=blood_group,
+            face_embedding=reference.embedding,
         )
-        
+
         return Response({
             "message": "Employee registered successfully",
             "emp_id": emp_id,
@@ -163,4 +200,5 @@ class RegisterViewSet(ViewSet):
             "department": emp.department,
             "image": relative_image_path,
             "qr": qr_filename,
+            "provider": provider.name,
         })
