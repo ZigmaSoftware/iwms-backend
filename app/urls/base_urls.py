@@ -162,6 +162,7 @@ from ..viewsets.waste_collection_bluetooth.waste_collection_main_viewset import 
 # Mobile
 from ..viewsets.core_modules.attendance.register import RegisterViewSet
 from ..viewsets.core_modules.attendance.recognize import RecognizeViewSet
+from ..viewsets.core_modules.attendance.face_config_viewset import FaceConfigViewSet
 from ..viewsets.core_modules.attendance.employee_viewset import EmployeeViewSet
 from ..viewsets.core_modules.attendance.staff_profile_viewset import StaffProfileViewSet
 from ..viewsets.core_modules.attendance.attendance_records_viewset import AttendanceRecordsViewSet
@@ -557,6 +558,14 @@ router.register_group(
     "recognize",
     RecognizeViewSet,
     basename="attendance-recognize",
+)
+# Lets the app read the active face provider + capture rules, so switching
+# FACE_RECOGNITION_PROVIDER in .env needs no mobile release.
+router.register_group(
+    "attendance",
+    "face-config",
+    FaceConfigViewSet,
+    basename="attendance-face-config",
 )
 router.register_group(
     "attendance",

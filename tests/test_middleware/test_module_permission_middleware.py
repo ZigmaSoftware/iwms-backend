@@ -190,3 +190,60 @@ def test_permission_resource_for_request_hook_gets_raw_wsgi_request():
         )
         == "DailyTripCollectionPoint"
     )
+
+
+def test_attendance_face_config_is_auth_only(monkeypatch):
+    """Regression test for a two-stage bug on this exact endpoint.
+
+    Attempt 1 added "face-config/" to AUTH_ONLY_SUFFIXES, which only matches
+    a BARE `/api/v1/face-config/` via string concatenation — never the nested
+    `attendance/face-config/` this project actually serves — so it silently
+    did nothing (the same class of bug the register-fcm-token comment above
+    already documents).
+
+    Attempt 2 added "FaceConfig" to MODULE_RESOURCE_ALLOWLIST["attendance"],
+    which passed the *resource* check but still 403'd every request: the
+    subsequent *action* check resolves `allowed_actions` from a staff
+    member's granted `StaffAccessConfigurationPermission` rows, which only
+    ever exist for a seeded `UserScreen` — and "face-config" was never seeded
+    as one (there is nothing for an admin to tick in Staff Access
+    Configuration, because this isn't a business screen). So
+    `allowed_actions` was permanently empty for every staff member
+    regardless of role, and the endpoint could never be granted at all.
+
+    The actual fix routes it through a dedicated `endswith` bypass, exactly
+    like `register-fcm-token/` above: authenticate, then skip the whole
+    module/resource/action pipeline. This asserts that happens — the mocked
+    `_authenticate_request` result is returned directly, proving neither the
+    resource allowlist nor the permission catalog is consulted at all.
+    """
+    import app.middleware.module_permission_middleware as middleware_module
+    from django.test import RequestFactory
+
+    sentinel = object()
+    monkeypatch.setattr(
+        middleware_module, "_authenticate_request", lambda request: sentinel
+    )
+
+    middleware = ModulePermissionMiddleware(lambda request: None)
+    request = RequestFactory().get("/api/v1/attendance/face-config/")
+
+    result = middleware.process_view(request, lambda request: None, (), {})
+    assert result is sentinel
+
+
+def test_face_config_is_not_in_the_attendance_permission_catalog():
+    """Companion to the bypass test above: "face-config"/"FaceConfig" must
+    NOT be re-added to the granular allowlist. Doing so would look like a
+    real fix but cannot work — see the long comment on the reason above —
+    and having two different mechanisms both claiming to authorize the same
+    endpoint is exactly what made the real gate hard to find the first time.
+    """
+    assert not _resource_is_allowed("attendance", "FaceConfig", "face-config")
+
+
+def test_register_and_recognize_remain_allowed():
+    """Guards against the fix above accidentally narrowing the existing
+    grants it was added alongside."""
+    assert _resource_is_allowed("attendance", "Register", "register")
+    assert _resource_is_allowed("attendance", "Recognize", "recognize")

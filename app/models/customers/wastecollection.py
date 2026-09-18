@@ -89,6 +89,14 @@ class WasteCollection(BaseMaster):
     sanitary_waste = models.FloatField(default=0.0)
     total_quantity = models.FloatField(default=0.0)
 
+    # Best-effort proof photo carried over from the legacy WasteCollectionSub
+    # row(s) this collection was bridged from (see
+    # WasteCollectionBluetoothViewSet._sync_to_household_collection) — a
+    # relative MEDIA path, same convention as WasteCollectionSub.image. Null
+    # when the collection wasn't made through that bridge, or none of its
+    # sub-rows carried a photo.
+    image = models.CharField(max_length=255, null=True, blank=True)
+
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,

@@ -41,7 +41,14 @@ def upload_image(image):
         for chunk in image.chunks():
             f.write(chunk)
 
-    return f"uploads/waste_collection_images/{filename}"
+    # NOT "uploads/waste_collection_images/..." — that stray "uploads/" never
+    # matched where the file is actually written (MEDIA_ROOT/
+    # waste_collection_images/, no "uploads" folder involved), so every path
+    # stored via this function built a 404 URL for anyone who later tried to
+    # serve it as MEDIA_URL + this string. Went unnoticed until the driver
+    # app's "eye" button popup started rendering this as an actual <img> —
+    # see WasteCollection.image / get_collection_image_url.
+    return f"waste_collection_images/{filename}"
 
 
 class WasteType(BaseMaster,models.Model):
