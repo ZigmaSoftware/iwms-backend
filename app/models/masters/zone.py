@@ -64,6 +64,18 @@ class Zone(BaseMaster):
     longitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
     geofencing_type = models.CharField(max_length=20, choices=GeoFencingType.choices, default=GeoFencingType.SQUARE)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)     
-    
-    
+    updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = (
+        "wards",
+        "bin",
+        "trip_plans",
+        "customer_creation",
+        "users_zone",
+        "userscreenpermissions",
+        "staff_zone",
+        "complaint_routing_rules",
+        "complaint_tickets",
+        "address_change_requests",
+    )
+

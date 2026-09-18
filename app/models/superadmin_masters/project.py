@@ -54,13 +54,36 @@ class Project(BaseMaster):
     attendance_api_url = models.URLField(max_length=500, blank=True, null=True)
     attendance_api_key = models.CharField(max_length=255, blank=True, null=True)
 
+    CASCADE_SOFT_DELETE = (
+        "district_set",
+        "plants",
+        "departments",
+        "designations",
+        "staff_office_details",
+        "staff_personal_details",
+        "staff_templates",
+        "staffusertype_set",
+        "contractorusertype_set",
+        "usertype_set",
+        "wastetype_set",
+        "mainscreentype_set",
+        "mainscreen_set",
+        "userscreen_set",
+        "userscreenaction_set",
+        "userscreen_column_permissions",
+        "user_set",
+        "maincategory_set",
+        "complaint_set",
+        "complaint_categories",
+        "complaint_subcategories",
+        "complaint_sla_rules",
+        "property_set",
+        "subproperty_set",
+        "staff_hierarchy_levels",
+    )
+
     class Meta:
         ordering = ["name"]
 
     def __str__(self):
         return f"{self.name} ({self.company_id.name})"
-
-    def delete(self, *args, **kwargs):
-        self.is_deleted = True
-        self.is_active = False
-        self.save(update_fields=["is_deleted", "is_active"]) 

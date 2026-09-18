@@ -28,13 +28,13 @@ from app.utils.pagination import LimitOffsetWithPage
 
 class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
     pagination_class = LimitOffsetWithPage
-    queryset = Staffcreation.objects.select_related(
+    queryset = Staffcreation.objects.filter(is_deleted=False).select_related(
         "personal_details",
         "department_id",
         "designation_id",
         "staffusertype_id",
         "contractorusertype_id",
-    ).all()
+    )
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     permission_resource = "StaffCreation"
@@ -70,7 +70,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        queryset = Staffcreation.objects.select_related(
+        queryset = Staffcreation.objects.filter(is_deleted=False).select_related(
             "personal_details",
             "department_id",
             "designation_id",
@@ -240,7 +240,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         # apply only the tenant (company/project) scoping directly here,
         # bypassing the generic list-filter backend chain entirely, and let
         # the hierarchy config below be the sole source of role filtering.
-        base_queryset = Staffcreation.objects.select_related(
+        base_queryset = Staffcreation.objects.filter(is_deleted=False).select_related(
             "department_id", "staffusertype_id", "contractorusertype_id"
         )
         queryset = self._scope_to_tenant(base_queryset).filter(active_status=True)

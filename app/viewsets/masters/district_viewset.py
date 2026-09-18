@@ -51,6 +51,3 @@ class DistrictViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScop
             queryset = queryset.filter(continent_id__unique_id=continent_uid)
 
         return self.filter_queryset_by_location_scope(queryset)
-
-    def perform_destroy(self, instance):
-        instance.delete()

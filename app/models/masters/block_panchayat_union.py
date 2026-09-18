@@ -58,5 +58,7 @@ class BlockPanchayatUnion(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    CASCADE_SOFT_DELETE = ("panchayats",)
+
     class Meta:
         ordering = ["block_name"]

@@ -145,8 +145,4 @@ class WasteCollection(BaseMaster):
             copy_flat_geo(self, self.customer)
         super().save(*args, **kwargs)
 
-    def delete(self, *args, **kwargs):
-        """Soft delete this record."""
-        self.is_deleted = True
-        self.is_active = False
-        self.save(update_fields=["is_deleted", "is_active"])
+    CASCADE_SOFT_DELETE = ("daily_trip_household_collections",)

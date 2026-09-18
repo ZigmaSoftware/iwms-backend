@@ -74,6 +74,23 @@ class Ward(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    CASCADE_SOFT_DELETE = (
+        "waste_collections",
+        "complaint_set",
+        "complaint_tickets",
+        "complaint_routing_rules",
+        "address_change_requests",
+        "bin",
+        "trip_plan_collection_points",
+        "daily_trip_collection_points",
+        "daily_trip_household_collections",
+        "bin_collection_events",
+        "customer_creation",
+        "users_ward",
+        "userscreenpermissions",
+        "staff_ward",
+    )
+
     def clean(self):
         has_zone = bool(self.zone_id_id or self.zone_id)
         has_panchayat = bool(self.panchayat_id_id or self.panchayat_id)

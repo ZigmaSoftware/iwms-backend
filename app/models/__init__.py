@@ -18,6 +18,7 @@ from .masters.district import District
 from .masters.city import City
 from .masters.zone import Zone
 from .masters.ward import Ward
+from .masters.plant import Plant
 from .staff_creations.department import Department
 from .staff_creations.designation import Designation
 from .masters.panchayat_leader_login import PanchayatLeaderLogin

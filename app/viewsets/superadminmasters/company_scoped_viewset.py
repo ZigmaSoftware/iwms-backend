@@ -486,13 +486,9 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         account = self._get_account()
 
         if hasattr(instance, "is_deleted"):
-
-            instance.is_deleted = True
-
-            if hasattr(instance, "updated_by"):
-                instance.updated_by = account
-
-            instance.save()
-
+            # Routes through the model's own delete() so BaseMaster's
+            # cascading soft-delete (and any per-model override) always
+            # runs, instead of hand-flipping the flag here.
+            instance.delete(updated_by=account)
         else:
             instance.delete()
