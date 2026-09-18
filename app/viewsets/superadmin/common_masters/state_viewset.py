@@ -41,6 +41,3 @@ class StateViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.Model
             )
 
         return self.filter_queryset_by_location_scope(queryset)
-
-    def perform_destroy(self, instance):
-        instance.delete()

@@ -55,6 +55,17 @@ class ComplaintTicket(BaseMaster):
     """Main complaint ticket. Citizen = CustomerCreation; geo follows this
     project's Zone/Ward-under-Company/Project model."""
 
+    # status_history/assignment_history/escalation_history/reopen_history/
+    # comments/notifications are kept as a permanent record even after the
+    # ticket itself is soft-deleted, so they are deliberately excluded here.
+    CASCADE_SOFT_DELETE = (
+        "child_tickets",
+        "extra_details",
+        "attachments",
+        "feedback",
+        "address_change_request",
+    )
+
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,

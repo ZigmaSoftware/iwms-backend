@@ -34,6 +34,3 @@ class CountryViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.Mod
             )
 
         return self.filter_queryset_by_location_scope(queryset).distinct()
-
-    def perform_destroy(self, instance):
-        instance.delete()  # Soft delete

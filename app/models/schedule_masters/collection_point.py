@@ -105,6 +105,14 @@ class Collection_point(BaseMaster):
         blank=True,
     )
 
+    CASCADE_SOFT_DELETE = (
+        "bin",
+        "trip_plan_cps",
+        "daily_trip_logs",
+        "daily_trip_cps",
+        "bin_collection_events",
+    )
+
     collection_type = models.CharField(
         max_length=30,
         choices=COLLECTION_TYPE_CHOICES,

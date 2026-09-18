@@ -62,6 +62,24 @@ class District(BaseMaster):
 
     name = models.CharField(max_length=100)
 
+    CASCADE_SOFT_DELETE = (
+        "cities",
+        "zone_set",
+        "panchayat",
+        "block_panchayat_unions",
+        "district_leader_logins",
+        "bin",
+        "cp",
+        "trip_plans",
+        "address_change_requests",
+        "complaint_routing_rules",
+        "complaint_tickets",
+        "customer_creation",
+        "users_district",
+        "userscreenpermissions",
+        "staff_district",
+    )
+
     class Meta:
         ordering = ["name"]
         unique_together = ("state_id", "name")   # FIXED

@@ -23,7 +23,5 @@ class MainCategoryViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.is_active = False
-        instance.save(update_fields=["is_deleted", "is_active"])
+        self.perform_destroy(instance)
         return Response({"message": "Main category deleted"}, status=status.HTTP_200_OK)

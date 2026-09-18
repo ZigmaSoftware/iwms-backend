@@ -123,6 +123,3 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             queryset = queryset.filter(collection_point_id__unique_id=collection_point_uid)
 
         return queryset
-    
-    def perform_destroy(self, instance):
-        instance.delete()

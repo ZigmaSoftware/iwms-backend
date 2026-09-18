@@ -72,6 +72,13 @@ class City(BaseMaster):
     def __str__(self):
         return f"{self.name} ({self.state_id.name})"
 
-    def delete(self, *args, **kwargs):
-        self.is_deleted = True
-        self.save(update_fields=["is_deleted"])
+    CASCADE_SOFT_DELETE = (
+        "zone_set",
+        "panchayat",
+        "ward_set",
+        "bin",
+        "customer_creation",
+        "users_city",
+        "userscreenpermissions",
+        "staff_city",
+    )

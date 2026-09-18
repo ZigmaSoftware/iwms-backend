@@ -50,6 +50,3 @@ class PanhayatViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScop
             queryset = queryset.filter(state_id__unique_id=state_uid)
 
         return self.filter_queryset_by_location_scope(queryset)
-
-    def perform_destroy(self, instance):
-        instance.delete()

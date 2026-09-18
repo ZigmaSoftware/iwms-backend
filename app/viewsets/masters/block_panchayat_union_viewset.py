@@ -37,6 +37,3 @@ class BlockPanchayatUnionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             queryset = queryset.filter(state_id__unique_id=state_uid)
 
         return queryset
-
-    def perform_destroy(self, instance):
-        instance.delete()

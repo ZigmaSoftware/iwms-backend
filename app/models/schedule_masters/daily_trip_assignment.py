@@ -244,6 +244,15 @@ class DailyTripAssignment(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    CASCADE_SOFT_DELETE = (
+        "daily_trip_log",
+        "trip_collection_points",
+        "trip_household_collections",
+        "bin_collection_events",
+        "waste_collections",
+        "vehicle_breakdown",
+    )
+
     # ------------------------------------------------------------------
     # META
     # ------------------------------------------------------------------

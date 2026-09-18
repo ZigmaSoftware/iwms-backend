@@ -106,3 +106,5 @@ class Panchayat(BaseMaster):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ("wards", "leader_logins")

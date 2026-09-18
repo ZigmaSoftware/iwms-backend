@@ -44,6 +44,11 @@ class State(BaseMaster):
     def __str__(self):
         return f"{self.name} ({self.country_id.name})"
 
-    def delete(self, *args, **kwargs):
-        self.is_deleted = True
-        self.save(update_fields=["is_deleted"])
+    CASCADE_SOFT_DELETE = (
+        "districts",
+        "customer_creation",
+        "complaint_routing_rules",
+        "complaint_tickets",
+        "address_change_requests",
+        "userscreenpermissions",
+    )

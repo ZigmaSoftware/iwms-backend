@@ -25,6 +25,8 @@ class BinType(models.TextChoices):
 
 class Bins(BaseMaster):
 
+    CASCADE_SOFT_DELETE = ("trip_plan_cps", "daily_trip_cps", "bin_collection_events")
+
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,

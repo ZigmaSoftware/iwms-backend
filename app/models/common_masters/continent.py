@@ -24,6 +24,4 @@ class Continent(BaseMaster):
     def __str__(self):
         return self.name
 
-    def delete(self, *args, **kwargs):
-        self.is_deleted = True
-        self.save(update_fields=["is_deleted"])
+    CASCADE_SOFT_DELETE = ("countries", "states", "districts", "cities")

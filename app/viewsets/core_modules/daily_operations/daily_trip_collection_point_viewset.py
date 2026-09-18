@@ -954,9 +954,7 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def perform_destroy(self, instance):
         assignment_id = instance.trip_assignment_id_id
         previous_data = self._serialize_instance(instance)
-        instance.is_deleted = True
-        instance.is_active = False
-        instance.save(update_fields=["is_deleted", "is_active", "updated_at"])
+        instance.delete(updated_by=self._get_account())
         self.log_audit(
             self.request,
             instance=instance,

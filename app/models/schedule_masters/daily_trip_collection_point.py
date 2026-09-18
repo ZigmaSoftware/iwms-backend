@@ -19,6 +19,8 @@ def generate_daily_trip_cp_id():
 
 
 class DailyTripCollectionPoint(BaseMaster):
+    CASCADE_SOFT_DELETE = ("bin_collection_event",)
+
     STATUS_PENDING = "Pending"
     STATUS_IN_PROGRESS = "In Progress"
     STATUS_COLLECTED = "Collected"

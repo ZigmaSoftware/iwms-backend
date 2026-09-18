@@ -30,6 +30,5 @@ class ComplaintViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.save()
+        self.perform_destroy(instance)
         return Response({"message": "Complaint deleted successfully"}, status=status.HTTP_200_OK)

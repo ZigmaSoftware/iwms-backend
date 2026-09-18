@@ -80,6 +80,8 @@ class StaffTemplate(BaseMaster):
         default=Status.ACTIVE
     )
     
+    CASCADE_SOFT_DELETE = ("trip_plans", "daily_trip_assignments", "daily_trip_logs")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -28,6 +28,3 @@ class ContinentViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.M
     def get_queryset(self):
         queryset = Continent.objects.filter(is_deleted=False)
         return self.filter_queryset_by_location_scope(queryset).distinct()
-
-    def perform_destroy(self, instance):
-        instance.delete()
