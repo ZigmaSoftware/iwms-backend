@@ -19,8 +19,6 @@ __pycache__/
 # own small, committed migration instead — hence the exception below.
 **/migrations/*
 !**/migrations/__init__.py
-!app/migrations/0002_employee_face_embedding.py
-!app/migrations/0003_wastecollection_image.py
 
 # === Virtual environments ===
 venv/
