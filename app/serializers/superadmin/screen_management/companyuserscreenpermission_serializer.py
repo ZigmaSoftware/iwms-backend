@@ -2,18 +2,18 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from app.models.screen_managements.companyuserscreencolumnpermission import (
+from app.models.superadmin.screen_management.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
-from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission, PermissionType
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.screen_managements.userscreencolumn import UserScreenColumn
+from app.models.superadmin.screen_management.companyuserscreenpermission import CompanyUserScreenPermission, PermissionType
+from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.models.superadmin.screen_management.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
+from app.models.superadmin.screen_management.userscreencolumn import UserScreenColumn
 from app.models.superadmin_masters.project import Project
 from app.models.superadmin_masters.company import Company
 
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.state import State
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone

@@ -5,15 +5,15 @@ from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Case, IntegerField, Q, Sum, Value, When
 from datetime import datetime, timedelta
-from app.models.staff_creations.waste_collection_bluetooth import (
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import (
     WasteCollectionMain,
     WasteCollectionSub,
     WasteType,
     upload_image,
 )
-from app.models.customers.customercreation import CustomerCreation
-from app.models.customers.wastecollection import WasteCollection
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.daily_operations.wastecollection import WasteCollection
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 
 
 
@@ -61,7 +61,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
         (operator-mobile/my-trip(s)-today/) reads, so the change is visible
         to the driver immediately on refresh.
         """
-        from app.models.schedule_masters.daily_trip_household_collection import (
+        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
             DailyTripHouseholdCollection,
         )
         from app.viewsets.operator_mobile.helpers import (

@@ -22,8 +22,8 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 from app.permissions.operator_permission import IsOperatorRole
 from app.serializers.operator_mobile.trip_today_serializer import MyTripTodaySerializer
 from app.services import retrip_service

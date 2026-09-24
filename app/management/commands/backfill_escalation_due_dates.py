@@ -8,7 +8,7 @@ Safe to run repeatedly: `apply_routing_and_sla` only sets
 
 from django.core.management.base import BaseCommand
 
-from app.models.complaint_management import ComplaintTicket
+from app.models.core_modules.complaint_management import ComplaintTicket
 from app.services.complaint_ticket_routing import apply_routing_and_sla
 
 
@@ -16,7 +16,7 @@ class Command(BaseCommand):
     help = "Set escalation_level/next_escalation_due_at on open tickets missing it."
 
     def handle(self, *args, **options):
-        from app.models.complaint_management.masters import ComplaintStatus
+        from app.models.core_modules.complaint_management.masters import ComplaintStatus
 
         final_status_ids = ComplaintStatus.objects.filter(is_final=True).values("unique_id")
         stuck = ComplaintTicket.objects.filter(

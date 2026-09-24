@@ -2,23 +2,23 @@ from django.db import transaction
 from django.db.models import Q
 from rest_framework import serializers
 
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.state import State
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
-from app.models.screen_managements.companyuserscreenpermission import (
+from app.models.superadmin.screen_management.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.screen_managements.app_module import AppModule
-from app.models.staff_creations.staff_access_configuration import (
+from app.models.superadmin.screen_management.app_module import AppModule
+from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
-from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+from app.models.superadmin.staff_management.staffcreation import StaffcreationOfficeDetails
 from app.serializers.superadmin.staff_management.staffcreation_serializer import StaffcreationSerializer
 
 
@@ -56,7 +56,7 @@ def _project_enabled_screen_action_keys(company_id, project_ids):
 
 
 def _action_ids_named(name):
-    from app.models.screen_managements.userscreenaction import UserScreenAction
+    from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
     return UserScreenAction.objects.filter(
         Q(action_name__iexact=name) | Q(variable_name__iexact=name)
     ).values_list("unique_id", flat=True)
@@ -358,8 +358,8 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         )
         rows = list(rows)
 
-        from app.models.screen_managements.mainscreen import MainScreen
-        from app.models.screen_managements.userscreen import UserScreen
+        from app.models.superadmin.screen_management.mainscreen import MainScreen
+        from app.models.superadmin.screen_management.userscreen import UserScreen
 
         mainscreen_ids = {r.mainscreen_id for r in rows if r.mainscreen_id}
         userscreen_ids = {r.userscreen_id for r in rows if r.userscreen_id}

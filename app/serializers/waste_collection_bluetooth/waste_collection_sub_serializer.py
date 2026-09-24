@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.staff_creations.waste_collection_bluetooth import WasteCollectionSub
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteCollectionSub
 
 
 class WasteCollectionSubSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):

@@ -2,7 +2,7 @@ from rest_framework import filters
 from rest_framework.viewsets import ModelViewSet
 from app.models.masters.ward import Ward
 from app.serializers.masters.ward_serializer import WardSerializer
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage

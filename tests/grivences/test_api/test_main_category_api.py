@@ -1,6 +1,6 @@
 """API tests for MainCategory grievance endpoint — CRUD operations."""
 import pytest
-from app.models.grivences.main_category_citizenGrievance import MainCategory
+from app.models.core_modules.complaint_management.main_category_citizenGrievance import MainCategory
 
 BASE = "/api/v1/grivences/main-category/"
 

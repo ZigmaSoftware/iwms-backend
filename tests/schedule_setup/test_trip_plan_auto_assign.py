@@ -11,11 +11,11 @@ import pytest
 from rest_framework.test import APIClient
 
 from app.management.commands.generate_daily_trips import run_for_date
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.core_modules.daily_operations.daily_trip_household_collection import DailyTripHouseholdCollection
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
 
 from tests.schedule_setup.conftest import _make_plan
 

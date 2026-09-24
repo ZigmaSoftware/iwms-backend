@@ -6,12 +6,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.staff_creations.department import Department
-from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.department import Department
+from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.permissions.platform import SuperAdminApprovalPermission
 from app.serializers.superadmin.staff_management.staffcreation_serializer import (
     StaffApprovalActionSerializer,
@@ -110,8 +110,8 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
             queryset = queryset.filter(login_enabled=str(login_enabled).lower() in ["1", "true"])
 
         if self._is_supervisor_user():
-            from app.models.schedule_masters.trip_plan import TripPlan
-            from app.models.schedule_masters.staff_template import StaffTemplate
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+            from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
 
             supervisor_staff_id = self.request.user.staff_unique_id
             supervised_template_ids = TripPlan.objects.filter(
@@ -471,7 +471,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         token = (request.data.get("fcm_token") or "").strip()
         if not token:
             return Response({"error": "fcm_token is required"}, status=400)
-        from app.models.customers.customercreation import CustomerCreation
+        from app.models.masters.customer_masters.customercreation import CustomerCreation
 
         with transaction.atomic():
             Staffcreation.objects.filter(fcm_token=token).exclude(

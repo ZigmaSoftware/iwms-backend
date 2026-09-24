@@ -24,8 +24,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from app.models.customers.customercreation import CustomerCreation
-from app.models.complaint_management import (
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.complaint_management import (
     ComplaintCategory,
     ComplaintFeedback,
     ComplaintPriority,

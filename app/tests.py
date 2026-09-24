@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.test import SimpleTestCase
 
-from app.models.customers.customercreation import exceeds_bulk_waste_threshold
+from app.models.masters.customer_masters.customercreation import exceeds_bulk_waste_threshold
 
 
 class BulkWasteThresholdTests(SimpleTestCase):

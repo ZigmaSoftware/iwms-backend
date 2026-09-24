@@ -15,11 +15,11 @@ the access configuration, and nothing else implies one.
 import pytest
 from rest_framework import serializers
 
-from app.models.screen_managements.app_module import AppModule
-from app.models.staff_creations.staff_access_configuration import (
+from app.models.superadmin.screen_management.app_module import AppModule
+from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
 )
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.serializers.login.login_serializer import LoginSerializer
 from app.utils.permission_response import resolve_permission_payload

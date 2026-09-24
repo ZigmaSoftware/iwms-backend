@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 
-from app.models.masters.district_leader_login import DistrictLeaderLogin
+from app.models.masters.leader_management.district_leader_login import DistrictLeaderLogin
 from app.models.masters.district import District
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.utils.name_or_id_field import NameOrUniqueIdField

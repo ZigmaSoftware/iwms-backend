@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from app.models.audits.staff_template_audit_log import StaffTemplateAuditLog
+from app.models.superadmin.audits.staff_template_audit_log import StaffTemplateAuditLog
 
 
 class StaffTemplateAuditLogSerializer(serializers.ModelSerializer):

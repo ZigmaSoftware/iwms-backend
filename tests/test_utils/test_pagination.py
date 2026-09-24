@@ -50,7 +50,7 @@ class TestSharedPaginationEnvelope:
 
     @pytest.fixture(autouse=True)
     def _seed_continents(self, db):
-        from app.models.common_masters.continent import Continent
+        from app.models.superadmin.common_masters.continent import Continent
 
         self.continents = [
             Continent.objects.create(name=f"Continent {i}") for i in range(5)

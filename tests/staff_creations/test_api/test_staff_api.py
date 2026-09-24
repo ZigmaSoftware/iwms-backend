@@ -1,6 +1,6 @@
 """API tests for Staff endpoints — CRUD operations."""
 import pytest
-from app.models.staff_creations.staffcreation import (
+from app.models.superadmin.staff_management.staffcreation import (
     StaffcreationOfficeDetails,
     StaffPersonalDetails,
 )

@@ -12,8 +12,8 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 
-from app.models.customers.customercreation import CustomerCreation
-from app.models.complaint_management import (
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.complaint_management import (
     ComplaintAddressChangeRequest,
     ComplaintAssignmentHistory,
     ComplaintAttachment,
@@ -269,7 +269,7 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
     def get_escalation_level_name(self, obj):
         """Human role name (e.g. "Supervisor") for the ticket's current
         `escalation_level`, resolved from the project's staff hierarchy."""
-        from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
+        from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
 
         if not obj.project_id:
             return None

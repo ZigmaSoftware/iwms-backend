@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 
-from app.models.staff_creations.staffcreation import Staffcreation, StaffPersonalDetails
+from app.models.superadmin.staff_management.staffcreation import Staffcreation, StaffPersonalDetails
 from app.serializers.employee import (
     StaffOfficeSerializer,
     StaffUpdateSerializer,

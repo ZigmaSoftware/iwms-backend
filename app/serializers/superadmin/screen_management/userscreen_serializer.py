@@ -10,12 +10,13 @@ from app.serializers.company_projects.tenancy import (
     TenancyReadSerializerMixin
 )
 
-from app.models.screen_managements.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreen import UserScreen
 
 from app.utils.userscreen_column_sync import (
     sync_screen_columns
 )
 from app.utils.model_mapper import resolve_userscreen_model
+from app.utils.screen_dependencies import screen_group
 
 
 class UserScreenSerializer(
@@ -41,6 +42,17 @@ class UserScreenSerializer(
         source="mainscreen_id.mainscreentype_id.type_name",
         read_only=True
     )
+
+    # The heading this screen is shown under in permission forms, if any
+    # (SCREEN_GROUPS in app/utils/screen_dependencies.py).
+    screen_group = serializers.SerializerMethodField()
+    screen_group_label = serializers.SerializerMethodField()
+
+    def get_screen_group(self, obj):
+        return screen_group(obj.userscreen_name)[0]
+
+    def get_screen_group_label(self, obj):
+        return screen_group(obj.userscreen_name)[1]
 
     # =====================================================
     # OPTIONAL FIELDS

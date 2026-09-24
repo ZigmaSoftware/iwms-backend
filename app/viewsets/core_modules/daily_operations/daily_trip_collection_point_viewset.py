@@ -8,25 +8,25 @@ from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.schedule_masters.daily_trip_collection_point import (
+from app.models.core_modules.daily_operations.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.schedule_masters.daily_trip_household_collection import (
+from app.models.core_modules.daily_operations.daily_trip_household_collection import (
     DailyTripHouseholdCollection,
 )
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
-from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
-from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.assets.bins import Bins
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
+from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.masters.waste_masters.bins import Bins
 from app.services.openroute_service import OpenRouteServiceError, optimize_stops, route_stops
 from app.serializers.core_modules.daily_operations.daily_trip_collection_point_serializer import (
     DailyTripCollectionPointSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -40,6 +40,19 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     AUDIT_MODULE = "transport-masters"
     AUDIT_ENDPOINT = "daily-trip-collection-point"
+
+    # POSTs that only compute a road path and save nothing. Without this they
+    # map to "add", so the tracking and route map pages needed Add permission
+    # just to draw a map.
+    READ_ONLY_POST_ACTIONS = ("route-static/", "optimize-route/")
+
+    @classmethod
+    def permission_action_for_request(cls, request, default_action):
+        if request.method == "POST" and request.path.endswith(
+            cls.READ_ONLY_POST_ACTIONS
+        ):
+            return "view"
+        return default_action
 
     def _ensure_assignment_stops(self, assignment_id):
         assignment = (
@@ -786,7 +799,7 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        from app.models.schedule_masters.route_detour_waypoint import RouteDetourWaypoint
+        from app.models.core_modules.daily_operations.route_detour_waypoint import RouteDetourWaypoint
 
         waypoints = RouteDetourWaypoint.objects.filter(
             trip_assignment_id=assignment.unique_id, is_active=True, is_deleted=False,

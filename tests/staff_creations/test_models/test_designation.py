@@ -1,7 +1,7 @@
 """Unit tests for Designation model — CRUD + constraints."""
 import pytest
-from app.models.staff_creations.designation import Designation
-from app.models.staff_creations.department import Department
+from app.models.superadmin.staff_management.designation import Designation
+from app.models.superadmin.staff_management.department import Department
 
 
 @pytest.fixture

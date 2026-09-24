@@ -1,6 +1,6 @@
 """API tests for Project endpoint — CRUD operations."""
 import pytest
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.superadmin_masters.project import Project
 
 BASE = "/api/v1/superadmin/project/"

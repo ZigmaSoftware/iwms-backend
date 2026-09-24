@@ -9,9 +9,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from app.management.commands.generate_daily_trips import run_for_date
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
-from app.models.schedule_masters.scheduler_config import SchedulerConfig
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
+from app.models.core_modules.daily_operations.scheduler_config import SchedulerConfig
 from app.services.daily_trip_scheduler import (
     notify_scheduler_config_changed,
     run_daily_trip_job,
@@ -23,7 +23,7 @@ from app.serializers.core_modules.daily_operations.daily_trip_assignment_seriali
     DailyTripAssignmentApprovalSerializer,
 )
 from rest_framework import filters
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 
@@ -108,7 +108,7 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             # (TripPlan.supervisor_id == requester). Auto-enforced for any
             # supervisor role on the admin web app too, not just when the
             # mobile app explicitly passes mine=true.
-            from app.models.schedule_masters.trip_plan import TripPlan
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
             supervised_plan_ids = TripPlan.objects.filter(
                 supervisor_id=self.request.user.staff_unique_id,
             ).values_list("unique_id", flat=True)
@@ -151,10 +151,10 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 ).values("new_assignment_id")
             )
         if params.get("exceptions_only") == "true":
-            from app.models.schedule_masters.trip_delay_report import TripDelayReport
-            from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-            from app.models.schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
-            from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
+            from app.models.core_modules.daily_operations.trip_delay_report import TripDelayReport
+            from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+            from app.models.core_modules.daily_operations.daily_trip_household_collection import DailyTripHouseholdCollection
+            from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown
 
             retrip_assignment_ids = set(
                 TripRetripRequest.objects.filter(is_deleted=False).values_list("assignment_id", flat=True)
@@ -198,7 +198,7 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         if zone:
             from app.models.masters.ward import Ward
-            from app.models.schedule_masters.trip_plan import TripPlan
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 
             ward_ids_in_zone = set(
                 Ward.objects.filter(zone_id=zone).values_list("unique_id", flat=True)
@@ -238,14 +238,14 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def _apply_search(self, qs, search):
         """Python-side replacement for DRF's SearchFilter: every field it
         used to search is now a plain id column, not a joinable relation."""
-        from app.models.schedule_masters.trip_plan import TripPlan
-        from app.models.schedule_masters.staff_template import StaffTemplate
-        from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
-        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+        from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+        from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
+        from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
         from app.models.masters.panchayat import Panchayat
         from app.models.masters.ward import Ward
         from app.models.masters.zone import Zone
-        from app.models.staff_creations.staffcreation import Staffcreation
+        from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
         needle = search.strip().lower()
         if not needle:
@@ -565,7 +565,7 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         supervisor-approves Re-Trip flow (see
         app.services.retrip_service.proceed_to_next_trip).
         """
-        from app.models.staff_creations.staffcreation import Staffcreation
+        from app.models.superadmin.staff_management.staffcreation import Staffcreation
         from app.services import retrip_service
 
         if not self._has_approval_role(request):

@@ -1,8 +1,8 @@
 from rest_framework import serializers
 
-from app.models.common_masters.country import Country
-from app.models.common_masters.state import State
-from app.models.customers.customercreation import CustomerCreation
+from app.models.superadmin.common_masters.country import Country
+from app.models.superadmin.common_masters.state import State
+from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
@@ -10,9 +10,9 @@ from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator

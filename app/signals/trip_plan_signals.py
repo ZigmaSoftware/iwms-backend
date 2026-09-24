@@ -1,11 +1,11 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import (
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.schedule_masters.trip_plan_collection_point import (
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import (
     TripPlanCollectionPoint,
 )
 
@@ -52,7 +52,7 @@ def _geo_filter_for(obj):
 
 
 def _customers_for_household_stop(stop, wards=None):
-    from app.models.customers.customercreation import CustomerCreation
+    from app.models.masters.customer_masters.customercreation import CustomerCreation
 
     is_bulk_stop = stop.collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_BULK
 
@@ -65,7 +65,7 @@ def _customers_for_household_stop(stop, wards=None):
 
     trip_plan = None
     if stop.trip_plan_id:
-        from app.models.schedule_masters.trip_plan import TripPlan
+        from app.models.core_modules.schedule_setup.trip_plan import TripPlan
         trip_plan = TripPlan.objects.filter(unique_id=stop.trip_plan_id).first()
     geo_filter = _geo_filter_for(stop) or _geo_filter_for(trip_plan)
     if not geo_filter:
@@ -93,7 +93,7 @@ def _customers_for_household_stop(stop, wards=None):
 
 
 def _create_daily_household_collections(assignment, stop):
-    from app.models.schedule_masters.daily_trip_household_collection import (
+    from app.models.core_modules.daily_operations.daily_trip_household_collection import (
         DailyTripHouseholdCollection,
     )
 
@@ -140,7 +140,7 @@ def sync_daily_assignment_stops_from_plan(assignment):
     if not assignment.trip_plan_id:
         return 0
 
-    from app.models.schedule_masters.trip_plan import TripPlan
+    from app.models.core_modules.schedule_setup.trip_plan import TripPlan
     plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id).first()
     if not plan:
         return 0
@@ -151,13 +151,13 @@ def sync_daily_assignment_stops_from_plan(assignment):
         is_deleted=False,
     ).order_by("sequence")
 
-    from app.models.schedule_masters.daily_trip_household_collection import (
+    from app.models.core_modules.daily_operations.daily_trip_household_collection import (
         DailyTripHouseholdCollection,
     )
 
     selected_ward_ids = [ward_id for ward_id in (assignment.ward_ids or "").split(",") if ward_id]
     if selected_ward_ids:
-        from app.models.customers.customercreation import CustomerCreation
+        from app.models.masters.customer_masters.customercreation import CustomerCreation
 
         stale_customer_ids = CustomerCreation.objects.exclude(
             ward_id__in=selected_ward_ids
@@ -244,11 +244,11 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
     if not instance.trip_assignment_id or instance.is_deleted:
         return
 
-    from app.models.schedule_masters.daily_trip_household_collection import (
+    from app.models.core_modules.daily_operations.daily_trip_household_collection import (
         DailyTripHouseholdCollection,
     )
-    from app.models.schedule_masters.daily_trip_log import DailyTripLog
-    from app.models.customers.wastecollection import WasteCollection
+    from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
+    from app.models.core_modules.daily_operations.wastecollection import WasteCollection
 
     collection_type = (
         DailyTripHouseholdCollection.COLLECTION_TYPE_BULK
@@ -342,7 +342,7 @@ def sync_bin_collection_on_event_save(sender, instance, **kwargs):
     if not instance.trip_assignment_id or instance.is_deleted:
         return
 
-    from app.models.schedule_masters.daily_trip_log import DailyTripLog
+    from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 
     log = DailyTripLog.objects.filter(
         trip_assignment_id=instance.trip_assignment_id,

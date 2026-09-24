@@ -8,7 +8,7 @@ Ported unchanged from the government backend's
 from django.db.models import Max
 from rest_framework import serializers
 
-from app.models.complaint_management import (
+from app.models.core_modules.complaint_management import (
     ComplaintCategory,
     ComplaintLanguage,
     ComplaintModule,

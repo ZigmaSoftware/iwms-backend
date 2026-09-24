@@ -1,10 +1,10 @@
 from app.management.commands.seeders.base import BaseSeeder
 
-from app.models.assets.bins import Bins, BinType
+from app.models.masters.waste_masters.bins import Bins, BinType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
 
 class BinSeeder(BaseSeeder):

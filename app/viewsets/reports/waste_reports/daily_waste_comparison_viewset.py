@@ -1,13 +1,13 @@
 """Daily waste collection analytics backed by confirmed DailyTripLog rows."""
 from rest_framework.response import Response
 
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
-from app.models.schedule_masters.daily_waste_comparison import DailyWasteComparison
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
+from app.models.reports.waste_reports.daily_waste_comparison import DailyWasteComparison
 from app.serializers.reports.waste_reports.daily_waste_comparison_serializer import (
     DailyWasteComparisonSerializer,
 )
 from app.utils.waste_collection_report import build_waste_collection_report
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 def _comma_values(value):

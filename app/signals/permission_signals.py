@@ -1,8 +1,8 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
-from app.models.audits.permission_audit import PermissionAuditLog
+from app.models.superadmin.screen_management.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.superadmin.audits.permission_audit import PermissionAuditLog
 
 
 @receiver(post_save, sender=CompanyUserScreenPermission)

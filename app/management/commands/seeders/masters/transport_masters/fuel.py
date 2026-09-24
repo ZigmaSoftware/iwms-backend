@@ -1,6 +1,6 @@
 # core/management/commands/seeders/assets/fuel.py
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.transport_masters.fuel import Fuel
+from app.models.masters.transport_masters.fuel import Fuel
 
 
 class FuelSeeder(BaseSeeder):

@@ -2,12 +2,12 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.response import Response
 
-from app.models.schedule_masters.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 from app.serializers.core_modules.schedule_setup.trip_plan_serializer import (
     TripPlanSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.filters import (
     ModelFieldQueryFilter,
     ModelFieldSearchFilter,

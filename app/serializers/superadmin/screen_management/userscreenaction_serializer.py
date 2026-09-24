@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.screen_managements.userscreenaction import UserScreenAction
+from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
 
 
 class UserScreenActionSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):

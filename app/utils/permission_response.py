@@ -4,12 +4,12 @@ import re
 
 from django.utils import timezone
 
-from app.models.screen_managements.companyuserscreencolumnpermission import (
+from app.models.superadmin.screen_management.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
-from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
-from app.models.screen_managements.userscreencolumn import UserScreenColumn
-from app.models.staff_creations.staff_access_configuration import (
+from app.models.superadmin.screen_management.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.superadmin.screen_management.userscreencolumn import UserScreenColumn
+from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
@@ -91,7 +91,7 @@ def build_permission_details(action_queryset, column_queryset=None):
             screen_payload["permissions"][action_name] = True
 
     if column_queryset is None:
-        from app.models.screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
+        from app.models.superadmin.screen_management.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
         column_queryset = CompanyUserScreenColumnPermission.objects.none()
 
     for column_permission in column_queryset.order_by("order_no"):
@@ -222,7 +222,7 @@ def build_module_access(action_queryset, column_queryset=None):
             screen_entry["permissions"][action_name] = True
 
     if column_queryset is None:
-        from app.models.screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
+        from app.models.superadmin.screen_management.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
         column_queryset = CompanyUserScreenColumnPermission.objects.none()
 
     for column_permission in column_queryset.order_by("order_no"):

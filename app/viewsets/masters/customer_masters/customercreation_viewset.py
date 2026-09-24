@@ -10,14 +10,14 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from app.models.superadmin_masters.company import Company
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.customers.customercreation import CustomerCreation
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.superadmin_masters.project import Project
-from app.models.waste_types.subproperty import SubProperty
-from app.models.common_masters.state import State
-from app.models.common_masters.country import Country
-from app.models.waste_types.property import Property
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.masters.waste_masters.subproperty import SubProperty
+from app.models.superadmin.common_masters.state import State
+from app.models.superadmin.common_masters.country import Country
+from app.models.masters.waste_masters.property import Property
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
 from app.serializers.masters.customer_masters.customercreation_serializer import CustomerCreationSerializer
 
@@ -32,7 +32,7 @@ from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 
-from app.models.customers.customercreation import CustomerCreation
+from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.utils.audit_mixin import AuditViewSetMixin
 
 PROPERTY_GROUPING = {
@@ -273,7 +273,7 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if not token:
             return Response({"error": "fcm_token is required"}, status=400)
         from django.db import transaction
-        from app.models.staff_creations.staffcreation import Staffcreation
+        from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
         with transaction.atomic():
             CustomerCreation.objects.filter(fcm_token=token).exclude(

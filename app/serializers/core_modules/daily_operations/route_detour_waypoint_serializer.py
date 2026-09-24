@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from app.models.schedule_masters.route_detour_waypoint import RouteDetourWaypoint
+from app.models.core_modules.daily_operations.route_detour_waypoint import RouteDetourWaypoint
 
 
 class RouteDetourWaypointSerializer(serializers.ModelSerializer):

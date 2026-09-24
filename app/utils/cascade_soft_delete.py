@@ -208,59 +208,59 @@ _ZONE = "app.models.masters.zone.Zone"
 _WARD = "app.models.masters.ward.Ward"
 _PANCHAYAT = "app.models.masters.panchayat.Panchayat"
 _BLOCK_PANCHAYAT_UNION = "app.models.masters.block_panchayat_union.BlockPanchayatUnion"
-_STATE = "app.models.common_masters.state.State"
-_COUNTRY = "app.models.common_masters.country.Country"
-_CONTINENT = "app.models.common_masters.continent.Continent"
-_STAFF_CREATION = "app.models.staff_creations.staffcreation.StaffcreationOfficeDetails"
-_DEPARTMENT = "app.models.staff_creations.department.Department"
-_DESIGNATION = "app.models.staff_creations.designation.Designation"
-_STAFF_TEMPLATE = "app.models.schedule_masters.staff_template.StaffTemplate"
-_ALT_STAFF_TEMPLATE = "app.models.schedule_masters.alternative_staff_template.AlternativeStaffTemplate"
-_TRIP_PLAN = "app.models.schedule_masters.trip_plan.TripPlan"
-_COLLECTION_POINT = "app.models.schedule_masters.collection_point.Collection_point"
-_DAILY_TRIP_ASSIGNMENT = "app.models.schedule_masters.daily_trip_assignment.DailyTripAssignment"
-_DAILY_TRIP_LOG = "app.models.schedule_masters.daily_trip_log.DailyTripLog"
-_DAILY_TRIP_COLLECTION_POINT = "app.models.schedule_masters.daily_trip_collection_point.DailyTripCollectionPoint"
-_DAILY_TRIP_HOUSEHOLD_COLLECTION = "app.models.schedule_masters.daily_trip_household_collection.DailyTripHouseholdCollection"
-_BIN_COLLECTION_EVENT = "app.models.schedule_masters.bin_collection_event.BinCollectionEvent"
-_VEHICLE_BREAKDOWN = "app.models.schedule_masters.vehicle_breakdown.VehicleBreakdown"
-_ROUTE_DETOUR_WAYPOINT = "app.models.schedule_masters.route_detour_waypoint.RouteDetourWaypoint"
-_CUSTOMER_CREATION = "app.models.customers.customercreation.CustomerCreation"
-_WASTE_COLLECTION = "app.models.customers.wastecollection.WasteCollection"
-_COMPLAINT_TICKET = "app.models.complaint_management.ticket.ComplaintTicket"
-_COMPLAINT_ADDRESS_CHANGE = "app.models.complaint_management.address_change.ComplaintAddressChangeRequest"
-_COMPLAINT_EXTRA_DETAIL = "app.models.complaint_management.transactions.ComplaintTicketExtraDetail"
-_COMPLAINT_ATTACHMENT = "app.models.complaint_management.transactions.ComplaintAttachment"
-_COMPLAINT_STATUS_HISTORY = "app.models.complaint_management.transactions.ComplaintStatusHistory"
-_COMPLAINT_ASSIGNMENT_HISTORY = "app.models.complaint_management.transactions.ComplaintAssignmentHistory"
-_COMPLAINT_COMMENT = "app.models.complaint_management.transactions.ComplaintComment"
-_COMPLAINT_ROUTING_RULE = "app.models.complaint_management.transactions.ComplaintRoutingRule"
-_COMPLAINT_ESCALATION_HISTORY = "app.models.complaint_management.transactions.ComplaintEscalationHistory"
-_COMPLAINT_FEEDBACK = "app.models.complaint_management.transactions.ComplaintFeedback"
-_COMPLAINT_REOPEN_HISTORY = "app.models.complaint_management.transactions.ComplaintReopenHistory"
-_COMPLAINT_NOTIFICATION = "app.models.complaint_management.transactions.ComplaintNotification"
-_VEHICLE_CREATION = "app.models.transport_masters.vehicleCreation.VehicleCreation"
-_BINS = "app.models.assets.bins.Bins"
-_STAFF_ACCESS_CONFIG = "app.models.staff_creations.staff_access_configuration.StaffAccessConfiguration"
-_STAFF_ACCESS_CONFIG_PERM = "app.models.staff_creations.staff_access_configuration.StaffAccessConfigurationPermission"
-_STAFF_PERSONAL_DETAILS = "app.models.staff_creations.staffcreation.StaffPersonalDetails"
-_USER_TYPE = "app.models.role_assigns.userType.UserType"
-_STAFF_USER_TYPE = "app.models.role_assigns.staffUserType.StaffUserType"
-_CONTRACTOR_USER_TYPE = "app.models.role_assigns.contractorUserType.ContractorUserType"
-_PROJECT_STAFF_HIERARCHY = "app.models.role_assigns.projectStaffHierarchy.ProjectStaffHierarchy"
-_MAIN_SCREEN_TYPE = "app.models.screen_managements.mainscreentype.MainScreenType"
-_MAIN_SCREEN = "app.models.screen_managements.mainscreen.MainScreen"
-_USER_SCREEN = "app.models.screen_managements.userscreen.UserScreen"
-_USER_SCREEN_ACTION = "app.models.screen_managements.userscreenaction.UserScreenAction"
-_USER_SCREEN_COLUMN = "app.models.screen_managements.userscreencolumn.UserScreenColumn"
-_COMPANY_USER_SCREEN_PERM = "app.models.screen_managements.companyuserscreenpermission.CompanyUserScreenPermission"
-_COMPANY_USER_SCREEN_COL_PERM = "app.models.screen_managements.companyuserscreencolumnpermission.CompanyUserScreenColumnPermission"
-_PROPERTY = "app.models.waste_types.property.Property"
-_SUB_PROPERTY = "app.models.waste_types.subproperty.SubProperty"
+_STATE = "app.models.superadmin.common_masters.state.State"
+_COUNTRY = "app.models.superadmin.common_masters.country.Country"
+_CONTINENT = "app.models.superadmin.common_masters.continent.Continent"
+_STAFF_CREATION = "app.models.superadmin.staff_management.staffcreation.StaffcreationOfficeDetails"
+_DEPARTMENT = "app.models.superadmin.staff_management.department.Department"
+_DESIGNATION = "app.models.superadmin.staff_management.designation.Designation"
+_STAFF_TEMPLATE = "app.models.core_modules.schedule_setup.staff_template.StaffTemplate"
+_ALT_STAFF_TEMPLATE = "app.models.core_modules.schedule_setup.alternative_staff_template.AlternativeStaffTemplate"
+_TRIP_PLAN = "app.models.core_modules.schedule_setup.trip_plan.TripPlan"
+_COLLECTION_POINT = "app.models.core_modules.schedule_setup.collection_point.Collection_point"
+_DAILY_TRIP_ASSIGNMENT = "app.models.core_modules.daily_operations.daily_trip_assignment.DailyTripAssignment"
+_DAILY_TRIP_LOG = "app.models.core_modules.daily_operations.daily_trip_log.DailyTripLog"
+_DAILY_TRIP_COLLECTION_POINT = "app.models.core_modules.daily_operations.daily_trip_collection_point.DailyTripCollectionPoint"
+_DAILY_TRIP_HOUSEHOLD_COLLECTION = "app.models.core_modules.daily_operations.daily_trip_household_collection.DailyTripHouseholdCollection"
+_BIN_COLLECTION_EVENT = "app.models.core_modules.daily_operations.bin_collection_event.BinCollectionEvent"
+_VEHICLE_BREAKDOWN = "app.models.core_modules.daily_operations.vehicle_breakdown.VehicleBreakdown"
+_ROUTE_DETOUR_WAYPOINT = "app.models.core_modules.daily_operations.route_detour_waypoint.RouteDetourWaypoint"
+_CUSTOMER_CREATION = "app.models.masters.customer_masters.customercreation.CustomerCreation"
+_WASTE_COLLECTION = "app.models.core_modules.daily_operations.wastecollection.WasteCollection"
+_COMPLAINT_TICKET = "app.models.core_modules.complaint_management.ticket.ComplaintTicket"
+_COMPLAINT_ADDRESS_CHANGE = "app.models.core_modules.complaint_management.address_change.ComplaintAddressChangeRequest"
+_COMPLAINT_EXTRA_DETAIL = "app.models.core_modules.complaint_management.transactions.ComplaintTicketExtraDetail"
+_COMPLAINT_ATTACHMENT = "app.models.core_modules.complaint_management.transactions.ComplaintAttachment"
+_COMPLAINT_STATUS_HISTORY = "app.models.core_modules.complaint_management.transactions.ComplaintStatusHistory"
+_COMPLAINT_ASSIGNMENT_HISTORY = "app.models.core_modules.complaint_management.transactions.ComplaintAssignmentHistory"
+_COMPLAINT_COMMENT = "app.models.core_modules.complaint_management.transactions.ComplaintComment"
+_COMPLAINT_ROUTING_RULE = "app.models.core_modules.complaint_management.transactions.ComplaintRoutingRule"
+_COMPLAINT_ESCALATION_HISTORY = "app.models.core_modules.complaint_management.transactions.ComplaintEscalationHistory"
+_COMPLAINT_FEEDBACK = "app.models.core_modules.complaint_management.transactions.ComplaintFeedback"
+_COMPLAINT_REOPEN_HISTORY = "app.models.core_modules.complaint_management.transactions.ComplaintReopenHistory"
+_COMPLAINT_NOTIFICATION = "app.models.core_modules.complaint_management.transactions.ComplaintNotification"
+_VEHICLE_CREATION = "app.models.masters.transport_masters.vehicleCreation.VehicleCreation"
+_BINS = "app.models.masters.waste_masters.bins.Bins"
+_STAFF_ACCESS_CONFIG = "app.models.superadmin.staff_management.staff_access_configuration.StaffAccessConfiguration"
+_STAFF_ACCESS_CONFIG_PERM = "app.models.superadmin.staff_management.staff_access_configuration.StaffAccessConfigurationPermission"
+_STAFF_PERSONAL_DETAILS = "app.models.superadmin.staff_management.staffcreation.StaffPersonalDetails"
+_USER_TYPE = "app.models.superadmin.role_management.userType.UserType"
+_STAFF_USER_TYPE = "app.models.superadmin.role_management.staffUserType.StaffUserType"
+_CONTRACTOR_USER_TYPE = "app.models.superadmin.role_management.contractorUserType.ContractorUserType"
+_PROJECT_STAFF_HIERARCHY = "app.models.superadmin.role_management.projectStaffHierarchy.ProjectStaffHierarchy"
+_MAIN_SCREEN_TYPE = "app.models.superadmin.screen_management.mainscreentype.MainScreenType"
+_MAIN_SCREEN = "app.models.superadmin.screen_management.mainscreen.MainScreen"
+_USER_SCREEN = "app.models.superadmin.screen_management.userscreen.UserScreen"
+_USER_SCREEN_ACTION = "app.models.superadmin.screen_management.userscreenaction.UserScreenAction"
+_USER_SCREEN_COLUMN = "app.models.superadmin.screen_management.userscreencolumn.UserScreenColumn"
+_COMPANY_USER_SCREEN_PERM = "app.models.superadmin.screen_management.companyuserscreenpermission.CompanyUserScreenPermission"
+_COMPANY_USER_SCREEN_COL_PERM = "app.models.superadmin.screen_management.companyuserscreencolumnpermission.CompanyUserScreenColumnPermission"
+_PROPERTY = "app.models.masters.waste_masters.property.Property"
+_SUB_PROPERTY = "app.models.masters.waste_masters.subproperty.SubProperty"
 _PLANT = "app.models.masters.plant.Plant"
-_DISTRICT_LEADER_LOGIN = "app.models.masters.district_leader_login.DistrictLeaderLogin"
-_PANCHAYAT_LEADER_LOGIN = "app.models.masters.panchayat_leader_login.PanchayatLeaderLogin"
-_WASTE_TYPE = "app.models.staff_creations.waste_collection_bluetooth.WasteType"
+_DISTRICT_LEADER_LOGIN = "app.models.masters.leader_management.district_leader_login.DistrictLeaderLogin"
+_PANCHAYAT_LEADER_LOGIN = "app.models.masters.leader_management.panchayat_leader_login.PanchayatLeaderLogin"
+_WASTE_TYPE = "app.models.waste_collection_bluetooth.waste_collection_bluetooth.WasteType"
 
 # Company -> Projects, etc.
 _register(_COMPANY, "projects", _PROJECT, "company_id")
@@ -281,13 +281,13 @@ _register(_COMPANY, "userscreen_set", _USER_SCREEN, "company_id")
 _register(_COMPANY, "userscreenaction_set", _USER_SCREEN_ACTION, "company_id")
 _register(_COMPANY, "userscreen_column_permissions", _COMPANY_USER_SCREEN_COL_PERM, "company_id")
 _register(_COMPANY, "user_set", "app.models.superadmin_masters.auth_user.User", "company_id")
-_register(_COMPANY, "maincategory_set", "app.models.complaint_management.masters.ComplaintCategory", "company_id")
+_register(_COMPANY, "maincategory_set", "app.models.core_modules.complaint_management.masters.ComplaintCategory", "company_id")
 _register(_COMPANY, "complaint_set", _COMPLAINT_TICKET, "company_id")
-_register(_COMPANY, "complaint_categories", "app.models.complaint_management.masters.ComplaintCategory", "company_id")
-_register(_COMPANY, "complaint_subcategories", "app.models.complaint_management.masters.ComplaintSubcategory", "company_id")
-_register(_COMPANY, "complaint_sla_rules", "app.models.complaint_management.masters.ComplaintSlaRule", "company_id")
+_register(_COMPANY, "complaint_categories", "app.models.core_modules.complaint_management.masters.ComplaintCategory", "company_id")
+_register(_COMPANY, "complaint_subcategories", "app.models.core_modules.complaint_management.masters.ComplaintSubcategory", "company_id")
+_register(_COMPANY, "complaint_sla_rules", "app.models.core_modules.complaint_management.masters.ComplaintSlaRule", "company_id")
 _register(_COMPANY, "staff_access_configurations", _STAFF_ACCESS_CONFIG, "company_id")
-_register(_COMPANY, "customer_access_configurations", "app.models.customers.customer_access_configuration.CustomerAccessConfiguration", "company_id")
+_register(_COMPANY, "customer_access_configurations", "app.models.masters.customer_masters.customer_access_configuration.CustomerAccessConfiguration", "company_id")
 _register(_COMPANY, "property_set", _PROPERTY, "company_id")
 _register(_COMPANY, "subproperty_set", _SUB_PROPERTY, "company_id")
 _register(_COMPANY, "vehicle_creations", _VEHICLE_CREATION, "company_id")
@@ -311,11 +311,11 @@ _register(_PROJECT, "userscreen_set", _USER_SCREEN, "project_id")
 _register(_PROJECT, "userscreenaction_set", _USER_SCREEN_ACTION, "project_id")
 _register(_PROJECT, "userscreen_column_permissions", _COMPANY_USER_SCREEN_COL_PERM, "project_id")
 _register(_PROJECT, "user_set", "app.models.superadmin_masters.auth_user.User", "project_id")
-_register(_PROJECT, "maincategory_set", "app.models.complaint_management.masters.ComplaintCategory", "project_id")
+_register(_PROJECT, "maincategory_set", "app.models.core_modules.complaint_management.masters.ComplaintCategory", "project_id")
 _register(_PROJECT, "complaint_set", _COMPLAINT_TICKET, "project_id")
-_register(_PROJECT, "complaint_categories", "app.models.complaint_management.masters.ComplaintCategory", "project_id")
-_register(_PROJECT, "complaint_subcategories", "app.models.complaint_management.masters.ComplaintSubcategory", "project_id")
-_register(_PROJECT, "complaint_sla_rules", "app.models.complaint_management.masters.ComplaintSlaRule", "project_id")
+_register(_PROJECT, "complaint_categories", "app.models.core_modules.complaint_management.masters.ComplaintCategory", "project_id")
+_register(_PROJECT, "complaint_subcategories", "app.models.core_modules.complaint_management.masters.ComplaintSubcategory", "project_id")
+_register(_PROJECT, "complaint_sla_rules", "app.models.core_modules.complaint_management.masters.ComplaintSlaRule", "project_id")
 _register(_PROJECT, "property_set", _PROPERTY, "project_id")
 _register(_PROJECT, "subproperty_set", _SUB_PROPERTY, "project_id")
 _register(_PROJECT, "staff_hierarchy_levels", _PROJECT_STAFF_HIERARCHY, "project_id")
@@ -374,7 +374,7 @@ _register(_WARD, "complaint_tickets", _COMPLAINT_TICKET, "ward_id")
 _register(_WARD, "complaint_routing_rules", _COMPLAINT_ROUTING_RULE, "ward_id")
 _register(_WARD, "address_change_requests", _COMPLAINT_ADDRESS_CHANGE, "new_ward_id")
 _register(_WARD, "bin", _BINS, "ward_id")
-_register(_WARD, "trip_plan_collection_points", "app.models.schedule_masters.trip_plan_collection_point.TripPlanCollectionPoint", "ward_id")
+_register(_WARD, "trip_plan_collection_points", "app.models.core_modules.schedule_setup.trip_plan_collection_point.TripPlanCollectionPoint", "ward_id")
 _register(_WARD, "daily_trip_collection_points", _DAILY_TRIP_COLLECTION_POINT, "ward_id")
 _register(_WARD, "daily_trip_household_collections", _DAILY_TRIP_HOUSEHOLD_COLLECTION, "ward_id")
 _register(_WARD, "bin_collection_events", _BIN_COLLECTION_EVENT, "ward_id")
@@ -398,7 +398,7 @@ _register(_STAFF_CREATION, "access_configuration", _STAFF_ACCESS_CONFIG, "staff_
 _register(_STAFF_ACCESS_CONFIG, "granted_permissions", _STAFF_ACCESS_CONFIG_PERM, "staff_access_configuration_id")
 
 # TripPlan -> plan_collection_points, daily_trip_assignments
-_register(_TRIP_PLAN, "plan_collection_points", "app.models.schedule_masters.trip_plan_collection_point.TripPlanCollectionPoint", "trip_plan_id")
+_register(_TRIP_PLAN, "plan_collection_points", "app.models.core_modules.schedule_setup.trip_plan_collection_point.TripPlanCollectionPoint", "trip_plan_id")
 _register(_TRIP_PLAN, "daily_trip_assignments", _DAILY_TRIP_ASSIGNMENT, "trip_plan_id")
 
 # DailyTripAssignment -> daily_trip_log, trip_collection_points, trip_household_collections, bin_collection_events, waste_collections, vehicle_breakdown
@@ -412,7 +412,7 @@ _register(_DAILY_TRIP_ASSIGNMENT, "route_detour_waypoints", _ROUTE_DETOUR_WAYPOI
 
 # CollectionPoint -> bin, trip_plan_cps, daily_trip_logs, daily_trip_cps, bin_collection_events
 _register(_COLLECTION_POINT, "bin", _BINS, "collection_point_id")
-_register(_COLLECTION_POINT, "trip_plan_cps", "app.models.schedule_masters.trip_plan_collection_point.TripPlanCollectionPoint", "collection_point_id")
+_register(_COLLECTION_POINT, "trip_plan_cps", "app.models.core_modules.schedule_setup.trip_plan_collection_point.TripPlanCollectionPoint", "collection_point_id")
 _register(_COLLECTION_POINT, "daily_trip_logs", _DAILY_TRIP_LOG, "collection_point_id")
 _register(_COLLECTION_POINT, "daily_trip_cps", _DAILY_TRIP_COLLECTION_POINT, "collection_point_id")
 _register(_COLLECTION_POINT, "bin_collection_events", _BIN_COLLECTION_EVENT, "collection_point_id")
@@ -440,7 +440,7 @@ _register(_STAFF_TEMPLATE, "daily_trip_logs", _DAILY_TRIP_LOG, "staff_template_i
 _register(_ALT_STAFF_TEMPLATE, "daily_trip_logs", _DAILY_TRIP_LOG, "alt_staff_template_id")
 
 # Bins -> trip_plan_cps, daily_trip_cps, bin_collection_events
-_register(_BINS, "trip_plan_cps", "app.models.schedule_masters.trip_plan_collection_point.TripPlanCollectionPoint", "bin_id")
+_register(_BINS, "trip_plan_cps", "app.models.core_modules.schedule_setup.trip_plan_collection_point.TripPlanCollectionPoint", "bin_id")
 _register(_BINS, "daily_trip_cps", _DAILY_TRIP_COLLECTION_POINT, "bin_id")
 _register(_BINS, "bin_collection_events", _BIN_COLLECTION_EVENT, "bin_id")
 

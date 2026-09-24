@@ -6,8 +6,8 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
 from app.viewsets.core_modules.daily_operations.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
 
 pytestmark = pytest.mark.django_db

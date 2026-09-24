@@ -1,7 +1,7 @@
 # seeders/masters/country.py
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.common_masters.continent import Continent
-from app.models.common_masters.country import Country
+from app.models.superadmin.common_masters.continent import Continent
+from app.models.superadmin.common_masters.country import Country
 
 
 class CountrySeeder(BaseSeeder):

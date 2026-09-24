@@ -1,12 +1,12 @@
 from django.db import transaction
 from rest_framework import serializers
 
-from app.models.customers.customer_access_configuration import (
+from app.models.masters.customer_masters.customer_access_configuration import (
     CustomerAccessConfiguration,
 )
-from app.models.customers.customercreation import CustomerCreation
-from app.models.screen_managements.app_module import AppModule
-from app.models.screen_managements.userscreen import UserScreen
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.superadmin.screen_management.app_module import AppModule
+from app.models.superadmin.screen_management.userscreen import UserScreen
 from app.utils.app_feature_grants import CITIZEN_APP_SCREENS
 
 

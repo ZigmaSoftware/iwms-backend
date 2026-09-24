@@ -1,9 +1,9 @@
 from app.management.commands.seeders.base import BaseSeeder
 from django.db.models import Max
-from app.models.assets.bins import Bins
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import (
+from app.models.masters.waste_masters.bins import Bins
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import (
     TripPlanCollectionPoint,
 )
 

@@ -7,8 +7,8 @@ from .custom_router import GroupedRouter
 # ============================================================
 
 # Superadmin masters
-from ..viewsets.superadminmasters.company_management import PlatformCompanyCreateViewSet
-from ..viewsets.superadminmasters.project_management import CompanyProjectCreateViewSet
+from ..viewsets.superadmin_masters.company_management import PlatformCompanyCreateViewSet
+from ..viewsets.superadmin_masters.project_management import CompanyProjectCreateViewSet
 
 # Common masters
 from ..viewsets.superadmin.common_masters.continent_viewset import ContinentViewSet

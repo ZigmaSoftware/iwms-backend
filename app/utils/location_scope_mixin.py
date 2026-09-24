@@ -1,4 +1,4 @@
-from app.models.staff_creations.staff_access_configuration import StaffAccessConfiguration
+from app.models.superadmin.staff_management.staff_access_configuration import StaffAccessConfiguration
 
 # StaffAccessConfiguration stores each location grant as a comma-separated
 # TextField (e.g. `city_ids`), not a real M2M relation — this maps the
@@ -116,7 +116,7 @@ class LocationScopedViewSetMixin:
             # are plain string-pseudo-FK CharFields, same as everywhere else
             # in this codebase).
             if lookup.startswith("states__"):
-                from app.models.common_masters.state import State
+                from app.models.superadmin.common_masters.state import State
                 column = lookup[len("states__"):]
                 if column == "unique_id":
                     target_ids = scoped_ids

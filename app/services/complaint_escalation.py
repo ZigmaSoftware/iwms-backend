@@ -91,13 +91,13 @@ def escalate_ticket(ticket, reason=None, escalated_by=None, by_system=True):
     (a Celery/cron sweep and a manual action) can't double-escalate the same
     ticket. Raises ValueError if there is no next enabled level to escalate to.
     """
-    from app.models.complaint_management.masters import ComplaintStatus
-    from app.models.complaint_management.transactions import (
+    from app.models.core_modules.complaint_management.masters import ComplaintStatus
+    from app.models.core_modules.complaint_management.transactions import (
         ComplaintEscalationHistory,
         ComplaintStatusHistory,
     )
-    from app.models.complaint_management.ticket import ComplaintTicket
-    from app.models.notifications.staff_notification import StaffNotification
+    from app.models.core_modules.complaint_management.ticket import ComplaintTicket
+    from app.models.core_modules.notifications.staff_notification import StaffNotification
     from app.services.push_notification_service import send_push_to_customer
     from app.services.staff_notification_service import notify_staff
 
@@ -180,7 +180,7 @@ def check_and_escalate_overdue_tickets():
     """Sweep overdue tickets and escalate each one hop. Called by the
     `escalate_overdue_complaint_tickets` management command (run on a
     schedule via cron)."""
-    from app.models.complaint_management.ticket import ComplaintTicket
+    from app.models.core_modules.complaint_management.ticket import ComplaintTicket
 
     now = timezone.now()
 

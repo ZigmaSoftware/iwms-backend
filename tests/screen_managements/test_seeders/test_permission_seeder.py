@@ -3,9 +3,9 @@ import pytest
 from app.management.commands.seeders.superadmin.screen_management.permissions import (
     PermissionSeeder,
 )
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.mainscreentype import MainScreenType
-from app.models.screen_managements.userscreen import UserScreen
+from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.models.superadmin.screen_management.mainscreentype import MainScreenType
+from app.models.superadmin.screen_management.userscreen import UserScreen
 
 
 EXPECTED_GROUPS = {

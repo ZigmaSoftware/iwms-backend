@@ -28,8 +28,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from app.models.staff_creations.attendance import Employee
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.core_modules.attendance.attendance import Employee
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.services import face_recognition
 from app.utils.qr import generate_qr
 

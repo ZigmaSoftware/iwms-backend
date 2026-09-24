@@ -5,14 +5,14 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 from app.serializers.core_modules.daily_operations.daily_trip_log_serializer import (
     DailyTripLogSerializer,
     DailyTripLogVerifySerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.filters import (
     ModelFieldQueryFilter,
     ModelFieldSearchFilter,
@@ -74,8 +74,8 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             # (TripPlan.supervisor_id == requester). Auto-enforced for any
             # supervisor role on the admin web app too, not just when the
             # mobile app explicitly passes mine=true.
-            from app.models.schedule_masters.trip_plan import TripPlan
-            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+            from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 
             supervised_plan_ids = TripPlan.objects.filter(
                 supervisor_id=self.request.user.staff_unique_id,

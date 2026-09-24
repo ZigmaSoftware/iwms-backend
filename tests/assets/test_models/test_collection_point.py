@@ -1,7 +1,7 @@
 """Unit tests for Collection_point model — CRUD + constraints."""
 import pytest
 from django.core.exceptions import ValidationError
-from app.models.schedule_masters.collection_point import Collection_point
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
 from app.models.masters.panchayat import Panchayat
 
 

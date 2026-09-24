@@ -247,3 +247,152 @@ def test_register_and_recognize_remain_allowed():
     grants it was added alongside."""
     assert _resource_is_allowed("attendance", "Register", "register")
     assert _resource_is_allowed("attendance", "Recognize", "recognize")
+
+
+# ------------------------------------------------------------------
+# Screen dependencies: one grant on a page's own screen covers the other
+# APIs that page calls (app/utils/screen_dependencies.py).
+# ------------------------------------------------------------------
+
+def _run_as(monkeypatch, permissions, method, path, view_class):
+    from types import SimpleNamespace
+    from django.test import RequestFactory
+    import app.middleware.module_permission_middleware as middleware_module
+
+    def fake_authenticate_request(request):
+        request.user = SimpleNamespace(is_superuser=False)
+        return None
+
+    monkeypatch.setattr(middleware_module, "_authenticate_request", fake_authenticate_request)
+    monkeypatch.setattr(
+        middleware_module, "_resolve_permissions_for_request", lambda request: permissions
+    )
+    request = getattr(RequestFactory(), method)(path)
+    view_func = SimpleNamespace(cls=view_class)
+    result = ModulePermissionMiddleware(lambda r: None).process_view(request, view_func, (), {})
+    return 200 if result is None else result.status_code, request
+
+
+def _view(resource):
+    return type(f"{resource}ViewSet", (), {"permission_resource": resource})
+
+
+ASSIGNMENT_EDITOR = {
+    "schedule-operations": {"daily-trip-assignments": ["view", "edit"]},
+}
+
+
+def test_assignment_grant_does_not_cover_stop_screens(monkeypatch):
+    # The stops are separate screens in the "Daily Trip Plan" group: an admin
+    # who unticks one must actually take that access away.
+    for resource, route in (
+        ("DailyTripHouseholdCollection", "daily-trip-household-collections"),
+        ("DailyTripCollectionPoint", "daily-trip-collection-points"),
+    ):
+        status, _ = _run_as(
+            monkeypatch, ASSIGNMENT_EDITOR, "patch",
+            f"/api/v1/schedule-operations/{route}/X1/", _view(resource),
+        )
+        assert status == 403
+
+
+def test_lookup_grant_is_read_only(monkeypatch):
+    status, request = _run_as(
+        monkeypatch, ASSIGNMENT_EDITOR, "get",
+        "/api/v1/waste-types/bins/", _view("Bin"),
+    )
+    assert status == 200
+    assert request.permission_use_only is True
+
+    status, _ = _run_as(
+        monkeypatch, ASSIGNMENT_EDITOR, "post",
+        "/api/v1/waste-types/bins/", _view("Bin"),
+    )
+    assert status == 403
+
+
+def test_lookup_needs_a_grant_on_an_owning_screen(monkeypatch):
+    status, _ = _run_as(
+        monkeypatch, {"masters": {"districts": ["view"]}}, "get",
+        "/api/v1/waste-types/bins/", _view("Bin"),
+    )
+    assert status == 403
+
+
+def test_owner_grant_under_legacy_module_name_still_counts(monkeypatch):
+    status, _ = _run_as(
+        monkeypatch,
+        {"schedule-masters": {"daily-trip-assignments": ["view"]}},
+        "get",
+        "/api/v1/customer-masters/customercreations/",
+        _view("CustomerCreation"),
+    )
+    assert status == 200
+
+
+def test_ward_form_dropdowns_come_with_the_ward_screen(monkeypatch):
+    perms = {"masters": {"wards": ["view", "add"]}}
+    for path, resource in (
+        ("/api/v1/common-masters/states/", "State"),
+        ("/api/v1/masters/districts/", "District"),
+        ("/api/v1/masters/zones/", "Zone"),
+    ):
+        status, _ = _run_as(monkeypatch, perms, "get", path, _view(resource))
+        assert status == 200, path
+
+
+def test_contractor_user_types_follow_their_own_grant(monkeypatch):
+    # Shown under the "Staff User Type" row, but saved as its own screen, so
+    # a staff-user-type grant alone does not reach it.
+    status, _ = _run_as(
+        monkeypatch,
+        {"role-assigns": {"staffusertypes": ["view", "add", "edit"]}},
+        "post",
+        "/api/v1/role-assigns/contractorusertypes/",
+        _view("ContractorUserType"),
+    )
+    assert status == 403
+
+    status, _ = _run_as(
+        monkeypatch,
+        {"role-assigns": {"contractorusertypes": ["add"]}},
+        "post",
+        "/api/v1/role-assigns/contractorusertypes/",
+        _view("ContractorUserType"),
+    )
+    assert status == 200
+
+
+def test_previously_unallowlisted_resources_are_grantable(monkeypatch):
+    status, _ = _run_as(
+        monkeypatch,
+        {"role-assigns": {"project-staff-hierarchy": ["view"]}},
+        "get",
+        "/api/v1/role-assigns/project-staff-hierarchy/",
+        _view("ProjectStaffHierarchy"),
+    )
+    assert status == 200
+
+    status, _ = _run_as(
+        monkeypatch,
+        {"schedule-operations": {"static-route-map": ["view", "add", "delete"]}},
+        "post",
+        "/api/v1/schedule-operations/route-detour-waypoints/",
+        _view("RouteDetourWaypoint"),
+    )
+    assert status == 200
+
+
+def test_route_static_post_only_needs_view(monkeypatch):
+    from app.viewsets.core_modules.daily_operations.daily_trip_collection_point_viewset import (
+        DailyTripCollectionPointViewSet,
+    )
+
+    status, _ = _run_as(
+        monkeypatch,
+        {"schedule-operations": {"daily-trip-collection-points": ["view"]}},
+        "post",
+        "/api/v1/schedule-operations/daily-trip-collection-points/route-static/",
+        DailyTripCollectionPointViewSet,
+    )
+    assert status == 200

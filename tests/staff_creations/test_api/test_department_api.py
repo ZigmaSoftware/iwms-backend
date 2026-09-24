@@ -1,6 +1,6 @@
 """API tests for Department endpoint — CRUD operations."""
 import pytest
-from app.models.staff_creations.department import Department
+from app.models.superadmin.staff_management.department import Department
 
 BASE = "/api/v1/staff-creations/departments/"
 

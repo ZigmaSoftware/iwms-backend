@@ -69,12 +69,12 @@ class TestComplaintTicketCascadeOneToOne:
     """
 
     def _make_ticket(self, company, project, ward, zone):
-        from app.models.complaint_management.masters import (
+        from app.models.core_modules.complaint_management.masters import (
             ComplaintCategory,
             ComplaintPriority,
             ComplaintStatus,
         )
-        from app.models.complaint_management.ticket import ComplaintTicket
+        from app.models.core_modules.complaint_management.ticket import ComplaintTicket
 
         category = ComplaintCategory.objects.create(
             category_code="WASTE", category_name="Waste"
@@ -99,8 +99,8 @@ class TestComplaintTicketCascadeOneToOne:
     def test_ticket_with_one_to_one_feedback_cascades(
         self, auth_client, company, project, ward, zone
     ):
-        from app.models.complaint_management.ticket import ComplaintTicket
-        from app.models.complaint_management.transactions import ComplaintFeedback
+        from app.models.core_modules.complaint_management.ticket import ComplaintTicket
+        from app.models.core_modules.complaint_management.transactions import ComplaintFeedback
 
         ticket = self._make_ticket(company, project, ward, zone)
         feedback = ComplaintFeedback.objects.create(ticket_id=ticket.unique_id, rating=5)
@@ -118,7 +118,7 @@ class TestComplaintTicketCascadeOneToOne:
     ):
         """A ticket with nothing linked to its reverse one-to-ones must not
         raise DoesNotExist while walking the cascade graph."""
-        from app.models.complaint_management.ticket import ComplaintTicket
+        from app.models.core_modules.complaint_management.ticket import ComplaintTicket
 
         ticket = self._make_ticket(company, project, ward, zone)
 

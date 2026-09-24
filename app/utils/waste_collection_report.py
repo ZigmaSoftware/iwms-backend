@@ -9,7 +9,7 @@ from app.utils.household_waste_breakdown import (
     household_only_location_rows,
     household_only_type_rows,
 )
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 
 
 ZERO = Decimal("0")

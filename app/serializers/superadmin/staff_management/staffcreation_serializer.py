@@ -1,15 +1,15 @@
 import re
 
 from rest_framework import serializers
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.contractorUserType import ContractorUserType
-from app.models.staff_creations.department import Department
-from app.models.staff_creations.designation import Designation
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.role_management.contractorUserType import ContractorUserType
+from app.models.superadmin.staff_management.department import Department
+from app.models.superadmin.staff_management.designation import Designation
 from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.utils.name_or_id_field import NameOrUniqueIdField
 
-from app.models.staff_creations.staffcreation import Staffcreation, StaffPersonalDetails
+from app.models.superadmin.staff_management.staffcreation import Staffcreation, StaffPersonalDetails
 
 from app.utils.password_encryption import encrypt_password, decrypt_password
 

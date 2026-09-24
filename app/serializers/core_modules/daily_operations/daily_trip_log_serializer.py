@@ -1,10 +1,10 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from app.models.assets.bins import Bins
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.masters.waste_masters.bins import Bins
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 from app.utils.name_or_id_field import NameOrUniqueIdField
@@ -187,12 +187,12 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
 
     def get_collection_points(self, obj):
         from django.db.models import Sum
-        from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+        from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
 
         assignment = obj.trip_assignment
         if not assignment:
             return []
-        from app.models.staff_creations.waste_collection_bluetooth import WasteType
+        from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
         cps = (
             assignment.trip_collection_points
@@ -240,7 +240,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         ]
 
     def get_collection_status(self, obj):
-        from app.models.schedule_masters.daily_trip_household_collection import (
+        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
             DailyTripHouseholdCollection,
         )
         assignment = obj.trip_assignment
@@ -266,7 +266,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         return "In Progress"
 
     def get_household_collections(self, obj):
-        from app.models.schedule_masters.daily_trip_household_collection import (
+        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
             DailyTripHouseholdCollection,
         )
         assignment = obj.trip_assignment
@@ -319,7 +319,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         """Capture photos taken during this trip — aggregated by matching every
         household collection's customer + collection date against
         WasteCollectionSub photos (there is no direct FK to the photo)."""
-        from app.models.schedule_masters.daily_trip_household_collection import (
+        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
             DailyTripHouseholdCollection,
         )
 
@@ -430,7 +430,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         scan validates against, which keeps the log consistent with what the
         app accepts.
         """
-        from app.models.staff_creations.waste_collection_bluetooth import WasteType
+        from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
         from app.viewsets.operator_mobile.helpers import _assignment_waste_type_ids
 
         assignment = obj.trip_assignment
@@ -474,7 +474,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     def get_extra_operators(self, obj):
         if not obj.extra_operator_ids:
             return []
-        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        from app.models.superadmin.staff_management.staffcreation import StaffcreationOfficeDetails
         ids = [o for o in obj.extra_operator_ids.split(",") if o]
         return [self._staff_dict(staff) for staff in StaffcreationOfficeDetails.objects.filter(staff_unique_id__in=ids)]
 
@@ -491,7 +491,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
     def get_bins(self, obj):
         if not obj.bin_ids:
             return []
-        from app.models.assets.bins import Bins
+        from app.models.masters.waste_masters.bins import Bins
         ids = [b for b in obj.bin_ids.split(",") if b]
         return [
             {

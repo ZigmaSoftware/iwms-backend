@@ -4,22 +4,22 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.screen_managements.companyuserscreenpermission import (
+from app.models.superadmin.screen_management.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
-from app.models.staff_creations.staff_access_configuration import (
+from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
 )
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.serializers.superadmin.staff_management.staff_access_configuration_serializer import (
     StaffAccessConfigurationSerializer,
 )
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.mainscreentype import MainScreenType
-from app.models.screen_managements.app_module import AppModule
+from app.models.superadmin.screen_management.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
+from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.models.superadmin.screen_management.mainscreentype import MainScreenType
+from app.models.superadmin.screen_management.app_module import AppModule
 from app.models.superadmin_masters.project import Project
 from app.utils.app_feature_grants import (
     CITIZEN_APP_MAINSCREEN,
@@ -27,13 +27,14 @@ from app.utils.app_feature_grants import (
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.password_encryption import decrypt_password
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.filters import (
     ModelFieldQueryFilter,
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.screen_dependencies import screen_group
 
 
 class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -385,11 +386,17 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                     "screens": {},
                 },
             )
+            group_key, group_label = screen_group(
+                userscreen.userscreen_name if userscreen else None
+            )
             screen_entry = mainscreen_entry["screens"].setdefault(
                 perm.userscreen_id,
                 {
                     "userScreenId": perm.userscreen_id,
                     "userScreenName": userscreen.userscreen_name if userscreen else None,
+                    # Screens sharing a group render under one heading.
+                    "screenGroup": group_key,
+                    "screenGroupLabel": group_label,
                     "actions": {},
                 },
             )

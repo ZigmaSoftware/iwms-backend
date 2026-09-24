@@ -1,12 +1,12 @@
 from rest_framework import serializers
 
-from app.models.assets.bins import Bins
-from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import (
+from app.models.masters.waste_masters.bins import Bins
+from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
+from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown
 from app.serializers.masters.waste_masters.bins_serializer import BinsSerializer
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.masters.transport_masters.vehicleCreation_serializer import (
@@ -264,7 +264,7 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
         vehicle_id = self._resolve_vehicle(obj.trip_assignment)
         if not vehicle_id:
             return None
-        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
         vehicle = VehicleCreation.objects.filter(unique_id=vehicle_id).first()
         if not vehicle:
             return None

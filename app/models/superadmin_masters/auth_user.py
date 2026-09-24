@@ -170,28 +170,28 @@ class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
 
     @property
     def user_type(self):
-        from app.models.role_assigns.userType import UserType
+        from app.models.superadmin.role_management.userType import UserType
         if self.user_type_id:
             return UserType.objects.filter(unique_id=self.user_type_id).first()
         return None
 
     @property
     def staffusertype(self):
-        from app.models.role_assigns.staffUserType import StaffUserType
+        from app.models.superadmin.role_management.staffUserType import StaffUserType
         if self.staffusertype_id:
             return StaffUserType.objects.filter(unique_id=self.staffusertype_id).first()
         return None
 
     @property
     def staff(self):
-        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        from app.models.superadmin.staff_management.staffcreation import StaffcreationOfficeDetails
         if self.staff_id:
             return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.staff_id).first()
         return None
 
     @property
     def customer(self):
-        from app.models.customers.customercreation import CustomerCreation
+        from app.models.masters.customer_masters.customercreation import CustomerCreation
         if self.customer_id:
             return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
         return None

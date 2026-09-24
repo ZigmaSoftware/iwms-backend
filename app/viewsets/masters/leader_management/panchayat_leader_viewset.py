@@ -1,10 +1,10 @@
 from rest_framework import filters, status
 from rest_framework.response import Response
 
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
-from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
+from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
 from app.serializers.masters.leader_management.panchayat_leader_serializer import PanchayatLeaderLoginSerializer
 
 

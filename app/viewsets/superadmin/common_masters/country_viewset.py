@@ -1,5 +1,5 @@
 from rest_framework import filters, viewsets
-from app.models.common_masters.country import Country
+from app.models.superadmin.common_masters.country import Country
 from app.serializers.superadmin.common_masters.country_serializer import CountrySerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin

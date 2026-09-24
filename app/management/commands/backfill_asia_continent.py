@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 
-from app.models.common_masters.continent import Continent
-from app.models.common_masters.country import Country
+from app.models.superadmin.common_masters.continent import Continent
+from app.models.superadmin.common_masters.country import Country
 
 SUB_REGIONS = ["South Asia", "East Asia", "Southeast Asia", "Central Asia"]
 

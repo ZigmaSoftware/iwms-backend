@@ -63,23 +63,23 @@ from app.management.commands.seeders.core_modules.daily_operations.driver_househ
     HOUSEHOLD_PLAN_DISPLAY_CODE,
 )
 
-from app.models.assets.bins import BinType, Bins
+from app.models.masters.waste_masters.bins import BinType, Bins
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.userType import UserType
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.role_management.userType import UserType
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
 
 COMPANY_NAME = "Blue Planet"
@@ -501,7 +501,7 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         assignment ends up with exactly the current bin set. Collected stops
         are left alone; they're real audit history, not stale seed data.
         """
-        from app.models.schedule_masters.daily_trip_collection_point import (
+        from app.models.core_modules.daily_operations.daily_trip_collection_point import (
             DailyTripCollectionPoint,
         )
 
@@ -529,14 +529,14 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         ProtectedError. Soft-deleting instead is not enough: a cancelled /
         is_deleted plan still shows up as a stale trip card in the app.
         """
-        from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
-        from app.models.schedule_masters.daily_trip_collection_point import (
+        from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
+        from app.models.core_modules.daily_operations.daily_trip_collection_point import (
             DailyTripCollectionPoint,
         )
-        from app.models.schedule_masters.daily_trip_household_collection import (
+        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
             DailyTripHouseholdCollection,
         )
-        from app.models.schedule_masters.daily_trip_log import DailyTripLog
+        from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 
         driver_template_ids = list(
             StaffTemplate.objects.filter(
@@ -602,7 +602,7 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
 
     # ------------------------------------------------------------------
     def _report(self, plans):
-        from app.models.schedule_masters.daily_trip_collection_point import (
+        from app.models.core_modules.daily_operations.daily_trip_collection_point import (
             DailyTripCollectionPoint,
         )
 

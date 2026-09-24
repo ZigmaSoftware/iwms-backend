@@ -11,8 +11,8 @@ Must run AFTER `complaint_ticket_category` and `complaint_sla_rule`.
 """
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.complaint_management import ComplaintCategory, ComplaintSlaRule
-from app.models.complaint_management.transactions import ComplaintRoutingRule
+from app.models.core_modules.complaint_management import ComplaintCategory, ComplaintSlaRule
+from app.models.core_modules.complaint_management.transactions import ComplaintRoutingRule
 
 
 class ComplaintRoutingRuleSeeder(BaseSeeder):

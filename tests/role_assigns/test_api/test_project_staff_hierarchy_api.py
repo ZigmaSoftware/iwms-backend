@@ -1,8 +1,8 @@
 """API tests for ProjectStaffHierarchy endpoint."""
 import pytest
 
-from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 
 
 BASE = "/api/v1/role-assigns/project-staff-hierarchy/"

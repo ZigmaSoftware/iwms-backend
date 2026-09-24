@@ -4,7 +4,7 @@ from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.zone import Zone
 from app.models.masters.panchayat import Panchayat
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.state import State
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
@@ -107,7 +107,7 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         state = self._state(obj)
         if not state or not state.continent_id:
             return None
-        from app.models.common_masters.continent import Continent
+        from app.models.superadmin.common_masters.continent import Continent
         continent = Continent.objects.filter(unique_id=state.continent_id).first()
         return continent.name if continent else None
 
@@ -115,7 +115,7 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         state = self._state(obj)
         if not state or not state.country_id:
             return None
-        from app.models.common_masters.country import Country
+        from app.models.superadmin.common_masters.country import Country
         country = Country.objects.filter(unique_id=state.country_id).first()
         return country.name if country else None
 

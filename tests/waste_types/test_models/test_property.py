@@ -1,6 +1,6 @@
 """Unit tests for Property model — CRUD + constraints."""
 import pytest
-from app.models.waste_types.property import Property
+from app.models.masters.waste_masters.property import Property
 
 
 @pytest.mark.django_db

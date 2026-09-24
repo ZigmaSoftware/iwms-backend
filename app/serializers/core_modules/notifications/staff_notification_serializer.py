@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from app.models.notifications.staff_notification import StaffNotification
+from app.models.core_modules.notifications.staff_notification import StaffNotification
 
 
 class StaffNotificationSerializer(serializers.ModelSerializer):

@@ -15,7 +15,7 @@ from rest_framework import filters, status as http_status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.complaint_management import (
+from app.models.core_modules.complaint_management import (
     ComplaintAttachment,
     ComplaintComment,
     ComplaintFeedback,
@@ -38,7 +38,7 @@ from app.services.complaint_ticket_routing import (
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 User = get_user_model()
 
@@ -103,8 +103,8 @@ def _is_entry_level_staff(user):
     scope") so a deployment that hasn't configured hierarchy/SLA levels yet
     keeps working as before rather than hiding tickets from everyone.
     """
-    from app.models.complaint_management.masters import ComplaintSlaEscalationLevel, ComplaintSlaRule
-    from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
+    from app.models.core_modules.complaint_management.masters import ComplaintSlaEscalationLevel, ComplaintSlaRule
+    from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
 
     staffusertype_id = getattr(user, "staffusertype_id_id", None)
     project_id = getattr(user, "project_id_id", None)

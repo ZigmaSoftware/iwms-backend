@@ -4,11 +4,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 
-from app.models.screen_managements.companyuserscreencolumnpermission import (
+from app.models.superadmin.screen_management.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreencolumn import UserScreenColumn
+from app.models.superadmin.screen_management.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreencolumn import UserScreenColumn
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.serializers.superadmin.screen_management.companyuserscreencolumnpermission_serializer import (
@@ -16,7 +16,7 @@ from app.serializers.superadmin.screen_management.companyuserscreencolumnpermiss
     UserScreenColumnPermissionWriteSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedViewSet):

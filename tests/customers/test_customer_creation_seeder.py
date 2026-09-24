@@ -4,11 +4,11 @@ from app.management.commands.seeders.masters.customer_masters.customerCreation i
     CUSTOMER_WASTE_TYPES,
     CustomerCreationSeeder,
 )
-from app.models.customers.customercreation import CustomerCreation
-from app.models.role_assigns.userType import UserType
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.superadmin.role_management.userType import UserType
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
 
 
 @pytest.mark.django_db

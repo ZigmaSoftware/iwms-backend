@@ -5,12 +5,12 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
 
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.audits.staff_template_audit_log import StaffTemplateAuditLog
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.superadmin.audits.staff_template_audit_log import StaffTemplateAuditLog
 from app.utils.base_models import Account
 
 from app.serializers.core_modules.schedule_setup.staff_template_serializer import (

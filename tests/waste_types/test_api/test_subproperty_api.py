@@ -18,7 +18,7 @@ class TestSubPropertyAPIList:
 @pytest.mark.django_db
 class TestSubPropertyAPICreate:
     def test_create_returns_success(self, auth_client):
-        from app.models.waste_types.property import Property
+        from app.models.masters.waste_masters.property import Property
         prop = Property.objects.create(property_name="Organic")
         resp = auth_client.post(
             BASE,
@@ -38,8 +38,8 @@ class TestSubPropertyAPIRetrieve:
 @pytest.mark.django_db
 class TestSubPropertyAPIUpdate:
     def test_patch_returns_success(self, auth_client):
-        from app.models.waste_types.property import Property
-        from app.models.waste_types.subproperty import SubProperty
+        from app.models.masters.waste_masters.property import Property
+        from app.models.masters.waste_masters.subproperty import SubProperty
         prop = Property.objects.create(property_name="Inorganic")
         sub = SubProperty.objects.create(property_id=prop, sub_property_name="Plastic")
         resp = auth_client.patch(
@@ -51,8 +51,8 @@ class TestSubPropertyAPIUpdate:
 @pytest.mark.django_db
 class TestSubPropertyAPIDelete:
     def test_delete_returns_success(self, auth_client):
-        from app.models.waste_types.property import Property
-        from app.models.waste_types.subproperty import SubProperty
+        from app.models.masters.waste_masters.property import Property
+        from app.models.masters.waste_masters.subproperty import SubProperty
         prop = Property.objects.create(property_name="Hazardous")
         sub = SubProperty.objects.create(property_id=prop, sub_property_name="Chemical")
         resp = auth_client.delete(f"{BASE}{sub.unique_id}/")

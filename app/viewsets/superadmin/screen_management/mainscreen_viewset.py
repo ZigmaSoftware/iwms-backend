@@ -2,9 +2,9 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
-from app.models.screen_managements.mainscreen import MainScreen
+from app.models.superadmin.screen_management.mainscreen import MainScreen
 from app.serializers.superadmin.screen_management.mainscreen_serializer import MainScreenSerializer
 
 

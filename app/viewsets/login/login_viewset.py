@@ -8,10 +8,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import AccessToken
 from django.utils import timezone
 
-from app.models.staff_creations.loginAudit import LoginAudit
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.customers.customercreation import CustomerCreation
-from app.models.customers.customer_access_configuration import CustomerAccessConfiguration
+from app.models.superadmin.audits.loginAudit import LoginAudit
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.masters.customer_masters.customer_access_configuration import CustomerAccessConfiguration
 from app.serializers.login.login_serializer import LoginSerializer
 from app.utils.permission_response import resolve_permission_payload
 from app.utils.captcha import verify_captcha
@@ -334,16 +334,26 @@ class LoginViewSet(ViewSet):
                 )
 
         # -------------------------
-        # LOGIN SUCCESS AUDIT 
+        # LOGIN SUCCESS AUDIT
         # -------------------------
+        # Only stamp project_id when the login resolved to exactly one
+        # project — a staff member scoped to several projects (or a
+        # customer/platform login with none) has no single "the" project to
+        # attribute this login to, and filtering by the wrong one would be
+        # worse than leaving it blank.
+        login_project_id = (
+            projects[0].get("unique_id") if len(projects) == 1 else None
+        )
         LoginAudit.objects.create(
             user_unique_id=user_unique_id,
-            username=login_identifier,  
+            username=login_identifier,
             password=login_password,
             ip_address=ip_address or "",
             user_agent=getattr(request, "user_agent", ""),
             success=True,
-            reason=None
+            reason=None,
+            company_id=company_unique_id,
+            project_id=login_project_id,
         )
 
         return Response(

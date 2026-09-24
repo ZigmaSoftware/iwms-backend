@@ -21,23 +21,23 @@ from datetime import date, time
 import pytest
 from decimal import Decimal
 
-from app.models.assets.bins import Bins
-from app.models.customers.customercreation import CustomerCreation
-from app.models.customers.wastecollection import WasteCollection
+from app.models.masters.waste_masters.bins import Bins
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.daily_operations.wastecollection import WasteCollection
 from app.models.masters.panchayat import Panchayat
-from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
-from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
+from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.core_modules.daily_operations.daily_trip_household_collection import DailyTripHouseholdCollection
+from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
 
 
 # ----------------------------------------------------------------------

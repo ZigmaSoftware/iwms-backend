@@ -3,10 +3,10 @@ from decimal import Decimal
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 
-from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.assets.bins import Bins
+from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.masters.waste_masters.bins import Bins
 from app.permissions.operator_permission import IsOperatorRole
 from app.viewsets.operator_mobile.helpers import (
     OperatorFlowError,
@@ -31,7 +31,7 @@ def _serialize_summary(assignment: DailyTripAssignment) -> dict:
     
     waste_type = None
     if waste_type_id:
-        from app.models.staff_creations.waste_collection_bluetooth import WasteType
+        from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
         waste_type = WasteType.objects.filter(unique_id=waste_type_id).first()
     
     return {
@@ -98,7 +98,7 @@ class TripHistoryViewSet(viewsets.ViewSet):
         # can't be traversed with `__operator_id`, and trip_collection_points
         # is a resolver @property (not a reverse relation) so it can't be
         # prefetch_related-ed; "waste_types" was never a field/property here.
-        from app.models.schedule_masters.staff_template import StaffTemplate
+        from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
 
         staff_template_ids = set(
             StaffTemplate.objects.filter(

@@ -1,8 +1,8 @@
 from django.shortcuts import get_object_or_404
 
 from rest_framework import viewsets
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.transport_masters.fuel import Fuel
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.models.masters.transport_masters.fuel import Fuel
 from app.serializers.masters.transport_masters.fuel_serializer import FuelSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.filters import (

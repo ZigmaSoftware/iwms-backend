@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from app.models.screen_managements.app_module import AppModule
+from app.models.superadmin.screen_management.app_module import AppModule
 
 
 class AppModuleSerializer(serializers.ModelSerializer):

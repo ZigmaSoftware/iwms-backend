@@ -30,14 +30,14 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.state import State
 from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.complaint_management import (
+from app.models.core_modules.complaint_management import (
     ComplaintAttachment,
     ComplaintCategory,
     ComplaintPriority,

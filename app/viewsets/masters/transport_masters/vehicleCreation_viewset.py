@@ -10,13 +10,13 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
-from app.models.transport_masters.fuel import Fuel
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
+from app.models.masters.transport_masters.fuel import Fuel
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.serializers.masters.transport_masters.vehicleCreation_serializer import VehicleCreationSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.filters import (
