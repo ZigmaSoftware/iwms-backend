@@ -61,7 +61,6 @@ from ..viewsets.superadmin.staff_management.staff_access_configuration_viewset i
 
 # Authentication
 from ..viewsets.login.login_viewset import LoginViewSet as DesktopLoginViewSet
-from ..viewsets.login.captcha_viewset import CaptchaViewSet
 from ..viewsets.auth.forgot_password_viewset import (
     ForgotPasswordView,
     VerifyOTPView,
@@ -241,7 +240,6 @@ router.register_group(
 # GROUP: AUTHENTICATION
 # ============================================================
 router.register_group("login", "login-user",      DesktopLoginViewSet)
-router.register_group("login", "captcha",         CaptchaViewSet)
 
 # ============================================================
 # GROUP: CUSTOMER MODULES
