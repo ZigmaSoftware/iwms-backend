@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown, VehicleBreakdownPhoto
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.models.transport_masters.vehicleCreation import VehicleCreation
+from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.role_assigns.staffUserType import StaffUserType
 from app.serializers.core_modules.daily_operations.vehicle_breakdown_serializer import (
     VehicleBreakdownSerializer,
     VehicleBreakdownVerifySerializer,
@@ -25,34 +27,12 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 
 class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    queryset = (
-        VehicleBreakdown.objects.select_related(
-            "company_id",
-            "project_id",
-            "trip_assignment_id",
-            "trip_assignment_id__trip_plan_id",
-            "trip_assignment_id__trip_plan_id__staff_template_id",
-            "trip_assignment_id__trip_plan_id__staff_template_id__driver_id",
-            "trip_assignment_id__trip_plan_id__staff_template_id__operator_id",
-            "trip_assignment_id__staff_template_id",
-            "trip_assignment_id__staff_template_id__driver_id",
-            "trip_assignment_id__staff_template_id__operator_id",
-            "trip_assignment_id__panchayat_id",
-            "breakdown_vehicle_id",
-            "replacement_vehicle_id",
-            "replacement_driver_id",
-            "replacement_operator_id",
-            "alt_staff_template_id",
-            "alt_staff_template_id__driver_id",
-            "alt_staff_template_id__operator_id",
-            "alt_staff_template_id__staff_template",
-            "alt_staff_template_id__staff_template__driver_id",
-            "alt_staff_template_id__staff_template__operator_id",
-            "approved_by",
-            "new_assignment",
-        )
-        .filter(is_deleted=False)
-    )
+    # Every relation above (trip_assignment_id, breakdown_vehicle_id,
+    # replacement_vehicle_id/driver_id/operator_id, alt_staff_template_id,
+    # new_assignment, etc.) is now a plain CharField id column, not a real
+    # ForeignKey — select_related can no longer follow them; the serializer
+    # resolves each one on demand via its own queries instead.
+    queryset = VehicleBreakdown.objects.filter(is_deleted=False)
     serializer_class = VehicleBreakdownSerializer
     lookup_field = "unique_id"
     permission_resource = "VehicleBreakdown"
@@ -68,9 +48,9 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             company_param = self.request.query_params.get("company_id")
             project_param = self.request.query_params.get("project_id")
             if company_param and hasattr(qs.model, "company_id"):
-                qs = qs.filter(company_id__unique_id=company_param)
+                qs = qs.filter(company_id=company_param)
             if project_param and hasattr(qs.model, "project_id"):
-                qs = qs.filter(project_id__unique_id=project_param)
+                qs = qs.filter(project_id=project_param)
             return qs
 
         company = self._company()
@@ -96,12 +76,24 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         project = params.get("project_id")
 
         if str(params.get("mine", "")).lower() in {"true", "1", "yes"}:
-            qs = qs.filter(trip_assignment_id__trip_plan_id__supervisor_id=self.request.user)
+            from app.models.schedule_masters.trip_plan import TripPlan
+            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+
+            supervised_plan_ids = TripPlan.objects.filter(
+                supervisor_id=self.request.user.staff_unique_id,
+            ).values("unique_id")
+            supervised_assignment_ids = DailyTripAssignment.objects.filter(
+                trip_plan_id__in=supervised_plan_ids,
+            ).values("unique_id")
+            qs = qs.filter(trip_assignment_id__in=supervised_assignment_ids)
 
         if trip_date:
-            qs = qs.filter(trip_assignment_id__trip_date=trip_date)
+            matching_assignment_ids = DailyTripAssignment.objects.filter(
+                trip_date=trip_date,
+            ).values("unique_id")
+            qs = qs.filter(trip_assignment_id__in=matching_assignment_ids)
         if trip_assignment:
-            qs = qs.filter(trip_assignment_id__unique_id=trip_assignment)
+            qs = qs.filter(trip_assignment_id=trip_assignment)
         if approval_status:
             qs = qs.filter(approval_status=approval_status)
         if breakdown_status:
@@ -109,15 +101,21 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if breakdown_reason:
             qs = qs.filter(breakdown_reason=breakdown_reason)
         if project:
-            qs = qs.filter(project_id__unique_id=project)
+            qs = qs.filter(project_id=project)
         if search:
+            matching_vehicle_ids = VehicleCreation.objects.filter(
+                vehicle_no__icontains=search,
+            ).values("unique_id")
+            matching_staff_ids = Staffcreation.objects.filter(
+                employee_name__icontains=search,
+            ).values("staff_unique_id")
             qs = qs.filter(
                 Q(unique_id__icontains=search)
-                | Q(trip_assignment_id__unique_id__icontains=search)
-                | Q(breakdown_vehicle_id__vehicle_no__icontains=search)
-                | Q(replacement_vehicle_id__vehicle_no__icontains=search)
-                | Q(replacement_driver_id__employee_name__icontains=search)
-                | Q(replacement_operator_id__employee_name__icontains=search)
+                | Q(trip_assignment_id__icontains=search)
+                | Q(breakdown_vehicle_id__in=matching_vehicle_ids)
+                | Q(replacement_vehicle_id__in=matching_vehicle_ids)
+                | Q(replacement_driver_id__in=matching_staff_ids)
+                | Q(replacement_operator_id__in=matching_staff_ids)
             )
 
         return qs
@@ -236,23 +234,24 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 DailyTripAssignment.STATUS_IN_PROGRESS,
             ],
             is_deleted=False,
-        )).select_related("staff_template_id", "alt_staff_template_id")
+        ))
 
         busy_driver_ids = set()
         busy_operator_ids = set()
         for a in active_assignments:
-            tmpl = a.alt_staff_template_id or a.staff_template_id
+            tmpl = a.alt_staff_template or a.staff_template
             if not tmpl:
                 continue
-            if tmpl.driver_id_id:
-                busy_driver_ids.add(tmpl.driver_id_id)
-            if tmpl.operator_id_id:
-                busy_operator_ids.add(tmpl.operator_id_id)
+            if tmpl.driver_id:
+                busy_driver_ids.add(tmpl.driver_id)
+            if tmpl.operator_id:
+                busy_operator_ids.add(tmpl.operator_id)
 
+        matching_staffusertype_ids = StaffUserType.objects.filter(name=role).values("unique_id")
         qs = Staffcreation.objects.filter(
             is_deleted=False,
             active_status=True,
-            staffusertype_id__name=role,
+            staffusertype_id__in=matching_staffusertype_ids,
         )
 
         if role == "Company Driver":
@@ -294,22 +293,25 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 DailyTripAssignment.STATUS_IN_PROGRESS,
             ],
             is_deleted=False,
-        )).select_related("staff_template_id", "alt_staff_template_id")
+        ))
 
         busy_driver_ids = set()
         busy_operator_ids = set()
         for assignment in active_assignments:
-            template = assignment.alt_staff_template_id or assignment.staff_template_id
+            template = assignment.alt_staff_template or assignment.staff_template
             if not template:
                 continue
-            if template.driver_id_id:
-                busy_driver_ids.add(template.driver_id_id)
-            if template.operator_id_id:
-                busy_operator_ids.add(template.operator_id_id)
+            if template.driver_id:
+                busy_driver_ids.add(template.driver_id)
+            if template.operator_id:
+                busy_operator_ids.add(template.operator_id)
 
         current_breakdown_id = request.query_params.get("exclude_id")
+        matching_assignment_ids = DailyTripAssignment.objects.filter(
+            trip_date=trip_date,
+        ).values("unique_id")
         pending_breakdowns = self._scope_company_project(VehicleBreakdown.objects.filter(
-            trip_assignment_id__trip_date=trip_date,
+            trip_assignment_id__in=matching_assignment_ids,
             approval_status=VehicleBreakdown.APPROVAL_PENDING,
             is_deleted=False,
         ))
@@ -332,17 +334,17 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
         qs = self._scope_company_project(qs)
         qs = qs.exclude(
-            Q(driver_id__staff_unique_id__in=busy_driver_ids)
-            | Q(operator_id__staff_unique_id__in=busy_operator_ids)
-        ).select_related("driver_id", "operator_id")
+            Q(driver_id__in=busy_driver_ids)
+            | Q(operator_id__in=busy_operator_ids)
+        )
 
         data = [
             {
                 "unique_id": template.unique_id,
                 "display_code": template.display_code,
-                "driver_id": template.driver_id_id,
+                "driver_id": template.driver_id,
                 "driver_name": template.driver_id.employee_name if template.driver_id else None,
-                "operator_id": template.operator_id_id,
+                "operator_id": template.operator_id,
                 "operator_name": template.operator_id.employee_name if template.operator_id else None,
             }
             for template in qs.order_by("display_code")

@@ -10,13 +10,6 @@ from django.db import models
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.customers.customercreation import CustomerCreation
-from app.models.common_masters.state import State
-from app.models.masters.district import District
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.zone import Zone
-from app.models.masters.ward import Ward
-from app.models.complaint_management.ticket import ComplaintTicket
 
 
 def generate_address_change_id():
@@ -61,16 +54,8 @@ class ComplaintAddressChangeRequest(BaseMaster):
         editable=False,
     )
 
-    ticket = models.OneToOneField(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="address_change_request",
-    )
-    customer = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.PROTECT,
-        related_name="address_change_requests",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
+    customer_id = models.CharField(max_length=30, null=True, blank=True)
 
     change_type = models.CharField(
         max_length=40,
@@ -89,46 +74,11 @@ class ComplaintAddressChangeRequest(BaseMaster):
     new_longitude = models.CharField(max_length=100, null=True, blank=True)
     new_full_address = models.TextField(null=True, blank=True)
 
-    new_state = models.ForeignKey(
-        State,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="address_change_requests",
-        db_column="new_state_id",
-    )
-    new_district = models.ForeignKey(
-        District,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="address_change_requests",
-        db_column="new_district_id",
-    )
-    new_panchayat = models.ForeignKey(
-        Panchayat,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="address_change_requests",
-        db_column="new_panchayat_id",
-    )
-    new_zone = models.ForeignKey(
-        Zone,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="address_change_requests",
-        db_column="new_zone_id",
-    )
-    new_ward = models.ForeignKey(
-        Ward,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="address_change_requests",
-        db_column="new_ward_id",
-    )
+    new_state_id = models.CharField(max_length=30, null=True, blank=True)
+    new_district_id = models.CharField(max_length=30, null=True, blank=True)
+    new_panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    new_zone_id = models.CharField(max_length=30, null=True, blank=True)
+    new_ward_id = models.CharField(max_length=30, null=True, blank=True)
 
     proof_type = models.CharField(
         max_length=40,
@@ -149,28 +99,19 @@ class ComplaintAddressChangeRequest(BaseMaster):
         choices=VerificationStatus.choices,
         default=VerificationStatus.PENDING,
     )
-    verified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="verified_address_changes",
-    )
+    verified_by = models.CharField(max_length=30, null=True, blank=True)
     verified_at = models.DateTimeField(null=True, blank=True)
     verification_remarks = models.TextField(null=True, blank=True)
 
-    approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="approved_address_changes",
-    )
+    approved_by = models.CharField(max_length=30, null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(null=True, blank=True)
 
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_address_change_request_list", "complaint_address_change_request_detail")
 
     class Meta:
         ordering = ["-created"]
@@ -179,3 +120,66 @@ class ComplaintAddressChangeRequest(BaseMaster):
 
     def __str__(self):
         return f"{self.ticket_id} address change"
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
+
+    @property
+    def customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+        return None
+
+    @property
+    def new_state(self):
+        from app.models.common_masters.state import State
+        if self.new_state_id:
+            return State.objects.filter(unique_id=self.new_state_id).first()
+        return None
+
+    @property
+    def new_district(self):
+        from app.models.masters.district import District
+        if self.new_district_id:
+            return District.objects.filter(unique_id=self.new_district_id).first()
+        return None
+
+    @property
+    def new_panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.new_panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.new_panchayat_id).first()
+        return None
+
+    @property
+    def new_zone(self):
+        from app.models.masters.zone import Zone
+        if self.new_zone_id:
+            return Zone.objects.filter(unique_id=self.new_zone_id).first()
+        return None
+
+    @property
+    def new_ward(self):
+        from app.models.masters.ward import Ward
+        if self.new_ward_id:
+            return Ward.objects.filter(unique_id=self.new_ward_id).first()
+        return None
+
+    @property
+    def verified_by_user(self):
+        from django.conf import settings
+        if self.verified_by:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.verified_by).first()
+        return None
+
+    @property
+    def approved_by_user(self):
+        from django.conf import settings
+        if self.approved_by:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.approved_by).first()
+        return None

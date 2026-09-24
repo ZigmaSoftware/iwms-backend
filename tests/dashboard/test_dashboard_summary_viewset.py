@@ -31,7 +31,7 @@ def other_company(db):
 @pytest.fixture
 def other_project(db, other_company):
     from app.models.superadmin_masters.project import Project
-    return Project.objects.create(name="Other Project", company_id=other_company)
+    return Project.objects.create(name="Other Project", company_id=other_company.unique_id)
 
 
 @pytest.fixture
@@ -41,8 +41,8 @@ def company_user(db, company, project):
     return User.objects.create_user(
         username="company_user_test",
         password="testpass123",
-        company_id=company,
-        project_id=project,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     )
 
 
@@ -65,16 +65,16 @@ def _make_customer(*, company, project, country, state, district, city, zone, wa
         longitude="80.2707",
         id_proof_type="Aadhar",
         id_no=f"ID-{contact_no}",
-        company_id=company,
-        project_id=project,
-        country=country,
-        state=state,
-        district=district,
-        city=city,
-        zone=zone,
-        ward=ward,
-        property_ref=prop,
-        sub_property=sub_prop,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+        country_id=country.unique_id,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
+        zone_id=zone.unique_id,
+        ward_id=ward.unique_id,
+        property_id=prop.unique_id,
+        sub_property_id=sub_prop.unique_id,
     )
 
 

@@ -30,6 +30,7 @@ from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfigurationPermission,
 )
 from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.role_assigns.staffUserType import StaffUserType
 from app.utils.app_feature_grants import (
     CITIZEN_APP_SCREENS,
     ROLE_SCREEN_TEMPLATES,
@@ -101,18 +102,19 @@ class Command(BaseCommand):
     def _backfill_staff(self, options, apply_changes):
         queryset = Staffcreation.objects.filter(
             is_deleted=False, active_status=True
-        ).select_related("staffusertype_id", "company_id")
+        )
         if options["username"]:
             queryset = queryset.filter(username=options["username"])
 
         done = 0
         for staff in queryset:
-            surface = surface_for_role(getattr(staff.staffusertype_id, "name", None))
+            staffusertype = StaffUserType.objects.filter(unique_id=staff.staffusertype_id).first()
+            surface = surface_for_role(staffusertype.name if staffusertype else None)
             if not surface:
                 continue
 
             existing = StaffAccessConfiguration.objects.filter(
-                staff_id_id=staff.staff_unique_id, is_deleted=False
+                staff_id=staff.staff_unique_id, is_deleted=False
             ).first()
             if existing and not options["overwrite"]:
                 # The app now lives only on the access configuration, so a
@@ -127,8 +129,8 @@ class Command(BaseCommand):
                             "(screens already configured)"
                         )
                         if apply_changes:
-                            existing.app_module = module
-                            existing.save(update_fields=["app_module"])
+                            existing.app_module_id = module.unique_id
+                            existing.save(update_fields=["app_module_id"])
                         done += 1
                         continue
                 self.stdout.write(f"  {staff.username:24} skipped (already configured)")
@@ -145,15 +147,16 @@ class Command(BaseCommand):
                 continue
 
             config = existing or StaffAccessConfiguration.objects.create(
-                staff_id=staff, company_id=staff.company_id
+                staff_id=staff.staff_unique_id, company_id=staff.company_id
             )
-            if staff.project_id_id and not config.projects.exists():
-                config.projects.set([staff.project_id])
+            if staff.project_id and not config.get_project_ids():
+                config.project_ids = staff.project_id
+                config.save(update_fields=["project_ids"])
 
             module = self.modules.get(surface)
             if module and not config.app_module_id:
-                config.app_module = module
-                config.save(update_fields=["app_module"])
+                config.app_module_id = module.unique_id
+                config.save(update_fields=["app_module_id"])
 
             for order, (screen, action_names) in enumerate(screens, start=1):
                 for name in action_names:
@@ -161,10 +164,10 @@ class Command(BaseCommand):
                     if not action:
                         continue
                     StaffAccessConfigurationPermission.objects.update_or_create(
-                        staff_access_configuration_id=config,
+                        staff_access_configuration_id=config.unique_id,
                         mainscreen_id=screen.mainscreen_id,
-                        userscreen_id=screen,
-                        userscreenaction_id=action,
+                        userscreen_id=screen.unique_id,
+                        userscreenaction_id=action.unique_id,
                         defaults={"order_no": order, "is_active": True, "is_deleted": False},
                     )
 
@@ -188,7 +191,7 @@ class Command(BaseCommand):
         done = 0
         for customer in queryset:
             existing = CustomerAccessConfiguration.objects.filter(
-                customer_id_id=customer.unique_id, is_deleted=False
+                customer_id=customer.unique_id, is_deleted=False
             ).first()
             if existing and not options["overwrite"]:
                 continue
@@ -198,12 +201,20 @@ class Command(BaseCommand):
                 continue
 
             config = existing or CustomerAccessConfiguration.objects.create(
-                customer_id=customer, company_id=customer.company_id
+                customer_id=customer.unique_id, company_id=customer.company_id
             )
-            if citizen_module:
-                config.app_modules.add(citizen_module)
+            update_fields = []
+            if citizen_module and citizen_module.unique_id not in config.app_modules:
+                config.app_modules = [*config.app_modules, citizen_module.unique_id]
+                update_fields.append("app_modules")
             if citizen_screens:
-                config.app_screens.add(*citizen_screens)
+                existing_screen_ids = set(config.app_screens)
+                new_screen_ids = {s.unique_id for s in citizen_screens} - existing_screen_ids
+                if new_screen_ids:
+                    config.app_screens = [*config.app_screens, *new_screen_ids]
+                    update_fields.append("app_screens")
+            if update_fields:
+                config.save(update_fields=update_fields)
             if not customer.app_module:
                 customer.app_module = "citizen"
                 customer.save(update_fields=["app_module"])
@@ -222,6 +233,6 @@ class Command(BaseCommand):
 
         rows = UserScreen.objects.filter(
             userscreen_name__in=wanted, is_deleted=False
-        ).select_related("mainscreen_id")
+        )
 
         return [(row, sorted(wanted[row.userscreen_name])) for row in rows]

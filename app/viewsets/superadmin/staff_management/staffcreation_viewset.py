@@ -9,7 +9,9 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 
 from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.staff_creations.department import Department
 from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
+from app.models.role_assigns.staffUserType import StaffUserType
 from app.permissions.platform import SuperAdminApprovalPermission
 from app.serializers.superadmin.staff_management.staffcreation_serializer import (
     StaffApprovalActionSerializer,
@@ -28,13 +30,7 @@ from app.utils.pagination import LimitOffsetWithPage
 
 class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
     pagination_class = LimitOffsetWithPage
-    queryset = Staffcreation.objects.filter(is_deleted=False).select_related(
-        "personal_details",
-        "department_id",
-        "designation_id",
-        "staffusertype_id",
-        "contractorusertype_id",
-    )
+    queryset = Staffcreation.objects.filter(is_deleted=False)
     serializer_class = StaffcreationSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     permission_resource = "StaffCreation"
@@ -55,10 +51,6 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         "site_name",
         "department",
         "designation",
-        "department_id__department_name",
-        "department_id__department_code",
-        "designation_id__designation_name",
-        "designation_id__designation_group",
     ]
     ordering_fields = ["staff_id", "staff_unique_id", "employee_name", "created_at"]
 
@@ -70,13 +62,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        queryset = Staffcreation.objects.filter(is_deleted=False).select_related(
-            "personal_details",
-            "department_id",
-            "designation_id",
-            "staffusertype_id",
-            "contractorusertype_id",
-        )
+        queryset = Staffcreation.objects.filter(is_deleted=False)
 
         site_name = self.request.query_params.get("site_name", None)
         employee_name = self.request.query_params.get("employee_name", None)
@@ -102,16 +88,20 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
             queryset = queryset.filter(salary_type__icontains=salary_type)
 
         if department_id:
-            queryset = queryset.filter(department_id__unique_id=department_id)
+            queryset = queryset.filter(department_id=department_id)
 
         if staffusertype_id:
-            queryset = queryset.filter(staffusertype_id__unique_id=staffusertype_id)
+            queryset = queryset.filter(staffusertype_id=staffusertype_id)
 
         if staff_role:
-            queryset = queryset.filter(staffusertype_id__name=staff_role)
+            staff_role_ids = StaffUserType.objects.filter(
+                name__iexact=staff_role,
+                is_deleted=False,
+            ).values_list("unique_id", flat=True)
+            queryset = queryset.filter(staffusertype_id__in=staff_role_ids)
 
         if contractorusertype_id:
-            queryset = queryset.filter(contractorusertype_id__unique_id=contractorusertype_id)
+            queryset = queryset.filter(contractorusertype_id=contractorusertype_id)
 
         if approval_status:
             queryset = queryset.filter(approval_status=approval_status.upper())
@@ -120,11 +110,26 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
             queryset = queryset.filter(login_enabled=str(login_enabled).lower() in ["1", "true"])
 
         if self._is_supervisor_user():
+            from app.models.schedule_masters.trip_plan import TripPlan
+            from app.models.schedule_masters.staff_template import StaffTemplate
+
+            supervisor_staff_id = self.request.user.staff_unique_id
+            supervised_template_ids = TripPlan.objects.filter(
+                supervisor_id=supervisor_staff_id,
+            ).exclude(staff_template_id__isnull=True).values_list("staff_template_id", flat=True)
+            supervised_staff_ids = set(
+                StaffTemplate.objects.filter(unique_id__in=supervised_template_ids)
+                .exclude(driver_id__isnull=True)
+                .values_list("driver_id", flat=True)
+            ) | set(
+                StaffTemplate.objects.filter(unique_id__in=supervised_template_ids)
+                .exclude(operator_id__isnull=True)
+                .values_list("operator_id", flat=True)
+            )
             queryset = queryset.filter(
-                Q(staff_unique_id=self.request.user.staff_unique_id)
-                | Q(staff_head_id=self.request.user.staff_unique_id)
-                | Q(driver_templates__trip_plans__supervisor_id=self.request.user)
-                | Q(operator_templates__trip_plans__supervisor_id=self.request.user)
+                Q(staff_unique_id=supervisor_staff_id)
+                | Q(staff_head_id=supervisor_staff_id)
+                | Q(staff_unique_id__in=supervised_staff_ids)
             ).distinct()
 
         return queryset.order_by("-created_at")
@@ -240,9 +245,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         # apply only the tenant (company/project) scoping directly here,
         # bypassing the generic list-filter backend chain entirely, and let
         # the hierarchy config below be the sole source of role filtering.
-        base_queryset = Staffcreation.objects.filter(is_deleted=False).select_related(
-            "department_id", "staffusertype_id", "contractorusertype_id"
-        )
+        base_queryset = Staffcreation.objects.filter(is_deleted=False)
         queryset = self._scope_to_tenant(base_queryset).filter(active_status=True)
 
         current_id = request.query_params.get("exclude")
@@ -262,25 +265,34 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
                 is_deleted=False,
             ).first()
 
-            if hierarchy_entry and hierarchy_entry.reports_to_staffusertype_id_id:
+            if hierarchy_entry and hierarchy_entry.reports_to_staffusertype_id:
                 queryset = queryset.filter(
                     project_id=project_id,
-                    staffusertype_id=hierarchy_entry.reports_to_staffusertype_id_id,
+                    staffusertype_id=hierarchy_entry.reports_to_staffusertype_id,
                 )
             elif hierarchy_entry:
                 # Top of the configured chain (e.g. Company Admin) — no head.
                 queryset = queryset.none()
 
+        staff_members = list(queryset[:200])
+        department_names = {
+            department.unique_id: department.department_name
+            for department in Department.objects.filter(
+                unique_id__in=[staff.department_id for staff in staff_members if staff.department_id],
+                is_deleted=False,
+            )
+        }
+
         data = [
             {
                 "unique_id": staff.staff_unique_id,
                 "employee_name": staff.employee_name,
-                "department_id": getattr(staff.department_id, "unique_id", None),
-                "department_name": getattr(staff.department_id, "department_name", None),
-                "staffusertype_id": getattr(staff.staffusertype_id, "unique_id", None),
-                "contractorusertype_id": getattr(staff.contractorusertype_id, "unique_id", None),
+                "department_id": staff.department_id,
+                "department_name": department_names.get(staff.department_id),
+                "staffusertype_id": staff.staffusertype_id,
+                "contractorusertype_id": staff.contractorusertype_id,
             }
-            for staff in queryset[:200]
+            for staff in staff_members
         ]
         return Response(data, status=status.HTTP_200_OK)
 
@@ -315,7 +327,8 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
                     if raw_project_id:
                         project = Project.objects.filter(
                             unique_id=raw_project_id,
-                            company_id=company
+                        ).filter(
+                            Q(company_id=company.unique_id) | Q(company_id=company.name)
                         ).first()
                         if not project:
                             from rest_framework.exceptions import ValidationError
@@ -326,9 +339,10 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
                     else:
                         # Get the first active project for the company as default
                         project = Project.objects.filter(
-                            company_id=company,
                             is_active=True,
                             is_deleted=False
+                        ).filter(
+                            Q(company_id=company.unique_id) | Q(company_id=company.name)
                         ).first()
                         if not project:
                             from rest_framework.exceptions import ValidationError
@@ -350,9 +364,9 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
                 #     project_id=project,
                 # )
                 instance = serializer.save(
-                company_id=company,
-                project_id=project,
-            )
+                    company_id=company.unique_id,
+                    project_id=project.unique_id if project else None,
+                )
 
             new_data = self._serialize_instance(instance)
 

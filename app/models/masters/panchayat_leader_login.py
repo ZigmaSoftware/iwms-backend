@@ -3,9 +3,6 @@ from django.contrib.auth.hashers import make_password
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.masters.panchayat import Panchayat
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 def generate_panchayat_leader_id():
@@ -26,35 +23,13 @@ class PanchayatLeaderLogin(BaseMaster):
         default=generate_panchayat_leader_id,
     )
 
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        related_name="leader_logins",
-        db_column="panchayat_id",
-        to_field="unique_id",
-    )
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="panchayat_leader_logins",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="panchayat_leader_logins",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     username = models.CharField(
         max_length=150,
-        unique=True,
         help_text="Login username for the panchayat leader.",
     )
 
@@ -78,15 +53,41 @@ class PanchayatLeaderLogin(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("panchayat_leader_login_list", "panchayat_leader_login_detail")
+
     class Meta:
         ordering = ["-created_at"]
         verbose_name = "Panchayat Leader Login"
         verbose_name_plural = "Panchayat Leader Logins"
 
     def __str__(self):
-        return f"{self.username} ({self.panchayat_id.panchayat_name if self.panchayat_id else '—'})"
+        from app.models.masters.panchayat import Panchayat
+        panchayat_name = Panchayat.objects.filter(unique_id=self.panchayat_id).values_list("panchayat_name", flat=True).first()
+        return f"{self.username} ({panchayat_name if panchayat_name else '—'})"
 
     # Required by DRF permission system
     @property
     def is_authenticated(self):
         return True
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None

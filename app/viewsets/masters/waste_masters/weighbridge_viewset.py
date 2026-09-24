@@ -16,11 +16,10 @@ class WeighbridgeCheckViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     AUDIT_ENDPOINT ="weighbridge"
 
     def get_queryset(self):
-        return WeighbridgeCheck.objects.select_related(
-            "trip_id",
-            "trip_id__vehicle_id",
-            "trip_id__waste_type_id"
-        ).filter(is_deleted=False)
+        # trip_id is now a plain CharField (TripPlan.unique_id), not a real
+        # FK, so it can no longer be select_related-ed. The serializer
+        # resolves the related TripPlan (and its vehicle/waste type) itself.
+        return WeighbridgeCheck.objects.filter(is_deleted=False)
 
     def list(self, request, *args, **kwargs):
 

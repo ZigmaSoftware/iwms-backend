@@ -95,19 +95,19 @@ class CompanyPermissionsAPIView(APIView):
         project_id = request.query_params.get("projectId") or request.query_params.get("project_id")
 
         action_qs = CompanyUserScreenPermission.objects.filter(
-            company_id_id=company_id,
+            company_id=company_id,
             is_active=True,
             is_deleted=False,
-        ).select_related("mainscreen_id", "userscreen_id", "userscreenaction_id")
+        )
         column_qs = CompanyUserScreenColumnPermission.objects.filter(
-            company_id_id=company_id,
+            company_id=company_id,
             is_active=True,
             is_deleted=False,
-        ).select_related("userscreen_id", "column_id")
+        )
 
         if project_id:
-            action_qs = action_qs.filter(project_id_id=project_id)
-            column_qs = column_qs.filter(project_id_id=project_id)
+            action_qs = action_qs.filter(project_id=project_id)
+            column_qs = column_qs.filter(project_id=project_id)
 
         action_map = defaultdict(lambda: {
             "view": False,
@@ -116,14 +116,19 @@ class CompanyPermissionsAPIView(APIView):
             "delete": False,
         })
         for permission in action_qs:
-            action = (permission.userscreenaction_id.variable_name or permission.userscreenaction_id.action_name).lower()
-            if action in action_map[permission.userscreen_id_id]:
-                action_map[permission.userscreen_id_id][action] = True
+            userscreenaction = permission.userscreenaction
+            if not userscreenaction:
+                continue
+            action = (userscreenaction.variable_name or userscreenaction.action_name).lower()
+            if action in action_map[permission.userscreen_id]:
+                action_map[permission.userscreen_id][action] = True
 
         column_map = defaultdict(list)
         for permission in column_qs:
-            column = permission.column_id
-            column_map[permission.userscreen_id_id].append({
+            column = permission.column
+            if not column:
+                continue
+            column_map[permission.userscreen_id].append({
                 "id": column.unique_id,
                 "fieldName": column.field_name,
                 "displayName": column.display_name,

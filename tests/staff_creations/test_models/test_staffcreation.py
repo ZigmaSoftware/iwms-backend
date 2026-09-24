@@ -7,8 +7,8 @@ from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
 def staff(db, company, project):
     return StaffcreationOfficeDetails.objects.create(
         employee_name="John Driver",
-        company_id=company,
-        project_id=project,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     )
 
 
@@ -38,13 +38,13 @@ class TestStaffCreationCreate:
         assert len(staff.emp_id) > 0
 
     def test_foreign_key_company(self, staff, company):
-        assert staff.company_id == company
+        assert staff.company_id == company.unique_id
 
     def test_unique_ids_differ(self, staff, company, project):
         s2 = StaffcreationOfficeDetails.objects.create(
             employee_name="Jane Operator",
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
         assert staff.staff_unique_id != s2.staff_unique_id
         assert s2.staff_id == "STF0002"
@@ -52,11 +52,11 @@ class TestStaffCreationCreate:
     def test_staff_id_restarts_for_another_project(self, staff, company):
         from app.models.superadmin_masters.project import Project
 
-        other_project = Project.objects.create(name="Other Project", company_id=company)
+        other_project = Project.objects.create(name="Other Project", company_id=company.unique_id)
         s2 = StaffcreationOfficeDetails.objects.create(
             employee_name="Other Project Driver",
-            company_id=company,
-            project_id=other_project,
+            company_id=company.unique_id,
+            project_id=other_project.unique_id,
         )
         assert s2.staff_id == "STF0001"
 
@@ -104,15 +104,15 @@ class TestStaffCreationUpdate:
     def test_update_reassigns_staff_id_on_project_change(self, staff, company):
         from app.models.superadmin_masters.project import Project
 
-        other_project = Project.objects.create(name="Other Project", company_id=company)
+        other_project = Project.objects.create(name="Other Project", company_id=company.unique_id)
         existing = StaffcreationOfficeDetails.objects.create(
             employee_name="Existing Driver",
-            company_id=company,
-            project_id=other_project,
+            company_id=company.unique_id,
+            project_id=other_project.unique_id,
         )
         assert existing.staff_id == "STF0001"
 
-        staff.project_id = other_project
+        staff.project_id = other_project.unique_id
         staff.save()
         staff.refresh_from_db()
 

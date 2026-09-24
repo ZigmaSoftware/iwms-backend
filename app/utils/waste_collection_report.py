@@ -65,17 +65,21 @@ def _location_from_row(row):
     zone-only row; resolve whichever the row actually has so nothing is lost."""
     panchayat_id = row.get("panchayat_id")
     if panchayat_id:
+        from app.models.masters.panchayat import Panchayat
+        panchayat = Panchayat.objects.filter(unique_id=panchayat_id).first()
         return (
             "panchayat",
             panchayat_id,
-            row.get("panchayat_id__panchayat_name") or panchayat_id,
+            panchayat.panchayat_name if panchayat else panchayat_id,
         )
     zone_id = row.get("zone_id")
     if zone_id:
+        from app.models.masters.zone import Zone
+        zone = Zone.objects.filter(unique_id=zone_id).first()
         return (
             "zone",
             zone_id,
-            row.get("zone_id__zone_name") or zone_id,
+            zone.zone_name if zone else zone_id,
         )
     return None
 
@@ -117,13 +121,9 @@ def build_waste_collection_report(
     group_fields = [
         "trip_date",
         "company_id",
-        "company_id__name",
         "project_id",
-        "project_id__name",
         "panchayat_id",
-        "panchayat_id__panchayat_name",
         "zone_id",
-        "zone_id__zone_name",
     ]
     location_qs = queryset.values(*group_fields).annotate(
         total_actual_weight=Sum(
@@ -135,6 +135,22 @@ def build_waste_collection_report(
         total_trips=Count("unique_id", distinct=True),
         collection_points_covered=Count("collection_point_id", distinct=True),
     )
+
+    # Fetch related names for display
+    company_ids = {row["company_id"] for row in location_qs if row.get("company_id")}
+    project_ids = {row["project_id"] for row in location_qs if row.get("project_id")}
+    panchayat_ids_set = {row["panchayat_id"] for row in location_qs if row.get("panchayat_id")}
+    zone_ids_set = {row["zone_id"] for row in location_qs if row.get("zone_id")}
+
+    from app.models.superadmin_masters.company import Company
+    from app.models.superadmin_masters.project import Project
+    from app.models.masters.panchayat import Panchayat
+    from app.models.masters.zone import Zone
+
+    companies = {c.unique_id: c.name for c in Company.objects.filter(unique_id__in=company_ids)}
+    projects = {p.unique_id: p.name for p in Project.objects.filter(unique_id__in=project_ids)}
+    panchayats = {p.unique_id: p.panchayat_name for p in Panchayat.objects.filter(unique_id__in=panchayat_ids_set)}
+    zones = {z.unique_id: z.zone_name for z in Zone.objects.filter(unique_id__in=zone_ids_set)}
 
     locations = {}
     for raw in location_qs:
@@ -153,9 +169,9 @@ def build_waste_collection_report(
         bucket = locations.setdefault(key, {
             "period": period,
             "company_id": raw["company_id"],
-            "company_name": raw["company_id__name"],
+            "company_name": companies.get(raw.get("company_id"), raw.get("company_id", "")),
             "project_id": raw["project_id"],
-            "project_name": raw["project_id__name"],
+            "project_name": projects.get(raw.get("project_id"), raw.get("project_id", "")),
             "local_body_field": location_type,
             "local_body_type": location_type.capitalize(),
             "local_body_id": location_id,
@@ -205,23 +221,19 @@ def build_waste_collection_report(
             bucket["trips"] += hh["trips"]
 
     trip_info_rows = list(queryset.values(
-        "trip_assignment_id_id",
+        "trip_assignment_id",
         "trip_date",
         "company_id",
-        "company_id__name",
         "project_id",
-        "project_id__name",
         "panchayat_id",
-        "panchayat_id__panchayat_name",
         "zone_id",
-        "zone_id__zone_name",
         "collection_point_id",
         "collected_weight_kg",
         "household_collected_weight_kg",
         "log_status",
     ))
     info_by_assignment = {
-        row["trip_assignment_id_id"]: row for row in trip_info_rows
+        row["trip_assignment_id"]: row for row in trip_info_rows
     }
     assignment_ids = list(info_by_assignment)
     waste_rows = bulk_waste_type_rows_for_trip_assignments(
@@ -258,9 +270,9 @@ def build_waste_collection_report(
         bucket = type_buckets.setdefault(key, {
             "period": period,
             "company_id": info["company_id"],
-            "company_name": info["company_id__name"],
+            "company_name": companies.get(info.get("company_id"), info.get("company_id", "")),
             "project_id": info["project_id"],
-            "project_name": info["project_id__name"],
+            "project_name": projects.get(info.get("project_id"), info.get("project_id", "")),
             "local_body_field": location_type,
             "local_body_type": location_type.capitalize(),
             "local_body_id": location_id,

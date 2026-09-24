@@ -36,22 +36,18 @@ class CustomerAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet
     AUDIT_ENDPOINT = "customer-access-configuration"
 
     def get_queryset(self):
-        qs = (
-            CustomerAccessConfiguration.objects.filter(is_deleted=False)
-            .select_related("customer_id", "company_id")
-            .prefetch_related("app_modules", "app_screens")
-        )
+        qs = CustomerAccessConfiguration.objects.filter(is_deleted=False)
         if self._is_platform_super_admin():
             return qs
 
         company = self._company()
         if not company:
             return qs.none()
-        return qs.filter(company_id_id=company.unique_id)
+        return qs.filter(company_id=company.unique_id)
 
     def get_object(self):
         customer_id = self.kwargs.get(self.lookup_url_kwarg or self.lookup_field)
-        obj = self.get_queryset().filter(customer_id_id=customer_id).first()
+        obj = self.get_queryset().filter(customer_id=customer_id).first()
         if not obj:
             from django.http import Http404
 
@@ -107,14 +103,14 @@ class CustomerAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet
             return error
 
         queryset = CustomerCreation.objects.filter(
-            company_id_id=company.unique_id, is_deleted=False, is_active=True
+            company_id=company.unique_id, is_deleted=False, is_active=True
         ).order_by("customer_name")
 
         configured = set(
             CustomerAccessConfiguration.objects.filter(
-                customer_id_id__in=queryset.values_list("unique_id", flat=True),
+                customer_id__in=queryset.values_list("unique_id", flat=True),
                 is_deleted=False,
-            ).values_list("customer_id_id", flat=True)
+            ).values_list("customer_id", flat=True)
         )
 
         return Response(

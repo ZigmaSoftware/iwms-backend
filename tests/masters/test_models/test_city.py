@@ -8,9 +8,9 @@ class TestCityCreate:
     def test_basic_create(self, company, project, continent, country, state, district):
         c = City.objects.create(
             name="Coimbatore City",
-            continent_id=continent, country_id=country,
-            state_id=state, district_id=district,
-            company_id=company, project_id=project,
+            continent_id=continent.unique_id, country_id=country.unique_id,
+            state_id=state.unique_id, district_id=district.unique_id,
+            company_id=company.unique_id, project_id=project.unique_id,
         )
         assert c.name == "Coimbatore City"
 
@@ -21,7 +21,7 @@ class TestCityCreate:
         assert "Chennai" in str(city)
 
     def test_foreign_key_district(self, city, district):
-        assert city.district_id == district
+        assert city.district_id == district.unique_id
 
 
 @pytest.mark.django_db

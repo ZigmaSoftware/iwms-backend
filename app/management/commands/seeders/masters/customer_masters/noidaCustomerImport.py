@@ -176,25 +176,30 @@ class NoidaCustomerImportSeeder(BaseSeeder):
     def run(self):
         company = Company.objects.filter(name=COMPANY_NAME, is_deleted=False).first()
         project = Project.objects.filter(
-            name=PROJECT_NAME, company_id=company, is_deleted=False
+            name=PROJECT_NAME, company_id=company.unique_id, is_deleted=False
         ).first() if company else None
         if not company or not project:
             self.log(f"Company '{COMPANY_NAME}' / project '{PROJECT_NAME}' not found — skipping.")
             return
 
-        city = City.objects.filter(name=CITY_NAME, company_id=company, project_id=project, is_deleted=False).first()
+        city = City.objects.filter(
+            name=CITY_NAME, company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
+        ).first()
         district = District.objects.filter(
-            name=DISTRICT_NAME, company_id=company, project_id=project, is_deleted=False
+            name=DISTRICT_NAME, company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
         ).first()
         state = State.objects.filter(name=STATE_NAME).first()
         country = Country.objects.filter(name=COUNTRY_NAME).first()
-        zone = Zone.objects.filter(zone_name=ZONE_NAME, company_id=company, project_id=project, is_deleted=False).first()
-        ward = Ward.objects.filter(ward_name=WARD_NAME, zone_id=zone, is_deleted=False).first() if zone else None
+        zone = Zone.objects.filter(
+            zone_name=ZONE_NAME, company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
+        ).first()
+        ward = Ward.objects.filter(ward_name=WARD_NAME, zone_id=zone.unique_id, is_deleted=False).first() if zone else None
         property_obj = Property.objects.filter(
-            property_name=PROPERTY_NAME, company_id=company, project_id=project, is_deleted=False
+            property_name=PROPERTY_NAME, company_id=company.unique_id,
+            project_id=project.unique_id, is_deleted=False
         ).first()
         sub_property = SubProperty.objects.filter(
-            sub_property_name=SUB_PROPERTY_NAME, property_id=property_obj, is_deleted=False
+            sub_property_name=SUB_PROPERTY_NAME, property_id=property_obj.unique_id, is_deleted=False
         ).first() if property_obj else None
 
         missing = [
@@ -211,7 +216,7 @@ class NoidaCustomerImportSeeder(BaseSeeder):
 
         waste_types = list(
             WasteType.objects.filter(
-                company_id=company, project_id=project,
+                company_id=company.unique_id, project_id=project.unique_id,
                 waste_type_name__in=CUSTOMER_WASTE_TYPES, is_deleted=False,
             )
         )
@@ -222,36 +227,38 @@ class NoidaCustomerImportSeeder(BaseSeeder):
         authoritative_names = {name for name, _building, _sqft in NOIDA_CUSTOMER_DATA}
 
         stale_qs = CustomerCreation.objects.filter(
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
             is_deleted=False,
         ).exclude(customer_name__in=authoritative_names)
         deleted_count = stale_qs.count()
         stale_qs.update(is_active=False, is_deleted=True)
 
+        waste_type_ids_csv = ",".join(w.unique_id for w in waste_types)
+
         created_count = 0
         updated_count = 0
         for customer_name, building_no, sqft in NOIDA_CUSTOMER_DATA:
             customer, created = CustomerCreation.objects.update_or_create(
-                company_id=company,
-                project_id=project,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 customer_name=customer_name,
                 defaults={
                     "building_no": building_no,
                     "sqft": sqft,
-                    "ward": ward,
-                    "zone": zone,
-                    "city": city,
-                    "district": district,
-                    "state": state,
-                    "country": country,
-                    "property_ref": property_obj,
-                    "sub_property": sub_property,
+                    "ward_id": ward.unique_id,
+                    "zone_id": zone.unique_id,
+                    "city_id": city.unique_id,
+                    "district_id": district.unique_id,
+                    "state_id": state.unique_id,
+                    "country_id": country.unique_id,
+                    "property_id": property_obj.unique_id,
+                    "sub_property_id": sub_property.unique_id,
+                    "waste_type_ids": waste_type_ids_csv,
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
-            customer.waste_types.set(waste_types)
             created_count += int(created)
             updated_count += int(not created)
 

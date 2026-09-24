@@ -94,7 +94,7 @@ class ComplaintCurrentTicketSeeder(BaseSeeder):
             return None, None
         subcategory = (
             ComplaintSubcategory.objects.filter(
-                category=category, subcategory_code=subcategory_code, is_deleted=False
+                category_id=category.unique_id, subcategory_code=subcategory_code, is_deleted=False
             ).first()
             if subcategory_code
             else None

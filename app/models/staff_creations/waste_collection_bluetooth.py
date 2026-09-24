@@ -5,8 +5,6 @@ import string
 from app.utils.base_models import BaseMaster
 from django.conf import settings
 from django.db import models
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 
@@ -52,20 +50,8 @@ def upload_image(image):
 
 
 class WasteType(BaseMaster,models.Model):
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
     unique_id = models.CharField(
         max_length=100,
         primary_key=True,
@@ -75,22 +61,24 @@ class WasteType(BaseMaster,models.Model):
     waste_type_name = models.CharField(max_length=255)
     is_deleted = models.BooleanField(default=False)
 
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
 
 class WasteCollectionSub(models.Model):
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
     unique_id = models.CharField(
         max_length=100,
         primary_key=True,
@@ -108,23 +96,24 @@ class WasteCollectionSub(models.Model):
     is_deleted = models.BooleanField(default=False)
     date_time = models.DateTimeField(auto_now=True)
 
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
 
 
 class WasteCollectionMain(models.Model):
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
     unique_id = models.CharField(
         max_length=100,
         primary_key=True,
@@ -138,3 +127,17 @@ class WasteCollectionMain(models.Model):
     entry_type = models.CharField(max_length=20, default="app")
     customer_id = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None

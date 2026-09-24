@@ -6,9 +6,7 @@ from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 
 class SubPropertyViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    queryset = SubProperty.objects.filter(is_deleted=False)\
-        .select_related("property_id", "company_id", "project_id")\
-        .order_by("sub_property_name")
+    queryset = SubProperty.objects.filter(is_deleted=False).order_by("sub_property_name")
 
     serializer_class = SubPropertySerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]

@@ -10,8 +10,8 @@ from app.models.masters.ward import Ward
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="Test Panchayat",
-        company_id=company, project_id=project,
-        state_id=state, district_id=district, city_id=city,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id,
     )
 
 
@@ -19,9 +19,9 @@ def panchayat(db, company, project, state, district, city):
 def collection_point(db, company, project, state, district, city, panchayat):
     return Collection_point.objects.create(
         cp_name="CP-01",
-        company_id=company, project_id=project,
-        state_id=state, city_id=city, district_id=district,
-        panchayat_id=panchayat,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
+        panchayat_id=panchayat.unique_id,
         latitude="13.0827", longitude="80.2707",
     )
 
@@ -35,10 +35,10 @@ def waste_type_obj(db):
 @pytest.fixture
 def bin_obj(db, company, project, district, city, collection_point, waste_type_obj):
     return Bins.objects.create(
-        company_id=company, project_id=project,
-        district_id=district, city_id=city,
-        collection_point_id=collection_point,
-        wastetype_id=waste_type_obj,
+        company_id=company.unique_id, project_id=project.unique_id,
+        district_id=district.unique_id, city_id=city.unique_id,
+        collection_point_id=collection_point.unique_id,
+        wastetype_id=waste_type_obj.unique_id,
         bin_capacity=100,
         bin_type="small",
         bin_name="Test Bin",
@@ -57,10 +57,10 @@ class TestBinsCreate:
         assert bin_obj.unique_id.startswith("BIN-")
 
     def test_foreign_key_company(self, bin_obj, company):
-        assert bin_obj.company_id == company
+        assert bin_obj.company_id == company.unique_id
 
     def test_foreign_key_collection_point(self, bin_obj, collection_point):
-        assert bin_obj.collection_point_id == collection_point
+        assert bin_obj.collection_point_id == collection_point.unique_id
 
 
 @pytest.mark.django_db
@@ -103,7 +103,7 @@ class TestBinsZoneWardPanchayat:
 
     def test_save_derives_panchayat_from_collection_point(self, bin_obj, panchayat):
         bin_obj.refresh_from_db()
-        assert bin_obj.panchayat_id == panchayat
+        assert bin_obj.panchayat_id == panchayat.unique_id
 
     def test_save_derives_zone_from_ward(self, bin_obj, collection_point, zone):
         ward = Ward.objects.create(
@@ -111,15 +111,16 @@ class TestBinsZoneWardPanchayat:
             state_id=zone.state_id,
             district_id=zone.district_id,
             city_id=zone.city_id,
-            zone_id=zone,
+            zone_id=zone.unique_id,
         )
-        collection_point.wards.add(ward)
-        bin_obj.ward_id = ward
+        collection_point.ward_ids = ward.unique_id
+        collection_point.save(update_fields=["ward_ids"])
+        bin_obj.ward_id = ward.unique_id
         bin_obj.zone_id = None
         bin_obj.save()
         bin_obj.refresh_from_db()
-        assert bin_obj.ward_id == ward
-        assert bin_obj.zone_id == zone
+        assert bin_obj.ward_id == ward.unique_id
+        assert bin_obj.zone_id == zone.unique_id
 
     def test_save_derives_panchayat_from_ward(self, bin_obj, collection_point, panchayat):
         ward = Ward.objects.create(
@@ -127,20 +128,21 @@ class TestBinsZoneWardPanchayat:
             state_id=panchayat.state_id,
             district_id=panchayat.district_id,
             city_id=panchayat.city_id,
-            panchayat_id=panchayat,
+            panchayat_id=panchayat.unique_id,
         )
-        collection_point.wards.add(ward)
-        bin_obj.ward_id = ward
+        collection_point.ward_ids = ward.unique_id
+        collection_point.save(update_fields=["ward_ids"])
+        bin_obj.ward_id = ward.unique_id
         bin_obj.panchayat_id = None
         bin_obj.save()
         bin_obj.refresh_from_db()
-        assert bin_obj.ward_id == ward
-        assert bin_obj.panchayat_id == panchayat
+        assert bin_obj.ward_id == ward.unique_id
+        assert bin_obj.panchayat_id == panchayat.unique_id
 
     def test_explicit_zone_and_ward_are_persisted(self, bin_obj, zone, ward):
-        bin_obj.zone_id = zone
-        bin_obj.ward_id = ward
+        bin_obj.zone_id = zone.unique_id
+        bin_obj.ward_id = ward.unique_id
         bin_obj.save()
         bin_obj.refresh_from_db()
-        assert bin_obj.zone_id == zone
-        assert bin_obj.ward_id == ward
+        assert bin_obj.zone_id == zone.unique_id
+        assert bin_obj.ward_id == ward.unique_id

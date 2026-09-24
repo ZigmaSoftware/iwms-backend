@@ -3,9 +3,6 @@ from django.contrib.auth.hashers import make_password
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.masters.district import District
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 def generate_district_leader_id():
@@ -26,35 +23,13 @@ class DistrictLeaderLogin(BaseMaster):
         default=generate_district_leader_id,
     )
 
-    district_id = models.ForeignKey(
-        District,
-        on_delete=models.PROTECT,
-        related_name="district_leader_logins",
-        db_column="district_id",
-        to_field="unique_id",
-    )
+    district_id = models.CharField(max_length=30, null=True, blank=True)
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="district_leader_logins",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="district_leader_logins",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     username = models.CharField(
         max_length=150,
-        unique=True,
         help_text="Login username for the district leader.",
     )
 
@@ -78,15 +53,41 @@ class DistrictLeaderLogin(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("district_leader_login_list", "district_leader_login_detail")
+
     class Meta:
         ordering = ["-created_at"]
         verbose_name = "District Leader Login"
         verbose_name_plural = "District Leader Logins"
 
     def __str__(self):
-        return f"{self.username} ({self.district_id.name if self.district_id else '—'})"
+        from app.models.masters.district import District
+        district_name = District.objects.filter(unique_id=self.district_id).values_list("name", flat=True).first()
+        return f"{self.username} ({district_name if district_name else '—'})"
 
     # Required by DRF permission system
     @property
     def is_authenticated(self):
         return True
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None

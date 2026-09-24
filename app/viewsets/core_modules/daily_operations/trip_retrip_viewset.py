@@ -55,17 +55,6 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 class TripRetripRequestViewSet(CompanyScopedViewSet):
     queryset = (
         TripRetripRequest.objects.filter(is_deleted=False)
-        .select_related(
-            "company_id",
-            "project_id",
-            "assignment",
-            "assignment__trip_plan_id",
-            "assignment__vehicle_id",
-            "assignment__panchayat_id",
-            "requested_by",
-            "reviewed_by",
-            "new_assignment",
-        )
         .order_by("-created_at")
     )
     serializer_class = TripRetripRequestSerializer
@@ -82,7 +71,16 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
             # supervisor owns — mirrors DailyTripAssignmentViewSet's
             # `mine=true`. See filter_queryset() below for why this must
             # also suppress the base class's home-project narrowing.
-            qs = qs.filter(assignment__trip_plan_id__supervisor_id=self.request.user)
+            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+            from app.models.schedule_masters.trip_plan import TripPlan
+
+            supervised_plan_ids = TripPlan.objects.filter(
+                supervisor_id=self.request.user.staff_unique_id,
+            ).values("unique_id")
+            matching_assignment_ids = DailyTripAssignment.objects.filter(
+                trip_plan_id__in=supervised_plan_ids
+            ).values_list("unique_id", flat=True)
+            qs = qs.filter(assignment_id__in=matching_assignment_ids)
 
         status_filter = params.get("status")
         if status_filter:
@@ -90,7 +88,7 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
 
         assignment = params.get("assignment_id") or params.get("assignment")
         if assignment:
-            qs = qs.filter(assignment__unique_id=assignment)
+            qs = qs.filter(assignment_id=assignment)
 
         return qs
 

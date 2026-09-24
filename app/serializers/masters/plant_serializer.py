@@ -5,6 +5,9 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 
 class PlantSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
     class Meta:
         model = Plant
         fields = [

@@ -65,10 +65,22 @@ class ComplaintModuleSerializer(AutoSortOrderSerializerMixin, serializers.ModelS
 
 
 class ComplaintCategorySerializer(AutoSortOrderSerializerMixin, serializers.ModelSerializer):
-    default_priority_code = serializers.CharField(source="default_priority.priority_code", read_only=True)
-    default_department_name = serializers.CharField(source="default_department.department_name", read_only=True)
-    module_code = serializers.CharField(source="module.module_code", read_only=True)
-    module_name = serializers.CharField(source="module.module_name", read_only=True)
+    default_priority_code = serializers.SerializerMethodField()
+    default_department_name = serializers.SerializerMethodField()
+    module_code = serializers.SerializerMethodField()
+    module_name = serializers.SerializerMethodField()
+
+    def get_default_priority_code(self, obj):
+        return getattr(obj.default_priority, "priority_code", None)
+
+    def get_default_department_name(self, obj):
+        return getattr(obj.default_department, "department_name", None)
+
+    def get_module_code(self, obj):
+        return getattr(obj.module, "module_code", None)
+
+    def get_module_name(self, obj):
+        return getattr(obj.module, "module_name", None)
 
     class Meta:
         model = ComplaintCategory
@@ -77,8 +89,14 @@ class ComplaintCategorySerializer(AutoSortOrderSerializerMixin, serializers.Mode
 
 
 class ComplaintSubcategorySerializer(AutoSortOrderSerializerMixin, serializers.ModelSerializer):
-    category_name = serializers.CharField(source="category.category_name", read_only=True)
-    category_code = serializers.CharField(source="category.category_code", read_only=True)
+    category_name = serializers.SerializerMethodField()
+    category_code = serializers.SerializerMethodField()
+
+    def get_category_name(self, obj):
+        return getattr(obj.category, "category_name", None)
+
+    def get_category_code(self, obj):
+        return getattr(obj.category, "category_code", None)
 
     class Meta:
         model = ComplaintSubcategory
@@ -94,14 +112,32 @@ class ComplaintSlaEscalationLevelSerializer(serializers.ModelSerializer):
 
 
 class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
-    category_code = serializers.CharField(source="category.category_code", read_only=True)
-    category_name = serializers.CharField(source="category.category_name", read_only=True)
+    category_code = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
     # A rule may target one sub-category or the whole category ("any"), so
     # these are nullable — the SLA list renders a blank as "All".
-    subcategory_code = serializers.CharField(source="subcategory.subcategory_code", read_only=True)
-    subcategory_name = serializers.CharField(source="subcategory.subcategory_name", read_only=True)
-    priority_code = serializers.CharField(source="priority.priority_code", read_only=True)
-    source_code = serializers.CharField(source="source.source_code", read_only=True)
+    subcategory_code = serializers.SerializerMethodField()
+    subcategory_name = serializers.SerializerMethodField()
+    priority_code = serializers.SerializerMethodField()
+    source_code = serializers.SerializerMethodField()
+
+    def get_category_code(self, obj):
+        return getattr(obj.category, "category_code", None)
+
+    def get_category_name(self, obj):
+        return getattr(obj.category, "category_name", None)
+
+    def get_subcategory_code(self, obj):
+        return getattr(obj.subcategory, "subcategory_code", None)
+
+    def get_subcategory_name(self, obj):
+        return getattr(obj.subcategory, "subcategory_name", None)
+
+    def get_priority_code(self, obj):
+        return getattr(obj.priority, "priority_code", None)
+
+    def get_source_code(self, obj):
+        return getattr(obj.source, "source_code", None)
     # Per-hierarchy-level resolve windows (level 0 = first assignee, level 1 =
     # one hop up, ...). Written wholesale on every save: the incoming list
     # replaces whatever rows existed before, same as how the ticket
@@ -131,7 +167,7 @@ class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
         rule.escalation_levels.filter(is_deleted=False).update(is_deleted=True, is_active=False)
         for row in levels:
             ComplaintSlaEscalationLevel.objects.create(
-                sla_rule=rule,
+                sla_rule_id=rule.unique_id,
                 level=row["level"],
                 is_enabled=row.get("is_enabled", True),
                 resolve_within_minutes=row["resolve_within_minutes"],

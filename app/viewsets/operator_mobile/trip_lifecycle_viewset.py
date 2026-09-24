@@ -137,8 +137,8 @@ class TripLifecycleViewSet(viewsets.ViewSet):
                 status=http_status.HTTP_409_CONFLICT,
             )
 
-        existing = assignment.retrip_requests.filter(
-            status=TripRetripRequest.STATUS_PENDING
+        existing = TripRetripRequest.objects.filter(
+            assignment_id=assignment.unique_id, status=TripRetripRequest.STATUS_PENDING
         ).first()
         if existing is not None:
             return Response(

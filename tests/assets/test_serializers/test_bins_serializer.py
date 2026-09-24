@@ -12,8 +12,8 @@ from app.serializers.masters.waste_masters.bins_serializer import BinsSerializer
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="Test Panchayat",
-        company_id=company, project_id=project,
-        state_id=state, district_id=district, city_id=city,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id,
     )
 
 
@@ -21,9 +21,9 @@ def panchayat(db, company, project, state, district, city):
 def collection_point(db, company, project, state, district, city, panchayat):
     return Collection_point.objects.create(
         cp_name="CP-01",
-        company_id=company, project_id=project,
-        state_id=state, city_id=city, district_id=district,
-        panchayat_id=panchayat,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
+        panchayat_id=panchayat.unique_id,
         latitude="13.0827", longitude="80.2707",
     )
 
@@ -37,9 +37,9 @@ def waste_type_obj(db):
 @pytest.fixture
 def bin_obj(db, company, project, collection_point, waste_type_obj):
     return Bins.objects.create(
-        company_id=company, project_id=project,
-        collection_point_id=collection_point,
-        wastetype_id=waste_type_obj,
+        company_id=company.unique_id, project_id=project.unique_id,
+        collection_point_id=collection_point.unique_id,
+        wastetype_id=waste_type_obj.unique_id,
         bin_capacity=100,
         bin_type="small",
         bin_name="Serializer Test Bin",
@@ -60,14 +60,14 @@ def _payload(collection_point, waste_type_obj, **overrides):
     return payload
 
 
-def _make_ward(state, district, city, zone=None, panchayat=None, name="Ward 1"):
+def _make_ward(state_id, district_id, city_id, zone=None, panchayat=None, name="Ward 1"):
     return Ward.objects.create(
         ward_name=name,
-        state_id=state,
-        district_id=district,
-        city_id=city,
-        zone_id=zone,
-        panchayat_id=panchayat,
+        state_id=state_id,
+        district_id=district_id,
+        city_id=city_id,
+        zone_id=zone.unique_id if zone else None,
+        panchayat_id=panchayat.unique_id if panchayat else None,
     )
 
 
@@ -79,24 +79,26 @@ class TestBinsSerializerFields:
             assert serializer.fields[field_name].read_only is False
 
     def test_output_includes_zone_ward_panchayat(self, bin_obj, zone, ward):
-        collection_point = bin_obj.collection_point_id
-        collection_point.wards.add(ward)
-        bin_obj.ward_id = ward
-        bin_obj.zone_id = zone
+        collection_point = bin_obj.collection_point
+        collection_point.ward_ids = ward.unique_id
+        collection_point.save(update_fields=["ward_ids"])
+        bin_obj.ward_id = ward.unique_id
+        bin_obj.zone_id = zone.unique_id
         bin_obj.save()
         data = BinsSerializer(bin_obj).data
         assert data["ward_id"] == ward.unique_id
         assert data["ward_name"] == ward.ward_name
         assert data["zone_id"] == zone.unique_id
         assert data["zone_name"] == zone.zone_name
-        assert data["panchayat_id"] == collection_point.panchayat_id.unique_id
-        assert data["panchayat_name"] == collection_point.panchayat_id.panchayat_name
+        assert data["panchayat_id"] == collection_point.panchayat.unique_id
+        assert data["panchayat_name"] == collection_point.panchayat.panchayat_name
 
 
 @pytest.mark.django_db
 class TestBinsSerializerWardValidation:
     def test_create_valid_when_ward_is_in_cp(self, collection_point, waste_type_obj, zone, ward):
-        collection_point.wards.add(ward)
+        collection_point.ward_ids = ward.unique_id
+        collection_point.save(update_fields=["ward_ids"])
         serializer = BinsSerializer(
             data=_payload(
                 collection_point, waste_type_obj,
@@ -109,8 +111,8 @@ class TestBinsSerializerWardValidation:
             company_id=collection_point.company_id,
             project_id=collection_point.project_id,
         )
-        assert bin_obj.ward_id == ward
-        assert bin_obj.zone_id == zone
+        assert bin_obj.ward_id == ward.unique_id
+        assert bin_obj.zone_id == zone.unique_id
 
     def test_create_rejects_ward_not_in_cp(self, collection_point, waste_type_obj, zone):
         unlinked_ward = _make_ward(
@@ -147,7 +149,8 @@ class TestBinsSerializerWardValidation:
     def test_accepts_ward_referenced_by_unique_id(
         self, collection_point, waste_type_obj, zone, ward
     ):
-        collection_point.wards.add(ward)
+        collection_point.ward_ids = ward.unique_id
+        collection_point.save(update_fields=["ward_ids"])
         serializer = BinsSerializer(
             data=_payload(
                 collection_point, waste_type_obj,
@@ -155,4 +158,4 @@ class TestBinsSerializerWardValidation:
             )
         )
         assert serializer.is_valid(), serializer.errors
-        assert serializer.validated_data["ward_id"] == ward
+        assert serializer.validated_data["ward_id"] == ward.unique_id

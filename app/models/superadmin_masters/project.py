@@ -1,6 +1,4 @@
 from django.db import models
-
-from .company import Company
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
@@ -17,13 +15,7 @@ class Project(BaseMaster):
         default=generate_project_id,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="projects",
-        to_field="unique_id",
-        db_column="company_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
@@ -81,9 +73,19 @@ class Project(BaseMaster):
         "subproperty_set",
         "staff_hierarchy_levels",
     )
+    CACHE_SCOPES = ("project_list", "project_detail")
 
     class Meta:
         ordering = ["name"]
 
     def __str__(self):
-        return f"{self.name} ({self.company_id.name})"
+        from app.models.superadmin_masters.company import Company
+        company_name = Company.objects.filter(unique_id=self.company_id).values_list("name", flat=True).first()
+        return f"{self.name} ({company_name})"
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None

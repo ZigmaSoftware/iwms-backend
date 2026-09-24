@@ -17,11 +17,11 @@ class TestCompanyCascadeSoftDelete:
 
         district = District.objects.create(
             name="Cascade District",
-            continent_id=continent,
-            country_id=country,
-            state_id=state,
-            company_id=company,
-            project_id=project,
+            continent_id=continent.unique_id,
+            country_id=country.unique_id,
+            state_id=state.unique_id,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
 
         resp = auth_client.delete(f"/api/v1/superadmin/company/{company.unique_id}/")
@@ -40,8 +40,8 @@ class TestCompanyCascadeSoftDelete:
         department = Department.objects.create(
             department_name="Sanitation",
             department_code="SAN",
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
 
         resp = auth_client.delete(f"/api/v1/superadmin/company/{company.unique_id}/")
@@ -56,7 +56,7 @@ class TestCompanyCascadeSoftDelete:
 
         sibling_company = Company.objects.create(name="Sibling Company")
         sibling_project = Project.objects.create(
-            name="Sibling Project", company_id=sibling_company
+            name="Sibling Project", company_id=sibling_company.unique_id
         )
 
         resp = auth_client.delete(f"/api/v1/superadmin/company/{company.unique_id}/")
@@ -77,17 +77,17 @@ class TestProjectCascadeSoftDelete:
 
         district = District.objects.create(
             name="Cascade District",
-            continent_id=continent,
-            country_id=country,
-            state_id=state,
-            company_id=company,
-            project_id=project,
+            continent_id=continent.unique_id,
+            country_id=country.unique_id,
+            state_id=state.unique_id,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
         department = Department.objects.create(
             department_name="Sanitation",
             department_code="SAN2",
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
 
         resp = auth_client.delete(f"/api/v1/superadmin/project/{project.unique_id}/")
@@ -101,7 +101,7 @@ class TestProjectCascadeSoftDelete:
         from app.models.superadmin_masters.project import Project
 
         sibling_project = Project.objects.create(
-            name="Sibling Project", company_id=company
+            name="Sibling Project", company_id=company.unique_id
         )
 
         resp = auth_client.delete(f"/api/v1/superadmin/project/{project.unique_id}/")

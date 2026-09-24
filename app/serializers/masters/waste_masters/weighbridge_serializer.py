@@ -2,17 +2,19 @@ from rest_framework import serializers
 from app.models.assets.weighbridge import WeighbridgeCheck
 from app.models.schedule_masters.trip_plan import TripPlan
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 
 
 class WeighbridgeCheckSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
 
-    trip_id = serializers.SlugRelatedField(
-        slug_field="unique_id",
-        queryset=TripPlan.objects.all()
+    trip_id = UniqueIdOrPkField(
+        queryset=TripPlan.objects.filter(is_deleted=False)
     )
 
     vehicle_no = serializers.CharField(source = "trip_id.vehicle_id.vehicle_no", read_only = True)
     wastetype = serializers.CharField(source = "trip_id.waste_type_id.waste_type_name", read_only = True)
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
 
 
     class Meta:

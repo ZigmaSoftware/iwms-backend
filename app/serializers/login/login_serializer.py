@@ -80,9 +80,9 @@ class LoginSerializer(serializers.Serializer):
     def _format_permissions(self, queryset):
         permissions = {}
         for perm in queryset.order_by("order_no"):
-            main_name = perm.mainscreen_id.mainscreen_name
-            screen_name = perm.userscreen_id.userscreen_name
-            action_name = perm.userscreenaction_id.action_name
+            main_name = perm.mainscreen.mainscreen_name
+            screen_name = perm.userscreen.userscreen_name
+            action_name = perm.userscreenaction.action_name
 
             screen_map = permissions.setdefault(main_name, {})
             actions = screen_map.setdefault(screen_name, [])
@@ -139,30 +139,30 @@ class LoginSerializer(serializers.Serializer):
         project(s), where applicable). Zone/Panchayat are the exception —
         see the comment at their resolution below.
         """
-        base_project_filter = {"project_id_id__in": project_ids} if project_ids else {}
+        base_project_filter = {"project_id__in": project_ids} if project_ids else {}
 
-        scoped_states = access_config.states.all() if access_config else State.objects.none()
-        if scoped_states.exists():
-            states_qs = scoped_states
+        scoped_state_ids = access_config.get_state_ids() if access_config else []
+        if scoped_state_ids:
+            states_qs = State.objects.filter(unique_id__in=scoped_state_ids, is_deleted=False)
         else:
             states_qs = State.objects.filter(is_deleted=False)
         state_ids = list(states_qs.values_list("unique_id", flat=True))
 
-        scoped_districts = access_config.districts.all() if access_config else District.objects.none()
-        if scoped_districts.exists():
-            districts_qs = scoped_districts
+        scoped_district_ids = access_config.get_district_ids() if access_config else []
+        if scoped_district_ids:
+            districts_qs = District.objects.filter(unique_id__in=scoped_district_ids, is_deleted=False)
         else:
             districts_qs = District.objects.filter(
-                company_id=company, is_deleted=False, state_id_id__in=state_ids, **base_project_filter
+                company_id=company.unique_id, is_deleted=False, state_id__in=state_ids, **base_project_filter
             )
         district_ids = list(districts_qs.values_list("unique_id", flat=True))
 
-        scoped_cities = access_config.cities.all() if access_config else City.objects.none()
-        if scoped_cities.exists():
-            cities_qs = scoped_cities
+        scoped_city_ids = access_config.get_city_ids() if access_config else []
+        if scoped_city_ids:
+            cities_qs = City.objects.filter(unique_id__in=scoped_city_ids, is_deleted=False)
         else:
             cities_qs = City.objects.filter(
-                company_id=company, is_deleted=False, district_id_id__in=district_ids, **base_project_filter
+                company_id=company.unique_id, is_deleted=False, district_id__in=district_ids, **base_project_filter
             )
         city_ids = list(cities_qs.values_list("unique_id", flat=True))
 
@@ -175,22 +175,24 @@ class LoginSerializer(serializers.Serializer):
         # fallback only applies when there's no access config at all (e.g.
         # legacy staff with no Data Scope configured yet).
         if access_config:
-            zones_qs = access_config.zones.all()
-            panchayats_qs = access_config.panchayats.all()
+            scoped_zone_ids = access_config.get_zone_ids()
+            scoped_panchayat_ids = access_config.get_panchayat_ids()
+            zones_qs = Zone.objects.filter(unique_id__in=scoped_zone_ids, is_deleted=False)
+            panchayats_qs = Panchayat.objects.filter(unique_id__in=scoped_panchayat_ids, is_deleted=False)
         else:
             zones_qs = Zone.objects.filter(
-                company_id=company, is_deleted=False, city_id_id__in=city_ids, **base_project_filter
+                company_id=company.unique_id, is_deleted=False, city_id__in=city_ids, **base_project_filter
             )
             panchayats_qs = Panchayat.objects.filter(
-                company_id=company, is_deleted=False, city_id_id__in=city_ids, **base_project_filter
+                company_id=company.unique_id, is_deleted=False, city_id__in=city_ids, **base_project_filter
             )
 
-        scoped_wards = access_config.wards.all() if access_config else Ward.objects.none()
-        if scoped_wards.exists():
-            wards_qs = scoped_wards
+        scoped_ward_ids = access_config.get_ward_ids() if access_config else []
+        if scoped_ward_ids:
+            wards_qs = Ward.objects.filter(unique_id__in=scoped_ward_ids, is_deleted=False)
         else:
             wards_qs = Ward.objects.filter(
-                company_id=company, is_deleted=False, city_id_id__in=city_ids, **base_project_filter
+                company_id=company.unique_id, is_deleted=False, city_id__in=city_ids, **base_project_filter
             )
 
         # Continent/Country are not independently assignable — they're
@@ -198,11 +200,15 @@ class LoginSerializer(serializers.Serializer):
         # StaffAccessConfigurationSerializer admin API already does.
         continents = {}
         countries = {}
-        for state in states_qs.select_related("continent_id", "country_id"):
-            if state.continent_id and state.continent_id.unique_id not in continents:
-                continents[state.continent_id.unique_id] = state.continent_id.name
-            if state.country_id and state.country_id.unique_id not in countries:
-                countries[state.country_id.unique_id] = state.country_id.name
+        for state in states_qs:
+            if state.continent_id and state.continent_id not in continents:
+                continent = state.continent
+                if continent:
+                    continents[state.continent_id] = continent.name
+            if state.country_id and state.country_id not in countries:
+                country = state.country
+                if country:
+                    countries[state.country_id] = country.name
 
         # The narrowest level the admin actually assigned a grant at, in the
         # same narrowest-to-broadest order the rest of this method resolves
@@ -212,17 +218,17 @@ class LoginSerializer(serializers.Serializer):
         # geo-level grant at all — unrestricted down to the whole company.
         scope_level = "company"
         if access_config:
-            if scoped_wards.exists():
+            if scoped_ward_ids:
                 scope_level = "ward"
-            elif access_config.zones.exists():
+            elif scoped_zone_ids:
                 scope_level = "zone"
-            elif access_config.panchayats.exists():
+            elif scoped_panchayat_ids:
                 scope_level = "panchayat"
-            elif scoped_cities.exists():
+            elif scoped_city_ids:
                 scope_level = "city"
-            elif scoped_districts.exists():
+            elif scoped_district_ids:
                 scope_level = "district"
-            elif scoped_states.exists():
+            elif scoped_state_ids:
                 scope_level = "state"
 
         return {
@@ -246,7 +252,7 @@ class LoginSerializer(serializers.Serializer):
             )
             raise serializers.ValidationError("Login is disabled for this user")
 
-        user_type = staff_record.user_type_id or getattr(login_user, "user_type_id", None)
+        user_type = staff_record.user_type or getattr(login_user, "user_type", None)
         if not user_type:
             raise serializers.ValidationError("Invalid user type")
 
@@ -255,8 +261,8 @@ class LoginSerializer(serializers.Serializer):
         if user_type.name.lower() not in allowed_roles:
             raise serializers.ValidationError("Unsupported user role type")
 
-        staff_usertype = getattr(staff_record, "staffusertype_id", None) or getattr(login_user, "staffusertype_id", None)
-        contractor_usertype = getattr(staff_record, "contractorusertype_id", None) or getattr(login_user, "contractorusertype_id", None)
+        staff_usertype = getattr(staff_record, "staffusertype", None) or getattr(login_user, "staffusertype", None)
+        contractor_usertype = getattr(staff_record, "contractorusertype", None) or getattr(login_user, "contractorusertype", None)
         role_usertype = staff_usertype or contractor_usertype
 
         if not role_usertype:
@@ -272,28 +278,26 @@ class LoginSerializer(serializers.Serializer):
         # granted "view" on those as screens — that permission only governs
         # the admin management screens' own sidebar visibility.
         access_config = StaffAccessConfiguration.objects.filter(
-            staff_id_id=getattr(staff_record, "staff_unique_id", None),
+            staff_id=getattr(staff_record, "staff_unique_id", None),
             is_active=True,
             is_deleted=False,
-        ).select_related("company_id").prefetch_related(
-            "projects", "states", "districts", "cities", "zones", "panchayats", "wards",
         ).first()
 
         if access_config and access_config.company_id:
-            company = access_config.company_id
-            scoped_projects = access_config.projects.all()
-            project_filter = {"company_id": company, "is_active": True, "is_deleted": False}
-            if scoped_projects.exists():
-                project_filter["unique_id__in"] = list(scoped_projects.values_list("unique_id", flat=True))
+            company = access_config.company
+            scoped_project_ids = access_config.get_project_ids()
+            project_filter = {"company_id": company.unique_id if company else None, "is_active": True, "is_deleted": False}
+            if scoped_project_ids:
+                project_filter["unique_id__in"] = scoped_project_ids
         else:
-            company = getattr(staff_record, "company_id", None) or getattr(login_user, "company_id", None)
+            company = staff_record.company or login_user.company
             if not company:
                 raise serializers.ValidationError("Staff record has no company assigned")
 
-            project_filter = {"company_id": company, "is_active": True, "is_deleted": False}
-            staff_project = getattr(staff_record, "project_id", None)
+            project_filter = {"company_id": company.unique_id, "is_active": True, "is_deleted": False}
+            staff_project = staff_record.project
             if staff_project:
-                project_filter["unique_id"] = getattr(staff_project, "unique_id", staff_project)
+                project_filter["unique_id"] = staff_project.unique_id
 
         projects_queryset = Project.objects.filter(**project_filter).values(
             "unique_id", "name",
@@ -309,10 +313,10 @@ class LoginSerializer(serializers.Serializer):
 
         permission_payload = self._resolve_permission_payload(
             company_unique_id=company.unique_id,
-            staff_unique_id=getattr(staff_record, "staff_unique_id", None),
+            staff_unique_id=staff_record.staff_unique_id,
             role_name=role_usertype.name,
             user_type="contractor" if contractor_usertype else "staff",
-            app_module=getattr(staff_record, "app_module", None),
+            app_module=staff_record.app_module,
         )
         # resolve_permission_payload is the single resolver — the same one the
         # permission middleware authorizes against — so there is no second,
@@ -324,10 +328,10 @@ class LoginSerializer(serializers.Serializer):
         password_expired = _is_password_expired(getattr(staff_record, "password_crt_date", None))
 
         profile_payload = {
-            "staff_unique_id": getattr(staff_record, "staff_unique_id", None),
-            "employee_name": getattr(staff_record, "employee_name", None),
-            "district_unique_id": getattr(getattr(staff_record, "district_id", None), "unique_id", None),
-            "district_name": getattr(getattr(staff_record, "district_id", None), "name", None),
+            "staff_unique_id": staff_record.staff_unique_id,
+            "employee_name": staff_record.employee_name,
+            "district_unique_id": staff_record.district.unique_id if staff_record.district else None,
+            "district_name": staff_record.district.name if staff_record.district else None,
         }
 
         return {
@@ -369,13 +373,13 @@ class LoginSerializer(serializers.Serializer):
     def _build_customer_payload(self, customer_record, login_user=None):
         login_user = login_user or customer_record
 
-        user_type = customer_record.user_type_id or getattr(login_user, "user_type_id", None)
+        user_type = customer_record.user_type or getattr(login_user, "user_type", None)
         if not user_type:
             user_type = UserType.objects.filter(name__iexact="customer").first()
         if not user_type:
             raise serializers.ValidationError("Customer user type is not configured")
 
-        company = getattr(customer_record, "company_id", None) or getattr(login_user, "company_id", None)
+        company = customer_record.company or login_user.company
         if not company:
             raise serializers.ValidationError("Customer record has no company assigned")
 
@@ -386,13 +390,12 @@ class LoginSerializer(serializers.Serializer):
         # working and all citizen screens remain visible.
         access_config = (
             CustomerAccessConfiguration.objects
-            .filter(customer_id_id=customer_record.unique_id, is_deleted=False, is_active=True)
-            .prefetch_related("app_modules", "app_screens")
+            .filter(customer_id=customer_record.unique_id, is_deleted=False, is_active=True)
             .first()
         )
         customer_modules = (
             list(
-                access_config.app_modules.filter(is_active=True, is_deleted=False)
+                access_config.app_modules_resolved.filter(is_active=True, is_deleted=False)
                 .values_list("surface_key", flat=True)
             )
             if access_config
@@ -400,7 +403,7 @@ class LoginSerializer(serializers.Serializer):
         )
         citizen_screens = (
             set(
-                access_config.app_screens.filter(is_active=True, is_deleted=False)
+                access_config.app_screens_resolved.filter(is_active=True, is_deleted=False)
                 .values_list("userscreen_name", flat=True)
             )
             if access_config
@@ -459,8 +462,8 @@ class LoginSerializer(serializers.Serializer):
             "permission_version": permission_payload["permission_version"],
             "generated_at": permission_payload["generated_at"],
             "user_type": "platform",
-            "staffusertype_id": getattr(getattr(user, "staffusertype_id", None), "unique_id", None),
-            "company_unique_id": getattr(getattr(user, "company_id", None), "unique_id", None),
+            "staffusertype_id": getattr(user, "staffusertype_id", None),
+            "company_unique_id": getattr(user, "company_id", None),
         }
 
     def _authenticate_customer(self, username, password):
@@ -491,7 +494,6 @@ class LoginSerializer(serializers.Serializer):
 
         queryset = (
             Staffcreation.objects
-            .select_related("user_type_id", "staffusertype_id", "contractorusertype_id", "personal_details", "company_id")
             .filter(is_active=True, is_deleted=False)
             .filter(lookup_filters)
         )
@@ -520,7 +522,6 @@ class LoginSerializer(serializers.Serializer):
     def _authenticate_district_member(self, username, password):
         leader = (
             DistrictLeaderLogin.objects
-            .select_related("district_id", "company_id", "project_id")
             .filter(is_active=True, is_deleted=False)
             .filter(Q(username__iexact=username) | Q(email__iexact=username))
             .first()
@@ -539,7 +540,6 @@ class LoginSerializer(serializers.Serializer):
 
         queryset = (
             Staffcreation.objects
-            .select_related("user_type_id", "staffusertype_id", "contractorusertype_id", "personal_details", "company_id", "district_id")
             .filter(is_active=True, is_deleted=False)
             .filter(district_id__isnull=False)
             .filter(lookup_filters)
@@ -560,9 +560,9 @@ class LoginSerializer(serializers.Serializer):
         return None
 
     def _build_district_leader_payload(self, leader):
-        district = leader.district_id
-        company = leader.company_id or (district.company_id if district else None)
-        project = leader.project_id or (district.project_id if district else None)
+        district = leader.district
+        company = leader.company or (district.company if district else None)
+        project = leader.project or (district.project if district else None)
 
         projects = []
         if project:
@@ -578,7 +578,7 @@ class LoginSerializer(serializers.Serializer):
         elif company:
             projects = list(
                 Project.objects.filter(
-                    company_id=company,
+                    company_id=company.unique_id,
                     is_active=True,
                     is_deleted=False,
                 ).values(
@@ -610,17 +610,6 @@ class LoginSerializer(serializers.Serializer):
     def _authenticate_platform(self, username, password):
         user = (
             User.objects
-            .select_related(
-                "staff_id__user_type_id",
-                "staff_id__staffusertype_id",
-                "staff_id__contractorusertype_id",
-                "staff_id__company_id",
-                "customer_id__user_type_id",
-                "customer_id__company_id",
-                "user_type_id",
-                "staffusertype_id",
-                "company_id",
-            )
             .filter(username__iexact=username, is_active=True, is_deleted=False)
             .first()
         )
@@ -628,13 +617,13 @@ class LoginSerializer(serializers.Serializer):
         if not user or not self._password_matches(password, user.password):
             return None
 
-        staff_record = getattr(user, "staff_id", None)
+        staff_record = getattr(user, "staff", None)
         if staff_record:
             if staff_record.is_superuser and not getattr(staff_record, "company_id", None):
                 return self._build_platform_payload(user)
             return self._build_staff_payload(staff_record, login_user=user)
 
-        customer_record = getattr(user, "customer_id", None)
+        customer_record = getattr(user, "customer", None)
         if customer_record:
             return self._build_customer_payload(customer_record, login_user=user)
 
@@ -644,9 +633,9 @@ class LoginSerializer(serializers.Serializer):
         return None
 
     def _build_panchayat_leader_payload(self, leader):
-        panchayat = leader.panchayat_id
-        company = leader.company_id or (panchayat.company_id if panchayat else None)
-        project = leader.project_id or (panchayat.project_id if panchayat else None)
+        panchayat = leader.panchayat
+        company = leader.company or (panchayat.company if panchayat else None)
+        project = leader.project or (panchayat.project if panchayat else None)
 
         return {
             "user": leader,
@@ -669,7 +658,6 @@ class LoginSerializer(serializers.Serializer):
     def _authenticate_panchayat_leader(self, username, password):
         leader = (
             PanchayatLeaderLogin.objects
-            .select_related("panchayat_id", "company_id", "project_id")
             .filter(is_active=True, is_deleted=False)
             .filter(Q(username__iexact=username) | Q(email__iexact=username))
             .first()

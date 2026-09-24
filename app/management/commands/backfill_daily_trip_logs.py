@@ -27,31 +27,21 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        logged_assignment_ids = DailyTripLog.objects.exclude(
+            trip_assignment_id__isnull=True,
+        ).values("trip_assignment_id")
         assignments = DailyTripAssignment.objects.filter(
             is_deleted=False,
-            daily_trip_log__isnull=True,
         ).exclude(
             status=DailyTripAssignment.STATUS_CANCELLED,
-        ).select_related(
-            "company_id",
-            "project_id",
-            "trip_plan_id",
-            "trip_plan_id__vehicle_id",
-            "staff_template_id",
-            "staff_template_id__driver_id",
-            "staff_template_id__operator_id",
-            "alt_staff_template_id",
-            "alt_staff_template_id__driver_id",
-            "alt_staff_template_id__operator_id",
-            "panchayat_id",
-            "waste_type_id",
-            "vehicle_id",
+        ).exclude(
+            unique_id__in=logged_assignment_ids,
         )
 
         if options.get("company_id"):
-            assignments = assignments.filter(company_id__unique_id=options["company_id"])
+            assignments = assignments.filter(company_id=options["company_id"])
         if options.get("project_id"):
-            assignments = assignments.filter(project_id__unique_id=options["project_id"])
+            assignments = assignments.filter(project_id=options["project_id"])
 
         created = 0
         submitted = 0
@@ -67,8 +57,8 @@ class Command(BaseCommand):
                 assignment.mark_completed_if_all_cps_collected()
 
             total_weight = children.aggregate(total=Sum("collected_weight_kg"))["total"] or 0
-            vehicle_capacity = getattr(getattr(assignment, "vehicle_id", None), "capacity", None)
-            trip_capacity = getattr(getattr(assignment, "trip_plan_id", None), "max_vehicle_capacity_kg", None)
+            vehicle_capacity = getattr(assignment.vehicle, "capacity", None)
+            trip_capacity = getattr(assignment.trip_plan, "max_vehicle_capacity_kg", None)
             capacity = vehicle_capacity or trip_capacity
             exceeds_capacity = (
                 bool(capacity)
@@ -83,7 +73,7 @@ class Command(BaseCommand):
             )
 
             DailyTripLog.objects.create(
-                trip_assignment_id=assignment,
+                trip_assignment_id=assignment.unique_id,
                 collected_weight_kg=stored_weight,
                 remarks=remarks,
             )

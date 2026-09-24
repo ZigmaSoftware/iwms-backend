@@ -38,8 +38,8 @@ class DailyWasteComparisonSeeder(BaseSeeder):
         )
         waste_types = list(
             WasteType.objects.filter(
-                company_id=company,
-                project_id=project,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 is_deleted=False,
             ).order_by("waste_type_name")[:2]
         )
@@ -67,10 +67,10 @@ class DailyWasteComparisonSeeder(BaseSeeder):
             DailyWasteComparison.objects.update_or_create(
                 unique_id=f"DWC-SEED-{index + 1:03d}",
                 defaults={
-                    "company_id": company,
-                    "project_id": project,
-                    "panchayat_id": panchayat,
-                    "waste_type_id": waste_type,
+                    "company_id": company.unique_id,
+                    "project_id": project.unique_id,
+                    "panchayat_id": panchayat.unique_id,
+                    "waste_type_id": waste_type.unique_id,
                     "collection_date": collection_date,
                     "agreed_weight_kg": agreed,
                     "actual_weight_kg": actual,

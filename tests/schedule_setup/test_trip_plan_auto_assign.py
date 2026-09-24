@@ -36,18 +36,18 @@ class TestIsAutoAssignFilter:
         )
         target_date = __import__("datetime").date(2026, 8, 3)  # Monday
         summary = run_for_date(target_date=target_date)
-        assert not DailyTripAssignment.objects.filter(trip_plan_id=plan).exists()
+        assert not DailyTripAssignment.objects.filter(trip_plan_id=plan.unique_id).exists()
         assert summary["created"] == 0
 
     def test_auto_assign_plan_is_included(
         self, company, project, district, city, panchayat, staff_template, vehicle, supervisor, waste_type_obj, bin_stop,
     ):
-        plan = bin_stop.trip_plan_id
+        plan = bin_stop.trip_plan
         target_date = __import__("datetime").date(2026, 8, 3)  # Monday
         plan.repeat_days = [0, 1, 2, 3, 4, 5, 6]
         plan.save(update_fields=["repeat_days"])
         summary = run_for_date(target_date=target_date)
-        assert DailyTripAssignment.objects.filter(trip_plan_id=plan, trip_date=target_date).exists()
+        assert DailyTripAssignment.objects.filter(trip_plan_id=plan.unique_id, trip_date=target_date).exists()
         assert summary["created"] == 1
 
 
@@ -58,13 +58,13 @@ class TestIsAutoAssignFilter:
 @pytest.mark.django_db
 class TestIdempotentStopCloning:
     def test_running_twice_does_not_duplicate_bin_stops(self, bin_stop):
-        plan = bin_stop.trip_plan_id
+        plan = bin_stop.trip_plan
         plan.repeat_days = [0, 1, 2, 3, 4, 5, 6]
         plan.save(update_fields=["repeat_days"])
         target_date = __import__("datetime").date(2026, 8, 3)
 
         run_for_date(target_date=target_date)
-        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan, trip_date=target_date)
+        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan.unique_id, trip_date=target_date)
         assert DailyTripCollectionPoint.objects.filter(trip_assignment_id=assignment).count() == 1
 
         # Re-run for the same date — must not duplicate.
@@ -81,16 +81,16 @@ class TestIdempotentStopCloning:
             repeat_days=[0, 1, 2, 3, 4, 5, 6],
         )
         TripPlanCollectionPoint.objects.create(
-            trip_plan_id=plan,
+            trip_plan_id=plan.unique_id,
             collection_type=TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
-            customer_id=household_customer,
+            customer_id=household_customer.unique_id,
             sequence=1,
             is_active=True,
         )
         target_date = __import__("datetime").date(2026, 8, 3)
 
         run_for_date(target_date=target_date)
-        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan, trip_date=target_date)
+        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan.unique_id, trip_date=target_date)
         assert DailyTripHouseholdCollection.objects.filter(trip_assignment_id=assignment).count() == 1
 
         run_for_date(target_date=target_date)
@@ -106,15 +106,15 @@ class TestIdempotentStopCloning:
             repeat_days=[0, 1, 2, 3, 4, 5, 6],
         )
         TripPlanCollectionPoint.objects.create(
-            trip_plan_id=plan,
+            trip_plan_id=plan.unique_id,
             collection_type=TripPlanCollectionPoint.COLLECTION_TYPE_BULK,
-            customer_id=bulk_customer,
+            customer_id=bulk_customer.unique_id,
             sequence=1,
             is_active=True,
         )
         target_date = __import__("datetime").date(2026, 8, 3)
         run_for_date(target_date=target_date)
-        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan, trip_date=target_date)
+        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan.unique_id, trip_date=target_date)
         rows = DailyTripHouseholdCollection.objects.filter(trip_assignment_id=assignment)
         assert rows.count() == 1
         assert rows.first().collection_type == DailyTripHouseholdCollection.COLLECTION_TYPE_BULK
@@ -127,22 +127,22 @@ class TestIdempotentStopCloning:
 @pytest.mark.django_db
 class TestForceSemantics:
     def test_non_force_skips_wrong_weekday(self, bin_stop):
-        plan = bin_stop.trip_plan_id
+        plan = bin_stop.trip_plan
         plan.repeat_days = [1]  # Tuesday only
         plan.save(update_fields=["repeat_days"])
         monday = __import__("datetime").date(2026, 8, 3)  # Monday
         summary = run_for_date(target_date=monday, force=False)
         assert summary["created"] == 0
-        assert not DailyTripAssignment.objects.filter(trip_plan_id=plan, trip_date=monday).exists()
+        assert not DailyTripAssignment.objects.filter(trip_plan_id=plan.unique_id, trip_date=monday).exists()
 
     def test_force_ignores_weekday(self, bin_stop):
-        plan = bin_stop.trip_plan_id
+        plan = bin_stop.trip_plan
         plan.repeat_days = [1]  # Tuesday only
         plan.save(update_fields=["repeat_days"])
         monday = __import__("datetime").date(2026, 8, 3)  # Monday
         summary = run_for_date(target_date=monday, force=True)
         assert summary["created"] == 1
-        assert DailyTripAssignment.objects.filter(trip_plan_id=plan, trip_date=monday).exists()
+        assert DailyTripAssignment.objects.filter(trip_plan_id=plan.unique_id, trip_date=monday).exists()
 
     def test_non_force_excludes_unapproved_plan(
         self, company, project, district, city, panchayat, staff_template, vehicle, supervisor, waste_type_obj,
@@ -155,7 +155,7 @@ class TestForceSemantics:
         monday = __import__("datetime").date(2026, 8, 3)
         summary = run_for_date(target_date=monday, force=False)
         assert summary["created"] == 0
-        assert not DailyTripAssignment.objects.filter(trip_plan_id=plan).exists()
+        assert not DailyTripAssignment.objects.filter(trip_plan_id=plan.unique_id).exists()
 
     def test_force_includes_unapproved_plan(
         self, company, project, district, city, panchayat, staff_template, vehicle, supervisor, waste_type_obj,
@@ -168,7 +168,7 @@ class TestForceSemantics:
         monday = __import__("datetime").date(2026, 8, 3)
         summary = run_for_date(target_date=monday, force=True)
         assert summary["created"] == 1
-        assert DailyTripAssignment.objects.filter(trip_plan_id=plan, trip_date=monday).exists()
+        assert DailyTripAssignment.objects.filter(trip_plan_id=plan.unique_id, trip_date=monday).exists()
 
 
 # ----------------------------------------------------------------------
@@ -178,7 +178,7 @@ class TestForceSemantics:
 @pytest.mark.django_db
 class TestGenerateDailyAction:
     def test_endpoint_generates_assignment(self, auth_client, bin_stop):
-        plan = bin_stop.trip_plan_id
+        plan = bin_stop.trip_plan
         plan.repeat_days = [0, 1, 2, 3, 4, 5, 6]
         plan.save(update_fields=["repeat_days"])
 
@@ -190,11 +190,11 @@ class TestGenerateDailyAction:
         assert response.status_code == 200
         assert response.data["created"] == 1
         assert DailyTripAssignment.objects.filter(
-            trip_plan_id=plan, trip_date="2026-08-03"
+            trip_plan_id=plan.unique_id, trip_date="2026-08-03"
         ).exists()
 
     def test_endpoint_is_idempotent(self, auth_client, bin_stop):
-        plan = bin_stop.trip_plan_id
+        plan = bin_stop.trip_plan
         plan.repeat_days = [0, 1, 2, 3, 4, 5, 6]
         plan.save(update_fields=["repeat_days"])
 
@@ -211,5 +211,5 @@ class TestGenerateDailyAction:
         assert response.status_code == 200
         assert response.data["created"] == 0
         assert DailyTripAssignment.objects.filter(
-            trip_plan_id=plan, trip_date="2026-08-03"
+            trip_plan_id=plan.unique_id, trip_date="2026-08-03"
         ).count() == 1

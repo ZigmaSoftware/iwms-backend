@@ -13,11 +13,11 @@ def panchayat(db, company, project, state, district, city):
     from app.models.masters.panchayat import Panchayat
     return Panchayat.objects.create(
         panchayat_name="CP Choices Panchayat",
-        company_id=company,
-        project_id=project,
-        state_id=state,
-        district_id=district,
-        city_id=city,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
     )
 
 
@@ -101,12 +101,12 @@ class TestCollectionPointLegacyHouseholdRows:
     def test_legacy_household_row_is_loadable(self, company, project, state, district, city, panchayat):
         cp = Collection_point.objects.create(
             cp_name="Legacy Household CP",
-            company_id=company,
-            project_id=project,
-            state_id=state,
-            city_id=city,
-            district_id=district,
-            panchayat_id=panchayat,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
+            state_id=state.unique_id,
+            city_id=city.unique_id,
+            district_id=district.unique_id,
+            panchayat_id=panchayat.unique_id,
             collection_type=Collection_point.COLLECTION_TYPE_HOUSEHOLD,
             latitude="13.0827",
             longitude="80.2707",

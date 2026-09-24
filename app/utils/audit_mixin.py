@@ -2,6 +2,8 @@ from django.forms.models import model_to_dict
 from django.db.models.fields.files import FieldFile
 from app.utils.common_audit import CommonAudit
 from app.utils.audit_context import resolve_actor, resolve_tenancy
+from app.utils.base_models import Account
+from app.models.staff_creations.staffcreation import Staffcreation
 from datetime import datetime, date, time
 from decimal import Decimal
 from uuid import UUID
@@ -71,6 +73,40 @@ class AuditViewSetMixin:
 
         return data
 
+    def _audit_actor_id(self):
+        user = getattr(self.request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            return None
+
+        if isinstance(user, Staffcreation):
+            account, _ = Account.objects.get_or_create(staff=user)
+        else:
+            account, _ = Account.objects.get_or_create(user=user)
+        return account.account_id
+
+    @staticmethod
+    def _model_has_field(model, field_name):
+        try:
+            model._meta.get_field(field_name)
+        except Exception:
+            return False
+        return True
+
+    def _audit_save_kwargs(self, serializer, **fields):
+        model = getattr(getattr(serializer, "Meta", None), "model", None)
+        if not model:
+            return {}
+
+        actor_id = self._audit_actor_id()
+        if not actor_id:
+            return {}
+
+        return {
+            field_name: actor_id
+            for field_name, enabled in fields.items()
+            if enabled and self._model_has_field(model, field_name)
+        }
+
     def log_audit(self, request, instance=None, previous_data=None, new_data=None):
 
         user = getattr(request, "user", None)
@@ -100,6 +136,12 @@ class AuditViewSetMixin:
 
     # CREATE
     def perform_create(self, serializer):
+        # Defers the actual serializer.save() to the next class in the MRO
+        # (e.g. CompanyScopedViewSet), which resolves company_id/project_id
+        # tenancy and its own created_by/updated_by stamping. Calling
+        # serializer.save() directly here — as this used to do — bypassed
+        # that resolution entirely for any viewset mixing in both, silently
+        # leaving company_id/project_id null on create/update.
         super().perform_create(serializer)
 
         instance = serializer.instance

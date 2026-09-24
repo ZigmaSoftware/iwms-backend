@@ -15,8 +15,8 @@ def next_scoped_display_id(
 ):
     """Return the next PREFIX0001-style ID within a company/project scope."""
     queryset = model.objects.filter(
-        company_id_id=company_id,
-        project_id_id=project_id,
+        company_id=company_id,
+        project_id=project_id,
     ).exclude(**{f"{field_name}__isnull": True})
 
     max_sequence = (

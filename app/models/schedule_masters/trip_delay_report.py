@@ -19,10 +19,6 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from app.utils.base_models import BaseMaster
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.staff_creations.staffcreation import Staffcreation
 
 
 def _generate_trip_delay_id():
@@ -81,35 +77,13 @@ class TripDelayReport(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.CASCADE,
-        related_name="trip_delay_reports",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.CASCADE,
-        related_name="trip_delay_reports",
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    # ForeignKey, NOT OneToOne: a trip can be delayed more than once.
-    trip_assignment_id = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.CASCADE,
-        related_name="delay_reports",
-        db_column="trip_assignment_id",
-    )
+    # Plain reference, NOT OneToOne: a trip can be delayed more than once.
+    trip_assignment_id = models.CharField(max_length=30)
 
-    reported_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="reported_trip_delays",
-        db_column="reported_by",
-    )
+    reported_by_id = models.CharField(max_length=30, null=True, blank=True)
 
     delay_reason = models.CharField(
         max_length=30,
@@ -138,14 +112,7 @@ class TripDelayReport(BaseMaster):
         default=STATUS_REPORTED,
     )
 
-    acknowledged_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="acknowledged_trip_delays",
-        db_column="acknowledged_by",
-    )
+    acknowledged_by_id = models.CharField(max_length=30, null=True, blank=True)
     acknowledged_at = models.DateTimeField(null=True, blank=True)
     supervisor_remarks = models.TextField(null=True, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
@@ -173,11 +140,13 @@ class TripDelayReport(BaseMaster):
         # Inherit tenant scope from the trip — a delay is never in a different
         # company/project than the assignment it belongs to, and a null here
         # would hide the row from every company-scoped list.
-        if self.trip_assignment_id_id:
-            if not self.company_id_id:
-                self.company_id_id = self.trip_assignment_id.company_id_id
-            if not self.project_id_id:
-                self.project_id_id = self.trip_assignment_id.project_id_id
+        if self.trip_assignment_id:
+            assignment = self.trip_assignment
+            if assignment:
+                if not self.company_id:
+                    self.company_id = assignment.company_id
+                if not self.project_id:
+                    self.project_id = assignment.project_id
         super().save(*args, **kwargs)
 
     def mark_acknowledged(self, *, by=None, remarks=None):
@@ -185,12 +154,12 @@ class TripDelayReport(BaseMaster):
         if self.status != self.STATUS_REPORTED:
             return False
         self.status = self.STATUS_ACKNOWLEDGED
-        self.acknowledged_by = by
+        self.acknowledged_by_id = by.staff_unique_id if by else None
         self.acknowledged_at = timezone.now()
         if remarks:
             self.supervisor_remarks = remarks
         self.save(update_fields=[
-            "status", "acknowledged_by", "acknowledged_at",
+            "status", "acknowledged_by_id", "acknowledged_at",
             "supervisor_remarks", "updated_at",
         ])
         return True
@@ -207,3 +176,38 @@ class TripDelayReport(BaseMaster):
             "status", "resolved_at", "supervisor_remarks", "updated_at",
         ])
         return True
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def trip_assignment(self):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        if self.trip_assignment_id:
+            return DailyTripAssignment.objects.filter(unique_id=self.trip_assignment_id).first()
+        return None
+
+    @property
+    def reported_by(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        if self.reported_by_id:
+            return Staffcreation.objects.filter(staff_unique_id=self.reported_by_id).first()
+        return None
+
+    @property
+    def acknowledged_by(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        if self.acknowledged_by_id:
+            return Staffcreation.objects.filter(staff_unique_id=self.acknowledged_by_id).first()
+        return None

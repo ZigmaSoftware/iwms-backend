@@ -1,9 +1,6 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
-from app.models.grivences.main_category_citizenGrievance import MainCategory
 from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 
@@ -12,20 +9,8 @@ def generate_subcategory_id():
 
 
 class SubCategory(BaseMaster):
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     unique_id = models.CharField(
         max_length=30,
@@ -34,11 +19,7 @@ class SubCategory(BaseMaster):
         editable=False,
     )
 
-    mainCategory = models.ForeignKey(
-        MainCategory,
-        on_delete=models.PROTECT,
-        related_name='sub_categories'
-    )
+    mainCategory = models.CharField(max_length=30, null=True, blank=True)
 
     name = models.CharField(max_length=120)
     class Meta:
@@ -51,3 +32,24 @@ class SubCategory(BaseMaster):
         self.is_deleted = True
         self.is_active = False
         self.save(update_fields=["is_deleted", "is_active"])
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def mainCategory_obj(self):
+        from app.models.grivences.main_category_citizenGrievance import MainCategory
+        if self.mainCategory:
+            return MainCategory.objects.filter(unique_id=self.mainCategory).first()
+        return None

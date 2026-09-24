@@ -100,15 +100,15 @@ class ComplaintSubcategorySeeder(BaseSeeder):
                     if priority_code
                     else None
                 )
-                # `unique_together = ("category", "subcategory_code")`, so the
-                # lookup has to carry both — the same code under a different
-                # category is a different row.
+                # `unique_together = ("category_id", "subcategory_code")`, so
+                # the lookup has to carry both — the same code under a
+                # different category is a different row.
                 ComplaintSubcategory.objects.get_or_create(
-                    category=category,
+                    category_id=category.unique_id,
                     subcategory_code=code,
                     defaults={
                         "subcategory_name": name,
-                        "default_priority": priority,
+                        "default_priority_id": priority.unique_id if priority else None,
                         "sort_order": sort_order,
                         "is_active": True,
                         "is_deleted": False,

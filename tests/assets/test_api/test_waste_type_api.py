@@ -1,7 +1,7 @@
 """API tests for WasteType (assets) endpoint — CRUD operations."""
 import pytest
 
-BASE = "/api/v1/assets/waste-types/"
+BASE = "/api/v1/waste-types/wastetypes/"
 
 
 @pytest.mark.django_db

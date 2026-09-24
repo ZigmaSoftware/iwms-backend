@@ -7,6 +7,9 @@ from app.validators.unique_name_validator import unique_name_validator
 
 
 class SubPropertySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
     # dropdown filtered only to active and not-deleted properties
     property_id = NameOrUniqueIdField(
         name_field="property_name",

@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from app.models.schedule_masters.trip_delay_report import TripDelayReport
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 
 
 class TripDelayReportSerializer(serializers.ModelSerializer):
@@ -13,8 +14,7 @@ class TripDelayReportSerializer(serializers.ModelSerializer):
     client cannot report a delay against another crew's trip or backdate one.
     """
 
-    trip_assignment_id = serializers.SlugRelatedField(
-        slug_field="unique_id",
+    trip_assignment_id = UniqueIdOrPkField(
         queryset=DailyTripAssignment.objects.filter(is_deleted=False),
     )
 
@@ -25,16 +25,20 @@ class TripDelayReportSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(
         source="get_status_display", read_only=True
     )
+    reported_by = serializers.CharField(source="reported_by_id", read_only=True)
+    acknowledged_by = serializers.CharField(
+        source="acknowledged_by_id", read_only=True, default=None
+    )
     reported_by_name = serializers.CharField(
         source="reported_by.employee_name", read_only=True, default=None
     )
     vehicle_no = serializers.CharField(
-        source="trip_assignment_id.vehicle_id.vehicle_no",
+        source="trip_assignment.vehicle_id.vehicle_no",
         read_only=True,
         default=None,
     )
     trip_date = serializers.DateField(
-        source="trip_assignment_id.trip_date", read_only=True
+        source="trip_assignment.trip_date", read_only=True, default=None
     )
 
     class Meta:

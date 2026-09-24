@@ -285,15 +285,15 @@ class BluePlanetSeeder(BaseSeeder):
             defaults = {
                 "employee_name": employee_name,
                 "office_email": f"{username}@blueplanet.local",
-                "user_type_id": staff_type,
-                "staffusertype_id": role,
+                "user_type_id": staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type,
+                "staffusertype_id": role.unique_id if hasattr(role, 'unique_id') else role,
                 "password": "Blue123",
-                "company_id": company,
-                "project_id": project,
-                "district_id": district,
-                "city_id": city,
-                "zone_id": zones[0],
-                "ward_id": wards[0],
+                "company_id": company.unique_id if hasattr(company, 'unique_id') else company,
+                "project_id": project.unique_id if hasattr(project, 'unique_id') else project,
+                "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
+                "city_id": city.unique_id if hasattr(city, 'unique_id') else city,
+                "zone_id": zones[0].unique_id if hasattr(zones[0], 'unique_id') else zones[0],
+                "ward_id": wards[0].unique_id if hasattr(wards[0], 'unique_id') else wards[0],
                 "is_active": True,
                 "is_deleted": False,
                 "approval_status": Staffcreation.APPROVAL_APPROVED,
@@ -314,6 +314,8 @@ class BluePlanetSeeder(BaseSeeder):
         return staff
 
     def _create_vehicles(self, company, project, prefix):
+        company_id = company.unique_id if hasattr(company, 'unique_id') else company
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
         fuel, _ = Fuel.objects.get_or_create(
             fuel_type="Diesel",
             defaults={"description": "Diesel fuel", "is_active": True, "is_deleted": False},
@@ -335,10 +337,10 @@ class BluePlanetSeeder(BaseSeeder):
             vehicle, _ = VehicleCreation.objects.update_or_create(
                 vehicle_no=f"BP-{prefix}-VEH-0{idx}",
                 defaults={
-                    "vehicle_type": vehicle_type,
-                    "fuel_type": fuel,
-                    "company_id": company,
-                    "project_id": project,
+                    "vehicle_type_id": vehicle_type.unique_id if hasattr(vehicle_type, 'unique_id') else vehicle_type,
+                    "fuel_type_id": fuel.unique_id if hasattr(fuel, 'unique_id') else fuel,
+                    "company_id": company_id,
+                    "project_id": project_id,
                     "capacity": "3000.00",
                     "mileage_per_liter": "6.00",
                     "service_record": "Blue Planet seeded vehicle",
@@ -361,8 +363,10 @@ class BluePlanetSeeder(BaseSeeder):
         # referenced by protected FKs from historical trips/logs/events, so
         # they must stay in place, just hidden from active use. Palakkad BP
         # is untouched.
+        company_id = company.unique_id if hasattr(company, 'unique_id') else company
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
         VehicleCreation.objects.filter(
-            project_id=project, vehicle_no__startswith="BP-GNO-VEH-"
+            project_id=project_id, vehicle_no__startswith="BP-GNO-VEH-"
         ).update(is_active=False, is_deleted=True)
 
         vehicles = []
@@ -378,10 +382,10 @@ class BluePlanetSeeder(BaseSeeder):
             vehicle, _ = VehicleCreation.objects.update_or_create(
                 vehicle_no=entry["vehicle_no"],
                 defaults={
-                    "vehicle_type": vehicle_type,
-                    "fuel_type": fuel,
-                    "company_id": company,
-                    "project_id": project,
+                    "vehicle_type_id": vehicle_type.unique_id if hasattr(vehicle_type, 'unique_id') else vehicle_type,
+                    "fuel_type_id": fuel.unique_id if hasattr(fuel, 'unique_id') else fuel,
+                    "company_id": company_id,
+                    "project_id": project_id,
                     "capacity": "3000.00",
                     "mileage_per_liter": "6.00",
                     "service_record": "Vamosys GPS-tracked vehicle",
@@ -396,9 +400,11 @@ class BluePlanetSeeder(BaseSeeder):
         return vehicles
 
     def _create_property_data(self, company, project):
+        company_id = company.unique_id if hasattr(company, 'unique_id') else company
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
         prop, _ = Property.objects.update_or_create(
-            company_id=company,
-            project_id=project,
+            company_id=company_id,
+            project_id=project_id,
             property_name="Agricultural",
             defaults={"is_active": True, "is_deleted": False},
         )
@@ -406,15 +412,15 @@ class BluePlanetSeeder(BaseSeeder):
             property_id=prop,
             sub_property_name="Farm",
             defaults={
-                "company_id": company,
-                "project_id": project,
+                "company_id": company_id,
+                "project_id": project_id,
                 "is_active": True,
                 "is_deleted": False,
             },
         )
         residential_prop, _ = Property.objects.update_or_create(
-            company_id=company,
-            project_id=project,
+            company_id=company_id,
+            project_id=project_id,
             property_name="Residential",
             defaults={"is_active": True, "is_deleted": False},
         )
@@ -422,8 +428,8 @@ class BluePlanetSeeder(BaseSeeder):
             property_id=residential_prop,
             sub_property_name="Individual House",
             defaults={
-                "company_id": company,
-                "project_id": project,
+                "company_id": company_id,
+                "project_id": project_id,
                 "is_active": True,
                 "is_deleted": False,
             },
@@ -431,11 +437,13 @@ class BluePlanetSeeder(BaseSeeder):
         return prop, sub_property, residential_prop, residential_sub
 
     def _create_waste_types(self, company, project):
+        company_id = company.unique_id if hasattr(company, 'unique_id') else company
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
         result = []
         for name in ("Mixed Waste", "Wet Waste", "Dry Waste"):
             waste_type, _ = WasteType.objects.update_or_create(
-                company_id=company,
-                project_id=project,
+                company_id=company_id,
+                project_id=project_id,
                 waste_type_name=name,
                 defaults={"is_active": True, "is_deleted": False},
             )
@@ -443,6 +451,15 @@ class BluePlanetSeeder(BaseSeeder):
         return result
 
     def _create_customers(self, company, project, project_name, district, city, state, country, zone, ward, panchayat, property_obj, sub_property, waste_types):
+        company_id = company.unique_id if hasattr(company, 'unique_id') else company
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
+        district_id = district.unique_id if hasattr(district, 'unique_id') else district
+        city_id = city.unique_id if hasattr(city, 'unique_id') else city
+        state_id = state.unique_id if hasattr(state, 'unique_id') else state
+        country_id = country.unique_id if hasattr(country, 'unique_id') else country
+        zone_id = zone.unique_id if hasattr(zone, 'unique_id') else zone
+        ward_id = ward.unique_id if hasattr(ward, 'unique_id') else ward
+        panchayat_id = panchayat.unique_id if hasattr(panchayat, 'unique_id') else panchayat
         prefix = self.PROJECT_LOCATION[project_name]["prefix"]
         contact_base = "94" if prefix[0].upper() == "P" else "95"
         customers = []
@@ -463,8 +480,8 @@ class BluePlanetSeeder(BaseSeeder):
                 for member_idx in range(1, member_count + 1)
             ]
             customer, _ = CustomerCreation.objects.update_or_create(
-                company_id=company,
-                project_id=project,
+                company_id=company_id,
+                project_id=project_id,
                 id_no=id_no,
                 defaults={
                     "customer_name": name,
@@ -475,13 +492,13 @@ class BluePlanetSeeder(BaseSeeder):
                     "building_no": building,
                     "street": street,
                     "area": area,
-                    "ward": ward,
-                    "zone": zone,
-                    "city": city,
-                    "district": district,
-                    "state": state,
-                    "country": country,
-                    "panchayat_id": panchayat,
+                    "ward_id": ward_id,
+                    "zone_id": zone_id,
+                    "city_id": city_id,
+                    "district_id": district_id,
+                    "state_id": state_id,
+                    "country_id": country_id,
+                    "panchayat_id": panchayat_id,
                     "pincode": pincode,
                     "latitude": f"{lat:.6f}",
                     "longitude": f"{lon:.6f}",
@@ -492,24 +509,30 @@ class BluePlanetSeeder(BaseSeeder):
                     "id_no": id_no,
                     "member_count": member_count,
                     "family_members": family_members,
-                    "property_ref": property_obj,
-                    "sub_property": sub_property,
+                    "property_id": property_obj.unique_id if hasattr(property_obj, 'unique_id') else property_obj,
+                    "sub_property_id": sub_property.unique_id if hasattr(sub_property, 'unique_id') else sub_property,
+                    "waste_type_ids": ",".join(
+                        waste_type.unique_id if hasattr(waste_type, 'unique_id') else str(waste_type)
+                        for waste_type in waste_types
+                    ),
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
-            customer.waste_types.set(waste_types)
             customers.append(customer)
         return customers
 
     def _create_complaints(self, company, project, customers):
+        company_id = company.unique_id if hasattr(company, 'unique_id') else company
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
         complaints = []
         for idx, (main_category, sub_category, category, priority, status, details) in enumerate(self.COMPLAINT_DATA):
             customer = customers[idx % len(customers)]
+            customer_unique_id = customer.unique_id if hasattr(customer, 'unique_id') else customer
             complaint, _ = Complaint.objects.update_or_create(
-                company_id=company,
-                project_id=project,
-                customer=customer,
+                company_id=company_id,
+                project_id=project_id,
+                customer_id=customer_unique_id,
                 main_category=main_category,
                 sub_category=sub_category,
                 defaults={
@@ -525,27 +548,30 @@ class BluePlanetSeeder(BaseSeeder):
     def _create_project_operational_data(self, company, project, config):
         prefix = config["prefix"]
         asia, india, state = self._base_geo(config["state"])
+        company_id = company.unique_id if hasattr(company, 'unique_id') else company
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
+        
         district, _ = District.objects.update_or_create(
             name=config["district"],
-            state_id=state,
+            state_id=state.unique_id if hasattr(state, 'unique_id') else state,
             defaults={
-                "continent_id": asia,
-                "country_id": india,
-                "company_id": company,
-                "project_id": project,
+                "continent_id": asia.unique_id if hasattr(asia, 'unique_id') else asia,
+                "country_id": india.unique_id if hasattr(india, 'unique_id') else india,
+                "company_id": company_id,
+                "project_id": project_id,
                 "is_active": True,
                 "is_deleted": False,
             },
         )
         city, _ = City.objects.update_or_create(
             name=config["city"],
-            state_id=state,
-            district_id=district,
+            state_id=state.unique_id if hasattr(state, 'unique_id') else state,
+            district_id=district.unique_id if hasattr(district, 'unique_id') else district,
             defaults={
-                "continent_id": asia,
-                "country_id": india,
-                "company_id": company,
-                "project_id": project,
+                "continent_id": asia.unique_id if hasattr(asia, 'unique_id') else asia,
+                "country_id": india.unique_id if hasattr(india, 'unique_id') else india,
+                "company_id": company_id,
+                "project_id": project_id,
                 "description": f"{project.name} city",
                 "is_active": True,
                 "is_deleted": False,
@@ -563,11 +589,11 @@ class BluePlanetSeeder(BaseSeeder):
             zone, _ = Zone.objects.update_or_create(
                 zone_name=f"{prefix} Zone {idx}",
                 city_id=city,
-                company_id=company,
-                project_id=project,
+                company_id=company_id,
+                project_id=project_id,
                 defaults={
-                    "state_id": state,
-                    "district_id": district,
+                    "state_id": state.unique_id if hasattr(state, 'unique_id') else state,
+                    "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
                     "latitude": zone_lat,
                     "longitude": zone_lon,
                     "is_active": True,
@@ -579,13 +605,13 @@ class BluePlanetSeeder(BaseSeeder):
             ward_lat, ward_lon = _scatter(zone_lat, zone_lon, idx + 10, spread=0.006)
             ward, _ = Ward.objects.update_or_create(
                 ward_name=f"{prefix} Ward {idx}",
-                zone_id=zone,
-                company_id=company,
-                project_id=project,
+                zone_id=zone.unique_id if hasattr(zone, 'unique_id') else zone,
+                company_id=company_id,
+                project_id=project_id,
                 defaults={
-                    "state_id": state,
-                    "district_id": district,
-                    "city_id": city,
+                    "state_id": state.unique_id if hasattr(state, 'unique_id') else state,
+                    "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
+                    "city_id": city.unique_id if hasattr(city, 'unique_id') else city,
                     "latitude": ward_lat,
                     "longitude": ward_lon,
                     "is_active": True,
@@ -597,12 +623,12 @@ class BluePlanetSeeder(BaseSeeder):
             panchayat_lat, panchayat_lon = _scatter(zone_lat, zone_lon, idx + 20, spread=0.006)
             panchayat, _ = Panchayat.objects.update_or_create(
                 panchayat_name=f"{prefix} PLB {idx}",
-                company_id=company,
-                project_id=project,
+                company_id=company_id,
+                project_id=project_id,
                 defaults={
-                    "state_id": state,
-                    "district_id": district,
-                    "city_id": city,
+                    "state_id": state.unique_id if hasattr(state, 'unique_id') else state,
+                    "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
+                    "city_id": city.unique_id if hasattr(city, 'unique_id') else city,
                     "agreed_weight_kg": 800,
                     "weight_unit": "kg",
                     "latitude": panchayat_lat,
@@ -616,24 +642,23 @@ class BluePlanetSeeder(BaseSeeder):
             cp_lat, cp_lon = _scatter(zone_lat, zone_lon, idx + 30, spread=0.006)
             collection_point, _ = Collection_point.objects.update_or_create(
                 cp_name=f"CP-{prefix}-{idx:02d}",
-                panchayat_id=panchayat,
-                company_id=company,
-                project_id=project,
+                panchayat_id=panchayat.unique_id if hasattr(panchayat, 'unique_id') else panchayat,
+                company_id=company_id,
+                project_id=project_id,
                 defaults={
-                    "state_id": state,
-                    "district_id": district,
-                    "city_id": city,
+                    "state_id": state.unique_id if hasattr(state, 'unique_id') else state,
+                    "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
+                    "city_id": city.unique_id if hasattr(city, 'unique_id') else city,
                     "latitude": cp_lat,
                     "longitude": cp_lon,
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
-            collection_point.wards.clear()
             collection_points.append(collection_point)
 
         if prefix == "GNO":
-            self._create_noida_customer_scope(company, project, asia, india, state)
+            self._create_noida_customer_scope(company_id, project_id, asia, india, state)
 
         agri_property, agri_sub_property, residential_property, residential_sub_property = (
             self._create_property_data(company, project)
@@ -646,10 +671,10 @@ class BluePlanetSeeder(BaseSeeder):
             # Scope the lookup to the project — without it the same
             # driver/operator pair reused across projects would fight over
             # one row instead of getting one template each.
-            company_id=company,
-            project_id=project,
-            driver_id=staff["driver1"],
-            operator_id=staff["operator1"],
+            company_id=company_id,
+            project_id=project_id,
+            driver_id=staff["driver1"].staff_unique_id if hasattr(staff["driver1"], 'staff_unique_id') else staff["driver1"],
+            operator_id=staff["operator1"].staff_unique_id if hasattr(staff["operator1"], 'staff_unique_id') else staff["operator1"],
             defaults={
                 "extra_operator_id": [],
                 "status": StaffTemplate.Status.ACTIVE,
@@ -665,12 +690,12 @@ class BluePlanetSeeder(BaseSeeder):
                 bin_obj, _ = Bins.objects.update_or_create(
                     bin_qr=qr,
                     defaults={
-                        "company_id": company,
-                        "project_id": project,
-                        "collection_point_id": cp,
-                        "wastetype_id": waste_type,
-                        "ward_id": wards[cp_idx],
-                        "zone_id": zones[cp_idx],
+                        "company_id": company_id,
+                        "project_id": project_id,
+                        "collection_point_id": cp.unique_id if hasattr(cp, 'unique_id') else cp,
+                        "wastetype_id": waste_type.unique_id if hasattr(waste_type, 'unique_id') else waste_type,
+                        "ward_id": wards[cp_idx].unique_id if hasattr(wards[cp_idx], 'unique_id') else wards[cp_idx],
+                        "zone_id": zones[cp_idx].unique_id if hasattr(zones[cp_idx], 'unique_id') else zones[cp_idx],
                         "bin_name": f"{cp.cp_name} {waste_type.waste_type_name}",
                         "bin_capacity": 240,
                         "bin_type": BinType.MEDIUM,
@@ -692,19 +717,19 @@ class BluePlanetSeeder(BaseSeeder):
             trip_plan = None
         else:
             trip_plan, _ = TripPlan.objects.update_or_create(
-                company_id=company,
-                project_id=project,
-                staff_template_id=staff_template,
-                vehicle_id=vehicles[0],
-                panchayat_id=panchayats[0],
+                company_id=company_id,
+                project_id=project_id,
+                staff_template_id=staff_template.unique_id if hasattr(staff_template, 'unique_id') else staff_template,
+                vehicle_id=vehicles[0].unique_id if hasattr(vehicles[0], 'unique_id') else vehicles[0],
+                panchayat_id=panchayats[0].unique_id if hasattr(panchayats[0], 'unique_id') else panchayats[0],
                 defaults={
-                    "district_id": district,
-                    "city_id": city,
+                    "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
+                    "city_id": city.unique_id if hasattr(city, 'unique_id') else city,
                     "zone_id": None,
-                    "supervisor_id": staff["supervisor"],
-                    "property_id": agri_property,
-                    "sub_property_id": agri_sub_property,
-                    "waste_type_id": waste_types[0],
+                    "supervisor_id": staff["supervisor"].staff_unique_id if hasattr(staff["supervisor"], 'staff_unique_id') else staff["supervisor"],
+                    "property_id": agri_property.unique_id if hasattr(agri_property, 'unique_id') else agri_property,
+                    "sub_property_id": agri_sub_property.unique_id if hasattr(agri_sub_property, 'unique_id') else agri_sub_property,
+                    "waste_type_id": waste_types[0].unique_id if hasattr(waste_types[0], 'unique_id') else waste_types[0],
                     "waste_type_ids": [waste_type.unique_id for waste_type in waste_types],
                     "trip_trigger_weight_kg": 800,
                     "max_vehicle_capacity_kg": 3000,
@@ -718,7 +743,9 @@ class BluePlanetSeeder(BaseSeeder):
                 },
             )
 
-            existing = TripPlanCollectionPoint.objects.filter(trip_plan_id=trip_plan)
+            existing = TripPlanCollectionPoint.objects.filter(
+                trip_plan_id=trip_plan.unique_id if hasattr(trip_plan, 'unique_id') else trip_plan
+            )
             if existing.exists():
                 max_sequence = existing.aggregate(max_sequence=Max("sequence"))["max_sequence"] or 0
                 existing.update(
@@ -728,12 +755,12 @@ class BluePlanetSeeder(BaseSeeder):
                 )
             for idx, bin_obj in enumerate(bins, start=1):
                 TripPlanCollectionPoint.objects.update_or_create(
-                    trip_plan_id=trip_plan,
+                    trip_plan_id=trip_plan.unique_id if hasattr(trip_plan, 'unique_id') else trip_plan,
                     collection_point_id=bin_obj.collection_point_id,
-                    bin_id=bin_obj,
+                    bin_id=bin_obj.unique_id if hasattr(bin_obj, 'unique_id') else bin_obj,
                     defaults={
-                        "company_id": company,
-                        "project_id": project,
+                        "company_id": company_id,
+                        "project_id": project_id,
                         "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_BIN,
                         "sequence": idx,
                         "is_active": True,
@@ -752,8 +779,10 @@ class BluePlanetSeeder(BaseSeeder):
             complaints = []
         else:
             customers = self._create_customers(
-                company, project, project.name, district, city, state, india,
-                zones[0], wards[0], panchayats[0], residential_property, residential_sub_property, waste_types,
+                company_id, project_id, project.name,
+                district, city, state, india,
+                zones[0], wards[0], panchayats[0], agri_property,
+                agri_sub_property, waste_types,
             )
             complaints = self._create_complaints(company, project, customers)
 
@@ -769,20 +798,21 @@ class BluePlanetSeeder(BaseSeeder):
             household_plan = None
         else:
             household_plan, _ = TripPlan.objects.update_or_create(
-                company_id=company,
-                project_id=project,
-                staff_template_id=staff_template,
-                vehicle_id=vehicles[-1],
+                company_id=company_id,
+                project_id=project_id,
+                staff_template_id=staff_template.unique_id if hasattr(staff_template, 'unique_id') else staff_template,
+                vehicle_id=vehicles[-1].unique_id if hasattr(vehicles[-1], 'unique_id') else vehicles[-1],
                 panchayat_id=None,
                 collection_type=TripPlan.COLLECTION_TYPE_HOUSEHOLD,
                 defaults={
-                    "district_id": district,
-                    "city_id": city,
-                    "zone_id": zones[0],
-                    "supervisor_id": staff["supervisor"],
-                    "property_id": residential_property,
-                    "sub_property_id": residential_sub_property,
-                    "waste_type_id": waste_types[0],
+                    "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
+                    "city_id": city.unique_id if hasattr(city, 'unique_id') else city,
+                    "zone_id": zones[0].unique_id if hasattr(zones[0], 'unique_id') else zones[0],
+                    "ward_ids": wards[0].unique_id if hasattr(wards[0], 'unique_id') else wards[0],
+                    "supervisor_id": staff["supervisor"].staff_unique_id if hasattr(staff["supervisor"], 'staff_unique_id') else staff["supervisor"],
+                    "property_id": residential_property.unique_id if hasattr(residential_property, 'unique_id') else residential_property,
+                    "sub_property_id": residential_sub_property.unique_id if hasattr(residential_sub_property, 'unique_id') else residential_sub_property,
+                    "waste_type_id": waste_types[0].unique_id if hasattr(waste_types[0], 'unique_id') else waste_types[0],
                     "waste_type_ids": [waste_types[0].unique_id],
                     "trip_trigger_weight_kg": 400,
                     "max_vehicle_capacity_kg": 3000,
@@ -794,9 +824,8 @@ class BluePlanetSeeder(BaseSeeder):
                     "is_deleted": False,
                 },
             )
-            household_plan.wards.set([wards[0]])
             TripPlanCollectionPoint.objects.get_or_create(
-                trip_plan_id=household_plan,
+                trip_plan_id=household_plan.unique_id if hasattr(household_plan, 'unique_id') else household_plan,
                 sequence=1,
                 defaults={
                     "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
@@ -819,28 +848,28 @@ class BluePlanetSeeder(BaseSeeder):
             "complaints": complaints,
         }
 
-    def _create_noida_customer_scope(self, company, project, asia, india, state):
+    def _create_noida_customer_scope(self, company_id, project_id, asia, india, state):
         district, _ = District.objects.update_or_create(
             name="Gautam Buddh Nagar",
-            state_id=state,
+            state_id=state.unique_id if hasattr(state, 'unique_id') else state,
             defaults={
-                "continent_id": asia,
-                "country_id": india,
-                "company_id": company,
-                "project_id": project,
+                "continent_id": asia.unique_id if hasattr(asia, 'unique_id') else asia,
+                "country_id": india.unique_id if hasattr(india, 'unique_id') else india,
+                "company_id": company_id,
+                "project_id": project_id,
                 "is_active": True,
                 "is_deleted": False,
             },
         )
         city, _ = City.objects.update_or_create(
             name="Noida",
-            state_id=state,
-            district_id=district,
-            company_id=company,
-            project_id=project,
+            state_id=state.unique_id if hasattr(state, 'unique_id') else state,
+            district_id=district.unique_id if hasattr(district, 'unique_id') else district,
+            company_id=company_id,
+            project_id=project_id,
             defaults={
-                "continent_id": asia,
-                "country_id": india,
+                "continent_id": asia.unique_id if hasattr(asia, 'unique_id') else asia,
+                "country_id": india.unique_id if hasattr(india, 'unique_id') else india,
                 "description": "Noida city for Gamma-01 customer import",
                 "is_active": True,
                 "is_deleted": False,
@@ -848,12 +877,12 @@ class BluePlanetSeeder(BaseSeeder):
         )
         zone, _ = Zone.objects.update_or_create(
             zone_name="ZNE3-GAMMA-01",
-            city_id=city,
-            company_id=company,
-            project_id=project,
+            city_id=city.unique_id if hasattr(city, 'unique_id') else city,
+            company_id=company_id,
+            project_id=project_id,
             defaults={
-                "state_id": state,
-                "district_id": district,
+                "state_id": state.unique_id if hasattr(state, 'unique_id') else state,
+                "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
                 "latitude": 28.474400,
                 "longitude": 77.504000,
                 "is_active": True,
@@ -862,13 +891,13 @@ class BluePlanetSeeder(BaseSeeder):
         )
         Ward.objects.update_or_create(
             ward_name="B",
-            zone_id=zone,
-            company_id=company,
-            project_id=project,
+            zone_id=zone.unique_id if hasattr(zone, 'unique_id') else zone,
+            company_id=company_id,
+            project_id=project_id,
             defaults={
-                "state_id": state,
-                "district_id": district,
-                "city_id": city,
+                "state_id": state.unique_id if hasattr(state, 'unique_id') else state,
+                "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
+                "city_id": city.unique_id if hasattr(city, 'unique_id') else city,
                 "latitude": 28.474400,
                 "longitude": 77.504000,
                 "is_active": True,
@@ -887,15 +916,15 @@ class BluePlanetSeeder(BaseSeeder):
         collection only, so stops are customers (each with their own real
         lat/lon), not standalone Collection_point rows."""
         vehicle = VehicleCreation.objects.get(
-            project_id=project, vehicle_no=self.GNO_REAL_ROUTE_VEHICLE_NO
+            project_id=project.unique_id, vehicle_no=self.GNO_REAL_ROUTE_VEHICLE_NO
         )
 
         customers = []
         for route_idx, stop in enumerate(self.GNO_REAL_ROUTE_STOPS, start=1):
             id_no = f"AADHAAR-BP-GNO-ROUTE-{stop['suffix']}"
             customer, _ = CustomerCreation.objects.update_or_create(
-                company_id=company,
-                project_id=project,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 id_no=id_no,
                 defaults={
                     "customer_name": stop["name"],
@@ -906,13 +935,13 @@ class BluePlanetSeeder(BaseSeeder):
                     "building_no": stop["building"],
                     "street": stop["street"],
                     "area": stop["area"],
-                    "ward": ward,
-                    "zone": zone,
-                    "city": city,
-                    "district": district,
-                    "state": state,
-                    "country": country,
-                    "panchayat_id": panchayat,
+                    "ward_id": ward.unique_id,
+                    "zone_id": zone.unique_id,
+                    "city_id": city.unique_id,
+                    "district_id": district.unique_id,
+                    "state_id": state.unique_id,
+                    "country_id": country.unique_id,
+                    "panchayat_id": panchayat.unique_id if panchayat else None,
                     "pincode": stop["pincode"],
                     "latitude": f"{stop['latitude']:.6f}",
                     "longitude": f"{stop['longitude']:.6f}",
@@ -930,30 +959,31 @@ class BluePlanetSeeder(BaseSeeder):
                         }
                         for member_idx in range(1, 5)
                     ],
-                    "property_ref": property_obj,
-                    "sub_property": sub_property,
+                    "property_id": property_obj.unique_id,
+                    "sub_property_id": sub_property.unique_id,
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
-            customer.waste_types.set(waste_types)
+            customer.waste_type_ids = ",".join(wt.unique_id for wt in waste_types)
+            customer.save(update_fields=["waste_type_ids"])
             customers.append(customer)
 
         trip_plan, _ = TripPlan.objects.update_or_create(
-            company_id=company,
-            project_id=project,
-            staff_template_id=staff_template,
-            vehicle_id=vehicle,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
+            staff_template_id=staff_template.unique_id,
+            vehicle_id=vehicle.unique_id,
             panchayat_id=None,
             collection_type=TripPlan.COLLECTION_TYPE_HOUSEHOLD,
             defaults={
-                "district_id": district,
-                "city_id": city,
-                "zone_id": zone,
-                "supervisor_id": supervisor,
-                "property_id": property_obj,
-                "sub_property_id": sub_property,
-                "waste_type_id": waste_types[0],
+                "district_id": district.unique_id,
+                "city_id": city.unique_id,
+                "zone_id": zone.unique_id,
+                "supervisor_id": supervisor.staff_unique_id,
+                "property_id": property_obj.unique_id,
+                "sub_property_id": sub_property.unique_id,
+                "waste_type_id": waste_types[0].unique_id,
                 "waste_type_ids": [waste_types[0].unique_id],
                 "trip_trigger_weight_kg": 400,
                 "max_vehicle_capacity_kg": 3000,
@@ -965,9 +995,10 @@ class BluePlanetSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-        trip_plan.wards.set([ward])
+        trip_plan.ward_ids = ward.unique_id
+        trip_plan.save(update_fields=["ward_ids"])
 
-        existing = TripPlanCollectionPoint.objects.filter(trip_plan_id=trip_plan)
+        existing = TripPlanCollectionPoint.objects.filter(trip_plan_id=trip_plan.unique_id)
         if existing.exists():
             max_sequence = existing.aggregate(max_sequence=Max("sequence"))["max_sequence"] or 0
             existing.update(
@@ -977,11 +1008,11 @@ class BluePlanetSeeder(BaseSeeder):
             )
         for idx, customer in enumerate(customers, start=1):
             TripPlanCollectionPoint.objects.update_or_create(
-                trip_plan_id=trip_plan,
-                customer_id=customer,
+                trip_plan_id=trip_plan.unique_id,
+                customer_id=customer.unique_id,
                 defaults={
-                    "company_id": company,
-                    "project_id": project,
+                    "company_id": company.unique_id,
+                    "project_id": project.unique_id,
                     "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
                     "sequence": idx,
                     "is_active": True,
@@ -1040,7 +1071,7 @@ class BluePlanetSeeder(BaseSeeder):
                 points = [
                     (float(bin_obj.latitude), float(bin_obj.longitude))
                     for bin_obj in bins
-                    if bin_obj.ward_id_id == ward.unique_id
+                    if bin_obj.ward_id == ward.unique_id
                     and bin_obj.latitude is not None
                     and bin_obj.longitude is not None
                 ]
@@ -1075,7 +1106,7 @@ class BluePlanetSeeder(BaseSeeder):
             coords = ward.boundary_coordinates
             nudge_idx = 0
             for bin_obj in bins:
-                if bin_obj.ward_id_id != ward.unique_id or bin_obj.latitude is None:
+                if bin_obj.ward_id != ward.unique_id or bin_obj.latitude is None:
                     continue
                 lat, lon = float(bin_obj.latitude), float(bin_obj.longitude)
                 if self._point_in_polygon(lat, lon, coords):
@@ -1085,7 +1116,7 @@ class BluePlanetSeeder(BaseSeeder):
                 bin_obj.latitude = round(new_lat, 6)
                 bin_obj.longitude = round(new_lon, 6)
                 bin_obj.save(update_fields=["latitude", "longitude"])
-                cp = bin_obj.collection_point_id
+                cp = bin_obj.collection_point
                 if cp and not self._point_in_polygon(float(cp.latitude), float(cp.longitude), coords):
                     cp.latitude = bin_obj.latitude
                     cp.longitude = bin_obj.longitude

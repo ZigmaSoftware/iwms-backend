@@ -30,6 +30,8 @@ from .masters.block_panchayat_union import BlockPanchayatUnion
 # GROUP: ASSETS
 # ============================================================
 from .transport_masters.fuel import Fuel
+from .assets.weighbridge import WeighbridgeCheck
+from .assets.bins import Bins
 
 
 # ============================================================
@@ -173,6 +175,9 @@ from .schedule_masters.bin_collection_event import BinCollectionEvent
 from .schedule_masters.vehicle_breakdown import VehicleBreakdown
 from .schedule_masters.trip_delay_report import TripDelayReport
 from .schedule_masters.trip_retrip_request import TripRetripRequest
+from .schedule_masters.collection_point import Collection_point
+from .schedule_masters.route_detour_waypoint import RouteDetourWaypoint
+from .schedule_masters.daily_waste_comparison import DailyWasteComparison
 
 
 # ============================================================
@@ -197,6 +202,8 @@ __all__ = [
 
     # Assets
     "Fuel",
+    "WeighbridgeCheck",
+    "Bins",
 
     # Tenancy
     "Company",
@@ -295,4 +302,7 @@ __all__ = [
     "BinCollectionEvent",
     "VehicleBreakdown",
     "TripRetripRequest",
+    "Collection_point",
+    "RouteDetourWaypoint",
+    "DailyWasteComparison",
 ]

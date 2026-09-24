@@ -1,7 +1,5 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
-from .country import Country
-from .continent import Continent
 from app.utils.comfun import generate_unique_id
 
 
@@ -18,31 +16,11 @@ class State(BaseMaster):
         default=generate_state_id
     )
 
-    country_id = models.ForeignKey(
-        Country,
-        on_delete=models.PROTECT,
-        related_name="states",
-        to_field="unique_id",
-        db_column="country_id",
-    )
-
-    continent_id = models.ForeignKey(
-        Continent,
-        on_delete=models.PROTECT,
-        related_name="states",
-        to_field="unique_id",
-        db_column="continent_id",
-    )
+    country_id = models.CharField(max_length=30, null=True, blank=True)
+    continent_id = models.CharField(max_length=30, null=True, blank=True)
 
     name = models.CharField(max_length=100)
     label = models.CharField(max_length=20, blank=True, null=True)
-
-    class Meta:
-        ordering = ["name"]
-        unique_together = ("country_id", "name")
-
-    def __str__(self):
-        return f"{self.name} ({self.country_id.name})"
 
     CASCADE_SOFT_DELETE = (
         "districts",
@@ -52,3 +30,32 @@ class State(BaseMaster):
         "address_change_requests",
         "userscreenpermissions",
     )
+    CACHE_SCOPES = ("state_list", "state_detail")
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ("country_id", "name")
+
+    def __str__(self):
+        from app.models.common_masters.country import Country
+        country_name = Country.objects.filter(unique_id=self.country_id).values_list("name", flat=True).first()
+        return f"{self.name} ({country_name})"
+
+    @property
+    def country(self):
+        from app.models.common_masters.country import Country
+        if self.country_id:
+            return Country.objects.filter(unique_id=self.country_id).first()
+        return None
+
+    @property
+    def continent(self):
+        from app.models.common_masters.continent import Continent
+        if self.continent_id:
+            return Continent.objects.filter(unique_id=self.continent_id).first()
+        return None
+
+    @property
+    def districts(self):
+        from app.models.masters.district import District
+        return District.objects.filter(state_id=self.unique_id)

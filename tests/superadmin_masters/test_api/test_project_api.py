@@ -1,5 +1,6 @@
 """API tests for Project endpoint — CRUD operations."""
 import pytest
+from app.models.staff_creations.staffcreation import Staffcreation
 from app.models.superadmin_masters.project import Project
 
 BASE = "/api/v1/superadmin/project/"
@@ -7,14 +8,18 @@ BASE = "/api/v1/superadmin/project/"
 
 @pytest.mark.django_db
 class TestProjectAPIList:
-    def test_list_authenticated_returns_200(self, auth_client, project):
+    def test_list_authenticated_returns_company_name(self, auth_client, project, company):
         resp = auth_client.get(BASE)
         assert resp.status_code == 200
+        results = resp.json().get("results", resp.json())
+        row = next(item for item in results if item["unique_id"] == project.unique_id)
+        assert row["company_unique_id"] == company.unique_id
+        assert row["company_name"] == company.name
 
 
 @pytest.mark.django_db
 class TestProjectAPICreate:
-    def test_create_returns_success(self, auth_client, company):
+    def test_create_returns_success(self, auth_client, company, superuser):
         resp = auth_client.post(
             BASE,
             {
@@ -27,6 +32,16 @@ class TestProjectAPICreate:
             format="json",
         )
         assert resp.status_code in (200, 201)
+        project_data = resp.json().get("project", resp.json())
+        assert project_data["created_by"] == superuser.unique_id
+        assert project_data["updated_by"] == superuser.unique_id
+        project = Project.objects.get(name="New Project")
+        staff = Staffcreation.objects.get(username="proj_admin")
+        assert project.company_id == company.unique_id
+        assert project.created_by_id == superuser.unique_id
+        assert project.updated_by_id == superuser.unique_id
+        assert staff.company_id == company.unique_id
+        assert staff.project_id == project.unique_id
 
     def test_create_stores_but_does_not_return_attendance_api_key(self, auth_client, company):
         resp = auth_client.post(
@@ -76,11 +91,13 @@ class TestProjectAPIRetrieve:
 
 @pytest.mark.django_db
 class TestProjectAPIUpdate:
-    def test_patch_returns_success(self, auth_client, project):
+    def test_patch_returns_success(self, auth_client, project, superuser):
         resp = auth_client.patch(
             f"{BASE}{project.unique_id}/", {"name": "Updated Project"}, format="json"
         )
         assert resp.status_code in (200, 204)
+        project.refresh_from_db()
+        assert project.updated_by_id == superuser.unique_id
 
 
 @pytest.mark.django_db

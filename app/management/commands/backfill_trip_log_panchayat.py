@@ -23,37 +23,33 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
 
-        logs = (
-            DailyTripLog.objects.filter(
-                is_deleted=False,
-                panchayat_id__isnull=True,
-            )
-            .select_related("trip_assignment_id")
-            .prefetch_related("trip_assignment_id__wards__panchayat_id")
+        logs = DailyTripLog.objects.filter(
+            is_deleted=False,
+            panchayat_id__isnull=True,
         )
 
         updated = 0
         skipped = 0
 
         for log in logs:
-            assignment = log.trip_assignment_id
+            assignment = log.trip_assignment
             if not assignment:
                 skipped += 1
                 continue
 
-            first_ward = assignment.wards.select_related("panchayat_id").first()
-            if not first_ward or not first_ward.panchayat_id_id:
+            first_ward = assignment.wards.first()
+            if not first_ward or not first_ward.panchayat_id:
                 skipped += 1
                 continue
 
             if dry_run:
                 self.stdout.write(
-                    f"Would update {log.unique_id}: panchayat_id = {first_ward.panchayat_id_id}"
+                    f"Would update {log.unique_id}: panchayat_id = {first_ward.panchayat_id}"
                 )
             else:
                 with transaction.atomic():
                     DailyTripLog.objects.filter(pk=log.pk).update(
-                        panchayat_id=first_ward.panchayat_id_id,
+                        panchayat_id=first_ward.panchayat_id,
                     )
             updated += 1
 

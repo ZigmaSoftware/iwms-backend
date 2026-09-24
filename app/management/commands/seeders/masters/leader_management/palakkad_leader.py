@@ -77,18 +77,21 @@ class PalakkadLeaderSeeder(BaseSeeder):
         return list(seen.values())
 
     def _ensure_project_admin(self, *, company, project, panchayat):
+        company_id = company.unique_id if hasattr(company, 'unique_id') else company
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
+        panchayat_id = panchayat.unique_id if hasattr(panchayat, 'unique_id') else panchayat
         staff_type, _ = UserType.objects.get_or_create(
             name="Staff",
             defaults={"is_active": True, "is_deleted": False},
         )
         admin_role, _ = StaffUserType.objects.get_or_create(
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type,
             name="Company Project Admin",
             defaults={"is_active": True, "is_deleted": False},
         )
         department, _ = Department.objects.update_or_create(
-            company_id=company,
-            project_id=project,
+            company_id=company_id,
+            project_id=project_id,
             department_code="OPS",
             defaults={
                 "department_name": "Operations",
@@ -98,10 +101,10 @@ class PalakkadLeaderSeeder(BaseSeeder):
             },
         )
         designation, _ = Designation.objects.update_or_create(
-            company_id=company,
-            project_id=project,
+            company_id=company_id,
+            project_id=project_id,
             designation_name="Operations Supervisor",
-            department_id=department,
+            department_id=department.unique_id if hasattr(department, 'unique_id') else department,
             defaults={
                 "designation_group": "supervisor",
                 "description": "Project administration for Palakkad operations",
@@ -111,9 +114,9 @@ class PalakkadLeaderSeeder(BaseSeeder):
         )
         ward = (
             Ward.objects.filter(
-                panchayat_id=panchayat,
-                company_id=company,
-                project_id=project,
+                panchayat_id=panchayat_id,
+                company_id=company_id,
+                project_id=project_id,
                 is_deleted=False,
             )
             .order_by("ward_name")
@@ -125,19 +128,19 @@ class PalakkadLeaderSeeder(BaseSeeder):
             defaults={
                 "employee_name": "Hari Pillai",
                 "office_email": "haripillai@blueplanet.local",
-                "user_type_id": staff_type,
-                "staffusertype_id": admin_role,
-                "department_id": department,
-                "designation_id": designation,
+                "user_type_id": staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type,
+                "staffusertype_id": admin_role.unique_id if hasattr(admin_role, 'unique_id') else admin_role,
+                "department_id": department.unique_id if hasattr(department, 'unique_id') else department,
+                "designation_id": designation.unique_id if hasattr(designation, 'unique_id') else designation,
                 "department": department.department_name,
                 "designation": designation.designation_name,
                 "password": make_password(self.ADMIN_PASSWORD),
-                "company_id": company,
-                "project_id": project,
+                "company_id": company_id,
+                "project_id": project_id,
                 "district_id": panchayat.district_id,
                 "city_id": panchayat.city_id,
                 "zone_id": ward.zone_id if ward else None,
-                "ward_id": ward,
+                "ward_id": ward.unique_id if hasattr(ward, 'unique_id') else ward,
                 "is_active": True,
                 "is_deleted": False,
                 "approval_status": Staffcreation.APPROVAL_APPROVED,
@@ -153,11 +156,12 @@ class PalakkadLeaderSeeder(BaseSeeder):
     def run(self):
         project = Project.objects.filter(
             name=self.PROJECT_NAME, is_deleted=False
-        ).select_related("company_id").first()
+        ).first()
         if not project:
             self.log(f"Project '{self.PROJECT_NAME}' not found — skipping.")
             return
         company = project.company_id
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
 
         waste_types = self._waste_types()
         if not waste_types:
@@ -188,9 +192,9 @@ class PalakkadLeaderSeeder(BaseSeeder):
             leader, created = PanchayatLeaderLogin.objects.get_or_create(
                 username=username,
                 defaults={
-                    "panchayat_id": panchayat,
+                    "panchayat_id": panchayat.unique_id if hasattr(panchayat, 'unique_id') else panchayat,
                     "company_id": company,
-                    "project_id": project,
+                    "project_id": project_id,
                     "password": make_password(self.PASSWORD),
                     "leader_name": leader_name,
                     "email": email,
@@ -199,9 +203,9 @@ class PalakkadLeaderSeeder(BaseSeeder):
                 },
             )
             if not created:
-                leader.panchayat_id = panchayat
+                leader.panchayat_id = panchayat.unique_id if hasattr(panchayat, 'unique_id') else panchayat
                 leader.company_id = company
-                leader.project_id = project
+                leader.project_id = project_id
                 leader.password = make_password(self.PASSWORD)
                 leader.leader_name = leader_name
                 leader.email = email
@@ -212,14 +216,14 @@ class PalakkadLeaderSeeder(BaseSeeder):
 
             points = list(
                 Collection_point.objects.filter(
-                    panchayat_id=panchayat, is_deleted=False
+                    panchayat_id=panchayat.unique_id, is_deleted=False
                 )[:6]
             )
 
             # A plan scoped to this panchayat, reusing an existing Palakkad
             # plan's staff template so the assignment has a valid crew.
             template_source = TripPlan.objects.filter(
-                project_id=project, staff_template_id__isnull=False, is_deleted=False
+                project_id=project_id, staff_template_id__isnull=False, is_deleted=False
             ).first()
             if not template_source:
                 self.log("No Palakkad trip plan with a staff template — skipping logs.")
@@ -229,11 +233,11 @@ class PalakkadLeaderSeeder(BaseSeeder):
                 display_code=f"PAL-PLB-{panchayat.panchayat_name.split()[-1]}-LEADER",
                 defaults={
                     "company_id": company,
-                    "project_id": project,
+                    "project_id": project_id,
                     "district_id": template_source.district_id,
                     "city_id": template_source.city_id,
                     "zone_id": template_source.zone_id,
-                    "panchayat_id": panchayat,
+                    "panchayat_id": panchayat.unique_id,
                     "staff_template_id": template_source.staff_template_id,
                     "vehicle_id": template_source.vehicle_id,
                     "supervisor_id": template_source.supervisor_id,
@@ -253,8 +257,6 @@ class PalakkadLeaderSeeder(BaseSeeder):
                     "is_deleted": False,
                 },
             )
-            plan.waste_types.set(template_source.waste_types.all() or [template_source.waste_type_id])
-            plan.wards.set(template_source.wards.all())
             created_plans_local.append(plan.display_code)
 
             existing = DailyTripLog.objects.filter(
@@ -270,7 +272,7 @@ class PalakkadLeaderSeeder(BaseSeeder):
                 # and `autofill_from_assignment` reads the panchayat off it.
                 assignment = (
                     DailyTripAssignment.objects.filter(
-                        trip_plan_id=plan,
+                        trip_plan_id=plan.unique_id,
                         trip_date=day,
                         is_deleted=False,
                     )
@@ -279,12 +281,15 @@ class PalakkadLeaderSeeder(BaseSeeder):
                 )
                 if assignment is None:
                     assignment = DailyTripAssignment.objects.create(
-                        trip_plan_id=plan,
+                        trip_plan_id=plan.unique_id,
                         trip_date=day,
                         company_id=company,
-                        project_id=project,
-                        panchayat_id=panchayat,
+                        project_id=project_id,
+                        panchayat_id=panchayat.unique_id,
                         staff_template_id=plan.staff_template_id,
+                        ward_ids=plan.ward_ids,
+                        waste_type_ids=plan.waste_type_ids,
+                        waste_type_ids_csv=plan.waste_type_ids_csv,
                         scheduled_time=plan.scheduled_time
                         or template_source.scheduled_time,
                         vehicle_id=plan.vehicle_id,
@@ -296,9 +301,12 @@ class PalakkadLeaderSeeder(BaseSeeder):
                 else:
                     DailyTripAssignment.objects.filter(pk=assignment.pk).update(
                         company_id=company,
-                        project_id=project,
-                        panchayat_id=panchayat,
+                        project_id=project_id,
+                        panchayat_id=panchayat.unique_id,
                         staff_template_id=plan.staff_template_id,
+                        ward_ids=plan.ward_ids,
+                        waste_type_ids=plan.waste_type_ids,
+                        waste_type_ids_csv=plan.waste_type_ids_csv,
                         scheduled_time=plan.scheduled_time
                         or template_source.scheduled_time,
                         vehicle_id=plan.vehicle_id,
@@ -308,8 +316,6 @@ class PalakkadLeaderSeeder(BaseSeeder):
                         is_deleted=False,
                     )
                     assignment.refresh_from_db()
-                assignment.waste_types.set(plan.waste_types.all())
-                assignment.wards.set(plan.wards.all())
 
                 waste = waste_types[index % len(waste_types)]
                 point = points[index % len(points)] if points else None
@@ -319,8 +325,8 @@ class PalakkadLeaderSeeder(BaseSeeder):
                 ).first()
                 if log:
                     DailyTripLog.objects.filter(pk=log.pk).update(
-                        collection_point_id=point,
-                        waste_type_id=waste,
+                        collection_point_id=point.unique_id if hasattr(point, 'unique_id') else point,
+                        waste_type_id=waste.unique_id if hasattr(waste, 'unique_id') else waste,
                         trip_date=day,
                         collected_weight_kg=collected,
                         household_collected_weight_kg=rng.randint(20, collected),
@@ -332,8 +338,8 @@ class PalakkadLeaderSeeder(BaseSeeder):
                 else:
                     DailyTripLog.objects.create(
                         trip_assignment_id=assignment,
-                        collection_point_id=point,
-                        waste_type_id=waste,
+                        collection_point_id=point.unique_id if hasattr(point, 'unique_id') else point,
+                        waste_type_id=waste.unique_id if hasattr(waste, 'unique_id') else waste,
                         trip_date=day,
                         collected_weight_kg=collected,
                         household_collected_weight_kg=rng.randint(20, collected),
@@ -357,8 +363,8 @@ class PalakkadLeaderSeeder(BaseSeeder):
         plans_fixed = 0
         if first:
             plans_fixed = TripPlan.objects.filter(
-                project_id=project, panchayat_id__isnull=True, is_deleted=False
-            ).update(panchayat_id=first)
+                project_id=project_id, panchayat_id__isnull=True, is_deleted=False
+            ).update(panchayat_id=first.unique_id)
 
         if first_panchayat:
             self._ensure_project_admin(

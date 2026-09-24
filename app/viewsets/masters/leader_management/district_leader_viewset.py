@@ -9,11 +9,7 @@ from app.serializers.masters.leader_management.district_leader_serializer import
 
 
 class DistrictLeaderLoginViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    queryset = DistrictLeaderLogin.objects.select_related(
-        "district_id",
-        "company_id",
-        "project_id",
-    ).filter(is_deleted=False)
+    queryset = DistrictLeaderLogin.objects.filter(is_deleted=False)
 
     serializer_class = DistrictLeaderLoginSerializer
     lookup_field = "unique_id"
@@ -24,31 +20,29 @@ class DistrictLeaderLoginViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     pagination_class = LimitOffsetWithPage
-    search_fields = ["username", "leader_name", "email", "district_id__name"]
+    search_fields = ["username", "leader_name", "email"]
     ordering_fields = ["username", "created_at"]
 
     def get_queryset(self):
-        qs = DistrictLeaderLogin.objects.select_related(
-            "district_id", "company_id", "project_id"
-        ).filter(is_deleted=False)
+        qs = DistrictLeaderLogin.objects.filter(is_deleted=False)
 
         company_id = (
             self.request.query_params.get("company_id")
             or self.request.query_params.get("company_unique_id")
         )
         if company_id:
-            qs = qs.filter(company_id__unique_id=company_id)
+            qs = qs.filter(company_id=company_id)
 
         project_id = (
             self.request.query_params.get("project_id")
             or self.request.query_params.get("project_unique_id")
         )
         if project_id:
-            qs = qs.filter(project_id__unique_id=project_id)
+            qs = qs.filter(project_id=project_id)
 
         district_id = self.request.query_params.get("district_id")
         if district_id:
-            qs = qs.filter(district_id__unique_id=district_id)
+            qs = qs.filter(district_id=district_id)
 
         return qs.order_by("-created_at")
 

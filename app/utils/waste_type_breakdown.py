@@ -6,7 +6,7 @@ would count one trip once for every waste type it contains.
 """
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import OuterRef, Subquery, Sum
 
 
 HOUSEHOLD_WASTE_TYPE_NAMES = {
@@ -15,6 +15,31 @@ HOUSEHOLD_WASTE_TYPE_NAMES = {
     "mixed_waste": "Mixed Waste",
 }
 HOUSEHOLD_WASTE_TYPE_FALLBACK_ID_PREFIX = "HOUSEHOLD"
+
+
+def _daily_trip_log_fields():
+    from app.models.schedule_masters.daily_trip_log import DailyTripLog
+    return {
+        "trip_date": Subquery(
+            DailyTripLog.objects.filter(
+                trip_assignment_id=OuterRef("trip_assignment_id")
+            ).values("trip_date")[:1]
+        ),
+        "log_status": Subquery(
+            DailyTripLog.objects.filter(
+                trip_assignment_id=OuterRef("trip_assignment_id")
+            ).values("log_status")[:1]
+        ),
+    }
+
+
+def _waste_type_name_field():
+    from app.models.staff_creations.waste_collection_bluetooth import WasteType
+    return Subquery(
+        WasteType.objects.filter(
+            unique_id=OuterRef("waste_type_id")
+        ).values("waste_type_name")[:1]
+    )
 
 
 def bulk_waste_type_rows_for_trip_assignments(
@@ -28,6 +53,21 @@ def bulk_waste_type_rows_for_trip_assignments(
     assignment_ids = list(trip_assignment_ids)
     if not assignment_ids:
         return []
+
+    # DailyTripLog fields the caller asked to see on every returned row
+    # (e.g. "trip_date", to cross-check against its own copy) — resolved
+    # once per assignment_id so both the bin/all branch (which already
+    # annotates them per BinCollectionEvent row) and the household branch
+    # (WasteCollection has no such annotation of its own) can populate them.
+    daily_log_lookup = {}
+    if extra_group_by:
+        from app.models.schedule_masters.daily_trip_log import DailyTripLog
+        daily_log_lookup = {
+            row["trip_assignment_id"]: row
+            for row in DailyTripLog.objects.filter(
+                trip_assignment_id__in=assignment_ids
+            ).values("trip_assignment_id", *extra_group_by)
+        }
 
     rows_by_key = {}
 
@@ -46,37 +86,40 @@ def bulk_waste_type_rows_for_trip_assignments(
         rows_by_key[key]["weight_kg"] += Decimal(str(weight))
 
     if source in ("bin", "all"):
+        daily_log_fields = _daily_trip_log_fields()
         group_fields = [
             "trip_assignment_id",
-            *(f"trip_assignment_id__daily_trip_log__{field}" for field in extra_group_by),
+            *list(daily_log_fields.keys()),
             "waste_type_id",
-            "waste_type_id__waste_type_name",
+            "waste_type_name",
         ]
         rows = (
             BinCollectionEvent.objects.filter(
                 trip_assignment_id__in=assignment_ids,
                 is_deleted=False,
             )
+            .annotate(
+                waste_type_name=_waste_type_name_field(),
+                **{k: v for k, v in daily_log_fields.items()},
+            )
             .values(*group_fields)
             .annotate(total_weight=Sum("collected_weight_kg"))
         )
         for row in rows:
             extra_values = tuple(
-                row[f"trip_assignment_id__daily_trip_log__{field}"]
-                for field in extra_group_by
+                row.get(field) for field in daily_log_fields
             )
             add(
                 row["trip_assignment_id"],
                 extra_values,
                 row["waste_type_id"],
-                row["waste_type_id__waste_type_name"] or row["waste_type_id"],
+                row["waste_type_name"] or row["waste_type_id"],
                 row["total_weight"],
             )
 
     if source in ("household", "all"):
         group_fields = [
             "trip_assignment_id",
-            *(f"trip_assignment_id__daily_trip_log__{field}" for field in extra_group_by),
         ]
         rows = (
             WasteCollection.objects.filter(
@@ -93,10 +136,8 @@ def bulk_waste_type_rows_for_trip_assignments(
             for item in WasteType.objects.filter(is_deleted=False)
         }
         for row in rows:
-            extra_values = tuple(
-                row[f"trip_assignment_id__daily_trip_log__{field}"]
-                for field in extra_group_by
-            )
+            log_row = daily_log_lookup.get(row["trip_assignment_id"], {})
+            extra_values = tuple(log_row.get(field) for field in extra_group_by)
             for field, label in HOUSEHOLD_WASTE_TYPE_NAMES.items():
                 weight = row.get(field)
                 if not weight:

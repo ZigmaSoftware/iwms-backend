@@ -49,23 +49,18 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
         qs = CompanyUserScreenColumnPermission.objects.filter(
             is_deleted=False,
             can_view = True,
-        ).select_related(
-            "company_id",
-            "project_id",
-            "userscreen_id",
-            "column_id",
         )
 
         userscreen_id = self.request.query_params.get("userscreen_id")
         if userscreen_id:
-            qs = qs.filter(userscreen_id_id=userscreen_id)
+            qs = qs.filter(userscreen_id=userscreen_id)
 
         project_id = (
             self.request.query_params.get("project_id")
             or self.request.query_params.get("projectId")
         )
         if project_id:
-            qs = qs.filter(project_id_id=project_id)
+            qs = qs.filter(project_id=project_id)
 
         return qs
 
@@ -93,7 +88,7 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
         serializer = UserScreenColumnPermissionSerializer(instance)
         return Response(
             {
-                "userscreen_id": str(instance.userscreen_id_id),
+                "userscreen_id": str(instance.userscreen_id),
                 "userscreen_name": instance.userscreen_id.userscreen_name,
                 "column_permissions": [serializer.data],
             }
@@ -144,15 +139,15 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
                     "can_view": vd.get("is_active", True),
                     "order_no": vd.get("order_no", 1),
                     "description": vd.get("description") or "",
-                    "created_by": account,
+                    "created_by_id": getattr(account, "account_id", None),
                 },
             )
 
             if not created:
                 # Update can_view in-place; never create a duplicate
                 instance.can_view = vd.get("is_active", True)
-                if hasattr(instance, "updated_by"):
-                    instance.updated_by = account
+                if hasattr(instance, "updated_by_id"):
+                    instance.updated_by_id = getattr(account, "account_id", None)
                 instance.save()
 
         instance.refresh_from_db()
@@ -187,8 +182,8 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
             instance.can_view = bool(is_active)
 
         account = self._get_account()
-        if hasattr(instance, "updated_by"):
-            instance.updated_by = account
+        if hasattr(instance, "updated_by_id"):
+            instance.updated_by_id = getattr(account, "account_id", None)
 
         instance.save()
 
@@ -202,7 +197,7 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
         read_ser = UserScreenColumnPermissionSerializer(instance)
         return Response(
             {
-                "userscreen_id": str(instance.userscreen_id_id),
+                "userscreen_id": str(instance.userscreen_id),
                 "column_permissions": [read_ser.data],
             }
         )

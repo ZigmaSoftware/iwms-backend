@@ -11,6 +11,7 @@ from app.models.schedule_masters.daily_trip_household_collection import (
 )
 from app.models.customers.wastecollection import WasteCollection
 from app.models.schedule_masters.trip_plan import TripPlan
+from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
 from app.services import retrip_service
 from app.services.daily_trip_generation import generate_assignment_for_plan
 
@@ -21,6 +22,8 @@ from app.services.daily_trip_generation import generate_assignment_for_plan
 # login (see StaffTemplateSeeder) — its trip plan is excluded so this demo
 # never collides with a hand-driven mobile session.
 DEMO_STAFF_USERNAMES = {"driver_user", "operator_user"}
+DEMO_STAFF_TEMPLATE_UNIQUE_IDS = set()
+
 REMARKS = "Truck full — proceeding to weighment. Seeded Re-Trip demo scenario."
 
 # (wet, dry, mixed, sanitary) kg presets — cycled through for varied,
@@ -123,40 +126,39 @@ class RetripDemoSeeder(BaseSeeder):
                 approval_status=TripPlan.ApprovalStatus.APPROVED,
                 collection_type=collection_type,
             )
-            .exclude(staff_template_id__driver_id__username__in=DEMO_STAFF_USERNAMES)
-            .select_related(
-                "staff_template_id",
-                "staff_template_id__driver_id",
-                "staff_template_id__operator_id",
-                "vehicle_id",
-                "supervisor_id",
-                "panchayat_id",
+            .exclude(
+                staff_template_id__in=DEMO_STAFF_TEMPLATE_UNIQUE_IDS,
             )
-            .prefetch_related("wards")
+            
         )
         if collection_type == TripPlan.COLLECTION_TYPE_BIN:
-            # Most demo datasets have plenty of 1-stop bin plans and only a
-            # handful with more — prefer the richer ones first so the
-            # flagship "collect some, carry the rest" scenario gets a plan
-            # with more than one stop to split when one exists.
-            qs = qs.annotate(
-                _stop_count=Count(
-                    "plan_collection_points",
-                    filter=Q(plan_collection_points__is_deleted=False),
-                    distinct=True,
-                )
-            ).order_by("-_stop_count", "unique_id")
+            qs = qs.order_by("-unique_id")
         else:
             qs = qs.order_by("unique_id")
 
-        eligible = [
-            plan
-            for plan in qs
-            if plan.staff_template_id
-            and plan.staff_template_id.driver_id_id
-            and plan.staff_template_id.operator_id_id
-            and plan.vehicle_id_id
-        ]
+        eligible = []
+        for plan in qs:
+            if not plan.staff_template_id:
+                continue
+            # Resolve driver_id and operator_id from the staff_template
+            # (both are CharField unique_ids on StaffTemplate, not FKs)
+            from app.models.schedule_masters.staff_template import StaffTemplate
+            tmpl = StaffTemplate.objects.filter(
+                unique_id=plan.staff_template_id,
+                is_deleted=False,
+            ).first()
+            if not tmpl:
+                continue
+            driver_id = tmpl.driver_id
+            operator_id = tmpl.operator_id
+            if not driver_id or not operator_id:
+                continue
+            # Check against demo usernames directly
+            if driver_id in DEMO_STAFF_USERNAMES or operator_id in DEMO_STAFF_USERNAMES:
+                continue
+            eligible.append(plan)
+        else:
+            pass
         return eligible[:limit]
 
     # ------------------------------------------------------------------
@@ -203,10 +205,9 @@ class RetripDemoSeeder(BaseSeeder):
     def _partially_collect_bin_stops(self, assignment):
         """Collect the first N stops (by sequence), leave the rest Pending.
         Returns (collected_count, pending_stop_unique_ids)."""
-        operator = assignment.staff_template_id.operator_id if assignment.staff_template_id_id else None
+        operator = assignment.staff_template.operator_id if assignment.staff_template else None
         stops = list(
-            DailyTripCollectionPoint.objects.filter(trip_assignment_id=assignment, is_deleted=False)
-            .select_related("collection_point_id", "bin_id")
+            DailyTripCollectionPoint.objects.filter(trip_assignment_id=assignment.unique_id, is_deleted=False)
             .order_by("sequence")
         )
         split = _split_for_partial_completion(len(stops))
@@ -219,7 +220,7 @@ class RetripDemoSeeder(BaseSeeder):
             if index < collected_count:
                 if stop.is_collected:
                     continue
-                weight = stop.bin_id.bin_capacity if stop.bin_id_id else 50
+                weight = stop.bin.bin_capacity if stop.bin_id else 50
                 if operator:
                     stop.mark_collected(weight_kg=min(weight, 150), collected_by=operator)
             else:
@@ -231,8 +232,7 @@ class RetripDemoSeeder(BaseSeeder):
         WasteCollection row, so the post_save signal chain runs), leave the
         rest Pending. Returns collected_count."""
         stops = list(
-            DailyTripHouseholdCollection.objects.filter(trip_assignment_id=assignment, is_deleted=False)
-            .select_related("customer_id")
+            DailyTripHouseholdCollection.objects.filter(trip_assignment_id=assignment.unique_id, is_deleted=False)
             .order_by("sequence")
         )
         split = _split_for_partial_completion(len(stops))
@@ -292,7 +292,9 @@ class RetripDemoSeeder(BaseSeeder):
 
     def _run_pending_request_scenario(self, plan, today):
         assignment, _created = self._get_or_create_today_assignment(plan, today)
-        if assignment.retrip_requests.filter(status="Pending").exists():
+        if TripRetripRequest.objects.filter(
+            assignment_id=assignment.unique_id, status="Pending"
+        ).exists():
             return f"{assignment.unique_id} already has a pending Re-Trip request"
         if assignment.status in (DailyTripAssignment.STATUS_COMPLETED, DailyTripAssignment.STATUS_CANCELLED):
             return f"{assignment.unique_id} already closed — skip pending-request demo"
@@ -302,13 +304,15 @@ class RetripDemoSeeder(BaseSeeder):
         if not pending_ids:
             return f"{assignment.unique_id} has no pending collection points to demo"
 
-        driver = assignment.staff_template_id.driver_id if assignment.staff_template_id_id else None
+        driver = assignment.staff_template.driver_id if assignment.staff_template else None
         retrip_service.request_retrip(assignment, requested_by=driver, reason=REMARKS)
         return f"{assignment.unique_id} (bin, {collected} collected) -> Pending Re-Trip request raised"
 
     def _run_rejected_request_scenario(self, plan, today):
         assignment, _created = self._get_or_create_today_assignment(plan, today)
-        if assignment.retrip_requests.filter(status="Rejected").exists():
+        if TripRetripRequest.objects.filter(
+            assignment_id=assignment.unique_id, status="Rejected"
+        ).exists():
             return f"{assignment.unique_id} already has a rejected Re-Trip request"
         if assignment.status in (DailyTripAssignment.STATUS_COMPLETED, DailyTripAssignment.STATUS_CANCELLED):
             return f"{assignment.unique_id} already closed — skip rejected-request demo"
@@ -318,7 +322,7 @@ class RetripDemoSeeder(BaseSeeder):
         if not pending_ids:
             return f"{assignment.unique_id} has no pending collection points to demo"
 
-        driver = assignment.staff_template_id.driver_id if assignment.staff_template_id_id else None
+        driver = assignment.staff_template.driver_id if assignment.staff_template else None
         supervisor = plan.supervisor_id
         request = retrip_service.request_retrip(assignment, requested_by=driver, reason=REMARKS)
         retrip_service.reject_retrip(request, reviewed_by=supervisor, remarks="Please finish the remaining stops today.")

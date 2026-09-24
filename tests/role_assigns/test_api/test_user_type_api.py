@@ -13,9 +13,9 @@ def _staff_auth_client(api_client, company, project, user_type):
         employee_name="Company Admin",
         username="company_admin",
         password="x",
-        user_type_id=user_type,
-        company_id=company,
-        project_id=project,
+        user_type_id=user_type.unique_id,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
         approval_status=Staffcreation.APPROVAL_APPROVED,
         login_enabled=True,
     )

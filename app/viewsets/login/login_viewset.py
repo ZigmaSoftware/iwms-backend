@@ -133,9 +133,9 @@ class LoginViewSet(ViewSet):
             target = profile_object or user
             name = getattr(target, "employee_name", None) or getattr(user, "username", None)
             if user_type == "contractor":
-                role_type = getattr(target, "contractorusertype_id", None) or getattr(user, "contractorusertype_id", None)
+                role_type = getattr(target, "contractorusertype", None) or getattr(user, "contractorusertype", None)
             else:
-                role_type = getattr(target, "staffusertype_id", None) or getattr(user, "staffusertype_id", None)
+                role_type = getattr(target, "staffusertype", None) or getattr(user, "staffusertype", None)
 
             if role_type:
                 role = role_type.name
@@ -188,9 +188,9 @@ class LoginViewSet(ViewSet):
 
         company = None
         if profile_object:
-            company = getattr(profile_object, "company_id", None)
+            company = getattr(profile_object, "company", None)
         if not company:
-            company = getattr(user, "company_id", None)
+            company = getattr(user, "company", None)
 
         if company:
             company_name = getattr(company, "name", None)
@@ -221,7 +221,8 @@ class LoginViewSet(ViewSet):
 
         if user_type == "staff":
             staff_source = profile_object or user
-            _staff_project = getattr(staff_source, "project_id", None)
+            _staff_project = getattr(staff_source, "project", None)
+            _staff_district = getattr(staff_source, "district", None)
             profile_payload.update(
                 {
                     "staff_unique_id": emp_id,
@@ -229,8 +230,8 @@ class LoginViewSet(ViewSet):
                     "employee_name": getattr(staff_source, "employee_name", None) or name,
                     "emp_id": emp_id,
                     "staffusertype_unique_id": staffusertype_unique_id,
-                    "district_unique_id": getattr(getattr(staff_source, "district_id", None), "unique_id", None),
-                    "district_name": getattr(getattr(staff_source, "district_id", None), "name", None),
+                    "district_unique_id": getattr(_staff_district, "unique_id", None),
+                    "district_name": getattr(_staff_district, "name", None),
                     # Expose the staff's assigned project so authStorage saves it to
                     # localStorage["project_id"], enabling the frontend to scope dropdowns.
                     "project_unique_id": getattr(_staff_project, "unique_id", None),
@@ -266,7 +267,7 @@ class LoginViewSet(ViewSet):
             )
         elif user_type == "panchayat_leader":
             leader_source = profile_object or user
-            panchayat = getattr(leader_source, "panchayat_id", None)
+            panchayat = getattr(leader_source, "panchayat", None)
             profile_payload.update(
                 {
                     "panchayat_leader_unique_id": getattr(leader_source, "unique_id", None),
@@ -277,7 +278,7 @@ class LoginViewSet(ViewSet):
             )
         elif user_type == "district_member":
             district_source = profile_object or user
-            district = getattr(district_source, "district_id", None)
+            district = getattr(district_source, "district", None)
             profile_payload.update(
                 {
                     "staff_unique_id": emp_id,
@@ -401,14 +402,13 @@ class LoginViewSet(ViewSet):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        company = getattr(user, "company_id", None)
+        company = getattr(user, "company", None)
         company_unique_id = getattr(company, "unique_id", None)
 
         if isinstance(user, CustomerCreation):
             config = (
                 CustomerAccessConfiguration.objects
-                .filter(customer_id_id=user.unique_id, is_deleted=False, is_active=True)
-                .prefetch_related("app_modules", "app_screens")
+                .filter(customer_id=user.unique_id, is_deleted=False, is_active=True)
                 .first()
             )
             payload = resolve_permission_payload(
@@ -418,14 +418,14 @@ class LoginViewSet(ViewSet):
                 app_module=getattr(user, "app_module", None) or "citizen",
                 app_modules=(
                     list(
-                        config.app_modules.filter(is_active=True, is_deleted=False)
+                        config.app_modules_resolved.filter(is_active=True, is_deleted=False)
                         .values_list("surface_key", flat=True)
                     )
                     if config else None
                 ),
                 citizen_screens=(
                     set(
-                        config.app_screens.filter(is_active=True, is_deleted=False)
+                        config.app_screens_resolved.filter(is_active=True, is_deleted=False)
                         .values_list("userscreen_name", flat=True)
                     )
                     if config else None
@@ -433,8 +433,8 @@ class LoginViewSet(ViewSet):
             )
         else:
             role_obj = (
-                getattr(user, "staffusertype_id", None)
-                or getattr(user, "contractorusertype_id", None)
+                getattr(user, "staffusertype", None)
+                or getattr(user, "contractorusertype", None)
             )
             payload = resolve_permission_payload(
                 company_unique_id=company_unique_id,
@@ -442,7 +442,7 @@ class LoginViewSet(ViewSet):
                 role_name=getattr(role_obj, "name", None),
                 user_type=(
                     "contractor"
-                    if getattr(user, "contractorusertype_id", None)
+                    if getattr(user, "contractorusertype", None)
                     else "staff"
                 ),
                 app_module=getattr(user, "app_module", None),

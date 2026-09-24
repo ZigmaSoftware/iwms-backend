@@ -38,7 +38,7 @@ class RouteDetourWaypointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         assignment_id = self.request.query_params.get("trip_assignment_id")
         if assignment_id:
-            queryset = queryset.filter(trip_assignment_id__unique_id=assignment_id)
+            queryset = queryset.filter(trip_assignment_id=assignment_id)
 
         return queryset
 

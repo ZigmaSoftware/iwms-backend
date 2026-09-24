@@ -29,43 +29,14 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     AUDIT_ENDPOINT = "bin-collection-event"
 
     def get_queryset(self):
-        queryset = (
-            BinCollectionEvent.objects.select_related(
-                "company_id",
-                "project_id",
-                "trip_assignment_id",
-                "trip_assignment_id__trip_plan_id",
-                "trip_assignment_id__trip_plan_id__vehicle_id",
-                "trip_assignment_id__vehicle_id",
-                "trip_assignment_id__staff_template_id",
-                "trip_assignment_id__staff_template_id__driver_id",
-                "trip_assignment_id__staff_template_id__operator_id",
-                "trip_assignment_id__alt_staff_template_id",
-                "trip_assignment_id__alt_staff_template_id__driver_id",
-                "trip_assignment_id__alt_staff_template_id__operator_id",
-                "trip_assignment_id__alt_staff_template_id__approved_by",
-                # Breakdown reverse OneToOne — used by BinCollectionEventSerializer.get_breakdown_info
-                "trip_assignment_id__vehicle_breakdown",
-                "trip_assignment_id__vehicle_breakdown__breakdown_vehicle_id",
-                "trip_assignment_id__vehicle_breakdown__replacement_vehicle_id",
-                "trip_assignment_id__vehicle_breakdown__replacement_driver_id",
-                "trip_assignment_id__vehicle_breakdown__replacement_operator_id",
-                "vehicle_breakdown_id",
-                "vehicle_breakdown_id__breakdown_vehicle_id",
-                "vehicle_breakdown_id__replacement_vehicle_id",
-                "vehicle_breakdown_id__replacement_driver_id",
-                "vehicle_breakdown_id__replacement_operator_id",
-                "trip_collection_point_id",
-                "collection_point_id",
-                "bin_id",
-                "bin_id__wastetype_id",
-                "panchayat_id",
-                "ward_id",
-                "ward_id__zone_id",
-                "zone_id",
-            )
-            .filter(is_deleted=False)
-        )
+        # NOTE: no select_related() here — every *_id field on this model
+        # (company_id, trip_assignment_id, bin_id, etc.) is this codebase's
+        # plain "string-pseudo-FK" CharField, not a real Django relation, so
+        # select_related() on any of them raises FieldError. Related rows are
+        # resolved individually via the model's @property accessors instead
+        # (see BinCollectionEvent.trip_assignment/.bin/etc. and the
+        # serializer's get_* methods).
+        queryset = BinCollectionEvent.objects.filter(is_deleted=False)
 
         params = self.request.query_params
         trip_assignment = params.get("trip_assignment_id")
@@ -83,8 +54,17 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if mine and str(mine).lower() in ("1", "true", "yes"):
             # Supervisor app waste summary: events on trips whose plan this
             # supervisor owns (mirrors DailyTripLogViewSet's `mine` filter).
+            from app.models.schedule_masters.trip_plan import TripPlan
+            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+
+            supervised_plan_ids = TripPlan.objects.filter(
+                supervisor_id=self.request.user.staff_unique_id,
+            ).values("unique_id")
+            supervised_assignment_ids = DailyTripAssignment.objects.filter(
+                trip_plan_id__in=supervised_plan_ids,
+            ).values("unique_id")
             queryset = queryset.filter(
-                trip_assignment_id__trip_plan_id__supervisor_id=self.request.user
+                trip_assignment_id__in=supervised_assignment_ids
             )
 
         if trip_assignment:
@@ -96,9 +76,9 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if panchayat:
             queryset = queryset.filter(panchayat_id=panchayat)
         if ward:
-            queryset = queryset.filter(ward_id__unique_id=ward)
+            queryset = queryset.filter(ward_id=ward)
         if zone:
-            queryset = queryset.filter(zone_id__unique_id=zone)
+            queryset = queryset.filter(zone_id=zone)
         if status_value:
             queryset = queryset.filter(status=status_value)
         if collection_date:
@@ -170,7 +150,7 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         Falls back to get_or_create by (assignment, collection_point) if the direct FK isn't
         resolved (defensive — trip_collection_point_id is NOT NULL in the model).
         """
-        trip_cp = getattr(event, "trip_collection_point_id", None)
+        trip_cp = getattr(event, "trip_collection_point", None)
 
         if not trip_cp:
             assignment = getattr(event, "trip_assignment_id", None)
@@ -216,7 +196,9 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             # mark_status() already calls mark_completed_if_all_cps_collected()
             trip_cp.mark_status(mapped_status, getattr(event, "status_reason", None))
 
-        assignment = trip_cp.trip_assignment_id
+        assignment = trip_cp.trip_assignment
+        if not assignment:
+            return
         assignment.mark_completed_if_all_cps_collected()
         self._upsert_trip_log_for_assignment(assignment)
 

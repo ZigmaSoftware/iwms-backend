@@ -1,14 +1,6 @@
 from django.db import models
 from django.utils import timezone
 
-from app.models.customers.customercreation import CustomerCreation
-from app.models.customers.wastecollection import WasteCollection
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.masters.zone import Zone
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
@@ -60,73 +52,19 @@ class DailyTripHouseholdCollection(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="daily_trip_household_collections",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="daily_trip_household_collections",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    trip_assignment_id = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.CASCADE,
-        db_column="trip_assignment_id",
-        to_field="unique_id",
-        related_name="trip_household_collections",
-    )
+    trip_assignment_id = models.CharField(max_length=50, null=True, blank=True)
 
-    customer_id = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.PROTECT,
-        db_column="customer_id",
-        to_field="unique_id",
-        related_name="daily_trip_household_collections",
-    )
+    customer_id = models.CharField(max_length=30, null=True, blank=True)
 
     # Filled when the WasteCollection record is saved for this customer + trip
-    waste_collection_id = models.ForeignKey(
-        WasteCollection,
-        on_delete=models.SET_NULL,
-        db_column="waste_collection_id",
-        related_name="daily_trip_household_collections",
-        null=True,
-        blank=True,
-    )
+    waste_collection_id = models.CharField(max_length=30, null=True, blank=True)
 
-    zone_id = models.ForeignKey(
-        Zone,
-        on_delete=models.PROTECT,
-        related_name="daily_trip_household_collections",
-        db_column="zone_id",
-        null=True,
-        blank=True,
-    )
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.PROTECT,
-        related_name="daily_trip_household_collections",
-        db_column="ward_id",
-        null=True,
-        blank=True,
-    )
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        related_name="daily_trip_household_collections",
-        db_column="panchayat_id",
-        null=True,
-        blank=True,
-    )
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
 
     collection_type = models.CharField(
         max_length=30,
@@ -166,18 +104,13 @@ class DailyTripHouseholdCollection(BaseMaster):
 
     # Set by the Re-Trip flow (app/services/retrip_service.py) when this stop
     # was still pending and got moved to a continuation trip.
-    carried_to_assignment = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.SET_NULL,
-        db_column="carried_to_assignment_id",
-        to_field="unique_id",
-        related_name="carried_in_household_stops",
-        null=True,
-        blank=True,
-    )
+    carried_to_assignment = models.CharField(max_length=50, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("daily_trip_household_collection_list", "daily_trip_household_collection_detail")
 
     class Meta:
         ordering = ["trip_assignment_id", "sequence"]
@@ -193,24 +126,28 @@ class DailyTripHouseholdCollection(BaseMaster):
         ]
 
     def save(self, *args, **kwargs):
-        if self.trip_assignment_id_id and not self.company_id_id:
-            assignment = self.trip_assignment_id
-            self.company_id = assignment.company_id
-            self.project_id = assignment.project_id
+        if self.trip_assignment_id and not self.company_id:
+            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+            assignment = DailyTripAssignment.objects.filter(unique_id=self.trip_assignment_id).first()
+            if assignment:
+                self.company_id = assignment.company_id
+                self.project_id = assignment.project_id
         # Denormalise location from customer
-        if self.customer_id_id and not self.panchayat_id_id:
-            customer = self.customer_id
-            self.panchayat_id_id = getattr(customer, "panchayat_id_id", None) or getattr(customer, "panchayat_id", None)
-            self.ward_id_id = getattr(customer, "ward_id_id", None) or getattr(customer, "ward_id", None)
-            self.zone_id_id = getattr(customer, "zone_id_id", None) or getattr(customer, "zone_id", None)
+        if self.customer_id and not self.panchayat_id:
+            from app.models.customers.customercreation import CustomerCreation
+            customer = CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+            if customer:
+                self.panchayat_id = customer.panchayat_id
+                self.ward_id = customer.ward_id
+                self.zone_id = customer.zone_id
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.trip_assignment_id_id}:customer:{self.customer_id_id}"
+        return f"{self.trip_assignment_id}:customer:{self.customer_id}"
 
     def mark_collected(self, waste_collection, collected_at=None):
         from decimal import Decimal
-        self.waste_collection_id = waste_collection
+        self.waste_collection_id = waste_collection.unique_id if hasattr(waste_collection, 'unique_id') else waste_collection
         self.collected_weight_kg = Decimal(str(waste_collection.total_quantity or 0))
         self.collected_at = collected_at or timezone.now()
         self.is_collected = True
@@ -247,3 +184,66 @@ class DailyTripHouseholdCollection(BaseMaster):
             "collected_weight_kg",
             "updated_at",
         ])
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def trip_assignment(self):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        if self.trip_assignment_id:
+            return DailyTripAssignment.objects.filter(unique_id=self.trip_assignment_id).first()
+        return None
+
+    @property
+    def customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+        return None
+
+    @property
+    def waste_collection(self):
+        from app.models.customers.wastecollection import WasteCollection
+        if self.waste_collection_id:
+            return WasteCollection.objects.filter(unique_id=self.waste_collection_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def carried_to_assignment_obj(self):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        if self.carried_to_assignment:
+            return DailyTripAssignment.objects.filter(unique_id=self.carried_to_assignment).first()
+        return None

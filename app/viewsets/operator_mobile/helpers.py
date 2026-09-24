@@ -98,20 +98,6 @@ def find_active_assignment_for_operator(
         DailyTripAssignment.objects
         .filter(trip_date=today, is_deleted=False)
         .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-        .select_related(
-            "panchayat_id",
-            "vehicle_id",
-            "trip_plan_id",
-            "alt_staff_template_id",
-            "staff_template_id",
-            "staff_template_id__driver_id",
-            "staff_template_id__driver_id__staffusertype_id",
-            "staff_template_id__driver_id__personal_details",
-            "staff_template_id__operator_id",
-            "staff_template_id__operator_id__staffusertype_id",
-            "staff_template_id__operator_id__personal_details",
-        )
-        .prefetch_related("waste_types", "wards")
         .order_by("scheduled_time", "unique_id")
     )
 
@@ -119,19 +105,28 @@ def find_active_assignment_for_operator(
     # vehicle — so a trip belongs to this staff member whether they are the
     # template's driver OR its operator. Mirrors IsOperatorRole, which accepts
     # both roles.
-    candidates = list(
-        base.filter(
-            Q(staff_template_id__operator_id=staff)
-            | Q(staff_template_id__driver_id=staff)
-        )
+    #
+    # staff_template_id is a plain CharField now (StaffTemplate.unique_id),
+    # not a real FK, so it can't be traversed with `__driver_id`/`__operator_id`
+    # lookups. Resolve the matching StaffTemplate ids first, then filter on
+    # the id column directly.
+    from app.models.schedule_masters.staff_template import StaffTemplate
+
+    staff_template_ids = set(
+        StaffTemplate.objects.filter(
+            Q(operator_id=staff.staff_unique_id) | Q(driver_id=staff.staff_unique_id)
+        ).values_list("unique_id", flat=True)
     )
+    candidates = list(
+        base.filter(staff_template_id__in=staff_template_ids)
+    ) if staff_template_ids else []
     if not candidates:
         # Extra-operator fallback: walk staff_templates and check JSON membership in Python
         # (avoids SQLite-incompatible JSON __contains lookups).
         candidates = [
             candidate for candidate in base
             if staff.staff_unique_id
-            in (getattr(candidate.staff_template_id, "extra_operator_id", None) or [])
+            in (getattr(candidate.staff_template, "extra_operator_id", None) or [])
         ]
 
     if not candidates:
@@ -143,7 +138,7 @@ def find_active_assignment_for_operator(
     if collection_type:
         of_type = [
             candidate for candidate in candidates
-            if getattr(candidate.trip_plan_id, "collection_type", None)
+            if getattr(candidate.trip_plan, "collection_type", None)
             == collection_type
         ]
         if of_type:
@@ -199,7 +194,6 @@ def resolve_bin_from_qr(bin_qr: str) -> Bins:
         # Match the decoded unique_id (camera scan / raw id) OR the stored
         # bin_qr image path (app card-tap sends the path from my-trip-today).
         .filter(Q(unique_id=identifier) | Q(bin_qr=bin_qr))
-        .select_related("collection_point_id", "collection_point_id__panchayat_id", "wastetype_id")
         .first()
     )
     if not bin_obj:
@@ -218,11 +212,12 @@ def _assignment_waste_type_ids(assignment: DailyTripAssignment) -> set:
     treat as "unrestricted" rather than "collects nothing" — a trip with no
     declared waste type should not reject every bin.
     """
-    ids = set(assignment.waste_types.values_list("unique_id", flat=True))
-    ids.update(str(v) for v in (assignment.waste_type_ids or []) if v)
-    plan_waste_type_id = getattr(assignment.trip_plan_id, "waste_type_id_id", None)
-    if plan_waste_type_id:
-        ids.add(str(plan_waste_type_id))
+    ids = set(str(v) for v in (assignment.waste_type_ids or []) if v)
+    if assignment.trip_plan_id:
+        from app.models.schedule_masters.trip_plan import TripPlan
+        plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id).first()
+        if plan and plan.waste_type_id:
+            ids.add(str(plan.waste_type_id))
     return {str(i) for i in ids if i}
 
 
@@ -248,7 +243,7 @@ def validate_bin_against_assignment(
     # populate different ones, so read all of them — keying off the M2M alone
     # rejected every scan on trips where only the JSON list was filled.
     trip_waste_type_ids = _assignment_waste_type_ids(assignment)
-    if trip_waste_type_ids and str(bin_obj.wastetype_id_id) not in trip_waste_type_ids:
+    if trip_waste_type_ids and str(bin_obj.wastetype_id) not in trip_waste_type_ids:
         bin_waste = getattr(bin_obj.wastetype_id, "waste_type_name", "unknown")
         trip_waste_names = _assignment_waste_type_names(assignment) or "unknown"
         raise OperatorFlowError(
@@ -277,9 +272,9 @@ def validate_bin_against_assignment(
     # the exact case the CP_NOT_IN_TRIP lookup below would have accepted.
     cp_panchayat_id = getattr(cp, "panchayat_id_id", None)
     if (
-        assignment.panchayat_id_id
+        assignment.panchayat_id
         and cp_panchayat_id
-        and str(cp_panchayat_id) != str(assignment.panchayat_id_id)
+        and str(cp_panchayat_id) != str(assignment.panchayat_id)
         and not DailyTripCollectionPoint.objects.filter(
             trip_assignment_id=assignment,
             collection_point_id=cp,
@@ -301,7 +296,6 @@ def validate_bin_against_assignment(
             bin_id=bin_obj,
             is_deleted=False,
         )
-        .select_related("collection_point_id", "bin_id")
         .first()
     )
     if not trip_cp:
@@ -364,21 +358,30 @@ def build_scan_context(bin_qr: str, operator: Staffcreation) -> ScanContext:
 def _raise_if_bin_belongs_to_locked_trip(bin_obj, operator, active_assignment):
     """If this bin is a stop on another of today's trips for the same crew,
     explain that the earlier trip must be finished first."""
+    # trip_assignment_id is a plain CharField (DailyTripAssignment.unique_id)
+    # now, not a real FK, so it can't be traversed with `__` lookups or
+    # select_related. Filter by today's assignments explicitly, then resolve
+    # the winning row's assignment through the model's resolver property.
+    today_assignment_ids = set(
+        DailyTripAssignment.objects.filter(
+            trip_date=timezone.localdate(),
+            is_deleted=False,
+        ).values_list("unique_id", flat=True)
+    )
+    active_assignment_id = getattr(active_assignment, "unique_id", active_assignment)
     other = (
         DailyTripCollectionPoint.objects
         .filter(
             bin_id=bin_obj,
             is_deleted=False,
-            trip_assignment_id__trip_date=timezone.localdate(),
-            trip_assignment_id__is_deleted=False,
+            trip_assignment_id__in=today_assignment_ids,
         )
-        .exclude(trip_assignment_id=active_assignment)
-        .select_related("trip_assignment_id")
+        .exclude(trip_assignment_id=active_assignment_id)
         .first()
     )
     if not other:
         return
-    other_assignment = other.trip_assignment_id
+    other_assignment = other.trip_assignment
     if not _staff_owns_assignment(other_assignment, operator):
         return
     raise OperatorFlowError(
@@ -393,12 +396,14 @@ def _raise_if_bin_belongs_to_locked_trip(bin_obj, operator, active_assignment):
 
 
 def _staff_owns_assignment(assignment: DailyTripAssignment, staff: Staffcreation) -> bool:
-    template = assignment.staff_template_id
+    # staff_template_id is a plain CharField now — resolve the actual
+    # StaffTemplate row via the model's resolver property instead.
+    template = assignment.staff_template
     if template is None:
         return False
     if staff.staff_unique_id in (
-        getattr(template, "driver_id_id", None),
-        getattr(template, "operator_id_id", None),
+        getattr(template, "driver_id", None),
+        getattr(template, "operator_id", None),
     ):
         return True
     return staff.staff_unique_id in (
@@ -440,7 +445,7 @@ def serialize_bin_brief(bin_obj: Bins, request=None) -> dict:
         "bin_qr_image_url": _bin_qr_image_url(bin_obj, request=request),
         "bin_capacity": bin_obj.bin_capacity,
         "waste_type": {
-            "unique_id": bin_obj.wastetype_id_id,
+            "unique_id": bin_obj.wastetype_id,
             "name": getattr(bin_obj.wastetype_id, "waste_type_name", None),
         },
     }
@@ -579,8 +584,8 @@ def validate_customer_against_assignment(customer, assignment):
     customer_project_id = getattr(customer, "project_id_id", None)
     if (
         customer_project_id
-        and assignment.project_id_id
-        and str(customer_project_id) != str(assignment.project_id_id)
+        and assignment.project_id
+        and str(customer_project_id) != str(assignment.project_id)
     ):
         raise OperatorFlowError(
             "WRONG_PROJECT",
@@ -589,8 +594,8 @@ def validate_customer_against_assignment(customer, assignment):
         )
     if (
         customer_company_id
-        and assignment.company_id_id
-        and str(customer_company_id) != str(assignment.company_id_id)
+        and assignment.company_id
+        and str(customer_company_id) != str(assignment.company_id)
     ):
         raise OperatorFlowError(
             "WRONG_COMPANY",
@@ -605,7 +610,6 @@ def validate_customer_against_assignment(customer, assignment):
             customer_id=customer,
             is_deleted=False,
         )
-        .select_related("customer_id")
         .first()
     )
     if stop is None:
@@ -634,7 +638,6 @@ def _raise_if_customer_belongs_to_locked_trip(customer, active_assignment):
             trip_assignment_id__is_deleted=False,
         )
         .exclude(trip_assignment_id=active_assignment)
-        .select_related("trip_assignment_id")
         .first()
     )
     if not other:

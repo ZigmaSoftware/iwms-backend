@@ -106,10 +106,10 @@ class ComplaintSlaRuleSeeder(BaseSeeder):
             priority.priority_code, self.DEFAULT_ASSIGN_MINUTES
         )
         rule, created = ComplaintSlaRule.objects.get_or_create(
-            category=category,
-            subcategory=subcategory,
-            priority=priority,
-            source=None,
+            category_id=category.unique_id,
+            subcategory_id=subcategory.unique_id if subcategory else None,
+            priority_id=priority.unique_id,
+            source_id=None,
             defaults={
                 "assign_within_minutes": assign_within,
                 "is_active": True,
@@ -127,7 +127,7 @@ class ComplaintSlaRuleSeeder(BaseSeeder):
             if minutes is None:
                 continue
             ComplaintSlaEscalationLevel.objects.get_or_create(
-                sla_rule=rule,
+                sla_rule_id=rule.unique_id,
                 level=level,
                 defaults={
                     "is_enabled": True,
@@ -153,9 +153,7 @@ class ComplaintSlaRuleSeeder(BaseSeeder):
         fallback_rules = 0
         skipped = []
 
-        for category in ComplaintCategory.objects.filter(
-            is_deleted=False
-        ).select_related("default_priority"):
+        for category in ComplaintCategory.objects.filter(is_deleted=False):
             category_priority = category.default_priority
             if not category_priority:
                 skipped.append(category.category_code)
@@ -170,8 +168,8 @@ class ComplaintSlaRuleSeeder(BaseSeeder):
 
             # One rule per sub-category, at the priority that applies to it.
             for subcategory in ComplaintSubcategory.objects.filter(
-                category=category, is_deleted=False
-            ).select_related("default_priority"):
+                category_id=category.unique_id, is_deleted=False
+            ):
                 _, created = self._upsert(
                     category=category,
                     subcategory=subcategory,

@@ -13,12 +13,14 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
     history.
     """
 
-    assignment_unique_id = serializers.CharField(source="assignment.unique_id", read_only=True)
-    trip_date = serializers.DateField(source="assignment.trip_date", read_only=True)
-    scheduled_time = serializers.TimeField(source="assignment.scheduled_time", read_only=True)
-    assignment_status = serializers.CharField(source="assignment.status", read_only=True)
+    assignment_unique_id = serializers.CharField(source="assignment_id", read_only=True)
+    trip_date = serializers.DateField(source="assignment.trip_date", read_only=True, default=None)
+    scheduled_time = serializers.TimeField(source="assignment.scheduled_time", read_only=True, default=None)
+    assignment_status = serializers.CharField(source="assignment.status", read_only=True, default=None)
     collection_type = serializers.SerializerMethodField()
-    vehicle_no = serializers.CharField(source="assignment.vehicle_id.vehicle_no", read_only=True)
+    vehicle_no = serializers.CharField(
+        source="assignment.vehicle_id.vehicle_no", read_only=True, default=None
+    )
     area_name = serializers.SerializerMethodField()
     requested_by_name = serializers.CharField(
         source="requested_by.employee_name", read_only=True, default=None
@@ -39,6 +41,8 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
 
     def get_area_name(self, obj):
         assignment = obj.assignment
+        if assignment is None:
+            return None
         ward = assignment.wards.first()
         if ward is not None:
             return ward.ward_name
@@ -46,4 +50,7 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
         return getattr(panchayat, "panchayat_name", None)
 
     def get_live_pending(self, obj):
-        return build_pending_snapshot(obj.assignment)
+        assignment = obj.assignment
+        if assignment is None:
+            return None
+        return build_pending_snapshot(assignment)

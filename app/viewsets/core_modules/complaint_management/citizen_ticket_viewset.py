@@ -73,12 +73,7 @@ class CitizenComplaintTicketViewSet(viewsets.ViewSet):
     def _scoped_qs(self, customer):
         return (
             ComplaintTicket.objects.filter(is_deleted=False)
-            .select_related(
-                "category", "subcategory", "priority", "status", "source",
-                "assigned_staff",
-            )
-            .prefetch_related("status_history", "status_history__to_status", "attachments")
-            .filter(Q(customer=customer) | Q(wa_phone=customer.contact_no))
+            .filter(Q(customer_id=customer.unique_id) | Q(wa_phone=customer.contact_no))
             .order_by("-created")
         )
 

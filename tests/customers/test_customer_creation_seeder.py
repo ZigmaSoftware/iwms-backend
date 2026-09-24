@@ -24,21 +24,21 @@ def test_customer_seeder_generates_scoped_ids_and_is_idempotent(
 ):
     property_obj = Property.objects.create(
         property_name="Residential",
-        company_id=company,
-        project_id=project,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     )
     SubProperty.objects.create(
         sub_property_name="Apartment",
         property_id=property_obj,
-        company_id=company,
-        project_id=project,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     )
     UserType.objects.create(name="Customer")
     for waste_type_name in CUSTOMER_WASTE_TYPES:
         WasteType.objects.create(
             waste_type_name=waste_type_name,
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
 
     seeder = CustomerCreationSeeder()
@@ -46,8 +46,8 @@ def test_customer_seeder_generates_scoped_ids_and_is_idempotent(
     seeder.run()
 
     customers = CustomerCreation.objects.filter(
-        company_id=company,
-        project_id=project,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     ).order_by("customer_id")
     assert customers.count() == 15
     assert list(customers.values_list("customer_id", flat=True)) == [

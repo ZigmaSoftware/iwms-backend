@@ -24,6 +24,7 @@ from app.management.commands.seeders.base import BaseSeeder
 from app.models.role_assigns.staffUserType import StaffUserType
 from app.models.role_assigns.userType import UserType
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.schedule_masters.staff_template import StaffTemplate
 from app.models.schedule_masters.trip_plan import TripPlan
 from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.hierarchy import copy_flat_geo
@@ -47,7 +48,7 @@ class SupervisorUserSeeder(BaseSeeder):
 
         role, _ = StaffUserType.objects.get_or_create(
             name=self.ROLE_NAME,
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type,
             defaults={"is_active": True, "is_deleted": False},
         )
 
@@ -59,11 +60,16 @@ class SupervisorUserSeeder(BaseSeeder):
             return
 
         today = timezone.localdate()
+        driver_id = driver.staff_unique_id if hasattr(driver, 'staff_unique_id') else driver
+        template_ids = list(
+            StaffTemplate.objects.filter(driver_id=driver_id, is_deleted=False)
+            .values_list("unique_id", flat=True)
+        )
         assignments = list(
             DailyTripAssignment.objects.filter(
                 trip_date=today,
                 is_deleted=False,
-                staff_template_id__driver_id=driver,
+                staff_template_id__in=template_ids,
             )
         )
         if not assignments:
@@ -75,8 +81,8 @@ class SupervisorUserSeeder(BaseSeeder):
             defaults={
                 "employee_name": "Supervisor User",
                 "password": self.PASSWORD,
-                "user_type_id": staff_type,
-                "staffusertype_id": role,
+                "user_type_id": staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type,
+                "staffusertype_id": role.unique_id if hasattr(role, 'unique_id') else role,
                 "company_id": driver.company_id,
                 "project_id": driver.project_id,
                 "is_active": True,
@@ -89,8 +95,8 @@ class SupervisorUserSeeder(BaseSeeder):
         if not created:
             supervisor.employee_name = "Supervisor User"
             supervisor.password = self.PASSWORD
-            supervisor.user_type_id = staff_type
-            supervisor.staffusertype_id = role
+            supervisor.user_type_id = staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type
+            supervisor.staffusertype_id = role.unique_id if hasattr(role, 'unique_id') else role
             supervisor.company_id = driver.company_id
             supervisor.project_id = driver.project_id
             supervisor.is_active = True
@@ -104,9 +110,10 @@ class SupervisorUserSeeder(BaseSeeder):
 
         # Make this supervisor responsible for the trip plan(s) behind
         # driver_user's assignments today, so `?mine=true` surfaces them.
-        plan_ids = {a.trip_plan_id_id for a in assignments if a.trip_plan_id_id}
+        supervisor_id = supervisor.staff_unique_id if hasattr(supervisor, 'staff_unique_id') else supervisor
+        plan_ids = {a.trip_plan_id for a in assignments if a.trip_plan_id}
         updated = TripPlan.objects.filter(unique_id__in=plan_ids).update(
-            supervisor_id=supervisor
+            supervisor_id=supervisor_id
         )
 
         self.log(

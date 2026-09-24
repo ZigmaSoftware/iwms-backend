@@ -82,24 +82,27 @@ class TripPlanCollectionPointSerializer(
         validators = []
 
     def get_collection_point(self, obj):
-        cp = obj.collection_point_id
+        cp = obj.collection_point
         if not cp:
             return None
+        panchayat = cp.panchayat
+        ward = cp.wards.first()
+        zone = ward.zone if ward else cp.zone
         return {
             "unique_id": cp.unique_id,
             "cp_name": cp.cp_name,
             "latitude": cp.latitude,
             "longitude": cp.longitude,
-            "panchayat_id": getattr(cp.panchayat_id, "unique_id", None),
-            "panchayat_name": getattr(cp.panchayat_id, "panchayat_name", None),
-            "ward_id": getattr(cp.ward_id, "unique_id", None),
-            "ward_name": getattr(cp.ward_id, "ward_name", None),
-            "zone_id": getattr(getattr(cp.ward_id, "zone_id", None), "unique_id", None),
-            "zone_name": getattr(getattr(cp.ward_id, "zone_id", None), "zone_name", None),
+            "panchayat_id": getattr(panchayat, "unique_id", None),
+            "panchayat_name": getattr(panchayat, "panchayat_name", None),
+            "ward_id": getattr(ward, "unique_id", None),
+            "ward_name": getattr(ward, "ward_name", None),
+            "zone_id": getattr(zone, "unique_id", None),
+            "zone_name": getattr(zone, "zone_name", None),
         }
 
     def get_bin(self, obj):
-        bin_obj = obj.bin_id
+        bin_obj = obj.bin
         if not bin_obj:
             return None
         return {
@@ -110,14 +113,14 @@ class TripPlanCollectionPointSerializer(
         }
 
     def get_customer(self, obj):
-        c = obj.customer_id
+        c = obj.customer
         if not c:
             return None
         return {
             "unique_id": c.unique_id,
             "customer_name": c.customer_name,
-            "ward_name": getattr(c.ward, "ward_name", None) if hasattr(c, "ward") else None,
-            "zone_name": getattr(c.zone, "zone_name", None) if hasattr(c, "zone") else None,
+            "ward_name": getattr(c.ward, "ward_name", None),
+            "zone_name": getattr(c.zone, "zone_name", None),
         }
 
     def validate(self, attrs):
@@ -142,10 +145,12 @@ class TripPlanCollectionPointSerializer(
                 raise serializers.ValidationError(
                     {"bin_id": "Bin is required for bin collection."}
                 )
-            if bin_obj and collection_point and bin_obj.collection_point_id != collection_point:
-                raise serializers.ValidationError(
-                    {"bin_id": "Selected bin does not belong to the collection point."}
-                )
+            if bin_obj and collection_point:
+                bin_instance = Bins.objects.filter(unique_id=bin_obj).first()
+                if bin_instance and bin_instance.collection_point_id != collection_point:
+                    raise serializers.ValidationError(
+                        {"bin_id": "Selected bin does not belong to the collection point."}
+                    )
         elif collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD:
             if not customer:
                 raise serializers.ValidationError(

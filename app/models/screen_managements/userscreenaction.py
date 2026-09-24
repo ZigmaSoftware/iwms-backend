@@ -1,9 +1,6 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-
 
 
 def generate_userscreenaction_id():
@@ -11,20 +8,8 @@ def generate_userscreenaction_id():
 
 
 class UserScreenAction(BaseMaster):
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     unique_id = models.CharField(
         max_length=30,
@@ -40,6 +25,9 @@ class UserScreenAction(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    CASCADE_SOFT_DELETE = ("companyuserscreenpermissions", "companyuserscreencolumnpermissions", "staff_access_configuration_permissions")
+    CACHE_SCOPES = ("user_screen_action_list", "user_screen_action_detail")
+
     class Meta:
         ordering = ["action_name"]
         verbose_name = "User Screen Action"
@@ -52,3 +40,32 @@ class UserScreenAction(BaseMaster):
         self.is_active = False
         self.is_deleted = True
         self.save(update_fields=["is_active", "is_deleted"])
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def companyuserscreenpermissions(self):
+        from .companyuserscreenpermission import CompanyUserScreenPermission
+        return CompanyUserScreenPermission.objects.filter(userscreenaction_id=self.unique_id)
+
+    @property
+    def companyuserscreencolumnpermissions(self):
+        from .companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
+        return CompanyUserScreenColumnPermission.objects.filter(userscreenaction_id=self.unique_id)
+
+    @property
+    def staff_access_configuration_permissions(self):
+        from app.models.staff_creations.staff_access_configuration import StaffAccessConfigurationPermission
+        return StaffAccessConfigurationPermission.objects.filter(userscreenaction_id=self.unique_id)

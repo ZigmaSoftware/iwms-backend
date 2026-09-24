@@ -48,25 +48,23 @@ class BaseMaster(models.Model):
 
 
 
-    created_by = models.ForeignKey(
-        Account,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="%(class)s_created"
-    )
-
-    updated_by = models.ForeignKey(
-        Account,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="%(class)s_updated"
-    )
+    created_by_id = models.CharField(max_length=50, null=True, blank=True)
+    updated_by_id = models.CharField(max_length=50, null=True, blank=True)
 
     class Meta:
         abstract = True
 
+    @property
+    def created_by(self):
+        if self.created_by_id:
+            return Account.objects.filter(account_id=self.created_by_id).first()
+        return None
+
+    @property
+    def updated_by(self):
+        if self.updated_by_id:
+            return Account.objects.filter(account_id=self.updated_by_id).first()
+        return None
 
     def delete(self, *args, updated_by=None, **kwargs):
         cascade_soft_delete(self, updated_by=updated_by)

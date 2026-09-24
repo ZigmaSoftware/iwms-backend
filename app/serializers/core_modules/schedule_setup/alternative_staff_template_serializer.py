@@ -53,6 +53,7 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
         required=False
     )
     staff_template = UniqueIdOrPkField(
+        source="staff_template_id",
         slug_field="unique_id",
         queryset=StaffTemplate.objects.all(),
     )
@@ -182,12 +183,12 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
                 {"to_date": "to_date must be on or after from_date."}
             )
 
-        staff_template = attrs.get(
-            "staff_template", getattr(instance, "staff_template", None)
+        staff_template_id = attrs.get(
+            "staff_template_id", getattr(instance, "staff_template_id", None)
         )
-        if staff_template and from_date and to_date:
+        if staff_template_id and from_date and to_date:
             overlap_qs = AlternativeStaffTemplate.objects.filter(
-                staff_template=staff_template,
+                staff_template_id=staff_template_id,
                 from_date__lte=to_date,
                 to_date__gte=from_date,
             )

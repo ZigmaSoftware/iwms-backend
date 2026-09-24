@@ -30,38 +30,39 @@ class TripPlanCollectionPointSeeder(BaseSeeder):
                 is_deleted=False,
             )
             if plan.panchayat_id:
-                cps = cps.filter(panchayat_id=plan.panchayat_id)
+                cps = list(cps.filter(panchayat_id=plan.panchayat_id).order_by("cp_name"))
             else:
-                plan_wards = plan.wards.all()
-                if plan_wards.exists():
-                    cps = cps.filter(wards__in=plan_wards).distinct()
-            cps = cps.order_by("cp_name")
+                plan_ward_ids = set(plan.get_ward_ids())
+                cps = list(cps.order_by("cp_name"))
+                if plan_ward_ids:
+                    cps = [cp for cp in cps if plan_ward_ids & set(cp.get_ward_ids())]
 
             sequence = (
                 TripPlanCollectionPoint.objects
-                .filter(trip_plan_id=plan, is_deleted=False)
+                .filter(trip_plan_id=plan.unique_id, is_deleted=False)
                 .aggregate(max_sequence=Max("sequence"))
                 .get("max_sequence")
                 or 0
             )
+            plan_waste_type_ids = plan.waste_type_ids or ([plan.waste_type_id] if plan.waste_type_id else [])
             for cp in cps:
                 bin_obj = Bins.objects.filter(
-                    collection_point_id=cp,
-                    wastetype_id__unique_id__in=plan.waste_type_ids or [plan.waste_type_id_id],
+                    collection_point_id=cp.unique_id,
+                    wastetype_id__in=plan_waste_type_ids,
                     is_deleted=False,
                 ).first()
                 if not bin_obj:
                     bin_obj = Bins.objects.filter(
-                        collection_point_id=cp,
+                        collection_point_id=cp.unique_id,
                         is_deleted=False,
                     ).first()
                 if not bin_obj:
                     continue
 
                 existing_stop = TripPlanCollectionPoint.objects.filter(
-                    trip_plan_id=plan,
-                    collection_point_id=cp,
-                    bin_id=bin_obj,
+                    trip_plan_id=plan.unique_id,
+                    collection_point_id=cp.unique_id,
+                    bin_id=bin_obj.unique_id,
                     is_deleted=False,
                 ).first()
                 if existing_stop:
@@ -72,9 +73,9 @@ class TripPlanCollectionPointSeeder(BaseSeeder):
 
                 sequence += 1
                 TripPlanCollectionPoint.objects.create(
-                    trip_plan_id=plan,
-                    collection_point_id=cp,
-                    bin_id=bin_obj,
+                    trip_plan_id=plan.unique_id,
+                    collection_point_id=cp.unique_id,
+                    bin_id=bin_obj.unique_id,
                     sequence=sequence,
                     is_active=True,
                 )

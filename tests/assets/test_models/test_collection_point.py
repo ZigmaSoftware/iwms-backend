@@ -1,7 +1,7 @@
 """Unit tests for Collection_point model — CRUD + constraints."""
 import pytest
 from django.core.exceptions import ValidationError
-from app.models.assets.collection_point import Collection_point
+from app.models.schedule_masters.collection_point import Collection_point
 from app.models.masters.panchayat import Panchayat
 
 
@@ -9,8 +9,8 @@ from app.models.masters.panchayat import Panchayat
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="CP Panchayat",
-        company_id=company, project_id=project,
-        state_id=state, district_id=district, city_id=city,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id,
     )
 
 
@@ -18,9 +18,9 @@ def panchayat(db, company, project, state, district, city):
 def cp_panchayat(db, company, project, state, district, city, panchayat):
     return Collection_point.objects.create(
         cp_name="Collection Point A",
-        company_id=company, project_id=project,
-        state_id=state, city_id=city, district_id=district,
-        panchayat_id=panchayat,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
+        panchayat_id=panchayat.unique_id,
         latitude="13.0827", longitude="80.2707",
     )
 
@@ -29,9 +29,9 @@ def cp_panchayat(db, company, project, state, district, city, panchayat):
 def cp_ward(db, company, project, state, district, city, ward):
     return Collection_point.objects.create(
         cp_name="Collection Point B",
-        company_id=company, project_id=project,
-        state_id=state, city_id=city, district_id=district,
-        ward_id=ward,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
+        ward_ids=ward.unique_id,
         latitude="13.0900", longitude="80.2800",
     )
 
@@ -53,8 +53,8 @@ class TestCollectionPointCreate:
     def test_neither_panchayat_nor_ward_raises(self, company, project, state, district, city):
         cp = Collection_point(
             cp_name="Bad CP",
-            company_id=company, project_id=project,
-            state_id=state, city_id=city, district_id=district,
+            company_id=company.unique_id, project_id=project.unique_id,
+            state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
             latitude="13.0", longitude="80.0",
         )
         with pytest.raises(ValidationError):

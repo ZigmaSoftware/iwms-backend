@@ -5,7 +5,7 @@ import pytest
 from django.utils import timezone
 
 from app.models.assets.bins import Bins, BinType
-from app.models.assets.collection_point import Collection_point
+from app.models.schedule_masters.collection_point import Collection_point
 from app.models.masters.areatype import AreaType
 from app.models.masters.panchayat import Panchayat, GeoFencingType
 from app.models.role_assigns.staffUserType import StaffUserType
@@ -135,14 +135,14 @@ def cp_in_other_panchayat(db, other_panchayat, state, district, city, company, p
 @pytest.fixture
 def waste_wet(db, company, project):
     return WasteType.objects.create(
-        waste_type_name="Wet Waste", company_id=company, project_id=project
+        waste_type_name="Wet Waste", company_id=company.unique_id, project_id=project.unique_id
     )
 
 
 @pytest.fixture
 def waste_dry(db, company, project):
     return WasteType.objects.create(
-        waste_type_name="Dry Waste", company_id=company, project_id=project
+        waste_type_name="Dry Waste", company_id=company.unique_id, project_id=project.unique_id
     )
 
 

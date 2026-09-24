@@ -6,12 +6,7 @@ from django.conf import settings
 
 class PasswordResetOTP(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    customer = models.ForeignKey(
-        'app.CustomerCreation',
-        on_delete=models.CASCADE,
-        related_name='password_reset_otps',
-        db_column='customer_id',
-    )
+    customer_id = models.CharField(max_length=30, null=True, blank=True)
     otp_code = models.CharField(max_length=6)
     # Opaque token returned to the client after OTP send; used to scope verify/reset calls
     session_token = models.UUIDField(default=uuid.uuid4, unique=True)
@@ -31,6 +26,13 @@ class PasswordResetOTP(models.Model):
     def is_valid(self):
         return not self.is_used and not self.is_expired()
 
+    @property
+    def customer(self):
+        if self.customer_id:
+            from app.models.customers.customercreation import CustomerCreation
+            return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+        return None
+
     @classmethod
     def create_for_customer(cls, customer):
         import random
@@ -39,7 +41,7 @@ class PasswordResetOTP(models.Model):
         )
         otp_code = f"{random.randint(1000, 9999)}"
         return cls.objects.create(
-            customer=customer,
+            customer_id=customer.unique_id,
             otp_code=otp_code,
             expires_at=expiry,
         )

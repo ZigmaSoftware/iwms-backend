@@ -22,19 +22,19 @@ class ComplaintRoutingRuleSeeder(BaseSeeder):
         total = 0
         for category in ComplaintCategory.objects.filter(is_deleted=False):
             sla_rule = ComplaintSlaRule.objects.filter(
-                category=category, subcategory__isnull=True, is_deleted=False
+                category_id=category.unique_id, subcategory_id__isnull=True, is_deleted=False
             ).first()
             ComplaintRoutingRule.objects.get_or_create(
-                category=category,
-                subcategory=None,
-                state=None,
-                district=None,
-                panchayat=None,
-                zone=None,
-                ward=None,
-                priority=None,
+                category_id=category.unique_id,
+                subcategory_id=None,
+                state_id=None,
+                district_id=None,
+                panchayat_id=None,
+                zone_id=None,
+                ward_id=None,
+                priority_id=None,
                 defaults={
-                    "sla_rule": sla_rule,
+                    "sla_rule_id": sla_rule.unique_id if sla_rule else None,
                     "is_active": True,
                     "is_deleted": False,
                 },

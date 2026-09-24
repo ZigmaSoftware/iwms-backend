@@ -1,7 +1,6 @@
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q
-from django.db.models import Prefetch
 from datetime import datetime, time as datetime_time, timedelta
 
 from rest_framework import status
@@ -11,8 +10,6 @@ from rest_framework.response import Response
 
 from app.management.commands.generate_daily_trips import run_for_date
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
 from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
 from app.models.schedule_masters.scheduler_config import SchedulerConfig
 from app.services.daily_trip_scheduler import (
@@ -40,80 +37,24 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
       PATCH  /{unique_id}/approval/  — approval flow (supervisor/admin only)
     """
 
-    queryset = DailyTripAssignment.objects.select_related(
-        "trip_plan_id",
-        "trip_plan_id__zone_id",
-        "trip_plan_id__panchayat_id",
-        "trip_plan_id__vehicle_id",
-        "trip_plan_id__staff_template_id",
-        "trip_plan_id__staff_template_id__driver_id",
-        "trip_plan_id__staff_template_id__operator_id",
-        "staff_template_id",
-        "staff_template_id__driver_id",
-        "staff_template_id__operator_id",
-        "alt_staff_template_id",
-        "alt_staff_template_id__driver_id",
-        "alt_staff_template_id__operator_id",
-        "panchayat_id",
-        "vehicle_id",
-        "daily_trip_log",
-        "daily_trip_log__driver_id",
-        "daily_trip_log__operator_id",
-        "daily_trip_log__vehicle_id",
-        "daily_trip_log__verified_by",
-        # Breakdown reverse OneToOne — used by DailyTripAssignmentSerializer.get_breakdown_info
-        "vehicle_breakdown",
-        "vehicle_breakdown__breakdown_vehicle_id",
-        "vehicle_breakdown__replacement_vehicle_id",
-        "vehicle_breakdown__replacement_driver_id",
-        "vehicle_breakdown__replacement_operator_id",
-        "vehicle_breakdown__new_assignment",
-    ).prefetch_related(
-        "delay_reports",
-        "retrip_source_requests",
-        "wards",
-        "wards__zone_id",
-        "trip_plan_id__wards",
-        "trip_plan_id__wards__zone_id",
-        Prefetch(
-            "retrip_requests",
-            queryset=TripRetripRequest.objects.filter(is_deleted=False)
-            .select_related("new_assignment", "reviewed_by", "requested_by")
-            .order_by("-created_at"),
-        ),
-        Prefetch(
-            "trip_collection_points",
-            queryset=DailyTripCollectionPoint.objects.filter(is_deleted=False).select_related(
-                "collection_point_id",
-                "bin_id",
-                "collected_by",
-                "zone_id",
-                "ward_id",
-                "panchayat_id",
-            ).order_by("sequence"),
-        ),
-        Prefetch(
-            "trip_household_collections",
-            queryset=DailyTripHouseholdCollection.objects.filter(is_deleted=False).select_related(
-                "customer_id",
-                "ward_id",
-                "panchayat_id",
-            ).order_by("sequence"),
-        ),
-    ).filter(is_deleted=False)
+    # Every relation below (trip_plan_id, staff_template_id, panchayat_id,
+    # vehicle_id, wards, driver_id/operator_id, etc.) is now a plain CharField
+    # holding the related row's unique_id rather than a real ForeignKey/M2M,
+    # so select_related/prefetch_related can no longer follow them — the
+    # serializer resolves each one on demand via its own queries instead.
+    queryset = DailyTripAssignment.objects.filter(is_deleted=False)
 
     serializer_class = DailyTripAssignmentSerializer
     lookup_field = "unique_id"
     permission_resource = "DailyTripAssignment"
 
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    # search_fields used to be DB-level join paths for DRF's SearchFilter,
+    # but every relation they crossed (trip_plan_id, staff_template_id,
+    # panchayat_id, wards, ...) is now a plain CharField/TextField id column,
+    # not a real FK/M2M — no longer joinable at the DB level. Search is
+    # applied in Python in get_queryset() instead (see _search_filter below).
+    filter_backends = [filters.OrderingFilter]
     pagination_class = LimitOffsetWithPage
-    search_fields = [
-        "unique_id", "trip_plan_id__display_code", "vehicle_id__vehicle_no",
-        "staff_template_id__driver_id__employee_name",
-        "alt_staff_template_id__driver_id__employee_name",
-        "panchayat_id__panchayat_name", "wards__ward_name", "trip_plan_id__zone_id__zone_name",
-    ]
     ordering_fields = ["unique_id", "trip_date", "scheduled_time", "status", "approval_status"]
 
     AUDIT_MODULE = "trip-assignments"
@@ -167,7 +108,11 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             # (TripPlan.supervisor_id == requester). Auto-enforced for any
             # supervisor role on the admin web app too, not just when the
             # mobile app explicitly passes mine=true.
-            qs = qs.filter(trip_plan_id__supervisor_id=self.request.user)
+            from app.models.schedule_masters.trip_plan import TripPlan
+            supervised_plan_ids = TripPlan.objects.filter(
+                supervisor_id=self.request.user.staff_unique_id,
+            ).values_list("unique_id", flat=True)
+            qs = qs.filter(trip_plan_id__in=supervised_plan_ids)
 
         # Workbench date comes from the server, including for devices left open
         # overnight. Explicit modes preserve the existing desktop list contract.
@@ -201,16 +146,43 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             qs = qs.filter(trip_date__lte=dates["to_date"])
         if params.get("retrip_only") == "true":
             qs = qs.filter(
-                unique_id__in=TripRetripRequest.objects.filter(is_deleted=False, new_assignment__isnull=False).values("new_assignment__unique_id")
+                unique_id__in=TripRetripRequest.objects.filter(
+                    is_deleted=False, new_assignment_id__isnull=False
+                ).values("new_assignment_id")
             )
         if params.get("exceptions_only") == "true":
-            qs = qs.filter(
-                Q(trip_collection_points__is_deleted=False) & ~Q(trip_collection_points__status__in=["Pending", "In Progress", "Collected"])
-                | Q(trip_household_collections__is_deleted=False) & ~Q(trip_household_collections__status__in=["Pending", "Collected"])
-                | Q(vehicle_breakdown__is_deleted=False)
-                | Q(retrip_requests__is_deleted=False)
-                | Q(delay_reports__is_deleted=False)
-            ).distinct()
+            from app.models.schedule_masters.trip_delay_report import TripDelayReport
+            from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+            from app.models.schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
+            from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
+
+            retrip_assignment_ids = set(
+                TripRetripRequest.objects.filter(is_deleted=False).values_list("assignment_id", flat=True)
+            )
+            delay_assignment_ids = set(
+                TripDelayReport.objects.filter(is_deleted=False).values_list("trip_assignment_id", flat=True)
+            )
+            unresolved_cp_assignment_ids = set(
+                DailyTripCollectionPoint.objects.filter(is_deleted=False)
+                .exclude(status__in=["Pending", "In Progress", "Collected"])
+                .values_list("trip_assignment_id", flat=True)
+            )
+            unresolved_household_assignment_ids = set(
+                DailyTripHouseholdCollection.objects.filter(is_deleted=False)
+                .exclude(status__in=["Pending", "Collected"])
+                .values_list("trip_assignment_id", flat=True)
+            )
+            breakdown_assignment_ids = set(
+                VehicleBreakdown.objects.filter(is_deleted=False).values_list("trip_assignment_id", flat=True)
+            )
+            exception_ids = (
+                retrip_assignment_ids
+                | delay_assignment_ids
+                | unresolved_cp_assignment_ids
+                | unresolved_household_assignment_ids
+                | breakdown_assignment_ids
+            )
+            qs = qs.filter(unique_id__in=exception_ids)
 
         if trip_date:
             qs = qs.filter(trip_date=trip_date)
@@ -222,14 +194,31 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             qs = qs.filter(panchayat_id=panchayat)
 
         if ward:
-            qs = qs.filter(wards__unique_id=ward)
+            qs = qs.filter(ward_ids__contains=ward)
 
         if zone:
-            qs = qs.filter(
-                Q(wards__zone_id__unique_id=zone) |
-                Q(trip_plan_id__zone_id__unique_id=zone) |
-                Q(trip_plan_id__wards__zone_id__unique_id=zone)
-            ).distinct()
+            from app.models.masters.ward import Ward
+            from app.models.schedule_masters.trip_plan import TripPlan
+
+            ward_ids_in_zone = set(
+                Ward.objects.filter(zone_id=zone).values_list("unique_id", flat=True)
+            )
+            plan_ids_in_zone = set(
+                TripPlan.objects.filter(zone_id=zone).values_list("unique_id", flat=True)
+            )
+            plan_ids_with_zone_ward = {
+                plan.unique_id
+                for plan in TripPlan.objects.exclude(ward_ids="")
+                if ward_ids_in_zone & set(plan.get_ward_ids())
+            }
+            matching_ids = {
+                assignment.unique_id
+                for assignment in qs
+                if (ward_ids_in_zone & set(assignment.get_ward_ids()))
+                or assignment.trip_plan_id in plan_ids_in_zone
+                or assignment.trip_plan_id in plan_ids_with_zone_ward
+            }
+            qs = qs.filter(unique_id__in=matching_ids)
 
         if trip_plan:
             qs = qs.filter(trip_plan_id=trip_plan)
@@ -240,7 +229,90 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if waste_type:
             qs = qs.filter(waste_type_ids__contains=waste_type)
 
+        search = params.get("search")
+        if search:
+            qs = self._apply_search(qs, search)
+
         return qs
+
+    def _apply_search(self, qs, search):
+        """Python-side replacement for DRF's SearchFilter: every field it
+        used to search is now a plain id column, not a joinable relation."""
+        from app.models.schedule_masters.trip_plan import TripPlan
+        from app.models.schedule_masters.staff_template import StaffTemplate
+        from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
+        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        from app.models.masters.panchayat import Panchayat
+        from app.models.masters.ward import Ward
+        from app.models.masters.zone import Zone
+        from app.models.staff_creations.staffcreation import Staffcreation
+
+        needle = search.strip().lower()
+        if not needle:
+            return qs
+
+        assignments = list(qs)
+        plan_ids = {a.trip_plan_id for a in assignments if a.trip_plan_id}
+        plans_by_id = {p.unique_id: p for p in TripPlan.objects.filter(unique_id__in=plan_ids)}
+
+        staff_template_ids = {a.staff_template_id for a in assignments if a.staff_template_id}
+        staff_templates_by_id = {
+            st.unique_id: st for st in StaffTemplate.objects.filter(unique_id__in=staff_template_ids)
+        }
+        alt_template_ids = {a.alt_staff_template_id for a in assignments if a.alt_staff_template_id}
+        alt_templates_by_id = {
+            at.unique_id: at for at in AlternativeStaffTemplate.objects.filter(unique_id__in=alt_template_ids)
+        }
+
+        driver_ids = {t.driver_id for t in staff_templates_by_id.values() if t.driver_id}
+        driver_ids |= {t.driver_id for t in alt_templates_by_id.values() if t.driver_id}
+        drivers_by_id = {
+            d.staff_unique_id: d for d in Staffcreation.objects.filter(staff_unique_id__in=driver_ids)
+        }
+
+        vehicle_ids = {a.vehicle_id for a in assignments if a.vehicle_id}
+        vehicles_by_id = {v.unique_id: v for v in VehicleCreation.objects.filter(unique_id__in=vehicle_ids)}
+
+        panchayat_ids = {a.panchayat_id for a in assignments if a.panchayat_id}
+        panchayats_by_id = {p.unique_id: p for p in Panchayat.objects.filter(unique_id__in=panchayat_ids)}
+
+        all_ward_ids = set()
+        for a in assignments:
+            all_ward_ids.update(a.get_ward_ids())
+        wards_by_id = {w.unique_id: w for w in Ward.objects.filter(unique_id__in=all_ward_ids)}
+
+        zone_ids = {p.zone_id for p in plans_by_id.values() if p.zone_id}
+        zones_by_id = {z.unique_id: z for z in Zone.objects.filter(unique_id__in=zone_ids)}
+
+        def matches(assignment):
+            haystacks = [assignment.unique_id]
+            plan = plans_by_id.get(assignment.trip_plan_id)
+            if plan:
+                haystacks.append(plan.display_code)
+                zone = zones_by_id.get(plan.zone_id)
+                if zone:
+                    haystacks.append(zone.zone_name)
+            vehicle = vehicles_by_id.get(assignment.vehicle_id)
+            if vehicle:
+                haystacks.append(vehicle.vehicle_no)
+            for template in (
+                staff_templates_by_id.get(assignment.staff_template_id),
+                alt_templates_by_id.get(assignment.alt_staff_template_id),
+            ):
+                driver = drivers_by_id.get(getattr(template, "driver_id", None))
+                if driver:
+                    haystacks.append(driver.employee_name)
+            panchayat = panchayats_by_id.get(assignment.panchayat_id)
+            if panchayat:
+                haystacks.append(panchayat.panchayat_name)
+            for ward_id in assignment.get_ward_ids():
+                ward = wards_by_id.get(ward_id)
+                if ward:
+                    haystacks.append(ward.ward_name)
+            return any(needle in str(value).lower() for value in haystacks if value)
+
+        matching_ids = [a.unique_id for a in assignments if matches(a)]
+        return qs.filter(unique_id__in=matching_ids)
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)

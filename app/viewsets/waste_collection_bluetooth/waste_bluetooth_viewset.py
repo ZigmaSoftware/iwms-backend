@@ -173,15 +173,15 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             dthc.customer_id,
             push_title,
             push_body,
-            data={"event": "household_status", "status": dthc.status, "trip_assignment_id": str(dthc.trip_assignment_id_id)},
+            data={"event": "household_status", "status": dthc.status, "trip_assignment_id": str(dthc.trip_assignment_id)},
         )
 
         return Response({
             "status": "success",
             "data": {
                 "unique_id": dthc.unique_id,
-                "customer_id": dthc.customer_id_id,
-                "trip_assignment_id": dthc.trip_assignment_id_id,
+                "customer_id": dthc.customer_id,
+                "trip_assignment_id": dthc.trip_assignment_id,
                 "collection_status": dthc.status,
                 "reason": dthc.status_reason,
             },
@@ -285,7 +285,6 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 Q(unique_id=customer_id) | Q(customer_id=customer_id),
                 is_deleted=False,
             )
-            .prefetch_related("waste_types")
             .first()
         )
         if not customer:
@@ -293,7 +292,7 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 {"status": "error", "message": "Customer not found"},
                 status=404,
             )
-        waste_types = customer.waste_types.filter(is_deleted=False)
+        waste_types = customer.waste_types_queryset.filter(is_deleted=False)
 
         waste_types = waste_types.annotate(
             sort_order=Case(
@@ -519,8 +518,8 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             )
 
             WasteCollection.objects.create(
-                customer=customer,
-                trip_assignment_id=assignment,
+                customer_id=customer.unique_id,
+                trip_assignment_id=assignment.unique_id,
                 image=proof_image,
                 # Inherited from the assignment, not left blank: WasteCollection
                 # is a CompanyScopedViewSet model, and any company-scoped list

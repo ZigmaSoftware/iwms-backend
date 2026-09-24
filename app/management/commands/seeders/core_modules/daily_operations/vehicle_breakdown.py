@@ -45,7 +45,6 @@ class VehicleBreakdownSeeder(BaseSeeder):
             DailyTripAssignment.objects.filter(is_deleted=False)
             .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
             .exclude(vehicle_breakdown__isnull=False)
-            .select_related("company_id", "project_id", "vehicle_id", "trip_plan_id__vehicle_id", "panchayat_id")
             .order_by("-trip_date", "-scheduled_time")[: len(self.SCENARIOS)]
         )
         if not assignments:

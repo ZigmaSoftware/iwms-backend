@@ -7,11 +7,11 @@ from app.models.masters.panchayat import Panchayat
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="Test Panchayat",
-        company_id=company,
-        project_id=project,
-        state_id=state,
-        district_id=district,
-        city_id=city,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
     )
 
 
@@ -20,11 +20,11 @@ class TestPanchayatCreate:
     def test_basic_create(self, company, project, state, district, city):
         p = Panchayat.objects.create(
             panchayat_name="Village Council",
-            company_id=company,
-            project_id=project,
-            state_id=state,
-            district_id=district,
-            city_id=city,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
+            state_id=state.unique_id,
+            district_id=district.unique_id,
+            city_id=city.unique_id,
         )
         assert p.panchayat_name == "Village Council"
 
@@ -32,10 +32,10 @@ class TestPanchayatCreate:
         assert panchayat.unique_id.startswith("PANCHAYAT-")
 
     def test_foreign_key_city(self, panchayat, city):
-        assert panchayat.city_id == city
+        assert panchayat.city_id == city.unique_id
 
     def test_foreign_key_state(self, panchayat, state):
-        assert panchayat.state_id == state
+        assert panchayat.state_id == state.unique_id
 
 
 @pytest.mark.django_db

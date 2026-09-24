@@ -52,7 +52,7 @@ class StaffOfficeSerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
         Fetch photo from Employee table using staff_unique_id (STRING)
         """
         emp = Employee.objects.filter(
-            staff__staff_unique_id=obj.staff_unique_id
+            staff_id=obj.staff_unique_id
         ).first()
 
         if emp and emp.image_path:
@@ -99,7 +99,7 @@ class StaffUpdateSerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
         # Update Employee image using staff_unique_id
         if image_file:
             emp = Employee.objects.filter(
-                staff__staff_unique_id=instance.staff_unique_id
+                staff_id=instance.staff_unique_id
             ).first()
 
             if emp:
