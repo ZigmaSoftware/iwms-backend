@@ -1,14 +1,14 @@
 """
 Aggregate exports for the models package.
-Structured to mirror API router groupings.
+Folders mirror the admin UI: superadmin/, masters/, core_modules/, reports/.
 """
 
 # ============================================================
 # GROUP: COMMON MASTERS
 # ============================================================
-from .common_masters.continent import Continent
-from .common_masters.country import Country
-from .common_masters.state import State
+from .superadmin.common_masters.continent import Continent
+from .superadmin.common_masters.country import Country
+from .superadmin.common_masters.state import State
 
 
 # ============================================================
@@ -19,19 +19,19 @@ from .masters.city import City
 from .masters.zone import Zone
 from .masters.ward import Ward
 from .masters.plant import Plant
-from .staff_creations.department import Department
-from .staff_creations.designation import Designation
-from .masters.panchayat_leader_login import PanchayatLeaderLogin
-from .masters.district_leader_login import DistrictLeaderLogin
+from .superadmin.staff_management.department import Department
+from .superadmin.staff_management.designation import Designation
+from .masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
+from .masters.leader_management.district_leader_login import DistrictLeaderLogin
 from .masters.block_panchayat_union import BlockPanchayatUnion
 
 
 # ============================================================
 # GROUP: ASSETS
 # ============================================================
-from .transport_masters.fuel import Fuel
-from .assets.weighbridge import WeighbridgeCheck
-from .assets.bins import Bins
+from .masters.transport_masters.fuel import Fuel
+from .masters.waste_masters.weighbridge import WeighbridgeCheck
+from .masters.waste_masters.bins import Bins
 
 
 # ============================================================
@@ -45,40 +45,40 @@ from .superadmin_masters.auth_user import User
 # ============================================================
 # GROUP: WASTE TYPES
 # ============================================================
-from .waste_types.property import Property
-from .waste_types.subproperty import SubProperty
+from .masters.waste_masters.property import Property
+from .masters.waste_masters.subproperty import SubProperty
 
 # ============================================================
 # GROUP: USERS & ROLE ASSIGNMENT
 # ============================================================
-from .role_assigns.userType import UserType
-from .role_assigns.staffUserType import StaffUserType
-from .role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
+from .superadmin.role_management.userType import UserType
+from .superadmin.role_management.staffUserType import StaffUserType
+from .superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
 
 
 # ============================================================
 # GROUP: SCREEN MANAGEMENT / PERMISSIONS
 # ============================================================
-from .screen_managements.mainscreentype import MainScreenType
-from .screen_managements.mainscreen import MainScreen
-from .screen_managements.userscreen import UserScreen
-from .screen_managements.userscreenaction import UserScreenAction
-from .screen_managements.userscreencolumn import UserScreenColumn
-from .screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
-from .screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
-from .screen_managements.app_module import AppModule
+from .superadmin.screen_management.mainscreentype import MainScreenType
+from .superadmin.screen_management.mainscreen import MainScreen
+from .superadmin.screen_management.userscreen import UserScreen
+from .superadmin.screen_management.userscreenaction import UserScreenAction
+from .superadmin.screen_management.userscreencolumn import UserScreenColumn
+from .superadmin.screen_management.companyuserscreenpermission import CompanyUserScreenPermission
+from .superadmin.screen_management.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
+from .superadmin.screen_management.app_module import AppModule
 
 
 # ============================================================
 # GROUP: USER CREATION & STAFF
 # ============================================================
-from .staff_creations.staffcreation import (
+from .superadmin.staff_management.staffcreation import (
     StaffcreationOfficeDetails,
     StaffPersonalDetails,
 )
-from .schedule_masters.staff_template import StaffTemplate
-from .schedule_masters.alternative_staff_template import AlternativeStaffTemplate
-from .staff_creations.staff_access_configuration import (
+from .core_modules.schedule_setup.staff_template import StaffTemplate
+from .core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
+from .superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
@@ -87,33 +87,33 @@ from .staff_creations.staff_access_configuration import (
 # ============================================================
 # GROUP: AUTH / LOGIN / AUDIT (USER)
 # ============================================================
-from .staff_creations.loginAudit import LoginAudit
-from .staff_creations.auditlog import AuditLog
+from .superadmin.audits.loginAudit import LoginAudit
+from .superadmin.audits.auditlog import AuditLog
 from app.utils.common_audit import CommonAudit
-from .audits.permission_audit import PermissionAuditLog
+from .superadmin.audits.permission_audit import PermissionAuditLog
 
 
 # ============================================================
 # GROUP: CUSTOMER MODULES
 # ============================================================
-from .customers.customercreation import CustomerCreation
-from .customers.customer_access_configuration import CustomerAccessConfiguration
-from .customers.wastecollection import WasteCollection
-from .customers.password_reset_otp import PasswordResetOTP
+from .masters.customer_masters.customercreation import CustomerCreation
+from .masters.customer_masters.customer_access_configuration import CustomerAccessConfiguration
+from .core_modules.daily_operations.wastecollection import WasteCollection
+from .masters.customer_masters.password_reset_otp import PasswordResetOTP
 
 
 # ============================================================
 # GROUP: GRIEVANCES
 # ============================================================
-from .grivences.complaints import Complaint
-from .grivences.main_category_citizenGrievance import MainCategory
-from .grivences.sub_category_citizenGrievance import SubCategory
+from .core_modules.complaint_management.complaints import Complaint
+from .core_modules.complaint_management.main_category_citizenGrievance import MainCategory
+from .core_modules.complaint_management.sub_category_citizenGrievance import SubCategory
 
 
 # ============================================================
 # GROUP: COMPLAINT MANAGEMENT (ticketed grievance workflow)
 # ============================================================
-from .complaint_management import (
+from .core_modules.complaint_management import (
     ComplaintSource,
     ComplaintLanguage,
     ComplaintPriority,
@@ -140,13 +140,13 @@ from .complaint_management import (
 # ============================================================
 # GROUP: STAFF NOTIFICATIONS
 # ============================================================
-from .notifications.staff_notification import StaffNotification
+from .core_modules.notifications.staff_notification import StaffNotification
 
 
 # ============================================================
 # GROUP: BLUETOOTH / MOBILE WASTE COLLECTION
 # ============================================================
-from .staff_creations.waste_collection_bluetooth import (
+from .waste_collection_bluetooth.waste_collection_bluetooth import (
     WasteCollectionSub,
     WasteType,
     WasteCollectionMain,
@@ -156,28 +156,30 @@ from .staff_creations.waste_collection_bluetooth import (
 # ============================================================
 # GROUP: ATTENDANCE (MOBILE)
 # ============================================================
-from .staff_creations.attendance import Employee, Recognized
-from .staff_creations.attendance_new import AttendanceNew
+from .core_modules.attendance.attendance import Employee, Recognized
+from .core_modules.attendance.attendance_new import AttendanceNew
 
 
 # ============================================================
 # GROUP: TRANSPORT MASTERS & TRIPS
 # ============================================================
-from .transport_masters.vehicleTypeCreation import VehicleTypeCreation
-from .transport_masters.vehicleCreation import VehicleCreation
-from .schedule_masters.trip_plan import TripPlan
-from .schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
-from .schedule_masters.daily_trip_assignment import DailyTripAssignment
-from .schedule_masters.daily_trip_log import DailyTripLog
-from .schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from .schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
-from .schedule_masters.bin_collection_event import BinCollectionEvent
-from .schedule_masters.vehicle_breakdown import VehicleBreakdown
-from .schedule_masters.trip_delay_report import TripDelayReport
-from .schedule_masters.trip_retrip_request import TripRetripRequest
-from .schedule_masters.collection_point import Collection_point
-from .schedule_masters.route_detour_waypoint import RouteDetourWaypoint
-from .schedule_masters.daily_waste_comparison import DailyWasteComparison
+from .masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
+from .masters.transport_masters.vehicleCreation import VehicleCreation
+from .core_modules.schedule_setup.trip_plan import TripPlan
+from .core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
+from .core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from .core_modules.daily_operations.daily_trip_log import DailyTripLog
+from .core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+from .core_modules.daily_operations.daily_trip_household_collection import DailyTripHouseholdCollection
+from .core_modules.daily_operations.bin_collection_event import BinCollectionEvent
+from .core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown
+from .core_modules.daily_operations.trip_delay_report import TripDelayReport
+from .core_modules.daily_operations.trip_retrip_request import TripRetripRequest
+from .core_modules.schedule_setup.collection_point import Collection_point
+from .core_modules.daily_operations.route_detour_waypoint import RouteDetourWaypoint
+from .core_modules.daily_operations.scheduler_config import SchedulerConfig
+from .reports.waste_reports.daily_waste_comparison import DailyWasteComparison
+from .reports.waste_reports.monthly_weight_report import MonthlyWeightReport
 
 
 # ============================================================
@@ -305,4 +307,6 @@ __all__ = [
     "Collection_point",
     "RouteDetourWaypoint",
     "DailyWasteComparison",
+    "SchedulerConfig",
+    "MonthlyWeightReport",
 ]

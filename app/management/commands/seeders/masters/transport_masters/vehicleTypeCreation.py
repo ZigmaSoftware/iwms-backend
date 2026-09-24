@@ -1,5 +1,5 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
+from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 
 
 class VehicleTypeCreationSeeder(BaseSeeder):

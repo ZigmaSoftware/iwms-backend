@@ -19,8 +19,8 @@ unassigned.
 """
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.customers.customercreation import CustomerCreation
-from app.models.complaint_management import (
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.complaint_management import (
     ComplaintCategory,
     ComplaintPriority,
     ComplaintSource,
@@ -28,7 +28,7 @@ from app.models.complaint_management import (
     ComplaintSubcategory,
     ComplaintTicket,
 )
-from app.models.complaint_management.transactions import ComplaintStatusHistory
+from app.models.core_modules.complaint_management.transactions import ComplaintStatusHistory
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.services.complaint_ticket_routing import apply_routing_and_sla

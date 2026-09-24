@@ -6,7 +6,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, viewsets
 from collections import defaultdict
-from app.models.screen_managements.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreen import UserScreen
 from django.db import transaction
 from django.db.models import Q
 from rest_framework import status
@@ -14,13 +14,13 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 
-from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
-from app.models.screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
+from app.models.superadmin.screen_management.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.superadmin.screen_management.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
+from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.state import State
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone
@@ -34,7 +34,7 @@ from app.serializers.superadmin.screen_management.companyuserscreencolumnpermiss
     CompanyUserScreenColumnPermissionSerializer,
 )
 
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 

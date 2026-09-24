@@ -10,7 +10,7 @@
 #
 # WHAT IT ADDS: `Employee.face_embedding`, a JSON cache of the face vector
 # for `image_path` (this project's reference-photo field — see
-# `app/models/staff_creations/attendance.py`). Attendance needs it when it
+# `app/models/core_modules/attendance/attendance.py`). Attendance needs it when it
 # runs on an embedding-comparing provider (InsightFace); it stays NULL under
 # CompreFace, which compares image files on its own server.
 #

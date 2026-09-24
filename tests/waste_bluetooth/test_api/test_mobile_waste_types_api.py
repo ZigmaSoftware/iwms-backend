@@ -1,11 +1,11 @@
 """API tests for the mobile waste type lookup endpoint."""
 import pytest
 
-from app.models.customers.customercreation import CustomerCreation
+from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.panchayat import Panchayat
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
 
 
 BASE = "/api/v1/waste/get-waste-types/"

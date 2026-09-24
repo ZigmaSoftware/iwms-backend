@@ -16,13 +16,13 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.schedule_masters.daily_trip_household_collection import (
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.core_modules.daily_operations.daily_trip_household_collection import (
     DailyTripHouseholdCollection,
 )
-from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
-from app.models.notifications.staff_notification import StaffNotification
+from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
+from app.models.core_modules.notifications.staff_notification import StaffNotification
 from app.services.staff_notification_service import notify_staff
 
 

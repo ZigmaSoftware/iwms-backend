@@ -4,9 +4,9 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
-from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
+from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
+from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 from app.serializers.core_modules.daily_operations.bin_collection_event_serializer import (
     BinCollectionEventSerializer,
 )
@@ -16,7 +16,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -54,8 +54,8 @@ class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if mine and str(mine).lower() in ("1", "true", "yes"):
             # Supervisor app waste summary: events on trips whose plan this
             # supervisor owns (mirrors DailyTripLogViewSet's `mine` filter).
-            from app.models.schedule_masters.trip_plan import TripPlan
-            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+            from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 
             supervised_plan_ids = TripPlan.objects.filter(
                 supervisor_id=self.request.user.staff_unique_id,

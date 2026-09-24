@@ -35,7 +35,7 @@ class TestCompanyCascadeSoftDelete:
         self, auth_client, company, project
     ):
         from app.models.superadmin_masters.company import Company
-        from app.models.staff_creations.department import Department
+        from app.models.superadmin.staff_management.department import Department
 
         department = Department.objects.create(
             department_name="Sanitation",
@@ -73,7 +73,7 @@ class TestProjectCascadeSoftDelete:
     ):
         from app.models.superadmin_masters.project import Project
         from app.models.masters.district import District
-        from app.models.staff_creations.department import Department
+        from app.models.superadmin.staff_management.department import Department
 
         district = District.objects.create(
             name="Cascade District",

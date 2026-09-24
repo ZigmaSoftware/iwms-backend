@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.grivences.main_category_citizenGrievance import MainCategory
+from app.models.core_modules.complaint_management.main_category_citizenGrievance import MainCategory
 from app.validators.unique_name_validator import unique_name_validator
 
 class MainCategorySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):

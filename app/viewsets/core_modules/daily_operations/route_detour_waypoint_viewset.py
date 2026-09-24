@@ -1,12 +1,12 @@
 from rest_framework import filters
 
-from app.models.schedule_masters.route_detour_waypoint import RouteDetourWaypoint
+from app.models.core_modules.daily_operations.route_detour_waypoint import RouteDetourWaypoint
 from app.serializers.core_modules.daily_operations.route_detour_waypoint_serializer import (
     RouteDetourWaypointSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class RouteDetourWaypointViewSet(AuditViewSetMixin, CompanyScopedViewSet):

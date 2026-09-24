@@ -3,7 +3,7 @@ from django.db.models.fields.files import FieldFile
 from app.utils.common_audit import CommonAudit
 from app.utils.audit_context import resolve_actor, resolve_tenancy
 from app.utils.base_models import Account
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from datetime import datetime, date, time
 from decimal import Decimal
 from uuid import UUID

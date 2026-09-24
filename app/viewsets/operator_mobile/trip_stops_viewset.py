@@ -12,11 +12,11 @@ actually scrolls to them.
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import (
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.schedule_masters.daily_trip_household_collection import (
+from app.models.core_modules.daily_operations.daily_trip_household_collection import (
     DailyTripHouseholdCollection,
 )
 from app.permissions.operator_permission import IsOperatorRole

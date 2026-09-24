@@ -1,9 +1,9 @@
 """Unit tests for CustomerCreation model — CRUD + constraints."""
 import pytest
-from app.models.customers.customercreation import CustomerCreation
+from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.panchayat import Panchayat
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
 
 
 def create_customer_in_scope(source, *, name, project_id):

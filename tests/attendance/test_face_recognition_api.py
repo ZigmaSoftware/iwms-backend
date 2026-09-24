@@ -63,7 +63,7 @@ def _clear_provider_cache():
 
 @pytest.fixture
 def staff(db, company):
-    from app.models.staff_creations.staffcreation import Staffcreation
+    from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
     return Staffcreation.objects.create(
         employee_name="Face Test User",
@@ -103,7 +103,7 @@ def test_face_config_requires_auth_like_register_and_recognize(db, api_client):
 
 @override_settings(FACE_RECOGNITION_PROVIDER="insightface")
 def test_register_then_recognize_same_person_marks_attendance(staff, auth_client):
-    from app.models.staff_creations.attendance import Employee
+    from app.models.core_modules.attendance.attendance import Employee
 
     photos = _reg_photos()
 
@@ -157,7 +157,7 @@ def test_second_punch_toggles_to_out(staff, auth_client):
 
 @override_settings(FACE_RECOGNITION_PROVIDER="insightface")
 def test_register_rejects_an_image_with_no_face(staff, auth_client):
-    from app.models.staff_creations.attendance import Employee
+    from app.models.core_modules.attendance.attendance import Employee
 
     blank = io.BytesIO()
     Image.new("RGB", (400, 400), "white").save(blank, "JPEG")
@@ -190,7 +190,7 @@ def test_punch_backfills_embedding_for_employee_enrolled_under_compreface(staff,
     """Employees registered while CompreFace was active have a reference
     image but no embedding; the first punch must derive and cache one rather
     than fail."""
-    from app.models.staff_creations.attendance import Employee
+    from app.models.core_modules.attendance.attendance import Employee
 
     photos = _reg_photos()
     auth_client.post(
@@ -237,7 +237,7 @@ class _FakeResponse:
 @override_settings(FACE_RECOGNITION_PROVIDER="compreface")
 def test_compreface_register_and_punch_still_work(staff, auth_client, monkeypatch):
     import app.services.face_recognition.compre_face as cf
-    from app.models.staff_creations.attendance import Employee
+    from app.models.core_modules.attendance.attendance import Employee
 
     calls = []
 

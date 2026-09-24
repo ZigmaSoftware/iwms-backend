@@ -5,10 +5,10 @@ from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.masters.panchayat import Panchayat
-from app.models.schedule_masters.daily_waste_comparison import DailyWasteComparison
+from app.models.reports.waste_reports.daily_waste_comparison import DailyWasteComparison
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
 
 TARGET = 30

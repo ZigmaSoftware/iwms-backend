@@ -1,11 +1,11 @@
 from app.management.commands.seeders.base import BaseSeeder
 
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.state import State
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.ward import Ward
 from app.models.masters.panchayat import Panchayat
-from app.models.schedule_masters.collection_point import Collection_point
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 

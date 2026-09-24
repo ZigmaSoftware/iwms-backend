@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from app.models.schedule_masters.trip_delay_report import TripDelayReport
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.trip_delay_report import TripDelayReport
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 
 

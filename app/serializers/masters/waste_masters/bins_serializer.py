@@ -1,14 +1,14 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
-from app.models.assets.bins import Bins
+from app.models.masters.waste_masters.bins import Bins
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 from app.validators.unique_name_validator import unique_name_validator
 
 class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):

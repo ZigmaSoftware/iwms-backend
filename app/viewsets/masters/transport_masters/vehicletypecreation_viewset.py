@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 
 from rest_framework import viewsets
-from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
+from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.serializers.masters.transport_masters.vehicletypecreation_serializer import VehicleTypeCreationSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.filters import (

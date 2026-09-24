@@ -2,7 +2,7 @@ from rest_framework import filters, viewsets, status
 from app.models.masters.panchayat import Panchayat
 from app.serializers.masters.panchayat_serializer import PanchayatSerializer
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage

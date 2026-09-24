@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from app.models.staff_creations.department import Department
+from app.models.superadmin.staff_management.department import Department
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 

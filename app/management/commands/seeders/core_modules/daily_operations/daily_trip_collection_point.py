@@ -1,7 +1,7 @@
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.services.daily_trip_generation import ensure_assignment_collection_points
 
 

@@ -1,6 +1,6 @@
 """API tests for Property endpoint — CRUD operations."""
 import pytest
-from app.models.waste_types.property import Property
+from app.models.masters.waste_masters.property import Property
 
 BASE = "/api/v1/waste-types/properties/"
 

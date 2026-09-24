@@ -3,22 +3,22 @@ from django.contrib.auth.hashers import check_password, identify_hasher
 from django.db.models import F, Q
 from django.utils import timezone
 
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.customers.customercreation import CustomerCreation
-from app.models.customers.customer_access_configuration import CustomerAccessConfiguration
-from app.models.role_assigns.userType import UserType
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.masters.customer_masters.customer_access_configuration import CustomerAccessConfiguration
+from app.models.superadmin.role_management.userType import UserType
 from app.models.superadmin_masters.auth_user import User
-from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
-from app.models.masters.district_leader_login import DistrictLeaderLogin
+from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
+from app.models.masters.leader_management.district_leader_login import DistrictLeaderLogin
 
 from app.models.superadmin_masters.project import Project
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.state import State
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
-from app.models.staff_creations.staff_access_configuration import StaffAccessConfiguration
+from app.models.superadmin.staff_management.staff_access_configuration import StaffAccessConfiguration
 from app.utils.permission_response import (
     finalize_permission_payload,
     resolve_permission_payload,

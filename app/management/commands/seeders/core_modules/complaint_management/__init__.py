@@ -16,7 +16,7 @@ GRIEVANCE_SEEDERS = [
     SubCategorySeeder,
 ]
 
-# Ticketed complaint workflow (app.models.complaint_management.ComplaintTicket).
+# Ticketed complaint workflow (app.models.core_modules.complaint_management.ComplaintTicket).
 # Order matters:
 #   1. modules/sources/languages/priorities/statuses — categories look up
 #      default_priority/module by code.

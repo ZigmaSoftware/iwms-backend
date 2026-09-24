@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from app.models.schedule_masters.trip_delay_report import TripDelayReport
-from app.models.notifications.staff_notification import StaffNotification
+from app.models.core_modules.daily_operations.trip_delay_report import TripDelayReport
+from app.models.core_modules.notifications.staff_notification import StaffNotification
 from app.serializers.core_modules.daily_operations.trip_delay_report_serializer import (
     TripDelayAcknowledgeSerializer,
     TripDelayReportSerializer,
@@ -16,7 +16,7 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class TripDelayReportViewSet(CompanyScopedViewSet):
@@ -47,7 +47,7 @@ class TripDelayReportViewSet(CompanyScopedViewSet):
         serializer's read_only_fields. company/project are filled by the
         model's save() from the assignment.
         """
-        from app.models.staff_creations.staffcreation import Staffcreation
+        from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
         user = self.request.user
         reporter = user if isinstance(user, Staffcreation) else None
@@ -100,7 +100,7 @@ class TripDelayReportViewSet(CompanyScopedViewSet):
         payload = TripDelayAcknowledgeSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
 
-        from app.models.staff_creations.staffcreation import Staffcreation
+        from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
         user = request.user
         changed = report.mark_acknowledged(

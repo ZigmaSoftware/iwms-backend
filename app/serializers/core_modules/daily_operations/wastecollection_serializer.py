@@ -1,9 +1,9 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.customers.wastecollection import WasteCollection
-from app.models.customers.customercreation import CustomerCreation
+from app.models.core_modules.daily_operations.wastecollection import WasteCollection
+from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.ward import Ward
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 

@@ -5,11 +5,11 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown, VehicleBreakdownPhoto
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown, VehicleBreakdownPhoto
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.serializers.core_modules.daily_operations.vehicle_breakdown_serializer import (
     VehicleBreakdownSerializer,
     VehicleBreakdownVerifySerializer,
@@ -22,7 +22,7 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -76,8 +76,8 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         project = params.get("project_id")
 
         if str(params.get("mine", "")).lower() in {"true", "1", "yes"}:
-            from app.models.schedule_masters.trip_plan import TripPlan
-            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+            from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 
             supervised_plan_ids = TripPlan.objects.filter(
                 supervisor_id=self.request.user.staff_unique_id,
@@ -210,9 +210,9 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     @action(detail=False, methods=["get"], url_path="available-staff")
     def available_staff(self, request):
-        from app.models.staff_creations.staffcreation import Staffcreation
-        from app.models.schedule_masters.staff_template import StaffTemplate
-        from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
+        from app.models.superadmin.staff_management.staffcreation import Staffcreation
+        from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+        from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
 
         trip_date = request.query_params.get("date")
         role = request.query_params.get("role")
@@ -277,7 +277,7 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     @action(detail=False, methods=["get"], url_path="available-staff-templates")
     def available_staff_templates(self, request):
-        from app.models.schedule_masters.staff_template import StaffTemplate
+        from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
 
         trip_date = request.query_params.get("date")
         if not trip_date:
@@ -419,7 +419,7 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             new_data=self._serialize_instance(instance),
         )
 
-        from app.models.notifications.staff_notification import StaffNotification
+        from app.models.core_modules.notifications.staff_notification import StaffNotification
         from app.services.staff_notification_service import notify_staff
 
         assignment = instance.trip_assignment_id

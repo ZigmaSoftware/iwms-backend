@@ -1,7 +1,7 @@
 from rest_framework import filters, viewsets, status
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.assets.bins import Bins
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.models.masters.waste_masters.bins import Bins
 from app.serializers.masters.waste_masters.bins_serializer import BinsSerializer
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import os

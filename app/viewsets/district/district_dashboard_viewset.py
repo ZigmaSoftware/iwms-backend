@@ -10,8 +10,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
 ZERO = Decimal("0")
 TWO = Decimal("0.01")

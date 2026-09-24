@@ -74,7 +74,7 @@ class Panchayat(BaseMaster):
 
     @property
     def state(self):
-        from app.models.common_masters.state import State
+        from app.models.superadmin.common_masters.state import State
         if self.state_id:
             return State.objects.filter(unique_id=self.state_id).first()
         return None

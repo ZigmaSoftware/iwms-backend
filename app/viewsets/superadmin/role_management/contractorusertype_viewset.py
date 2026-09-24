@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
-from app.models.role_assigns.contractorUserType import ContractorUserType
+from app.models.superadmin.role_management.contractorUserType import ContractorUserType
 from app.serializers.superadmin.role_management.contractorusertype_serializer import ContractorUserTypeSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage

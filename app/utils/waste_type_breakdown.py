@@ -18,7 +18,7 @@ HOUSEHOLD_WASTE_TYPE_FALLBACK_ID_PREFIX = "HOUSEHOLD"
 
 
 def _daily_trip_log_fields():
-    from app.models.schedule_masters.daily_trip_log import DailyTripLog
+    from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
     return {
         "trip_date": Subquery(
             DailyTripLog.objects.filter(
@@ -34,7 +34,7 @@ def _daily_trip_log_fields():
 
 
 def _waste_type_name_field():
-    from app.models.staff_creations.waste_collection_bluetooth import WasteType
+    from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
     return Subquery(
         WasteType.objects.filter(
             unique_id=OuterRef("waste_type_id")
@@ -46,9 +46,9 @@ def bulk_waste_type_rows_for_trip_assignments(
     trip_assignment_ids, source="bin", extra_group_by=(),
 ):
     """Return non-zero per-assignment/per-waste-type weights in bulk."""
-    from app.models.customers.wastecollection import WasteCollection
-    from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
-    from app.models.staff_creations.waste_collection_bluetooth import WasteType
+    from app.models.core_modules.daily_operations.wastecollection import WasteCollection
+    from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
+    from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
     assignment_ids = list(trip_assignment_ids)
     if not assignment_ids:
@@ -61,7 +61,7 @@ def bulk_waste_type_rows_for_trip_assignments(
     # (WasteCollection has no such annotation of its own) can populate them.
     daily_log_lookup = {}
     if extra_group_by:
-        from app.models.schedule_masters.daily_trip_log import DailyTripLog
+        from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
         daily_log_lookup = {
             row["trip_assignment_id"]: row
             for row in DailyTripLog.objects.filter(

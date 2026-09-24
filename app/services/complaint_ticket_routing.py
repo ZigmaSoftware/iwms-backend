@@ -95,7 +95,7 @@ def _best_routing_rule(ticket):
     """Best-matching `ComplaintRoutingRule` for this ticket, used only to
     pin a specific SLA rule by geo/category/priority — it no longer carries
     a department."""
-    from app.models.complaint_management.transactions import ComplaintRoutingRule
+    from app.models.core_modules.complaint_management.transactions import ComplaintRoutingRule
 
     candidates = ComplaintRoutingRule.objects.filter(
         is_deleted=False,
@@ -129,7 +129,7 @@ def _sla_specificity(rule):
 
 
 def _best_sla_rule(ticket):
-    from app.models.complaint_management.masters import ComplaintSlaRule
+    from app.models.core_modules.complaint_management.masters import ComplaintSlaRule
 
     candidates = ComplaintSlaRule.objects.filter(
         is_deleted=False,
@@ -153,7 +153,7 @@ def _staff_geo_matches(staff, ticket):
     treated as unrestricted, so existing single-zone deployments that never
     configured Data Scope keep working unchanged.
     """
-    from app.models.staff_creations.staff_access_configuration import StaffAccessConfiguration
+    from app.models.superadmin.staff_management.staff_access_configuration import StaffAccessConfiguration
 
     access_config = StaffAccessConfiguration.objects.filter(
         staff_id=staff.staff_unique_id, is_active=True, is_deleted=False,
@@ -181,8 +181,8 @@ def _staff_for_hierarchy_level(project_id, level_num, ticket):
     geo grants cover `ticket` — see `_staff_geo_matches`. None if the level
     isn't configured or nobody at it covers this ticket's geography.
     """
-    from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
-    from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+    from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
+    from app.models.superadmin.staff_management.staffcreation import StaffcreationOfficeDetails
 
     hierarchy_entry = ProjectStaffHierarchy.objects.filter(
         project_id=project_id, level=level_num, is_deleted=False,

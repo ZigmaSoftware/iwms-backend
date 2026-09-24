@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.common_masters.continent import Continent
+from app.models.superadmin.common_masters.continent import Continent
 from app.validators.unique_name_validator import unique_name_validator
 
 class ContinentSerializer(serializers.ModelSerializer):

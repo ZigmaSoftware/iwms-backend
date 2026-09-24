@@ -2,11 +2,11 @@
 import pytest
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from app.models.customers.customercreation import CustomerCreation
+from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.panchayat import Panchayat
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
 from app.viewsets.masters.customer_masters.customercreation_viewset import (
     CustomerCreationViewSet,
 )

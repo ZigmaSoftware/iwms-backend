@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField

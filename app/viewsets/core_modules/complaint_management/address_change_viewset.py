@@ -5,12 +5,12 @@ from rest_framework import status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.complaint_management import (
+from app.models.core_modules.complaint_management import (
     ComplaintAddressChangeRequest,
     ComplaintStatus,
     ComplaintStatusHistory,
 )
-from app.models.schedule_masters.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 from app.serializers.core_modules.complaint_management.ticket_serializers import (
     ComplaintAddressChangeRequestSerializer,
 )

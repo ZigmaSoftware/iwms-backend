@@ -1,10 +1,10 @@
 """Serializer tests for Bins — ward/zone/panchayat writable fields + validation."""
 import pytest
 
-from app.models.assets.bins import Bins
+from app.models.masters.waste_masters.bins import Bins
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
-from app.models.schedule_masters.collection_point import Collection_point
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
 from app.serializers.masters.waste_masters.bins_serializer import BinsSerializer
 
 
@@ -30,7 +30,7 @@ def collection_point(db, company, project, state, district, city, panchayat):
 
 @pytest.fixture
 def waste_type_obj(db):
-    from app.models.staff_creations.waste_collection_bluetooth import WasteType
+    from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
     return WasteType.objects.create(waste_type_name="General Waste")
 
 

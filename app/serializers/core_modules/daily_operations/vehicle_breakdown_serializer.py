@@ -1,10 +1,10 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 
@@ -349,7 +349,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             )
 
         from django.db import transaction
-        from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
+        from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
         from app.services import retrip_service
 
         assignment = instance.trip_assignment_id
@@ -405,7 +405,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             approved_by_staff = None
             if account:
                 try:
-                    from app.models.staff_creations.staffcreation import Staffcreation
+                    from app.models.superadmin.staff_management.staffcreation import Staffcreation
                     approved_by_staff = Staffcreation.objects.filter(
                         account=account
                     ).first()
@@ -426,7 +426,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             )
             instance.refresh_from_db()
 
-            from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+            from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
 
             BinCollectionEvent.objects.filter(
                 trip_assignment_id=assignment,
@@ -436,7 +436,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
                 updated_at=now,
             )
 
-        from app.models.notifications.staff_notification import StaffNotification
+        from app.models.core_modules.notifications.staff_notification import StaffNotification
         from app.services.staff_notification_service import notify_staff
 
         driver = instance.replacement_driver_id
@@ -481,7 +481,7 @@ class VehicleBreakdownRejectSerializer(serializers.Serializer):
         )
         instance.refresh_from_db()
 
-        from app.models.notifications.staff_notification import StaffNotification
+        from app.models.core_modules.notifications.staff_notification import StaffNotification
         from app.services.staff_notification_service import notify_staff
 
         # Notify the assignment's current driver — the replacement request

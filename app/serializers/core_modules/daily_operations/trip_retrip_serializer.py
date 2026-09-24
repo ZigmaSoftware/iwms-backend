@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
+from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 from app.services.retrip_service import build_pending_snapshot
 
 

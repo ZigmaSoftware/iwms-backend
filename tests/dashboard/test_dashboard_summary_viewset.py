@@ -1,9 +1,9 @@
 """API tests for the company/project-scoped dashboard summary endpoint."""
 import pytest
 
-from app.models.customers.customercreation import CustomerCreation
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
 
 BASE = "/api/v1/dashboard/summary/"
 

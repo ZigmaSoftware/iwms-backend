@@ -2,9 +2,9 @@
 from datetime import date
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.transport_masters.fuel import Fuel
-from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
-from app.models.transport_masters.vehicleCreation import VehicleCreation
+from app.models.masters.transport_masters.fuel import Fuel
+from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 

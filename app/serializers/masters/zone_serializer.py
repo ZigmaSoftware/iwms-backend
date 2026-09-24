@@ -4,7 +4,7 @@ from rest_framework import serializers
 from app.models.masters.zone import Zone
 from app.models.masters.city import City
 from app.models.masters.district import District
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.state import State
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator

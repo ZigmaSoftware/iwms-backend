@@ -21,19 +21,19 @@ from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.userType import UserType
-from app.models.screen_managements.companyuserscreenpermission import (
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.role_management.userType import UserType
+from app.models.superadmin.screen_management.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
-from app.models.staff_creations.department import Department
-from app.models.staff_creations.designation import Designation
-from app.models.staff_creations.staff_access_configuration import (
+from app.models.superadmin.staff_management.department import Department
+from app.models.superadmin.staff_management.designation import Designation
+from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
 
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.password_encryption import encrypt_password

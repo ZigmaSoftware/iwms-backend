@@ -1,9 +1,9 @@
 from django.db.models import Max
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.screen_managements.mainscreentype import MainScreenType
-from app.models.screen_managements.app_module import AppModule
-from app.models.staff_creations.staff_access_configuration import (
+from app.models.superadmin.screen_management.mainscreentype import MainScreenType
+from app.models.superadmin.screen_management.app_module import AppModule
+from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfigurationPermission,
 )
 from app.utils.app_feature_grants import (
@@ -11,17 +11,17 @@ from app.utils.app_feature_grants import (
     CITIZEN_APP_MAINSCREEN,
     CITIZEN_APP_SCREENS,
 )
-from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.companyuserscreenpermission import (
+from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
+from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.models.superadmin.screen_management.userscreen import UserScreen
+from app.models.superadmin.screen_management.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
-from app.models.screen_managements.userscreencolumn import UserScreenColumn
-from app.models.screen_managements.companyuserscreencolumnpermission import (
+from app.models.superadmin.screen_management.userscreencolumn import UserScreenColumn
+from app.models.superadmin.screen_management.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
 
@@ -30,8 +30,8 @@ class PermissionSeeder(BaseSeeder):
     name = "permission_full"
 
     def _grant_palakkad_project_admin_access(self):
-        from app.models.staff_creations.staffcreation import Staffcreation
-        from app.models.staff_creations.staff_access_configuration import (
+        from app.models.superadmin.staff_management.staffcreation import Staffcreation
+        from app.models.superadmin.staff_management.staff_access_configuration import (
             StaffAccessConfiguration,
             StaffAccessConfigurationPermission,
         )
@@ -344,8 +344,14 @@ class PermissionSeeder(BaseSeeder):
             ],
             "role-assigns": [
                 "user-type",
+                # Staff and contractor user types are two tabs of one page;
+                # permission forms show them as one "Staff User Type" row
+                # (SCREEN_GROUPS in app/utils/screen_dependencies.py).
                 "staffusertypes",
                 "contractorusertypes",
+                # Has its own sidebar page; it was missing here, so it could
+                # never be granted.
+                "project-staff-hierarchy",
             ],
             "staff-creations": [
                 # "users-creation",

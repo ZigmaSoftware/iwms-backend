@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.models.transport_masters.fuel import Fuel
+from app.models.masters.transport_masters.fuel import Fuel
 from app.validators.unique_name_validator import unique_name_validator
 
 class FuelSerializer(serializers.ModelSerializer):

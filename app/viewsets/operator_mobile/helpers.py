@@ -5,12 +5,12 @@ from typing import Optional
 from django.db.models import Q
 from django.utils import timezone
 
-from app.models.assets.bins import Bins
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import (
+from app.models.masters.waste_masters.bins import Bins
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
 
 class OperatorFlowError(Exception):
@@ -110,7 +110,7 @@ def find_active_assignment_for_operator(
     # not a real FK, so it can't be traversed with `__driver_id`/`__operator_id`
     # lookups. Resolve the matching StaffTemplate ids first, then filter on
     # the id column directly.
-    from app.models.schedule_masters.staff_template import StaffTemplate
+    from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
 
     staff_template_ids = set(
         StaffTemplate.objects.filter(
@@ -214,7 +214,7 @@ def _assignment_waste_type_ids(assignment: DailyTripAssignment) -> set:
     """
     ids = set(str(v) for v in (assignment.waste_type_ids or []) if v)
     if assignment.trip_plan_id:
-        from app.models.schedule_masters.trip_plan import TripPlan
+        from app.models.core_modules.schedule_setup.trip_plan import TripPlan
         plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id).first()
         if plan and plan.waste_type_id:
             ids.add(str(plan.waste_type_id))
@@ -223,7 +223,7 @@ def _assignment_waste_type_ids(assignment: DailyTripAssignment) -> set:
 
 def _assignment_waste_type_names(assignment: DailyTripAssignment) -> str:
     """Human-readable list of the trip's waste types, for error messages."""
-    from app.models.staff_creations.waste_collection_bluetooth import WasteType
+    from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
     ids = _assignment_waste_type_ids(assignment)
     if not ids:
@@ -333,7 +333,7 @@ def require_trip_started(assignment: DailyTripAssignment) -> None:
 
 
 def build_scan_context(bin_qr: str, operator: Staffcreation) -> ScanContext:
-    from app.models.schedule_masters.trip_plan import TripPlan
+    from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 
     # A bin scan belongs to a BIN trip: with a household trip open at the same
     # time, an untyped lookup would hand the scan to the household trip and the
@@ -534,7 +534,7 @@ def resolve_customer_from_id(customer_id: str):
     payload) or the legacy `customer_id` column, so match on both — the same
     pair every other household endpoint in this project matches on.
     """
-    from app.models.customers.customercreation import CustomerCreation
+    from app.models.masters.customer_masters.customercreation import CustomerCreation
 
     identifier = (customer_id or "").strip()
     if not identifier:
@@ -576,7 +576,7 @@ def validate_customer_against_assignment(customer, assignment):
     friendlier `TRIP_LOCKED` message instead, so "finish your current trip"
     never reads as "this QR is invalid".
     """
-    from app.models.schedule_masters.daily_trip_household_collection import (
+    from app.models.core_modules.daily_operations.daily_trip_household_collection import (
         DailyTripHouseholdCollection,
     )
 
@@ -625,7 +625,7 @@ def _raise_if_customer_belongs_to_locked_trip(customer, active_assignment):
     """Mirror of `_raise_if_bin_belongs_to_locked_trip` for households: if the
     customer is a stop on another of today's trips, say so rather than
     claiming they are not on any trip at all."""
-    from app.models.schedule_masters.daily_trip_household_collection import (
+    from app.models.core_modules.daily_operations.daily_trip_household_collection import (
         DailyTripHouseholdCollection,
     )
 

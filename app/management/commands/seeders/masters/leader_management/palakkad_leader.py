@@ -28,18 +28,18 @@ from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
 from app.models.masters.panchayat import Panchayat
-from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
+from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.ward import Ward
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.userType import UserType
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.staff_creations.department import Department
-from app.models.staff_creations.designation import Designation
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.role_management.userType import UserType
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.superadmin.staff_management.department import Department
+from app.models.superadmin.staff_management.designation import Designation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 from app.models.superadmin_masters.project import Project
 
 

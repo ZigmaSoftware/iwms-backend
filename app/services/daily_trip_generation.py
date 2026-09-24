@@ -1,10 +1,10 @@
 from django.db import transaction
 
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
 
 # NOTE: the authoritative nightly/manual auto-assign entry point is
 # `run_for_date()` in app/management/commands/generate_daily_trips.py — it

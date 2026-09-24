@@ -42,27 +42,27 @@ class City(BaseMaster):
         ordering = ["name"]
 
     def __str__(self):
-        from app.models.common_masters.state import State
+        from app.models.superadmin.common_masters.state import State
         state_name = State.objects.filter(unique_id=self.state_id).values_list("name", flat=True).first()
         return f"{self.name} ({state_name})"
 
     @property
     def continent(self):
-        from app.models.common_masters.continent import Continent
+        from app.models.superadmin.common_masters.continent import Continent
         if self.continent_id:
             return Continent.objects.filter(unique_id=self.continent_id).first()
         return None
 
     @property
     def country(self):
-        from app.models.common_masters.country import Country
+        from app.models.superadmin.common_masters.country import Country
         if self.country_id:
             return Country.objects.filter(unique_id=self.country_id).first()
         return None
 
     @property
     def state(self):
-        from app.models.common_masters.state import State
+        from app.models.superadmin.common_masters.state import State
         if self.state_id:
             return State.objects.filter(unique_id=self.state_id).first()
         return None

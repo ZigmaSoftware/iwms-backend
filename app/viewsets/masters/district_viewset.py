@@ -1,5 +1,5 @@
 from rest_framework import filters, viewsets
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.masters.district import District
 from app.serializers.masters.district_serializer import DistrictSerializer
 from app.utils.audit_mixin import AuditViewSetMixin

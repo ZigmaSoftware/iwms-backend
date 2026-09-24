@@ -4,10 +4,10 @@ from decimal import Decimal
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
 # Chennai-area GPS samples, so breakdown pins land in the same demo area as
 # the rest of the daily-operations seed data.

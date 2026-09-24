@@ -3,19 +3,19 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.customers.customer_access_configuration import (
+from app.models.masters.customer_masters.customer_access_configuration import (
     CustomerAccessConfiguration,
 )
-from app.models.customers.customercreation import CustomerCreation
-from app.models.screen_managements.app_module import AppModule
-from app.models.screen_managements.userscreen import UserScreen
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.superadmin.screen_management.app_module import AppModule
+from app.models.superadmin.screen_management.userscreen import UserScreen
 from app.serializers.masters.customer_masters.customer_access_configuration_serializer import (
     CustomerAccessConfigurationSerializer,
 )
 from app.utils.app_feature_grants import CITIZEN_APP_SCREENS
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class CustomerAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):

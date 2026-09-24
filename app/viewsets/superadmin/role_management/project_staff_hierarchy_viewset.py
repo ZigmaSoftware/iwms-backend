@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 
-from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
+from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
 from app.serializers.superadmin.role_management.project_staff_hierarchy_serializer import (
     ProjectStaffHierarchySerializer,
 )

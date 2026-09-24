@@ -4,14 +4,14 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.schedule_masters.daily_trip_household_collection import (
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.core_modules.daily_operations.daily_trip_household_collection import (
     DailyTripHouseholdCollection,
 )
-from app.models.customers.wastecollection import WasteCollection
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
+from app.models.core_modules.daily_operations.wastecollection import WasteCollection
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 from app.services import retrip_service
 from app.services.daily_trip_generation import generate_assignment_for_plan
 
@@ -142,7 +142,7 @@ class RetripDemoSeeder(BaseSeeder):
                 continue
             # Resolve driver_id and operator_id from the staff_template
             # (both are CharField unique_ids on StaffTemplate, not FKs)
-            from app.models.schedule_masters.staff_template import StaffTemplate
+            from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
             tmpl = StaffTemplate.objects.filter(
                 unique_id=plan.staff_template_id,
                 is_deleted=False,

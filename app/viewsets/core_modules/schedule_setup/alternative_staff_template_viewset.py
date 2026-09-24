@@ -1,11 +1,11 @@
 from rest_framework import viewsets, status, serializers
 from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
-from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
-from app.models.audits.staff_template_audit_log import StaffTemplateAuditLog
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
+from app.models.superadmin.audits.staff_template_audit_log import StaffTemplateAuditLog
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.serializers.core_modules.schedule_setup.alternative_staff_template_serializer import (
     AlternativeStaffTemplateSerializer
 )
@@ -73,7 +73,7 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     # --------------------------------------------------
 
     def _resolve_request_user(self):
-        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        from app.models.superadmin.staff_management.staffcreation import StaffcreationOfficeDetails
 
         # 1. Try JWT payload (BEST METHOD)
         payload = getattr(self.request, "jwt_payload", None)

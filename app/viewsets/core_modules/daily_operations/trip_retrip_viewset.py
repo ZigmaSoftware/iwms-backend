@@ -38,8 +38,8 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.serializers.core_modules.daily_operations.trip_retrip_serializer import (
     TripRetripRequestSerializer,
 )
@@ -49,7 +49,7 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class TripRetripRequestViewSet(CompanyScopedViewSet):
@@ -71,8 +71,8 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
             # supervisor owns — mirrors DailyTripAssignmentViewSet's
             # `mine=true`. See filter_queryset() below for why this must
             # also suppress the base class's home-project narrowing.
-            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-            from app.models.schedule_masters.trip_plan import TripPlan
+            from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 
             supervised_plan_ids = TripPlan.objects.filter(
                 supervisor_id=self.request.user.staff_unique_id,

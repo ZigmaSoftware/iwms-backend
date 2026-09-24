@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
-from app.models.staff_creations.auditlog import AuditLog
+from app.models.superadmin.audits.auditlog import AuditLog
 
 
 class AuditLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):

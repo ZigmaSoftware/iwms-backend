@@ -20,11 +20,11 @@ Covers:
 import pytest
 
 from app.management.commands.generate_daily_trips import run_for_date
-from app.models.customers.customercreation import CustomerCreation
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_household_collection import DailyTripHouseholdCollection
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
 from app.serializers.core_modules.schedule_setup.trip_plan_serializer import TripPlanSerializer
 
 

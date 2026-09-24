@@ -1,7 +1,7 @@
 """API tests for SubCategory grievance endpoint — CRUD operations."""
 import pytest
-from app.models.grivences.main_category_citizenGrievance import MainCategory
-from app.models.grivences.sub_category_citizenGrievance import SubCategory
+from app.models.core_modules.complaint_management.main_category_citizenGrievance import MainCategory
+from app.models.core_modules.complaint_management.sub_category_citizenGrievance import SubCategory
 
 BASE = "/api/v1/grivences/sub-category/"
 

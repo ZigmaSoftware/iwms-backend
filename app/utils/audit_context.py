@@ -18,6 +18,27 @@ def _name_of(obj):
     return (getattr(obj, "name", None) or "").strip() or None
 
 
+def _company_name(company_uid):
+    # company_id fields across this codebase are plain CharFields holding
+    # the Company's unique_id, not a real FK — _name_of only works on an
+    # actual resolved object, so this looks the row up. Deliberately still
+    # returns None when there's no company_uid (e.g. a platform superadmin's
+    # own action), matching the existing "blank for platform scope" behavior.
+    if not company_uid:
+        return None
+    from app.models.superadmin_masters.company import Company
+    company = Company.objects.filter(unique_id=company_uid).first()
+    return _name_of(company)
+
+
+def _project_name(project_uid):
+    if not project_uid:
+        return None
+    from app.models.superadmin_masters.project import Project
+    project = Project.objects.filter(unique_id=project_uid).first()
+    return _name_of(project)
+
+
 def is_platform_super_admin(user):
     """
     A platform super admin is a superuser with no company of their own.
@@ -110,7 +131,7 @@ def resolve_tenancy(user, instance=None):
     return (
         scope,
         company_uid,
-        _name_of(company),
+        _company_name(company_uid),
         project_uid,
-        _name_of(project),
+        _project_name(project_uid),
     )

@@ -2,11 +2,11 @@ from django.conf import settings
 
 from rest_framework import serializers
 
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import (
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.schedule_masters.daily_trip_household_collection import (
+from app.models.core_modules.daily_operations.daily_trip_household_collection import (
     DailyTripHouseholdCollection,
 )
 
@@ -153,7 +153,7 @@ class HouseholdCollectionSerializer(serializers.Serializer):
 
         record = None
         if obj.is_collected and obj.trip_assignment_id and obj.customer_id:
-            from app.models.customers.wastecollection import WasteCollection
+            from app.models.core_modules.daily_operations.wastecollection import WasteCollection
 
             # A household can be re-collected (edit + re-finalize from the
             # app), and WasteCollection rows are inserted fresh each time
@@ -236,7 +236,7 @@ class _CrewMemberSerializer(serializers.Serializer):
         return staff.emp_id
 
     def get_role(self, staff):
-        from app.models.role_assigns.staffUserType import StaffUserType
+        from app.models.superadmin.role_management.staffUserType import StaffUserType
 
         staffusertype = StaffUserType.objects.filter(unique_id=staff.staffusertype_id).first()
         return staffusertype.name if staffusertype else None
@@ -253,7 +253,7 @@ class _CrewMemberSerializer(serializers.Serializer):
         # Prefer the face registered for attendance (Employee.image_path),
         # falling back to the admin-uploaded staff photo — same resolution
         # the staff-profile endpoint uses, so the circle matches the header.
-        from app.models.staff_creations.attendance import Employee
+        from app.models.core_modules.attendance.attendance import Employee
 
         emp = Employee.objects.filter(staff_id=staff.staff_unique_id).first()
         image_path = getattr(emp, "image_path", None)
@@ -324,7 +324,7 @@ class MyTripTodaySerializer(serializers.Serializer):
         return False
 
     def get_retrip_request(self, obj):
-        from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
+        from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 
         pending = TripRetripRequest.objects.filter(
             assignment_id=obj.unique_id, status="Pending", is_deleted=False
@@ -429,7 +429,7 @@ class MyTripTodaySerializer(serializers.Serializer):
 
         extra_operators = []
         if extra_ids:
-            from app.models.staff_creations.staffcreation import Staffcreation
+            from app.models.superadmin.staff_management.staffcreation import Staffcreation
             extra_operators = list(
                 Staffcreation.objects.filter(
                     staff_unique_id__in=extra_ids, is_deleted=False

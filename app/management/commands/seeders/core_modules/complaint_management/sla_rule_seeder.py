@@ -28,14 +28,14 @@ created here).
 """
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.complaint_management import (
+from app.models.core_modules.complaint_management import (
     ComplaintCategory,
     ComplaintSlaEscalationLevel,
     ComplaintSlaRule,
     ComplaintSubcategory,
 )
-from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
-from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
+from app.models.superadmin.staff_management.staffcreation import StaffcreationOfficeDetails
 from app.models.superadmin_masters.project import Project
 
 

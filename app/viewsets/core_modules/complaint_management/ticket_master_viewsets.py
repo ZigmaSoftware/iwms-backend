@@ -6,7 +6,7 @@ returned an empty list / 501 while the models did not exist here yet.
 
 from rest_framework import viewsets
 
-from app.models.complaint_management import (
+from app.models.core_modules.complaint_management import (
     ComplaintCategory,
     ComplaintLanguage,
     ComplaintModule,
@@ -32,7 +32,7 @@ from app.serializers.core_modules.complaint_management.ticket_serializers import
     ComplaintRoutingRuleSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class _BaseComplaintMasterViewSet(AuditViewSetMixin, viewsets.ModelViewSet):

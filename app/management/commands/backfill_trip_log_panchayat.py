@@ -7,7 +7,7 @@ records so they appear in the Daily/Monthly Waste Comparison reports.
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 
 
 class Command(BaseCommand):

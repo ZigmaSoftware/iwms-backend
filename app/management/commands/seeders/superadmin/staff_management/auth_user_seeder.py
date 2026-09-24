@@ -1,9 +1,9 @@
 from django.conf import settings
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.userType import UserType
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.role_management.userType import UserType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.masters.district import District

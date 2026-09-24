@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
+from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.validators.unique_name_validator import unique_name_validator
 
 

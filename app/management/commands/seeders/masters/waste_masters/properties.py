@@ -1,6 +1,6 @@
 # core/management/commands/seeders/assets/property.py
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.waste_types.property import Property
+from app.models.masters.waste_masters.property import Property
 
 
 class PropertySeeder(BaseSeeder):

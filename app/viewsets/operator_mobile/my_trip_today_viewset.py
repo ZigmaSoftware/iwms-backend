@@ -3,7 +3,7 @@ from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.permissions.operator_permission import IsOperatorRole
 from app.serializers.operator_mobile.trip_today_serializer import (
     MyTripTodaySerializer,
