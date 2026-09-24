@@ -160,9 +160,14 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         # that code exists yet — the `.exclude(...)` below is simply a no-op,
         # and that seeder creates its own plan fresh when it runs next).
         keep = {wet_plan.pk, dry_plan.pk}
+        driver_template_ids = list(
+            StaffTemplate.objects.filter(
+                driver_id=ctx["driver"].staff_unique_id
+            ).values_list("unique_id", flat=True)
+        )
         keep |= set(
             TripPlan.objects.filter(
-                staff_template_id__driver_id=ctx["driver"],
+                staff_template_id__in=driver_template_ids,
                 display_code=HOUSEHOLD_PLAN_DISPLAY_CODE,
             ).values_list("pk", flat=True)
         )
@@ -199,9 +204,14 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         means some other seeder created plans AFTER _purge_foreign_plans ran,
         which would otherwise only surface as extra trip cards in the app.
         """
+        driver_template_ids = list(
+            StaffTemplate.objects.filter(
+                driver_id=ctx["driver"].staff_unique_id
+            ).values_list("unique_id", flat=True)
+        )
         codes = sorted(
             TripPlan.objects.filter(
-                staff_template_id__driver_id=ctx["driver"],
+                staff_template_id__in=driver_template_ids,
             ).values_list("display_code", flat=True)
         )
         allowed = {WET_PLAN_DISPLAY_CODE, DRY_PLAN_DISPLAY_CODE, HOUSEHOLD_PLAN_DISPLAY_CODE}
@@ -222,13 +232,13 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
             return None
 
         project = Project.objects.filter(
-            name=PROJECT_NAME, company_id=company, is_deleted=False
+            name=PROJECT_NAME, company_id=company.unique_id, is_deleted=False
         ).first()
         if not project:
             self.log(f"Project '{PROJECT_NAME}' not found under {COMPANY_NAME}.")
             return None
 
-        scope = {"company_id": company, "project_id": project, "is_deleted": False}
+        scope = {"company_id": company.unique_id, "project_id": project.unique_id, "is_deleted": False}
         district = District.objects.filter(**scope).first()
         city = City.objects.filter(**scope).first()
         zone = Zone.objects.filter(**scope).first()
@@ -246,10 +256,12 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
             return None
 
         wet_type = WasteType.objects.filter(
-            **scope, waste_type_name="Wet Waste",
+            company_id=company.unique_id, project_id=project.unique_id,
+            is_deleted=False, waste_type_name="Wet Waste",
         ).first()
         dry_type = WasteType.objects.filter(
-            **scope, waste_type_name="Dry Waste",
+            company_id=company.unique_id, project_id=project.unique_id,
+            is_deleted=False, waste_type_name="Dry Waste",
         ).first()
         if not wet_type or not dry_type:
             self.log(f"Wet/Dry WasteType not found under {PROJECT_NAME}. Seed superadmin first.")
@@ -275,13 +287,13 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         # driver_palakkad_trips.py used to apply) so CompanyScopedViewSet
         # doesn't filter this seeder's own trips out of the driver app.
         for staff in {driver, operator, supervisor}:
-            if staff.company_id_id != company.unique_id or staff.project_id_id != project.unique_id:
-                staff.company_id = company
-                staff.project_id = project
-                staff.district_id = district
-                staff.city_id = city
-                staff.zone_id = zone
-                staff.ward_id = ward
+            if staff.company_id != company.unique_id or staff.project_id != project.unique_id:
+                staff.company_id = company.unique_id
+                staff.project_id = project.unique_id
+                staff.district_id = district.unique_id
+                staff.city_id = city.unique_id
+                staff.zone_id = zone.unique_id
+                staff.ward_id = ward.unique_id
                 # staff_id is scoped per company+project (STF0001-style display
                 # ID). Moving to a new tenant scope must re-scope it, otherwise
                 # the old value can already belong to another staff in the
@@ -293,8 +305,8 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
                 ])
 
         template, created = StaffTemplate.objects.get_or_create(
-            company_id=company, project_id=project,
-            driver_id=driver, operator_id=operator,
+            company_id=company.unique_id, project_id=project.unique_id,
+            driver_id=driver.staff_unique_id, operator_id=operator.staff_unique_id,
             is_deleted=False,
             defaults={"is_active": True},
         )
@@ -333,7 +345,7 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
             return None
         role, _ = StaffUserType.objects.get_or_create(
             name="Company Supervisor",
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id,
             defaults={"is_active": True, "is_deleted": False},
         )
 
@@ -342,10 +354,10 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
             defaults={
                 "employee_name": "Supervisor User",
                 "password": "Supervisor123",
-                "user_type_id": staff_type,
-                "staffusertype_id": role,
-                "company_id": company,
-                "project_id": project,
+                "user_type_id": staff_type.unique_id,
+                "staffusertype_id": role.unique_id,
+                "company_id": company.unique_id,
+                "project_id": project.unique_id,
                 "is_active": True,
                 "is_deleted": False,
                 "is_superuser": False,
@@ -359,18 +371,18 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
     # ------------------------------------------------------------------
     def _seed_plan(self, ctx, display_code, waste_type, scheduled_time="07:00"):
         plan, created = TripPlan.objects.update_or_create(
-            company_id=ctx["company"],
-            project_id=ctx["project"],
+            company_id=ctx["company"].unique_id,
+            project_id=ctx["project"].unique_id,
             display_code=display_code,
             defaults={
-                "district_id": ctx["district"],
-                "city_id": ctx["city"],
-                "zone_id": ctx["zone"],
-                "staff_template_id": ctx["template"],
-                "vehicle_id": ctx["vehicle"],
-                "supervisor_id": ctx["supervisor"],
-                "waste_type_id": waste_type,
-                "waste_type_ids": [],
+                "district_id": ctx["district"].unique_id,
+                "city_id": ctx["city"].unique_id,
+                "zone_id": ctx["zone"].unique_id,
+                "staff_template_id": ctx["template"].unique_id,
+                "vehicle_id": ctx["vehicle"].unique_id,
+                "supervisor_id": ctx["supervisor"].staff_unique_id,
+                "waste_type_id": waste_type.unique_id,
+                "waste_type_ids": [waste_type.unique_id],
                 "collection_type": TripPlan.COLLECTION_TYPE_BIN,
                 "trip_trigger_weight_kg": 800,
                 "max_vehicle_capacity_kg": 3000,
@@ -385,8 +397,8 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-        plan.wards.set([ctx["ward"]])
-        plan.waste_types.set([waste_type])
+        plan.ward_ids = ctx["ward"].unique_id
+        plan.save(update_fields=["ward_ids"])
         self.log(
             f"TripPlan {'created' if created else 'updated'}: {plan.unique_id} "
             f"[{display_code}] supervisor={ctx['supervisor'].username}"
@@ -399,14 +411,14 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         created = 0
         for cp_name, lat, lng in points_spec:
             cp, was_created = Collection_point.objects.update_or_create(
-                company_id=ctx["company"],
-                project_id=ctx["project"],
+                company_id=ctx["company"].unique_id,
+                project_id=ctx["project"].unique_id,
                 cp_name=cp_name,
                 defaults={
                     "state_id": ctx["district"].state_id,
-                    "city_id": ctx["city"],
-                    "district_id": ctx["district"],
-                    "zone_id": ctx["zone"],
+                    "city_id": ctx["city"].unique_id,
+                    "district_id": ctx["district"].unique_id,
+                    "zone_id": ctx["zone"].unique_id,
                     "collection_type": Collection_point.COLLECTION_TYPE_BIN,
                     "latitude": lat,
                     "longitude": lng,
@@ -414,7 +426,8 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
                     "is_deleted": False,
                 },
             )
-            cp.wards.set([ctx["ward"]])
+            cp.ward_ids = ctx["ward"].unique_id
+            cp.save(update_fields=["ward_ids"])
             points.append(cp)
             created += int(was_created)
         self.log(f"Collection points ready: {len(points)} ({created} created).")
@@ -427,16 +440,16 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         for cp in points:
             bin_name = f"{cp.cp_name} {waste_type.waste_type_name}"
             bin_obj, was_created = Bins.objects.update_or_create(
-                company_id=ctx["company"],
-                project_id=ctx["project"],
-                collection_point_id=cp,
+                company_id=ctx["company"].unique_id,
+                project_id=ctx["project"].unique_id,
+                collection_point_id=cp.unique_id,
                 bin_name=bin_name,
                 defaults={
-                    "district_id": ctx["district"],
-                    "city_id": ctx["city"],
-                    "zone_id": ctx["zone"],
-                    "ward_id": ctx["ward"],
-                    "wastetype_id": waste_type,
+                    "district_id": ctx["district"].unique_id,
+                    "city_id": ctx["city"].unique_id,
+                    "zone_id": ctx["zone"].unique_id,
+                    "ward_id": ctx["ward"].unique_id,
+                    "wastetype_id": waste_type.unique_id,
                     "bin_capacity": 240,
                     "bin_type": BinType.MEDIUM,
                     "bin_image": "",
@@ -460,19 +473,19 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         child tables (DailyTripCollectionPoint) clone its data rather than
         pointing back at it — so this is safe.
         """
-        TripPlanCollectionPoint.objects.filter(trip_plan_id=plan).delete()
+        TripPlanCollectionPoint.objects.filter(trip_plan_id=plan.unique_id).delete()
 
         for sequence, bin_obj in enumerate(bins, start=1):
             TripPlanCollectionPoint.objects.create(
-                trip_plan_id=plan,
+                trip_plan_id=plan.unique_id,
                 collection_point_id=bin_obj.collection_point_id,
-                bin_id=bin_obj,
-                company_id=ctx["company"],
-                project_id=ctx["project"],
+                bin_id=bin_obj.unique_id,
+                company_id=ctx["company"].unique_id,
+                project_id=ctx["project"].unique_id,
                 collection_type=TripPlanCollectionPoint.COLLECTION_TYPE_BIN,
                 sequence=sequence,
-                zone_id=ctx["zone"],
-                ward_id=ctx["ward"],
+                zone_id=ctx["zone"].unique_id,
+                ward_id=ctx["ward"].unique_id,
                 is_active=True,
                 is_deleted=False,
             )
@@ -492,10 +505,16 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
             DailyTripCollectionPoint,
         )
 
+        assignment_ids = list(
+            DailyTripAssignment.objects.filter(
+                trip_plan_id=plan.unique_id
+            ).values_list("unique_id", flat=True)
+        )
+        bin_ids = [b.unique_id for b in bins]
         deleted, _ = DailyTripCollectionPoint.objects.filter(
-            trip_assignment_id__trip_plan_id=plan,
+            trip_assignment_id__in=assignment_ids,
             is_collected=False,
-        ).exclude(bin_id__in=bins).delete()
+        ).exclude(bin_id__in=bin_ids).delete()
         if deleted:
             self.log(f"Pruned {deleted} stale (never-collected) daily stop(s) on {plan.display_code}.")
 
@@ -519,15 +538,21 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         )
         from app.models.schedule_masters.daily_trip_log import DailyTripLog
 
+        driver_template_ids = list(
+            StaffTemplate.objects.filter(
+                driver_id=ctx["driver"].staff_unique_id
+            ).values_list("unique_id", flat=True)
+        )
         foreign = TripPlan.objects.filter(
-            staff_template_id__driver_id=ctx["driver"],
+            staff_template_id__in=driver_template_ids,
         ).exclude(pk__in=keep)
 
         codes = list(foreign.values_list("display_code", flat=True))
         if not codes:
             return
 
-        assignments = DailyTripAssignment.objects.filter(trip_plan_id__in=foreign)
+        foreign_ids = list(foreign.values_list("unique_id", flat=True))
+        assignments = DailyTripAssignment.objects.filter(trip_plan_id__in=foreign_ids)
 
         BinCollectionEvent.objects.filter(trip_assignment_id__in=assignments).delete()
         DailyTripLog.objects.filter(trip_assignment_id__in=assignments).delete()
@@ -550,7 +575,7 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         regardless of when the assignment was generated.
         """
         updated = DailyTripAssignment.objects.filter(
-            trip_plan_id=plan, is_deleted=False,
+            trip_plan_id=plan.unique_id, is_deleted=False,
         ).update(waste_type_ids=[waste_type.unique_id])
         if updated:
             self.log(f"Re-stamped waste type on {updated} assignment(s) for {plan.display_code}.")
@@ -567,7 +592,7 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         dry trip when both share 07:00).
         """
         updated = DailyTripAssignment.objects.filter(
-            trip_plan_id=plan, trip_date=trip_date, is_deleted=False,
+            trip_plan_id=plan.unique_id, trip_date=trip_date, is_deleted=False,
         ).update(scheduled_time=plan.scheduled_time)
         if updated:
             self.log(
@@ -584,13 +609,13 @@ class DriverWetDryBinTripsSeeder(BaseSeeder):
         today = timezone.localdate()
         for plan in plans:
             assignment = DailyTripAssignment.objects.filter(
-                trip_plan_id=plan, trip_date=today, is_deleted=False
+                trip_plan_id=plan.unique_id, trip_date=today, is_deleted=False
             ).order_by("created_at").first()
             if not assignment:
                 self.log(f"  !! no assignment generated for {plan.unique_id}")
                 continue
             stops = DailyTripCollectionPoint.objects.filter(
-                trip_assignment_id=assignment, is_deleted=False
+                trip_assignment_id=assignment.unique_id, is_deleted=False
             )
             pending = stops.filter(status=DailyTripCollectionPoint.STATUS_PENDING).count()
             self.log(

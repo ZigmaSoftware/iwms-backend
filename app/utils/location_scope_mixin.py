@@ -1,5 +1,19 @@
 from app.models.staff_creations.staff_access_configuration import StaffAccessConfiguration
 
+# StaffAccessConfiguration stores each location grant as a comma-separated
+# TextField (e.g. `city_ids`), not a real M2M relation — this maps the
+# `location_scope_chain`/`location_scope_field` names viewsets already use
+# ("cities", "districts", ...) to the model's own `get_<field>_ids()` helper
+# that splits the TextField into a list of unique_id strings.
+_SCOPE_FIELD_TO_GETTER = {
+    "states": "get_state_ids",
+    "districts": "get_district_ids",
+    "cities": "get_city_ids",
+    "zones": "get_zone_ids",
+    "panchayats": "get_panchayat_ids",
+    "wards": "get_ward_ids",
+}
+
 
 class LocationScopedViewSetMixin:
     """Restrict a location master's queryset (Continent/Country/State/
@@ -69,16 +83,12 @@ class LocationScopedViewSetMixin:
         if not staff_unique_id:
             return None
 
-        chain = self._location_scope_chain()
-        prefetch_fields = [scope_field for scope_field, _ in chain]
-
         return (
             StaffAccessConfiguration.objects.filter(
-                staff_id_id=staff_unique_id,
+                staff_id=staff_unique_id,
                 is_active=True,
                 is_deleted=False,
             )
-            .prefetch_related(*prefetch_fields)
             .first()
         )
 
@@ -91,11 +101,36 @@ class LocationScopedViewSetMixin:
             return queryset
 
         for scope_field, lookup in self._location_scope_chain():
-            scoped = getattr(access_config, scope_field).all()
-            if not scoped.exists():
+            getter_name = _SCOPE_FIELD_TO_GETTER.get(scope_field)
+            if not getter_name:
+                continue
+            scoped_ids = getattr(access_config, getter_name)()
+            if not scoped_ids:
                 continue
 
-            scoped_ids = list(scoped.values_list("unique_id", flat=True))
+            # Continent/Country aren't directly assignable — only States are
+            # — so a "states__<column>" lookup means: resolve the target
+            # model's ids from the scoped States' own `<column>` field
+            # (State.continent_id / State.country_id), not a real Django
+            # relation traversal (State has none to Continent/Country; both
+            # are plain string-pseudo-FK CharFields, same as everywhere else
+            # in this codebase).
+            if lookup.startswith("states__"):
+                from app.models.common_masters.state import State
+                column = lookup[len("states__"):]
+                if column == "unique_id":
+                    target_ids = scoped_ids
+                else:
+                    target_ids = list(
+                        State.objects.filter(unique_id__in=scoped_ids)
+                        .exclude(**{column: None})
+                        .values_list(column, flat=True)
+                        .distinct()
+                    )
+                if not target_ids:
+                    continue
+                return queryset.filter(unique_id__in=target_ids)
+
             return queryset.filter(**{f"{lookup}__in": scoped_ids})
 
         return queryset

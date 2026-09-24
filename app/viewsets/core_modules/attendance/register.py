@@ -101,7 +101,7 @@ class RegisterViewSet(ViewSet):
             return Response({"error": "Staff not found"}, status=404)
 
         existing = Employee.objects.filter(
-            staff=staff
+            staff_id=staff.staff_unique_id
         ).first()
 
         if existing:
@@ -183,7 +183,7 @@ class RegisterViewSet(ViewSet):
             company_id=staff.company_id,
             project_id=staff.project_id,
             emp_id=staff.emp_id,
-            staff=staff,
+            staff_id=staff.staff_unique_id,
             name=name,
             department=department,
             image_path=relative_image_path,

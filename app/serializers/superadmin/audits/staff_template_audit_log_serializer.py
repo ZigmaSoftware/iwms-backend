@@ -1,18 +1,21 @@
 from rest_framework import serializers
-from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 
 from app.models.audits.staff_template_audit_log import StaffTemplateAuditLog
 
 
-class StaffTemplateAuditLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
-    performed_by = serializers.SlugRelatedField(
-        slug_field="staff_unique_id",
-        read_only=True,
-    )
-    performed_by_name = serializers.CharField(
-        source="performed_by.employee_name",
-        read_only=True,
-    )
+class StaffTemplateAuditLogSerializer(serializers.ModelSerializer):
+    company_name = serializers.SerializerMethodField()
+    project_name = serializers.SerializerMethodField()
+    performed_by_name = serializers.SerializerMethodField()
+
+    def get_company_name(self, obj):
+        return getattr(obj.company, "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(obj.project, "name", None)
+
+    def get_performed_by_name(self, obj):
+        return getattr(obj.performed_by_staff, "employee_name", None)
 
     class Meta:
         model = StaffTemplateAuditLog

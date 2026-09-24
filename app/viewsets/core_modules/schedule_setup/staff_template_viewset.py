@@ -62,14 +62,7 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             ]
         )
 
-        return qs.select_related(
-            "driver_id",
-            "operator_id",
-            "created_by",
-            "updated_by",
-            "company_id",
-            "project_id",
-        ).annotate(is_assigned_today=Exists(busy_today))
+        return qs.annotate(is_assigned_today=Exists(busy_today))
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -148,8 +141,8 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             raise Exception("Account not found or created")  # 🔥 fail fast
 
         instance = serializer.save(
-            created_by=account,
-            updated_by=account,
+            created_by_id=account.account_id,
+            updated_by_id=account.account_id,
         )
 
         new_data = self._serialize_instance(instance)
@@ -185,7 +178,7 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         previous_data = self._serialize_instance(serializer.instance)
 
         instance = serializer.save(
-            updated_by=account,
+            updated_by_id=getattr(account, "account_id", None),
         )
 
         new_data = self._serialize_instance(instance)
@@ -229,7 +222,7 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             entity_type=StaffTemplateAuditLog.EntityType.STAFF_TEMPLATE,
             entity_id=str(entity_id),
             action=action,
-            performed_by=user,
+            performed_by=getattr(user, "staff_unique_id", None),
             performed_role=self._resolve_performed_role(user),
             change_remarks=remarks if isinstance(remarks, str) else None,
             company_id=company_id or getattr(user, "company_id", None),

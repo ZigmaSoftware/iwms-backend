@@ -275,8 +275,8 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
             return None
         entry = ProjectStaffHierarchy.objects.filter(
             project_id=obj.project_id, level=obj.escalation_level, is_deleted=False,
-        ).select_related("staffusertype_id").first()
-        return entry.staffusertype_id.get_name_display() if entry else None
+        ).first()
+        return entry.staffusertype.get_name_display() if entry and entry.staffusertype else None
 
     def _citizen_timeline(self, obj):
         rows = [

@@ -4,6 +4,9 @@ from app.models.waste_types.property import Property
 from app.validators.unique_name_validator import unique_name_validator
 
 class PropertySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
     class Meta:
         model = Property
         fields = [

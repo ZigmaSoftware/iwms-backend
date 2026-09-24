@@ -40,7 +40,7 @@ class AttendanceRecordsViewSet(CompanyScopedViewSet):
         from_date, to_date = self._date_range(request)
 
         staff_qs = self.filter_queryset(self.get_queryset()).select_related(
-            "designation_id", "department_id", "staffusertype_id", "personal_details",
+            "personal_details",
         )
 
         present_ids = self._present_staff_ids(staff_qs, from_date, to_date)

@@ -46,13 +46,13 @@ class DistrictSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         required=False,
         allow_null=True,
     )
-    continent_name    = serializers.CharField(source="continent_id.name", read_only=True)
-    country_name      = serializers.CharField(source="country_id.name", read_only=True)
-    state_name        = serializers.CharField(source="state_id.name", read_only=True)
+    continent_name = serializers.SerializerMethodField()
+    country_name = serializers.SerializerMethodField()
+    state_name = serializers.SerializerMethodField()
     # UUID read fields — separate names so FK write fields are not clobbered
-    state_unique_id   = serializers.CharField(source="state_id.unique_id", read_only=True)
-    country_unique_id = serializers.CharField(source="country_id.unique_id", read_only=True)
-    continent_unique_id = serializers.CharField(source="continent_id.unique_id", read_only=True)
+    state_unique_id = serializers.SerializerMethodField()
+    country_unique_id = serializers.SerializerMethodField()
+    continent_unique_id = serializers.SerializerMethodField()
 
     class Meta:
         model = District
@@ -65,3 +65,27 @@ class DistrictSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             Model=District,
             scope_fields=["continent_id", "country_id", "state_id"]
         )(self, attrs)
+
+    def get_continent_name(self, obj):
+        continent = obj.continent
+        return continent.name if continent else None
+
+    def get_country_name(self, obj):
+        country = obj.country
+        return country.name if country else None
+
+    def get_state_name(self, obj):
+        state = obj.state
+        return state.name if state else None
+
+    def get_state_unique_id(self, obj):
+        state = obj.state
+        return state.unique_id if state else None
+
+    def get_country_unique_id(self, obj):
+        country = obj.country
+        return country.unique_id if country else None
+
+    def get_continent_unique_id(self, obj):
+        continent = obj.continent
+        return continent.unique_id if continent else None

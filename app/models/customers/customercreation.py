@@ -3,20 +3,8 @@ from decimal import Decimal
 from django.core.validators import RegexValidator
 from django.db import models, transaction
 from app.utils.base_models import BaseMaster
-from app.models.common_masters.country import Country
-from app.models.common_masters.state import State
-from app.models.masters.district import District
-from app.models.masters.city import City
-from app.models.masters.zone import Zone
-from app.models.role_assigns.userType import UserType
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.masters.ward import Ward
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.utils.comfun import generate_unique_id
 from app.models.superadmin_masters.company import Company
-from app.models.masters.panchayat import Panchayat
 from app.models.superadmin_masters.project import Project
 from app.utils.customer_qr import (
     QR_SUBPROPERTY_APARTMENT,
@@ -60,20 +48,22 @@ def exceeds_bulk_waste_threshold(sqft, water_consumption_lpd, waste_collection_k
 
 
 def get_or_create_apartment_id(apartment_name, latitude, longitude, company_id):
-        apartment_name = (apartment_name or "").strip().upper()
+    apartment_name = (apartment_name or "").strip().upper()
 
-        existing = CustomerCreation.objects.filter(
-            apartment_name__iexact=apartment_name,
-            latitude=latitude,
-            longitude=longitude,
-            company_id=company_id,
-            is_deleted=False
-        ).first()
+    from app.models.customers.customercreation import CustomerCreation
+    existing = CustomerCreation.objects.filter(
+        apartment_name__iexact=apartment_name,
+        latitude=latitude,
+        longitude=longitude,
+        company_id=company_id,
+        is_deleted=False
+    ).first()
 
-        if existing and existing.apartment_unique_id:
-            return existing.apartment_unique_id
+    if existing and existing.apartment_unique_id:
+        return existing.apartment_unique_id
 
-        return generate_apartment_id()
+    return generate_apartment_id()
+
 
 class CustomerCreation(BaseMaster):
     QR_TRIGGER_FIELDS = {
@@ -86,8 +76,8 @@ class CustomerCreation(BaseMaster):
         "villa_no",
         "industry_name",
         "industry_type",
-        "company_id_id",
-        "project_id_id",
+        "company_id",
+        "project_id",
         "sub_property",
         "sub_property_id",
     }
@@ -101,26 +91,13 @@ class CustomerCreation(BaseMaster):
         "villa_no",
         "industry_name",
         "industry_type",
-        "company_id_id",
-        "project_id_id",
+        "company_id",
+        "project_id",
         "sub_property_id",
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     # Which mobile app this customer signs in to. Customers only ever get the
     # citizen app, but the field is explicit so the creation form reads the
@@ -160,12 +137,12 @@ class CustomerCreation(BaseMaster):
     street = models.CharField(max_length=100, null=True, blank=True)
     area = models.CharField(max_length=50, null=True, blank=True)
 
-    ward = models.ForeignKey(Ward, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)
-    zone = models.ForeignKey(Zone, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)
-    city = models.ForeignKey(City, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)
-    district = models.ForeignKey(District, on_delete=models.PROTECT, related_name='customer_creation', blank=True, null=True)
-    state = models.ForeignKey(State, on_delete=models.PROTECT, related_name='customer_creation')
-    country = models.ForeignKey(Country, on_delete=models.PROTECT, related_name='customer_creation')
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    city_id = models.CharField(max_length=30, null=True, blank=True)
+    district_id = models.CharField(max_length=30, null=True, blank=True)
+    state_id = models.CharField(max_length=30, null=True, blank=True)
+    country_id = models.CharField(max_length=30, null=True, blank=True)
 
     pincode = models.CharField(
         max_length=6,
@@ -188,11 +165,11 @@ class CustomerCreation(BaseMaster):
     )
 
     apartment_unique_id = models.CharField(
-    max_length=50,
-    null=True,
-    blank=True,
-    db_index=True
-)
+        max_length=50,
+        null=True,
+        blank=True,
+        db_index=True
+    )
 
     villa_no = models.CharField(max_length=20, null=True, blank=True)
     industry_name = models.CharField(max_length=100, null=True, blank=True)
@@ -201,14 +178,7 @@ class CustomerCreation(BaseMaster):
     # COMMON QR GROUP ID
     group_qr_id = models.CharField(max_length=100, null=True, blank=True)
 
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        related_name="customer_creations",
-        db_column="panchayat_id",
-        blank=True,
-        null=True
-    )
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
 
     sqft = models.DecimalField(
         max_digits=10,
@@ -254,24 +224,11 @@ class CustomerCreation(BaseMaster):
         help_text="List of {member_name, id_proof_type, id_no} dicts for family members",
     )
 
-    property_ref = models.ForeignKey(
-        Property,
-        on_delete=models.PROTECT,
-        related_name="customer_creation",
-        db_column="property"
-    )
+    property_id = models.CharField(max_length=30, null=True, blank=True)
+    sub_property_id = models.CharField(max_length=30, null=True, blank=True)
 
-    sub_property = models.ForeignKey(
-        SubProperty,
-        on_delete=models.PROTECT,
-        related_name="customer_creation"
-    )
-
-    waste_types = models.ManyToManyField(
-        WasteType,
-        related_name="customer_creations",
-        blank=True,
-    )
+    # Store waste type IDs as comma-separated string
+    waste_type_ids = models.TextField(blank=True, default="")
 
     # =============================
     # AUTHENTICATION FIELDS
@@ -279,7 +236,6 @@ class CustomerCreation(BaseMaster):
 
     username = models.CharField(
         max_length=150,
-        unique=True,
         null=True,
         blank=True,
         help_text="Customer login identifier"
@@ -327,23 +283,8 @@ class CustomerCreation(BaseMaster):
     is_superuser = models.BooleanField(default=False)
     is_bulkwaste_generator = models.BooleanField(default=False)
 
-    user_type_id = models.ForeignKey(
-        UserType,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="user_type_id",
-        related_name="customer_users"
-    )
-
-    staffusertype_id = models.ForeignKey(
-        StaffUserType,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="staffusertype_id",
-        related_name="customer_users"
-    )
+    user_type_id = models.CharField(max_length=30, null=True, blank=True)
+    staffusertype_id = models.CharField(max_length=30, null=True, blank=True)
 
     # =============================
     # QR CODE FIELD
@@ -354,7 +295,8 @@ class CustomerCreation(BaseMaster):
         null=True
     )
 
-    
+    CASCADE_SOFT_DELETE = ("daily_trip_household_collections", "waste_collections")
+    CACHE_SCOPES = ("customer_creation_list", "customer_creation_detail")
 
     class Meta:
         verbose_name = "Customer"
@@ -371,11 +313,22 @@ class CustomerCreation(BaseMaster):
         ]
 
     def __str__(self):
-        location = (
-            self.zone.zone_name if self.zone else
-            self.city.name if self.city else
-            self.state.name
-        )
+        location = ""
+        if self.zone_id:
+            from app.models.masters.zone import Zone
+            zone = Zone.objects.filter(unique_id=self.zone_id).first()
+            if zone:
+                location = zone.zone_name
+        elif self.city_id:
+            from app.models.masters.city import City
+            city = City.objects.filter(unique_id=self.city_id).first()
+            if city:
+                location = city.name
+        elif self.state_id:
+            from app.models.common_masters.state import State
+            state = State.objects.filter(unique_id=self.state_id).first()
+            if state:
+                location = state.name
         return f"{self.customer_name} ({location})"
 
     def delete(self, *args, **kwargs):
@@ -384,18 +337,19 @@ class CustomerCreation(BaseMaster):
         self.is_active = False
         self.save(update_fields=["is_deleted", "is_active"])
 
-
     def generate_group_qr_id(self):
         """
         Backward-compatible group id:
         apartment customers retain apartment-level grouping,
         other customer types default to their unique customer id.
         """
-        sub_property_name = (
-            self.sub_property.sub_property_name
-            if self.sub_property
-            else ""
-        )
+        sub_property_name = ""
+        if self.sub_property_id:
+            from app.models.waste_types.subproperty import SubProperty
+            sp = SubProperty.objects.filter(unique_id=self.sub_property_id).first()
+            if sp:
+                sub_property_name = sp.sub_property_name
+        
         if resolve_subproperty_type(sub_property_name) != QR_SUBPROPERTY_APARTMENT:
             return self.unique_id
 
@@ -487,15 +441,15 @@ class CustomerCreation(BaseMaster):
                 lock_tenant_scope(
                     company_model=Company,
                     project_model=Project,
-                    company_id=self.company_id_id,
-                    project_id=self.project_id_id,
+                    company_id=self.company_id,
+                    project_id=self.project_id,
                 )
                 self.customer_id = next_scoped_display_id(
                     model=CustomerCreation,
                     field_name="customer_id",
                     prefix="CUST",
-                    company_id=self.company_id_id,
-                    project_id=self.project_id_id,
+                    company_id=self.company_id,
+                    project_id=self.project_id,
                 )
                 if requested_update_fields is not None:
                     repaired_update_fields = set(kwargs["update_fields"])
@@ -508,5 +462,102 @@ class CustomerCreation(BaseMaster):
         if qr_refresh_required:
             self._regenerate_qr_code()
 
+    def get_waste_type_ids(self):
+        return [w for w in self.waste_type_ids.split(",") if w]
+
     def generate_qr_data(self):
         return build_customer_qr_data(self)
+
+    @property
+    def company(self):
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def city(self):
+        from app.models.masters.city import City
+        if self.city_id:
+            return City.objects.filter(unique_id=self.city_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def state(self):
+        from app.models.common_masters.state import State
+        if self.state_id:
+            return State.objects.filter(unique_id=self.state_id).first()
+        return None
+
+    @property
+    def country(self):
+        from app.models.common_masters.country import Country
+        if self.country_id:
+            return Country.objects.filter(unique_id=self.country_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def property_obj(self):
+        from app.models.waste_types.property import Property
+        if self.property_id:
+            return Property.objects.filter(unique_id=self.property_id).first()
+        return None
+
+    @property
+    def sub_property_obj(self):
+        from app.models.waste_types.subproperty import SubProperty
+        if self.sub_property_id:
+            return SubProperty.objects.filter(unique_id=self.sub_property_id).first()
+        return None
+
+    @property
+    def waste_types_queryset(self):
+        from app.models.staff_creations.waste_collection_bluetooth import WasteType
+        return WasteType.objects.filter(unique_id__in=self.get_waste_type_ids())
+
+    @property
+    def user_type(self):
+        from app.models.role_assigns.userType import UserType
+        if self.user_type_id:
+            return UserType.objects.filter(unique_id=self.user_type_id).first()
+        return None
+
+    @property
+    def staffusertype(self):
+        from app.models.role_assigns.staffUserType import StaffUserType
+        if self.staffusertype_id:
+            return StaffUserType.objects.filter(unique_id=self.staffusertype_id).first()
+        return None

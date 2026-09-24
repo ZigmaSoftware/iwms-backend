@@ -28,12 +28,12 @@ class BlockPanchayatUnionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         state_uid = self.request.query_params.get("state") or self.request.query_params.get("state_id")
 
         if company_uid:
-            queryset = queryset.filter(company_id__unique_id=company_uid)
+            queryset = queryset.filter(company_id=company_uid)
         if project_uid:
-            queryset = queryset.filter(project_id__unique_id=project_uid)
+            queryset = queryset.filter(project_id=project_uid)
         if district_uid:
-            queryset = queryset.filter(district_id__unique_id=district_uid)
+            queryset = queryset.filter(district_id=district_uid)
         if state_uid:
-            queryset = queryset.filter(state_id__unique_id=state_uid)
+            queryset = queryset.filter(state_id=state_uid)
 
         return queryset

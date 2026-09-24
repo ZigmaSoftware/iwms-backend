@@ -21,45 +21,16 @@ from app.utils.filters import (
 
 
 class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    queryset = (
-        DailyTripLog.objects.select_related(
-            "company_id",
-            "project_id",
-            "trip_assignment_id",
-            "trip_assignment_id__trip_plan_id",
-            "trip_assignment_id__trip_plan_id__zone_id",
-            "trip_assignment_id__staff_template_id",
-            "trip_assignment_id__staff_template_id__driver_id",
-            "trip_assignment_id__staff_template_id__operator_id",
-            "trip_assignment_id__alt_staff_template_id",
-            "trip_assignment_id__alt_staff_template_id__driver_id",
-            "trip_assignment_id__alt_staff_template_id__operator_id",
-            "panchayat_id",
-            "collection_point_id",
-            "waste_type_id",
-            "driver_id",
-            "operator_id",
-            "vehicle_id",
-            "staff_template_id",
-            "staff_template_id__driver_id",
-            "staff_template_id__operator_id",
-            "alt_staff_template_id",
-            "alt_staff_template_id__driver_id",
-            "alt_staff_template_id__operator_id",
-            "verified_by",
-            "verified_by__staff",
-            "verified_by__user",
-        )
-        .prefetch_related(
-            "bin_ids",
-            "extra_operator_ids",
-            "trip_assignment_id__wards",
-            "trip_assignment_id__waste_types",
-            "trip_assignment_id__trip_collection_points",
-            "trip_assignment_id__trip_collection_points__collection_point_id",
-        )
-        .filter(is_deleted=False)
-    )
+    # NOTE: no select_related()/prefetch_related() here — every *_id field on
+    # this model (company_id, trip_assignment_id, driver_id, etc.) is this
+    # codebase's plain "string-pseudo-FK" CharField, not a real Django
+    # relation, so select_related() on any of them raises FieldError; and
+    # bin_ids/extra_operator_ids are comma-separated TextFields, not
+    # relations, so prefetch_related() on them is equally invalid. Related
+    # rows are resolved individually via the model's @property accessors
+    # instead (see DailyTripLog.trip_assignment/.driver/etc. and the
+    # serializer's get_* methods).
+    queryset = DailyTripLog.objects.filter(is_deleted=False)
     serializer_class = DailyTripLogSerializer
     lookup_field = "unique_id"
     permission_resource = "DailyTripLog"
@@ -103,7 +74,16 @@ class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             # (TripPlan.supervisor_id == requester). Auto-enforced for any
             # supervisor role on the admin web app too, not just when the
             # mobile app explicitly passes mine=true.
-            qs = qs.filter(trip_assignment_id__trip_plan_id__supervisor_id=self.request.user)
+            from app.models.schedule_masters.trip_plan import TripPlan
+            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+
+            supervised_plan_ids = TripPlan.objects.filter(
+                supervisor_id=self.request.user.staff_unique_id,
+            ).values("unique_id")
+            supervised_assignment_ids = DailyTripAssignment.objects.filter(
+                trip_plan_id__in=supervised_plan_ids,
+            ).values("unique_id")
+            qs = qs.filter(trip_assignment_id__in=supervised_assignment_ids)
 
         if trip_date:
             qs = qs.filter(trip_date=trip_date)

@@ -26,7 +26,9 @@ class PlatformDeveloperSeeder(BaseSeeder):
         email = "developer@example.com"
 
         company = Company.objects.first()
-        project = Project.objects.filter(company_id=company).first() if company else None
+        company_id = company.unique_id if company else None
+        project = Project.objects.filter(company_id=company_id).first() if company_id else None
+        project_id = project.unique_id if project else None
 
         if not company or not project:
             self.log("Platform developer requires a seeded company/project. Run company/project seeders first.")
@@ -36,21 +38,21 @@ class PlatformDeveloperSeeder(BaseSeeder):
             username=username,
             defaults={
                 "email": email,
-                "user_type_id": developer_type,
+                "user_type_id": developer_type.unique_id if hasattr(developer_type, 'unique_id') else developer_type,
                 "is_staff": True,
                 "is_active": True,
                 "is_deleted": False,
-                "company_id": company,
-                "project_id": project,
+                "company_id": company_id,
+                "project_id": project_id,
             },
         )
 
-        user.user_type_id = developer_type
+        user.user_type_id = developer_type.unique_id if hasattr(developer_type, 'unique_id') else developer_type
         user.is_staff = True
         user.is_active = True
         user.is_deleted = False
-        user.company_id = company
-        user.project_id = project
+        user.company_id = company_id
+        user.project_id = project_id
         user.staffusertype_id = None
         user.staff_id = None
         user.customer_id = None

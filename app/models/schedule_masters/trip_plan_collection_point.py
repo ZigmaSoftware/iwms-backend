@@ -1,15 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from app.models.assets.bins import Bins
-from app.models.customers.customercreation import CustomerCreation
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.masters.zone import Zone
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.utils.hierarchy import copy_flat_geo
@@ -39,30 +30,10 @@ class TripPlanCollectionPoint(BaseMaster):
         editable=False,
     )
 
-    trip_plan_id = models.ForeignKey(
-        TripPlan,
-        on_delete=models.CASCADE,
-        to_field="unique_id",
-        related_name="plan_collection_points",
-        db_column="trip_plan_id",
-    )
+    trip_plan_id = models.CharField(max_length=30, null=True, blank=True)
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="trip_plan_collection_points",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="trip_plan_collection_points",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     collection_type = models.CharField(
         max_length=30,
@@ -72,63 +43,15 @@ class TripPlanCollectionPoint(BaseMaster):
     )
 
     # --- Bin Collection fields (required when collection_type == bin_collection) ---
-    collection_point_id = models.ForeignKey(
-        Collection_point,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plan_cps",
-        db_column="collection_point_id",
-        null=True,
-        blank=True,
-    )
-    bin_id = models.ForeignKey(
-        Bins,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plan_cps",
-        db_column="bin_id",
-        null=True,
-        blank=True,
-    )
+    collection_point_id = models.CharField(max_length=30, null=True, blank=True)
+    bin_id = models.CharField(max_length=30, null=True, blank=True)
 
     # --- Household/Bulk Collection fields (required when collection_type == household_collection or bulk_waste_collection) ---
-    customer_id = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plan_cps",
-        db_column="customer_id",
-        null=True,
-        blank=True,
-    )
+    customer_id = models.CharField(max_length=30, null=True, blank=True)
 
-    zone_id = models.ForeignKey(
-        Zone,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="trip_plan_collection_points",
-        to_field="unique_id",
-        db_column="zone_id",
-    )
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="trip_plan_collection_points",
-        to_field="unique_id",
-        db_column="ward_id",
-    )
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="trip_plan_collection_points",
-        to_field="unique_id",
-        db_column="panchayat_id",
-    )
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
     sequence = models.PositiveIntegerField(
         help_text="Visit order within the route.",
     )
@@ -138,6 +61,9 @@ class TripPlanCollectionPoint(BaseMaster):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("trip_plan_collection_point_list", "trip_plan_collection_point_detail")
 
     class Meta:
         ordering = ["trip_plan_id", "sequence"]
@@ -160,34 +86,109 @@ class TripPlanCollectionPoint(BaseMaster):
         # stops. (Whether a bulk stop may be added manually is enforced at
         # the API/serializer layer; the auto-generated bulk placeholder row
         # is still valid here.)
-        if self.trip_plan_id_id and self.collection_type != self.trip_plan_id.collection_type:
-            raise ValidationError(
-                {"collection_type": "Stop type must match the trip plan's collection type."}
-            )
+        if self.trip_plan_id:
+            from app.models.schedule_masters.trip_plan import TripPlan
+            tp = TripPlan.objects.filter(unique_id=self.trip_plan_id).first()
+            if tp and self.collection_type != tp.collection_type:
+                raise ValidationError(
+                    {"collection_type": "Stop type must match the trip plan's collection type."}
+                )
         if self.collection_type == self.COLLECTION_TYPE_BIN:
-            if not self.collection_point_id_id:
+            if not self.collection_point_id:
                 raise ValidationError({"collection_point_id": "Collection point is required for bin collection."})
-            if not self.bin_id_id:
+            if not self.bin_id:
                 raise ValidationError({"bin_id": "Bin is required for bin collection."})
         elif self.collection_type in {self.COLLECTION_TYPE_HOUSEHOLD, self.COLLECTION_TYPE_BULK}:
-            if not self.customer_id_id and not self.ward_id_id and not self.panchayat_id_id and not self.trip_plan_id_id:
+            if not self.customer_id and not self.ward_id and not self.panchayat_id and not self.trip_plan_id:
                 raise ValidationError(
                     {"customer_id": "Select a customer or assign collection to a geographic area."}
                 )
 
     def save(self, *args, **kwargs):
-        if self.collection_point_id_id:
-            copy_flat_geo(self, self.collection_point_id)
-        elif self.customer_id_id:
-            copy_flat_geo(self, self.customer_id)
-        elif self.trip_plan_id_id:
-            copy_flat_geo(self, self.trip_plan_id)
+        if self.collection_point_id:
+            from app.models.schedule_masters.collection_point import Collection_point
+            cp = Collection_point.objects.filter(unique_id=self.collection_point_id).first()
+            if cp:
+                copy_flat_geo(self, cp)
+        elif self.customer_id:
+            from app.models.customers.customercreation import CustomerCreation
+            cust = CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+            if cust:
+                copy_flat_geo(self, cust)
+        elif self.trip_plan_id:
+            from app.models.schedule_masters.trip_plan import TripPlan
+            tp = TripPlan.objects.filter(unique_id=self.trip_plan_id).first()
+            if tp:
+                copy_flat_geo(self, tp)
         super().save(*args, **kwargs)
 
     def __str__(self):
-        if self.collection_type in {self.COLLECTION_TYPE_HOUSEHOLD, self.COLLECTION_TYPE_BULK} and self.customer_id_id:
-            return f"{self.trip_plan_id_id} -> customer:{self.customer_id_id} (seq {self.sequence})"
+        if self.collection_type in {self.COLLECTION_TYPE_HOUSEHOLD, self.COLLECTION_TYPE_BULK} and self.customer_id:
+            return f"{self.trip_plan_id} -> customer:{self.customer_id} (seq {self.sequence})"
         return (
-            f"{self.trip_plan_id_id} -> "
-            f"{self.collection_point_id_id} (seq {self.sequence})"
+            f"{self.trip_plan_id} -> "
+            f"{self.collection_point_id} (seq {self.sequence})"
         )
+
+    @property
+    def trip_plan(self):
+        from app.models.schedule_masters.trip_plan import TripPlan
+        if self.trip_plan_id:
+            return TripPlan.objects.filter(unique_id=self.trip_plan_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def collection_point(self):
+        from app.models.schedule_masters.collection_point import Collection_point
+        if self.collection_point_id:
+            return Collection_point.objects.filter(unique_id=self.collection_point_id).first()
+        return None
+
+    @property
+    def bin(self):
+        from app.models.assets.bins import Bins
+        if self.bin_id:
+            return Bins.objects.filter(unique_id=self.bin_id).first()
+        return None
+
+    @property
+    def customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None

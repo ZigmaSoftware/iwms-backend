@@ -9,8 +9,8 @@ def department(db, company, project):
     return Department.objects.create(
         department_name="Engineering",
         department_code="ENG",
-        company_id=company,
-        project_id=project,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     )
 
 
@@ -20,8 +20,8 @@ class TestDepartmentCreate:
         d = Department.objects.create(
             department_name="Finance",
             department_code="FIN",
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
         assert d.department_name == "Finance"
         assert d.department_code == "FIN"
@@ -33,7 +33,7 @@ class TestDepartmentCreate:
         assert str(department) == "Engineering"
 
     def test_foreign_key_company(self, department, company):
-        assert department.company_id == company
+        assert department.company_id == company.unique_id
 
 
 @pytest.mark.django_db
@@ -48,8 +48,8 @@ class TestDepartmentDefaults:
         assert department.description is None
 
     def test_ordering_alphabetical(self, company, project):
-        Department.objects.create(department_name="Zoology", department_code="ZOO", company_id=company, project_id=project)
-        Department.objects.create(department_name="Accounts", department_code="ACC", company_id=company, project_id=project)
+        Department.objects.create(department_name="Zoology", department_code="ZOO", company_id=company.unique_id, project_id=project.unique_id)
+        Department.objects.create(department_name="Accounts", department_code="ACC", company_id=company.unique_id, project_id=project.unique_id)
         names = list(Department.objects.values_list("department_name", flat=True))
         assert names == sorted(names)
 
@@ -57,9 +57,9 @@ class TestDepartmentDefaults:
 @pytest.mark.django_db
 class TestDepartmentConstraints:
     def test_unique_code_per_project(self, company, project):
-        Department.objects.create(department_name="HR", department_code="HR01", company_id=company, project_id=project)
+        Department.objects.create(department_name="HR", department_code="HR01", company_id=company.unique_id, project_id=project.unique_id)
         with pytest.raises(IntegrityError):
-            Department.objects.create(department_name="Human Resources", department_code="HR01", company_id=company, project_id=project)
+            Department.objects.create(department_name="Human Resources", department_code="HR01", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.mark.django_db

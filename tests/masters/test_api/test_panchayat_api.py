@@ -46,8 +46,8 @@ class TestPanchayatAPIRetrieve:
     def test_retrieve_returns_200(self, auth_client, company, project, state, city, district):
         from app.models.masters.panchayat import Panchayat
         p = Panchayat.objects.create(
-            company_id=company, project_id=project,
-            state_id=state, city_id=city, district_id=district,
+            company_id=company.unique_id, project_id=project.unique_id,
+            state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
             panchayat_name="Sample Panchayat",
             geofencing_type="circle",
         )
@@ -60,8 +60,8 @@ class TestPanchayatAPIUpdate:
     def test_patch_returns_success(self, auth_client, company, project, state, city, district):
         from app.models.masters.panchayat import Panchayat
         p = Panchayat.objects.create(
-            company_id=company, project_id=project,
-            state_id=state, city_id=city, district_id=district,
+            company_id=company.unique_id, project_id=project.unique_id,
+            state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
             panchayat_name="Old Name",
             geofencing_type="square",
         )
@@ -87,8 +87,8 @@ class TestPanchayatAPIDelete:
     def test_delete_returns_success(self, auth_client, company, project, state, city, district):
         from app.models.masters.panchayat import Panchayat
         p = Panchayat.objects.create(
-            company_id=company, project_id=project,
-            state_id=state, city_id=city, district_id=district,
+            company_id=company.unique_id, project_id=project.unique_id,
+            state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
             panchayat_name="Delete Me",
             geofencing_type="rectangle",
         )

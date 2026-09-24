@@ -20,7 +20,7 @@ def company(db):
 @pytest.fixture
 def project(db, company):
     from app.models.superadmin_masters.project import Project
-    return Project.objects.create(name="Test Project", company_id=company)
+    return Project.objects.create(name="Test Project", company_id=company.unique_id)
 
 
 # ─────────────────────────────────────────────
@@ -38,7 +38,7 @@ def country(db, continent):
     from app.models.common_masters.country import Country
     return Country.objects.create(
         name="India",
-        continent_id=continent,
+        continent_id=continent.unique_id,
         currency="INR",
         mob_code="+91",
     )
@@ -50,8 +50,8 @@ def state(db, continent, country):
     return State.objects.create(
         name="Tamil Nadu",
         label="TN",
-        continent_id=continent,
-        country_id=country,
+        continent_id=continent.unique_id,
+        country_id=country.unique_id,
     )
 
 
@@ -60,9 +60,9 @@ def district(db, continent, country, state):
     from app.models.masters.district import District
     return District.objects.create(
         name="Chennai",
-        continent_id=continent,
-        country_id=country,
-        state_id=state,
+        continent_id=continent.unique_id,
+        country_id=country.unique_id,
+        state_id=state.unique_id,
     )
 
 
@@ -71,12 +71,12 @@ def city(db, company, project, continent, country, state, district):
     from app.models.masters.city import City
     return City.objects.create(
         name="Chennai City",
-        continent_id=continent,
-        country_id=country,
-        state_id=state,
-        district_id=district,
-        company_id=company,
-        project_id=project,
+        continent_id=continent.unique_id,
+        country_id=country.unique_id,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     )
 
 
@@ -85,9 +85,9 @@ def area_type(db, state, district, city):
     from app.models.masters.areatype import AreaType
     return AreaType.objects.create(
         name="Urban",
-        state_id=state,
-        district_id=district,
-        city_id=city,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
     )
 
 
@@ -96,9 +96,9 @@ def zone(db, state, district, city):
     from app.models.masters.zone import Zone
     return Zone.objects.create(
         zone_name="Zone 1",
-        state_id=state,
-        district_id=district,
-        city_id=city,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
     )
 
 
@@ -107,10 +107,10 @@ def ward(db, state, district, city, zone):
     from app.models.masters.ward import Ward
     return Ward.objects.create(
         ward_name="Ward 1",
-        state_id=state,
-        district_id=district,
-        city_id=city,
-        zone_id=zone,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
+        zone_id=zone.unique_id,
     )
 
 

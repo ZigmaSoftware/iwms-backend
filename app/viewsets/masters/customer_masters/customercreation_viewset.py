@@ -123,7 +123,6 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     pagination_class = LimitOffsetWithPage
     search_fields = [
         "customer_id", "customer_name", "contact_no", "apartment_name", "flat_no",
-        "zone__zone_name",
     ]
     ordering_fields = ["customer_id", "customer_name", "is_active"]
 
@@ -133,17 +132,6 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     queryset = (
         CustomerCreation.objects
         .filter(is_deleted=False)
-        .select_related(
-            "company_id", "project_id", "ward", "zone", "city",
-            "district", "state", "country", "panchayat_id",
-            "property_ref", "sub_property",
-        )
-        .prefetch_related(
-            Prefetch(
-                "waste_types",
-                queryset=WasteType.objects.filter(is_deleted=False).order_by("waste_type_name"),
-            )
-        )
         .order_by("customer_name")
     )
 
@@ -165,25 +153,29 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if active_status in ("0", "1"):
             queryset = queryset.filter(is_active=active_status == "1")
         if company_id:
-            queryset = queryset.filter(company_id__unique_id=company_id)
+            queryset = queryset.filter(company_id=company_id)
         if project_id:
-            queryset = queryset.filter(project_id__unique_id=project_id)
+            queryset = queryset.filter(project_id=project_id)
         if state_id:
-            queryset = queryset.filter(state__unique_id=state_id)
+            queryset = queryset.filter(state_id=state_id)
         if district_id:
-            queryset = queryset.filter(district__unique_id=district_id)
+            queryset = queryset.filter(district_id=district_id)
         if city_id:
-            queryset = queryset.filter(city__unique_id=city_id)
+            queryset = queryset.filter(city_id=city_id)
         if panchayat_id:
-            queryset = queryset.filter(panchayat_id__unique_id=panchayat_id)
+            queryset = queryset.filter(panchayat_id=panchayat_id)
         elif ward_id:
-            queryset = queryset.filter(ward__unique_id=ward_id)
+            queryset = queryset.filter(ward_id=ward_id)
         elif zone_id:
-            queryset = queryset.filter(zone__unique_id=zone_id)
+            queryset = queryset.filter(zone_id=zone_id)
         if waste_type_param:
             waste_type_ids = [v for v in waste_type_param.split(",") if v]
             if waste_type_ids:
-                queryset = queryset.filter(waste_types__unique_id__in=waste_type_ids).distinct()
+                # waste_type_ids is a comma-separated TextField, not a relation.
+                waste_type_filter = Q()
+                for waste_type_id in waste_type_ids:
+                    waste_type_filter |= Q(waste_type_ids__icontains=waste_type_id)
+                queryset = queryset.filter(waste_type_filter)
 
         return queryset
     
@@ -302,7 +294,7 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         company_id = request.query_params.get("company_id")
         if company_id:
-            queryset = queryset.filter(company_id__unique_id=company_id)
+            queryset = queryset.filter(company_id=company_id)
 
         data = (
             queryset
@@ -527,12 +519,12 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
                 if not waste_type and project is not None:
                     waste_type = base.filter(
-                        waste_type_name__iexact=raw_value, project_id=project
+                        waste_type_name__iexact=raw_value, project_id=project.unique_id
                     ).first()
 
                 if not waste_type and company is not None:
                     waste_type = base.filter(
-                        waste_type_name__iexact=raw_value, company_id=company
+                        waste_type_name__iexact=raw_value, company_id=company.unique_id
                     ).first()
 
                 if not waste_type:

@@ -18,10 +18,11 @@ class Continent(BaseMaster):
 
     name = models.CharField(max_length=100)
 
+    CASCADE_SOFT_DELETE = ("countries", "states", "districts", "cities")
+    CACHE_SCOPES = ("continent_list", "continent_detail")
+
     class Meta:
         ordering = ["name"]
 
     def __str__(self):
         return self.name
-
-    CASCADE_SOFT_DELETE = ("countries", "states", "districts", "cities")

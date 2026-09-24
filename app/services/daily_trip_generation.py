@@ -47,18 +47,18 @@ def active_auto_assign_plans(force: bool = False):
         queryset = queryset.filter(
             approval_status=TripPlan.ApprovalStatus.APPROVED,
         )
-    return queryset.select_related("company_id", "project_id")
+    return queryset
 
 
 def ensure_assignment_collection_points(assignment: DailyTripAssignment, created_by=None) -> int:
-    if not assignment or not assignment.trip_plan_id_id:
+    if not assignment or not assignment.trip_plan_id:
         return 0
 
     existing_stop_keys = set(
         DailyTripCollectionPoint.objects.filter(
-            trip_assignment_id=assignment,
+            trip_assignment_id=assignment.unique_id,
             is_deleted=False,
-        ).values_list("collection_point_id_id", "bin_id_id")
+        ).values_list("collection_point_id", "bin_id")
     )
     stops = (
         TripPlanCollectionPoint.objects.filter(
@@ -75,23 +75,22 @@ def ensure_assignment_collection_points(assignment: DailyTripAssignment, created
         )
         .exclude(collection_point_id__isnull=True)
         .exclude(bin_id__isnull=True)
-        .select_related("collection_point_id", "bin_id")
         .order_by("sequence")
     )
 
     created_count = 0
     for stop in stops:
-        stop_key = (stop.collection_point_id_id, stop.bin_id_id)
+        stop_key = (stop.collection_point_id, stop.bin_id)
         if stop_key in existing_stop_keys:
             continue
         DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment,
+            trip_assignment_id=assignment.unique_id,
             collection_point_id=stop.collection_point_id,
             bin_id=stop.bin_id,
             sequence=stop.sequence,
             is_collected=False,
             status=DailyTripCollectionPoint.STATUS_PENDING,
-            created_by=created_by,
+            created_by_id=getattr(created_by, "account_id", None),
         )
         existing_stop_keys.add(stop_key)
         created_count += 1
@@ -114,10 +113,11 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
     Treat the oldest row as "the" assignment for this plan/date instead."""
     from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
 
+    plan_waste_type_ids = plan.waste_type_ids or ([plan.waste_type_id] if plan.waste_type_id else [])
     defaults = {
         "staff_template_id": plan.staff_template_id,
         "vehicle_id": plan.vehicle_id,
-        "waste_type_ids": plan.waste_type_ids or ([plan.waste_type_id_id] if plan.waste_type_id_id else []),
+        "waste_type_ids": plan_waste_type_ids,
         "panchayat_id": plan.panchayat_id,
         "scheduled_time": plan.scheduled_time,
     }
@@ -125,7 +125,7 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
         DailyTripAssignment.objects.filter(
             company_id=plan.company_id,
             project_id=plan.project_id,
-            trip_plan_id=plan,
+            trip_plan_id=plan.unique_id,
             trip_date=target_date,
         )
         .order_by("created_at")
@@ -136,21 +136,21 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
         assignment = DailyTripAssignment.objects.create(
             company_id=plan.company_id,
             project_id=plan.project_id,
-            trip_plan_id=plan,
+            trip_plan_id=plan.unique_id,
             trip_date=target_date,
             **defaults,
         )
     if not created:
         update_fields = []
         if not assignment.waste_type_ids:
-            assignment.waste_type_ids = plan.waste_type_ids or ([plan.waste_type_id_id] if plan.waste_type_id_id else [])
+            assignment.waste_type_ids = plan_waste_type_ids
             update_fields.append("waste_type_ids")
         if update_fields:
             assignment.save(update_fields=update_fields)
-    if not assignment.wards.exists() and plan.wards.exists():
-        assignment.wards.set(plan.wards.all())
-    if not assignment.waste_types.exists() and plan.waste_types.exists():
-        assignment.waste_types.set(plan.waste_types.all())
+    plan_ward_ids = plan.get_ward_ids()
+    if not assignment.get_ward_ids() and plan_ward_ids:
+        assignment.ward_ids = ",".join(plan_ward_ids)
+        assignment.save(update_fields=["ward_ids"])
 
     # Safety net: covers stops added to the plan after the assignment
     # existed, and household/bulk stops that ensure_assignment_collection_points

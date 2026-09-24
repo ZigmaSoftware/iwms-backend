@@ -48,7 +48,7 @@ CUSTOMER_DATA = [
 def backfill_missing_customer_ids():
     missing_customers = CustomerCreation.objects.filter(
         Q(customer_id__isnull=True) | Q(customer_id="")
-    ).order_by("company_id_id", "project_id_id", "unique_id")
+    ).order_by("company_id", "project_id", "unique_id")
     repaired_count = 0
     for customer in missing_customers.iterator():
         customer.save(update_fields=["customer_id"])
@@ -83,15 +83,15 @@ class CustomerCreationSeeder(BaseSeeder):
             return
 
         company = Company.objects.filter(is_deleted=False).first()
-        project = Project.objects.filter(company_id=company, is_deleted=False).first() if company else None
+        project = Project.objects.filter(company_id=company.unique_id, is_deleted=False).first() if company else None
         if not company or not project:
             self.log("Company/project missing. Seed superadmin masters before customers.")
             return
 
         waste_types = list(
             WasteType.objects.filter(
-                company_id=company,
-                project_id=project,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 waste_type_name__in=CUSTOMER_WASTE_TYPES,
                 is_deleted=False,
             ).order_by("waste_type_name")
@@ -128,8 +128,8 @@ class CustomerCreationSeeder(BaseSeeder):
                 for idx in range(1, int(entry["member_count"]) + 1)
             ]
             customer, created = CustomerCreation.objects.update_or_create(
-                company_id=company,
-                project_id=project,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 id_no=entry["id_no"],
                 defaults={
                     "customer_name": entry["customer_name"],
@@ -140,12 +140,12 @@ class CustomerCreationSeeder(BaseSeeder):
                     "building_no": entry["building_no"],
                     "street": entry["street"],
                     "area": entry["area"],
-                    "ward": ward,
-                    "zone": zone,
-                    "city": city,
-                    "district": district,
-                    "state": state,
-                    "country": country,
+                    "ward_id": ward.unique_id,
+                    "zone_id": zone.unique_id,
+                    "city_id": city.unique_id,
+                    "district_id": district.unique_id,
+                    "state_id": state.unique_id,
+                    "country_id": country.unique_id,
                     "pincode": entry["pincode"],
                     "latitude": entry["latitude"],
                     "longitude": entry["longitude"],
@@ -156,20 +156,22 @@ class CustomerCreationSeeder(BaseSeeder):
                     "id_no": entry["id_no"],
                     "member_count": entry["member_count"],
                     "family_members": family_members,
-                    "property_ref": property_obj,
-                    "sub_property": sub_property_obj,
-                    "user_type_id": customer_type,
+                    "property_id": property_obj.unique_id,
+                    "sub_property_id": sub_property_obj.unique_id,
+                    "user_type_id": customer_type.unique_id,
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
             # Seed the waste streams only for a brand-new customer. Re-running
             # this seeder must not clobber waste types edited (in particular
-            # REMOVED) via Customer Creation on the web — `.set()` replaces the
-            # whole M2M, so calling it on the update branch silently restored
-            # every type an operator had deleted.
+            # REMOVED) via Customer Creation on the web — reassigning
+            # waste_type_ids replaces the whole set, so doing that on the
+            # update branch would silently restore every type an operator
+            # had deleted.
             if created:
-                customer.waste_types.set(waste_types)
+                customer.waste_type_ids = ",".join(w.unique_id for w in waste_types)
+                customer.save(update_fields=["waste_type_ids"])
                 created_count += 1
             else:
                 updated_count += 1
@@ -178,7 +180,7 @@ class CustomerCreationSeeder(BaseSeeder):
                 f"Customer {action}: {customer.customer_name} "
                 f"[unique_id={customer.unique_id}, customer_id={customer.customer_id}]"
             )
-            UserModel.objects.filter(customer_id_id=customer.unique_id).delete()
+            UserModel.objects.filter(customer_id=customer.unique_id).delete()
 
         self.log(f"---Customers seeded ({created_count} created, {updated_count} updated)---")
 

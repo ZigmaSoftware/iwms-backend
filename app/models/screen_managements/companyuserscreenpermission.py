@@ -1,19 +1,7 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 from django.db.models import Q, UniqueConstraint
-
-from app.models.common_masters.state import State
-from app.models.masters.district import District
-from app.models.masters.city import City
-from app.models.masters.zone import Zone
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
 
 
 def generate_companyuserscreenpermission_id():
@@ -26,13 +14,7 @@ class PermissionType(models.TextChoices):
 
 
 class CompanyUserScreenPermission(BaseMaster):
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     unique_id = models.CharField(
         max_length=60,
@@ -42,29 +24,10 @@ class CompanyUserScreenPermission(BaseMaster):
         editable=False
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        to_field="unique_id", db_column="company_id",
-        related_name="userscreenpermissions"
-    )
-    mainscreen_id = models.ForeignKey(
-        MainScreen, on_delete=models.PROTECT,
-        to_field="unique_id", db_column="mainscreen_id",
-        related_name="userscreenpermissions"
-    )
-
-    userscreen_id = models.ForeignKey(
-        UserScreen, on_delete=models.PROTECT,
-        to_field="unique_id", db_column="userscreen_id",
-        related_name="userscreenpermissions"
-    )
-
-    userscreenaction_id = models.ForeignKey(
-        UserScreenAction, on_delete=models.PROTECT,
-        to_field="unique_id", db_column="userscreenaction_id",
-        related_name="userscreenpermissions"
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    mainscreen_id = models.CharField(max_length=30, null=True, blank=True)
+    userscreen_id = models.CharField(max_length=30, null=True, blank=True)
+    userscreenaction_id = models.CharField(max_length=30, null=True, blank=True)
 
     permission_type = models.CharField(
         max_length=20,
@@ -72,42 +35,21 @@ class CompanyUserScreenPermission(BaseMaster):
         default=PermissionType.SCREEN,
     )
 
-    state_id = models.ForeignKey(
-        State, on_delete=models.PROTECT,
-        db_column="state_id", null=True, blank=True,
-        related_name="userscreenpermissions"
-    )
-    district_id = models.ForeignKey(
-        District, on_delete=models.PROTECT,
-        db_column="district_id", null=True, blank=True,
-        related_name="userscreenpermissions"
-    )
-    city_id = models.ForeignKey(
-        City, on_delete=models.PROTECT,
-        db_column="city_id", null=True, blank=True,
-        related_name="userscreenpermissions"
-    )
-    zone_id = models.ForeignKey(
-        Zone, on_delete=models.PROTECT,
-        db_column="zone_id", null=True, blank=True,
-        related_name="userscreenpermissions"
-    )
-    panchayat_id = models.ForeignKey(
-        Panchayat, on_delete=models.PROTECT,
-        db_column="panchayat_id", null=True, blank=True,
-        related_name="userscreenpermissions"
-    )
-    ward_id = models.ForeignKey(
-        Ward, on_delete=models.PROTECT,
-        db_column="ward_id", null=True, blank=True,
-        related_name="userscreenpermissions"
-    )
+    state_id = models.CharField(max_length=30, null=True, blank=True)
+    district_id = models.CharField(max_length=30, null=True, blank=True)
+    city_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
 
     order_no = models.IntegerField()
     description = models.CharField(max_length=255, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ("companyuserscreencolumnpermissions",)
+    CACHE_SCOPES = ("company_user_screen_permission_list", "company_user_screen_permission_detail")
 
     class Meta:
         ordering = ["order_no"]
@@ -137,3 +79,85 @@ class CompanyUserScreenPermission(BaseMaster):
         self.is_active = False
         self.is_deleted = True
         self.save(update_fields=["is_active", "is_deleted"])
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def mainscreen(self):
+        from .mainscreen import MainScreen
+        if self.mainscreen_id:
+            return MainScreen.objects.filter(unique_id=self.mainscreen_id).first()
+        return None
+
+    @property
+    def userscreen(self):
+        from .userscreen import UserScreen
+        if self.userscreen_id:
+            return UserScreen.objects.filter(unique_id=self.userscreen_id).first()
+        return None
+
+    @property
+    def userscreenaction(self):
+        from .userscreenaction import UserScreenAction
+        if self.userscreenaction_id:
+            return UserScreenAction.objects.filter(unique_id=self.userscreenaction_id).first()
+        return None
+
+    @property
+    def state(self):
+        from app.models.common_masters.state import State
+        if self.state_id:
+            return State.objects.filter(unique_id=self.state_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def city(self):
+        from app.models.masters.city import City
+        if self.city_id:
+            return City.objects.filter(unique_id=self.city_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def companyuserscreencolumnpermissions(self):
+        from .companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
+        return CompanyUserScreenColumnPermission.objects.filter(userscreen_id=self.unique_id)

@@ -51,7 +51,7 @@ def run_for_date(target_date=None, logger=None, force=False):
     skipped_count = 0
     details = []
 
-    for plan in plans.select_related("company_id", "project_id").all():
+    for plan in plans.all():
         if not force:
             repeat_days = plan.repeat_days or []
             if not repeat_days:
@@ -70,12 +70,13 @@ def run_for_date(target_date=None, logger=None, force=False):
                 skipped_count += 1
                 continue
 
+        plan_waste_type_ids = plan.waste_type_ids or ([plan.waste_type_id] if plan.waste_type_id else [])
         defaults = {
             "staff_template_id": plan.staff_template_id,
             "vehicle_id": plan.vehicle_id,
             "panchayat_id": plan.panchayat_id,
             "scheduled_time": plan.scheduled_time,
-            "waste_type_ids": plan.waste_type_ids or ([plan.waste_type_id_id] if plan.waste_type_id_id else []),
+            "waste_type_ids": plan_waste_type_ids,
         }
 
         with transaction.atomic():
@@ -89,7 +90,7 @@ def run_for_date(target_date=None, logger=None, force=False):
                 DailyTripAssignment.objects.filter(
                     company_id=plan.company_id,
                     project_id=plan.project_id,
-                    trip_plan_id=plan,
+                    trip_plan_id=plan.unique_id,
                     trip_date=today,
                 )
                 .order_by("created_at")
@@ -100,7 +101,7 @@ def run_for_date(target_date=None, logger=None, force=False):
                 assignment = DailyTripAssignment.objects.create(
                     company_id=plan.company_id,
                     project_id=plan.project_id,
-                    trip_plan_id=plan,
+                    trip_plan_id=plan.unique_id,
                     trip_date=today,
                     **defaults,
                 )
@@ -113,10 +114,10 @@ def run_for_date(target_date=None, logger=None, force=False):
                 log(f"Assignment already exists for plan {plan.unique_id} on {today}")
                 continue
 
-            if not assignment.wards.exists() and plan.wards.exists():
-                assignment.wards.set(plan.wards.all())
-            if not assignment.waste_types.exists() and plan.waste_types.exists():
-                assignment.waste_types.set(plan.waste_types.all())
+            plan_ward_ids = plan.get_ward_ids()
+            if not assignment.get_ward_ids() and plan_ward_ids:
+                assignment.ward_ids = ",".join(plan_ward_ids)
+                assignment.save(update_fields=["ward_ids"])
 
             created_count += 1
             # NOTE: a post_save signal on DailyTripAssignment

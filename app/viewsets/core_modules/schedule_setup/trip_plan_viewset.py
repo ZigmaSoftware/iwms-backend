@@ -17,22 +17,11 @@ from app.utils.pagination import LimitOffsetWithPage
 
 
 class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    queryset = TripPlan.objects.select_related(
-        "company_id",
-        "project_id",
-        "district_id",
-        "city_id",  
-        "zone_id",
-        "panchayat_id",
-        "staff_template_id",
-        "staff_template_id__driver_id",
-        "staff_template_id__operator_id",
-        "vehicle_id",
-        "supervisor_id",
-        "property_id",
-        "sub_property_id",
-        "waste_type_id",
-    ).prefetch_related("plan_collection_points", "wards").filter(is_deleted=False)
+    # Every field above (company_id, staff_template_id, wards, etc.) is now a
+    # plain CharField/TextField id column, not a real ForeignKey/M2M, so
+    # select_related/prefetch_related can no longer follow them — the
+    # serializer resolves each one on demand via its own queries instead.
+    queryset = TripPlan.objects.filter(is_deleted=False)
 
     serializer_class = TripPlanSerializer
     lookup_field = "unique_id"
@@ -51,7 +40,7 @@ class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         qs = super().get_queryset()
 
         if self._is_supervisor_user():
-            qs = qs.filter(supervisor_id=self.request.user)
+            qs = qs.filter(supervisor_id=self.request.user.staff_unique_id)
 
         return qs
 

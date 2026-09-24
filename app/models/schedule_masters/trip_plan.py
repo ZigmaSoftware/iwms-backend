@@ -5,21 +5,6 @@ from django.db import models
 from django.db.models import Max
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.masters.city import City
-from app.models.masters.district import District
-from app.models.masters.zone import Zone
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.masters.block_panchayat_union import BlockPanchayatUnion
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 def generate_trip_plan_id():
@@ -64,120 +49,35 @@ class TripPlan(BaseMaster):
     )
 
     # ---- tenancy ---------------------------------------------------
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="trip_plans",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="trip_plans",
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     # ---- WHERE -----------------------------------------------------
-    district_id = models.ForeignKey(
-        District,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-    )
-    city_id = models.ForeignKey(
-        City,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-    )
-    zone_id = models.ForeignKey(
-        Zone,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        null=True,
-        blank=True,
-    )
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        null=True,
-        blank=True,
-    )
-    block_panchayat_union_id = models.ForeignKey(
-        BlockPanchayatUnion,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        null=True,
-        blank=True,
-    )
-    wards = models.ManyToManyField(
-        Ward,
-        related_name="trip_plans_m2m",
-        blank=True,
-    )
+    district_id = models.CharField(max_length=30, null=True, blank=True)
+    city_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    block_panchayat_union_id = models.CharField(max_length=30, null=True, blank=True)
+    
+    # Store ward IDs as comma-separated string
+    ward_ids = models.TextField(blank=True, default="")
 
     # ---- WHO -------------------------------------------------------
-    staff_template_id = models.ForeignKey(
-        StaffTemplate,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        db_column="staff_template_id",
-    )
-    vehicle_id = models.ForeignKey(
-        VehicleCreation,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-    )
-    supervisor_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        to_field="staff_unique_id",
-        related_name="trip_plans",
-    )
+    staff_template_id = models.CharField(max_length=30, null=True, blank=True)
+    vehicle_id = models.CharField(max_length=30, null=True, blank=True)
+    supervisor_id = models.CharField(max_length=30, null=True, blank=True)
 
     # ---- WHAT ------------------------------------------------------
-    property_id = models.ForeignKey(
-        Property,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        db_column="property_id",
-        null=True,
-        blank=True,
-    )
-    sub_property_id = models.ForeignKey(
-        SubProperty,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        db_column="sub_property_id",
-        null=True,
-        blank=True,
-    )
-    waste_type_id = models.ForeignKey(
-        WasteType,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        related_name="trip_plans",
-        db_column="waste_type_id",
-    )
+    property_id = models.CharField(max_length=30, null=True, blank=True)
+    sub_property_id = models.CharField(max_length=30, null=True, blank=True)
+    waste_type_id = models.CharField(max_length=30, null=True, blank=True)
     waste_type_ids = models.JSONField(
         default=list,
         blank=True,
         help_text="List of waste type unique_ids allowed for this trip plan (legacy).",
     )
-    waste_types = models.ManyToManyField(
-        WasteType,
-        related_name="trip_plans_multi",
-        blank=True,
-        help_text="Multiple waste types handled by this trip plan.",
-    )
+    # Store waste type IDs as comma-separated string
+    waste_type_ids_csv = models.TextField(blank=True, default="")
     collection_type = models.CharField(
         max_length=30,
         choices=COLLECTION_TYPE_CHOICES,
@@ -226,6 +126,7 @@ class TripPlan(BaseMaster):
     updated_at = models.DateTimeField(auto_now=True)
 
     CASCADE_SOFT_DELETE = ("plan_collection_points", "daily_trip_assignments")
+    CACHE_SCOPES = ("trip_plan_list", "trip_plan_detail")
 
     class Meta:
         ordering = ["-created_at"]
@@ -233,20 +134,27 @@ class TripPlan(BaseMaster):
             models.Index(fields=["collection_type"]),
             models.Index(fields=["status", "approval_status"]),
             models.Index(fields=["display_code"]),
-            models.Index(fields=["district_id", "city_id"]),
         ]
         constraints = []
 
     def _generate_display_code(self):
         driver_name = "DRV"
-        if self.staff_template_id and self.staff_template_id.driver_id:
-            driver_name = (
-                self.staff_template_id.driver_id.employee_name[:6]
-                .upper().replace(" ", "")
-            )
+        if self.staff_template_id:
+            from app.models.schedule_masters.staff_template import StaffTemplate
+            tmpl = StaffTemplate.objects.filter(unique_id=self.staff_template_id).first()
+            if tmpl and tmpl.driver_id:
+                from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+                driver = StaffcreationOfficeDetails.objects.filter(
+                    staff_unique_id=tmpl.driver_id
+                ).first()
+                if driver and driver.employee_name:
+                    driver_name = driver.employee_name[:6].upper().replace(" ", "")
         vehicle_no = "VEH"
         if self.vehicle_id:
-            vehicle_no = self.vehicle_id.vehicle_no.upper().replace(" ", "")
+            from app.models.transport_masters.vehicleCreation import VehicleCreation
+            veh = VehicleCreation.objects.filter(unique_id=self.vehicle_id).first()
+            if veh:
+                vehicle_no = veh.vehicle_no.upper().replace(" ", "")
 
         base = f"{driver_name}-{vehicle_no}"
         last = (
@@ -270,3 +178,105 @@ class TripPlan(BaseMaster):
 
     def __str__(self):
         return self.display_code or self.unique_id
+
+    def get_ward_ids(self):
+        return [w for w in self.ward_ids.split(",") if w]
+
+    def get_waste_type_ids(self):
+        return [w for w in self.waste_type_ids_csv.split(",") if w]
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def city(self):
+        from app.models.masters.city import City
+        if self.city_id:
+            return City.objects.filter(unique_id=self.city_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def block_panchayat_union(self):
+        from app.models.masters.block_panchayat_union import BlockPanchayatUnion
+        if self.block_panchayat_union_id:
+            return BlockPanchayatUnion.objects.filter(unique_id=self.block_panchayat_union_id).first()
+        return None
+
+    @property
+    def wards(self):
+        from app.models.masters.ward import Ward
+        return Ward.objects.filter(unique_id__in=self.get_ward_ids())
+
+    @property
+    def staff_template(self):
+        from app.models.schedule_masters.staff_template import StaffTemplate
+        if self.staff_template_id:
+            return StaffTemplate.objects.filter(unique_id=self.staff_template_id).first()
+        return None
+
+    @property
+    def vehicle(self):
+        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        if self.vehicle_id:
+            return VehicleCreation.objects.filter(unique_id=self.vehicle_id).first()
+        return None
+
+    @property
+    def supervisor(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.supervisor_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.supervisor_id).first()
+        return None
+
+    @property
+    def property_obj(self):
+        from app.models.waste_types.property import Property
+        if self.property_id:
+            return Property.objects.filter(unique_id=self.property_id).first()
+        return None
+
+    @property
+    def sub_property_obj(self):
+        from app.models.waste_types.subproperty import SubProperty
+        if self.sub_property_id:
+            return SubProperty.objects.filter(unique_id=self.sub_property_id).first()
+        return None
+
+    @property
+    def waste_type(self):
+        from app.models.staff_creations.waste_collection_bluetooth import WasteType
+        if self.waste_type_id:
+            return WasteType.objects.filter(unique_id=self.waste_type_id).first()
+        return None

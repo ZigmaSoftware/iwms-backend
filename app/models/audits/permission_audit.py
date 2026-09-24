@@ -1,12 +1,5 @@
 from django.db import models
 
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.staff_creations.staffcreation import Staffcreation
-
 
 class PermissionAuditLog(models.Model):
     """Track permission updates for audit trail."""
@@ -17,52 +10,12 @@ class PermissionAuditLog(models.Model):
         ("DELETED", "Deleted"),
     ]
 
-    company= models.ForeignKey(
-        Company,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        to_field="unique_id",
-        db_column="company_id",
-    )
-    project = models.ForeignKey(
-        Project,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        to_field="unique_id",
-        db_column="project_id",
-    )
-    mainscreen = models.ForeignKey(
-        MainScreen,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        to_field="unique_id",
-        db_column="mainscreen_id",
-    )
-    userscreen = models.ForeignKey(
-        UserScreen,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        to_field="unique_id",
-        db_column="userscreen_id",
-    )
-    userscreenaction = models.ForeignKey(
-        UserScreenAction,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        to_field="unique_id",
-        db_column="userscreenaction_id",
-    )
-    updated_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
+    mainscreen_id = models.CharField(max_length=30, null=True, blank=True)
+    userscreen_id = models.CharField(max_length=30, null=True, blank=True)
+    userscreenaction_id = models.CharField(max_length=30, null=True, blank=True)
+    updated_by = models.CharField(max_length=30, null=True, blank=True)
     is_active = models.BooleanField(null=True, blank=True)
     is_deleted = models.BooleanField(null=True, blank=True)
     action_type = models.CharField(max_length=10, choices=ACTION_CHOICES, default="UPDATED")
@@ -71,3 +24,45 @@ class PermissionAuditLog(models.Model):
     class Meta:
         db_table = "permission_audit_logs"
         ordering = ["-timestamp"]
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def mainscreen(self):
+        from app.models.screen_managements.mainscreen import MainScreen
+        if self.mainscreen_id:
+            return MainScreen.objects.filter(unique_id=self.mainscreen_id).first()
+        return None
+
+    @property
+    def userscreen(self):
+        from app.models.screen_managements.userscreen import UserScreen
+        if self.userscreen_id:
+            return UserScreen.objects.filter(unique_id=self.userscreen_id).first()
+        return None
+
+    @property
+    def userscreenaction(self):
+        from app.models.screen_managements.userscreenaction import UserScreenAction
+        if self.userscreenaction_id:
+            return UserScreenAction.objects.filter(unique_id=self.userscreenaction_id).first()
+        return None
+
+    @property
+    def updated_by_staff(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        if self.updated_by:
+            return Staffcreation.objects.filter(staff_unique_id=self.updated_by).first()
+        return None

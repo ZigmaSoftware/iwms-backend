@@ -21,7 +21,9 @@ class AuthUserSeeder(BaseSeeder):
             return
 
         company = Company.objects.filter(is_deleted=False).first()
-        project = Project.objects.filter(company_id=company, is_deleted=False).first() if company else None
+        company_id = company.unique_id if company else None
+        project = Project.objects.filter(company_id=company_id, is_deleted=False).first() if company_id else None
+        project_id = project.unique_id if project else None
 
         district = District.objects.filter(is_deleted=False).first()
         city = City.objects.filter(is_deleted=False).first()
@@ -36,17 +38,17 @@ class AuthUserSeeder(BaseSeeder):
 
         driver_role, _ = StaffUserType.objects.get_or_create(
             name="Company Driver",
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type,
             defaults={"is_active": True, "is_deleted": False},
         )
         operator_role, _ = StaffUserType.objects.get_or_create(
             name="Company Operator",
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type,
             defaults={"is_active": True, "is_deleted": False},
         )
         approver_role, _ = StaffUserType.objects.get_or_create(
             name="Admin",
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type,
             defaults={"is_active": True, "is_deleted": False},
         )
 
@@ -78,15 +80,15 @@ class AuthUserSeeder(BaseSeeder):
                 "employee_name": username,
                 "username": username,
                 "office_email": email,
-                "user_type_id": staff_type,
-                "staffusertype_id": role,
+                "user_type_id": staff_type.unique_id if hasattr(staff_type, 'unique_id') else staff_type,
+                "staffusertype_id": role.unique_id if hasattr(role, 'unique_id') else role,
                 "password": password,
-                "company_id": company,
-                "project_id": project,
-                "district_id": district,
-                "city_id": city,
-                "zone_id": zone,
-                "ward_id": ward,
+                "company_id": company_id,
+                "project_id": project_id,
+                "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
+                "city_id": city.unique_id if hasattr(city, 'unique_id') else city,
+                "zone_id": zone.unique_id if hasattr(zone, 'unique_id') else zone,
+                "ward_id": ward.unique_id if hasattr(ward, 'unique_id') else ward,
                 "is_active": True,
                 "is_deleted": False,
                 "approval_status": Staffcreation.APPROVAL_APPROVED,
@@ -94,14 +96,14 @@ class AuthUserSeeder(BaseSeeder):
             }
 
             staff = Staffcreation.objects.filter(
-                company_id=company,
-                project_id=project,
+                company_id=company_id,
+                project_id=project_id,
                 username=username,
             ).first()
             if not staff:
                 staff = Staffcreation.objects.filter(
-                    company_id=company,
-                    project_id=project,
+                    company_id=company_id,
+                    project_id=project_id,
                     employee_name=username,
                 ).first()
             if not staff:

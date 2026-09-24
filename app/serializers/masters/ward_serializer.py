@@ -12,6 +12,9 @@ from app.validators.unique_name_validator import unique_name_validator
 
 class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
     state_id = NameOrUniqueIdField(
         queryset=State.objects.filter(is_deleted=False),
         name_field="name",
@@ -41,16 +44,16 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         allow_null=True,
     )
 
-    state_name = serializers.CharField(source="state_id.name", read_only=True)
-    city_name = serializers.CharField(source="city_id.name", read_only=True)
-    district_name = serializers.CharField(source="district_id.name", read_only=True)
-    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True)
-    panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
+    state_name = serializers.SerializerMethodField()
+    city_name = serializers.SerializerMethodField()
+    district_name = serializers.SerializerMethodField()
+    zone_name = serializers.SerializerMethodField()
+    panchayat_name = serializers.SerializerMethodField()
 
-    continent_name = serializers.CharField(source="state_id.continent_id.name", read_only=True)
-    country_name = serializers.CharField(source="state_id.country_id.name", read_only=True)
-    continent_id = serializers.CharField(source="state_id.continent_id.unique_id", read_only=True)
-    country_id = serializers.CharField(source="state_id.country_id.unique_id", read_only=True)
+    continent_name = serializers.SerializerMethodField()
+    country_name = serializers.SerializerMethodField()
+    continent_id = serializers.SerializerMethodField()
+    country_id = serializers.SerializerMethodField()
 
     # `coordinates` is the single read/write field for the ward boundary —
     # the dashboard map layers (useWardGeofences/WardGeofenceLayer/
@@ -62,18 +65,67 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     local_body_name = serializers.SerializerMethodField()
 
     def get_local_body_type(self, obj):
-        if obj.zone_id_id:
+        if obj.zone_id:
             return "Zone"
-        if obj.panchayat_id_id:
+        if obj.panchayat_id:
             return "Panchayat"
         return None
 
     def get_local_body_name(self, obj):
-        if obj.zone_id_id:
-            return obj.zone_id.zone_name
-        if obj.panchayat_id_id:
-            return obj.panchayat_id.panchayat_name
+        if obj.zone_id:
+            zone = Zone.objects.filter(unique_id=obj.zone_id).first()
+            return zone.zone_name if zone else None
+        if obj.panchayat_id:
+            panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
+            return panchayat.panchayat_name if panchayat else None
         return None
+
+    def get_state_name(self, obj):
+        state = State.objects.filter(unique_id=obj.state_id).first()
+        return state.name if state else None
+
+    def get_city_name(self, obj):
+        city = City.objects.filter(unique_id=obj.city_id).first()
+        return city.name if city else None
+
+    def get_district_name(self, obj):
+        district = District.objects.filter(unique_id=obj.district_id).first()
+        return district.name if district else None
+
+    def get_zone_name(self, obj):
+        zone = Zone.objects.filter(unique_id=obj.zone_id).first()
+        return zone.zone_name if zone else None
+
+    def get_panchayat_name(self, obj):
+        panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
+        return panchayat.panchayat_name if panchayat else None
+
+    def _state(self, obj):
+        return State.objects.filter(unique_id=obj.state_id).first()
+
+    def get_continent_name(self, obj):
+        state = self._state(obj)
+        if not state or not state.continent_id:
+            return None
+        from app.models.common_masters.continent import Continent
+        continent = Continent.objects.filter(unique_id=state.continent_id).first()
+        return continent.name if continent else None
+
+    def get_country_name(self, obj):
+        state = self._state(obj)
+        if not state or not state.country_id:
+            return None
+        from app.models.common_masters.country import Country
+        country = Country.objects.filter(unique_id=state.country_id).first()
+        return country.name if country else None
+
+    def get_continent_id(self, obj):
+        state = self._state(obj)
+        return state.continent_id if state else None
+
+    def get_country_id(self, obj):
+        state = self._state(obj)
+        return state.country_id if state else None
 
     class Meta:
         model = Ward

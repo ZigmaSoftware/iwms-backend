@@ -34,8 +34,8 @@ class StateSeeder(BaseSeeder):
         for name, label in self.STATES:
             State.objects.get_or_create(
                 name=name,
-                country_id=india,
-                continent_id=asia,
+                country_id=india.unique_id,
+                continent_id=asia.unique_id,
                 defaults={"label": label},
             )
 

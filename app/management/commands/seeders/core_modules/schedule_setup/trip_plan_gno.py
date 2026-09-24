@@ -168,7 +168,7 @@ class TripPlanGNOSeeder(BaseSeeder):
             return None
 
         project = Project.objects.filter(
-            name=PROJECT_NAME, company_id=company, is_deleted=False
+            name=PROJECT_NAME, company_id=company.unique_id, is_deleted=False
         ).first()
         if not project:
             self.log(f"Project '{PROJECT_NAME}' not found under {COMPANY_NAME} — skipping.")
@@ -178,7 +178,7 @@ class TripPlanGNOSeeder(BaseSeeder):
             ward
             for ward in (
                 Ward.objects.filter(
-                    ward_name=name, company_id=company, project_id=project, is_deleted=False
+                    ward_name=name, company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
                 ).first()
                 for name in WARD_CENTERS
             )
@@ -189,22 +189,25 @@ class TripPlanGNOSeeder(BaseSeeder):
             return None
 
         district = District.objects.filter(
-            company_id=company, project_id=project, is_deleted=False
+            company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
         ).first()
         city = City.objects.filter(
-            company_id=company, project_id=project, is_deleted=False
+            company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
         ).first()
         property_obj = Property.objects.filter(
-            company_id=company, project_id=project, property_name="Residential", is_deleted=False
+            company_id=company.unique_id, project_id=project.unique_id,
+            property_name="Residential", is_deleted=False
         ).first()
         sub_property = SubProperty.objects.filter(
-            property_id=property_obj, is_deleted=False
+            property_id=property_obj.unique_id, is_deleted=False
         ).first() if property_obj else None
         waste_types = list(
-            WasteType.objects.filter(company_id=company, project_id=project, is_deleted=False)
+            WasteType.objects.filter(
+                company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
+            )
         )
         vehicles = list(
-            VehicleCreation.objects.filter(project_id=project, is_deleted=False).order_by("vehicle_no")
+            VehicleCreation.objects.filter(project_id=project.unique_id, is_deleted=False).order_by("vehicle_no")
         )
         supervisor = Staffcreation.objects.filter(
             username="bp_gno_supervisor", is_deleted=False
@@ -218,8 +221,8 @@ class TripPlanGNOSeeder(BaseSeeder):
                 ("vehicles", vehicles), ("supervisor", supervisor),
                 # Non-nullable on CustomerCreation — bail out rather than
                 # blowing up mid-loop on an IntegrityError.
-                ("state", district.state_id_id if district else None),
-                ("country", district.country_id_id if district else None),
+                ("state", district.state_id if district else None),
+                ("country", district.country_id if district else None),
             )
             if not value
         ]
@@ -271,11 +274,11 @@ class TripPlanGNOSeeder(BaseSeeder):
         for driver in drivers:
             for operator in operators:
                 template, _ = StaffTemplate.objects.update_or_create(
-                    driver_id=driver,
-                    operator_id=operator,
+                    driver_id=driver.staff_unique_id,
+                    operator_id=operator.staff_unique_id,
                     defaults={
-                        "company_id": company,
-                        "project_id": project,
+                        "company_id": company.unique_id,
+                        "project_id": project.unique_id,
                         "extra_operator_id": [],
                         "status": StaffTemplate.Status.ACTIVE,
                         "is_active": True,
@@ -306,8 +309,8 @@ class TripPlanGNOSeeder(BaseSeeder):
             id_no = f"AADHAAR-BP-GNO-TP-{plan_idx:02d}-{stop_idx:02d}"
 
             customer, _ = CustomerCreation.objects.update_or_create(
-                company_id=ctx["company"],
-                project_id=ctx["project"],
+                company_id=ctx["company"].unique_id,
+                project_id=ctx["project"].unique_id,
                 id_no=id_no,
                 defaults={
                     "customer_name": name,
@@ -318,12 +321,12 @@ class TripPlanGNOSeeder(BaseSeeder):
                     "building_no": f"{(ordinal % 90) + 1}",
                     "street": street,
                     "area": area,
-                    "ward": ward,
-                    "zone": ward.zone_id,
-                    "city": ctx["city"],
-                    "district": ctx["district"],
-                    "state": ctx["state"],
-                    "country": ctx["country"],
+                    "ward_id": ward.unique_id,
+                    "zone_id": ward.zone_id,
+                    "city_id": ctx["city"].unique_id,
+                    "district_id": ctx["district"].unique_id,
+                    "state_id": ctx["state"],
+                    "country_id": ctx["country"],
                     "panchayat_id": None,
                     "pincode": pincode,
                     "latitude": f"{lat:.6f}",
@@ -341,13 +344,13 @@ class TripPlanGNOSeeder(BaseSeeder):
                         }
                         for member_idx in range(1, 5)
                     ],
-                    "property_ref": ctx["property"],
-                    "sub_property": ctx["sub_property"],
+                    "property_id": ctx["property"].unique_id,
+                    "sub_property_id": ctx["sub_property"].unique_id,
+                    "waste_type_ids": ",".join(w.unique_id for w in ctx["waste_types"]),
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
-            customer.waste_types.set(ctx["waste_types"])
             customers.append(customer)
         return customers
 
@@ -367,18 +370,18 @@ class TripPlanGNOSeeder(BaseSeeder):
         plan, created = TripPlan.objects.update_or_create(
             display_code=f"GNO-TP-{plan_idx:02d}",
             defaults={
-                "company_id": ctx["company"],
-                "project_id": ctx["project"],
-                "district_id": ctx["district"],
-                "city_id": ctx["city"],
+                "company_id": ctx["company"].unique_id,
+                "project_id": ctx["project"].unique_id,
+                "district_id": ctx["district"].unique_id,
+                "city_id": ctx["city"].unique_id,
                 "zone_id": ward.zone_id,
                 "panchayat_id": None,
-                "staff_template_id": template,
-                "vehicle_id": vehicle,
-                "supervisor_id": ctx["supervisor"],
-                "property_id": ctx["property"],
-                "sub_property_id": ctx["sub_property"],
-                "waste_type_id": waste_type,
+                "staff_template_id": template.unique_id,
+                "vehicle_id": vehicle.unique_id,
+                "supervisor_id": ctx["supervisor"].staff_unique_id,
+                "property_id": ctx["property"].unique_id,
+                "sub_property_id": ctx["sub_property"].unique_id,
+                "waste_type_id": waste_type.unique_id,
                 "waste_type_ids": [waste_type.unique_id],
                 "collection_type": TripPlan.COLLECTION_TYPE_HOUSEHOLD,
                 "trip_trigger_weight_kg": 400,
@@ -393,7 +396,8 @@ class TripPlanGNOSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-        plan.wards.set([ward])
+        plan.ward_ids = ward.unique_id
+        plan.save(update_fields=["ward_ids"])
         return plan, created
 
     def _replace_stops(self, ctx, plan, customers):
@@ -401,7 +405,7 @@ class TripPlanGNOSeeder(BaseSeeder):
         current set. Sequences on the retired rows are pushed past the new
         ones first: `sequence` is unique per plan, so reusing 1..N while the
         old rows still hold them would collide."""
-        existing = TripPlanCollectionPoint.objects.filter(trip_plan_id=plan)
+        existing = TripPlanCollectionPoint.objects.filter(trip_plan_id=plan.unique_id)
         if existing.exists():
             max_sequence = existing.aggregate(max_sequence=Max("sequence"))["max_sequence"] or 0
             existing.update(
@@ -412,11 +416,11 @@ class TripPlanGNOSeeder(BaseSeeder):
 
         for idx, customer in enumerate(customers, start=1):
             TripPlanCollectionPoint.objects.update_or_create(
-                trip_plan_id=plan,
-                customer_id=customer,
+                trip_plan_id=plan.unique_id,
+                customer_id=customer.unique_id,
                 defaults={
-                    "company_id": ctx["company"],
-                    "project_id": ctx["project"],
+                    "company_id": ctx["company"].unique_id,
+                    "project_id": ctx["project"].unique_id,
                     "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
                     "sequence": idx,
                     "is_active": True,

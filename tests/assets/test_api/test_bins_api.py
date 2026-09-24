@@ -11,8 +11,8 @@ BASE = "/api/v1/waste-types/bins/"
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="Test Panchayat",
-        company_id=company, project_id=project,
-        state_id=state, district_id=district, city_id=city,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id,
     )
 
 
@@ -20,9 +20,9 @@ def panchayat(db, company, project, state, district, city):
 def collection_point(db, company, project, state, district, city, panchayat):
     return Collection_point.objects.create(
         cp_name="CP-01",
-        company_id=company, project_id=project,
-        state_id=state, city_id=city, district_id=district,
-        panchayat_id=panchayat,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
+        panchayat_id=panchayat.unique_id,
         latitude="13.0827", longitude="80.2707",
     )
 
@@ -35,10 +35,10 @@ def waste_type_obj(db):
 
 def _make_bin(company, project, collection_point, waste_type_obj, **overrides):
     defaults = {
-        "company_id": company,
-        "project_id": project,
-        "collection_point_id": collection_point,
-        "wastetype_id": waste_type_obj,
+        "company_id": company.unique_id,
+        "project_id": project.unique_id,
+        "collection_point_id": collection_point.unique_id,
+        "wastetype_id": waste_type_obj.unique_id,
         "bin_capacity": 100,
         "bin_type": "small",
         "bin_name": "API Test Bin",
@@ -46,6 +46,9 @@ def _make_bin(company, project, collection_point, waste_type_obj, **overrides):
         "bin_qr": "",
     }
     defaults.update(overrides)
+    for key in ("ward_id", "zone_id", "panchayat_id"):
+        if key in defaults and hasattr(defaults[key], "unique_id"):
+            defaults[key] = defaults[key].unique_id
     return Bins.objects.create(**defaults)
 
 
@@ -75,7 +78,8 @@ class TestBinsAPIRetrieve:
 @pytest.mark.django_db
 class TestBinsAPIWardZonePanchayatFilters:
     def test_filter_by_ward_direct(self, auth_client, company, project, collection_point, waste_type_obj, zone, ward):
-        collection_point.wards.add(ward)
+        collection_point.ward_ids = ward.unique_id
+        collection_point.save(update_fields=["ward_ids"])
         ward_bin = _make_bin(company, project, collection_point, waste_type_obj, ward_id=ward)
         no_ward_bin = _make_bin(
             company, project, collection_point, waste_type_obj,
@@ -88,14 +92,16 @@ class TestBinsAPIWardZonePanchayatFilters:
         assert no_ward_bin.unique_id not in ids
 
     def test_filter_by_ward_id_alias(self, auth_client, company, project, collection_point, waste_type_obj, zone, ward):
-        collection_point.wards.add(ward)
+        collection_point.ward_ids = ward.unique_id
+        collection_point.save(update_fields=["ward_ids"])
         ward_bin = _make_bin(company, project, collection_point, waste_type_obj, ward_id=ward)
         resp = auth_client.get(BASE, {"ward_id": ward.unique_id})
         assert resp.status_code == 200
         assert ward_bin.unique_id in _ids(resp)
 
     def test_filter_by_zone_direct(self, auth_client, company, project, collection_point, waste_type_obj, zone, ward):
-        collection_point.wards.add(ward)
+        collection_point.ward_ids = ward.unique_id
+        collection_point.save(update_fields=["ward_ids"])
         zone_bin = _make_bin(company, project, collection_point, waste_type_obj, zone_id=zone, ward_id=ward)
         other_zone_bin = _make_bin(
             company, project, collection_point, waste_type_obj,
@@ -108,7 +114,8 @@ class TestBinsAPIWardZonePanchayatFilters:
         assert other_zone_bin.unique_id not in ids
 
     def test_filter_by_zone_id_alias(self, auth_client, company, project, collection_point, waste_type_obj, zone, ward):
-        collection_point.wards.add(ward)
+        collection_point.ward_ids = ward.unique_id
+        collection_point.save(update_fields=["ward_ids"])
         zone_bin = _make_bin(company, project, collection_point, waste_type_obj, zone_id=zone, ward_id=ward)
         resp = auth_client.get(BASE, {"zone_id": zone.unique_id})
         assert resp.status_code == 200
@@ -118,7 +125,7 @@ class TestBinsAPIWardZonePanchayatFilters:
         self, auth_client, company, project, collection_point, waste_type_obj, panchayat
     ):
         panchayat_bin = _make_bin(company, project, collection_point, waste_type_obj)
-        assert panchayat_bin.panchayat_id == panchayat
+        assert panchayat_bin.panchayat_id == panchayat.unique_id
         resp = auth_client.get(BASE, {"panchayat": panchayat.unique_id})
         assert resp.status_code == 200
         assert panchayat_bin.unique_id in _ids(resp)
@@ -136,7 +143,7 @@ class TestBinsAPIWardZonePanchayatFilters:
     ):
         other_cp = Collection_point.objects.create(
             cp_name="Other CP",
-            company_id=company, project_id=project,
+            company_id=company.unique_id, project_id=project.unique_id,
             state_id=collection_point.state_id,
             city_id=collection_point.city_id,
             district_id=collection_point.district_id,

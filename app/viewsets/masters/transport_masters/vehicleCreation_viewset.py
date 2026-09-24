@@ -42,7 +42,7 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
     def get_queryset(self):
         busy_today = DailyTripAssignment.objects.filter(
-            vehicle_id=OuterRef("pk"),
+            vehicle_id=OuterRef("unique_id"),
             trip_date=timezone.localdate(),
             is_deleted=False,
         ).exclude(
@@ -52,14 +52,14 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             ]
         )
 
-        qs = VehicleCreation.objects.filter(is_deleted=False).select_related(
-            "vehicle_type", "fuel_type", "company_id", "project_id"
-        ).annotate(is_assigned_today=Exists(busy_today))
+        qs = VehicleCreation.objects.filter(is_deleted=False).annotate(
+            is_assigned_today=Exists(busy_today)
+        )
 
         if self._is_supervisor_user():
             qs = qs.filter(
-                Q(supervisor=self.request.user)
-                | Q(trip_plans__supervisor_id=self.request.user)
+                Q(supervisor_id=getattr(self.request.user, "staff_unique_id", None))
+                | Q(supervisor_id=getattr(self.request.user, "unique_id", None))
             ).distinct()
 
         return qs

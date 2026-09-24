@@ -15,11 +15,11 @@ BASE = "/api/v1/waste/get-waste-types/"
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="Customer Panchayat",
-        company_id=company,
-        project_id=project,
-        state_id=state,
-        district_id=district,
-        city_id=city,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
     )
 
 
@@ -30,7 +30,7 @@ def prop(db):
 
 @pytest.fixture
 def sub_prop(db, prop):
-    return SubProperty.objects.create(sub_property_name="Apartment", property_id=prop)
+    return SubProperty.objects.create(sub_property_name="Apartment", property_id=prop)  # SubProperty.property_id is still a real ForeignKey
 
 
 @pytest.fixture
@@ -56,17 +56,17 @@ def customer(
         longitude="80.2707",
         id_proof_type="Aadhar",
         id_no="1234-5678-9012",
-        company_id=company,
-        project_id=project,
-        country=country,
-        state=state,
-        district=district,
-        city=city,
-        zone=zone,
-        ward=ward,
-        panchayat_id=panchayat,
-        property_ref=prop,
-        sub_property=sub_prop,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+        country_id=country.unique_id,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
+        zone_id=zone.unique_id,
+        ward_id=ward.unique_id,
+        panchayat_id=panchayat.unique_id,
+        property_id=prop.unique_id,
+        sub_property_id=sub_prop.unique_id,
     )
 
 
@@ -91,7 +91,8 @@ class TestMobileWasteTypesAPI:
         wet = WasteType.objects.create(waste_type_name="Wet Waste")
         dry = WasteType.objects.create(waste_type_name="Dry Waste")
         medical = WasteType.objects.create(waste_type_name="Medical Waste")
-        customer.waste_types.set([medical, wet])
+        customer.waste_type_ids = f"{medical.unique_id},{wet.unique_id}"
+        customer.save(update_fields=["waste_type_ids"])
 
         resp = auth_client.get(BASE, {"customer_id": customer.unique_id})
 
@@ -116,9 +117,11 @@ class TestMobileWasteTypesAPI:
         """Regression: a stream removed in Customer Creation must disappear."""
         wet = WasteType.objects.create(waste_type_name="Wet Waste")
         dry = WasteType.objects.create(waste_type_name="Dry Waste")
-        customer.waste_types.set([wet, dry])
+        customer.waste_type_ids = f"{wet.unique_id},{dry.unique_id}"
+        customer.save(update_fields=["waste_type_ids"])
 
-        customer.waste_types.remove(dry)
+        customer.waste_type_ids = wet.unique_id
+        customer.save(update_fields=["waste_type_ids"])
 
         resp = auth_client.get(BASE, {"customer_id": customer.unique_id})
 
@@ -128,7 +131,8 @@ class TestMobileWasteTypesAPI:
     def test_customer_with_no_waste_types_returns_empty(self, auth_client, customer):
         """Empty must stay empty — callers must not substitute a default set."""
         WasteType.objects.create(waste_type_name="Wet Waste")
-        customer.waste_types.clear()
+        customer.waste_type_ids = ""
+        customer.save(update_fields=["waste_type_ids"])
 
         resp = auth_client.get(BASE, {"customer_id": customer.unique_id})
 

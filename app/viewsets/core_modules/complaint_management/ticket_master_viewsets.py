@@ -4,7 +4,6 @@ These replace the `complaint_ticket_stub_viewsets` placeholders, which
 returned an empty list / 501 while the models did not exist here yet.
 """
 
-from django.db.models import Prefetch
 from rest_framework import viewsets
 
 from app.models.complaint_management import (
@@ -118,16 +117,14 @@ class _ScopedComplaintMasterViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
 
 class ComplaintTicketCategoryViewSet(_ScopedComplaintMasterViewSet):
-    queryset = ComplaintCategory.objects.select_related(
-        "module", "default_priority", "default_department"
-    )
+    queryset = ComplaintCategory.objects.all()
     serializer_class = ComplaintCategorySerializer
     permission_resource = "ComplaintCategory"
     AUDIT_ENDPOINT = "ticket-categories"
 
 
 class ComplaintTicketSubcategoryViewSet(_ScopedComplaintMasterViewSet):
-    queryset = ComplaintSubcategory.objects.select_related("category", "default_priority")
+    queryset = ComplaintSubcategory.objects.all()
     serializer_class = ComplaintSubcategorySerializer
     permission_resource = "ComplaintSubcategory"
     AUDIT_ENDPOINT = "ticket-subcategories"
@@ -141,23 +138,14 @@ class ComplaintTicketSubcategoryViewSet(_ScopedComplaintMasterViewSet):
 
 
 class ComplaintSlaRuleViewSet(_ScopedComplaintMasterViewSet):
-    queryset = ComplaintSlaRule.objects.select_related(
-        "category", "subcategory", "priority", "source"
-    ).prefetch_related(
-        Prefetch(
-            "escalation_levels",
-            queryset=ComplaintSlaEscalationLevel.objects.filter(is_deleted=False).order_by("level"),
-        )
-    )
+    queryset = ComplaintSlaRule.objects.all()
     serializer_class = ComplaintSlaRuleSerializer
     permission_resource = "ComplaintSlaRule"
     AUDIT_ENDPOINT = "sla-rules"
 
 
 class ComplaintRoutingRuleViewSet(_ScopedComplaintMasterViewSet):
-    queryset = ComplaintRoutingRule.objects.select_related(
-        "category", "subcategory", "priority", "sla_rule"
-    )
+    queryset = ComplaintRoutingRule.objects.all()
     serializer_class = ComplaintRoutingRuleSerializer
     permission_resource = "ComplaintRoutingRule"
     AUDIT_ENDPOINT = "routing-rules"

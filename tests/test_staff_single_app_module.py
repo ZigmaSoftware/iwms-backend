@@ -75,18 +75,20 @@ def test_staff_app_module_reads_through_access_configuration(db, modules):
     from app.models.superadmin_masters.company import Company
 
     company = Company.objects.create(name="Acme")
-    staff = Staffcreation.objects.create(employee_name="Ravi", company_id=company)
+    staff = Staffcreation.objects.create(employee_name="Ravi", company_id=company.unique_id)
 
     # No configuration at all — no mobile access.
     assert staff.app_module is None
 
     config = StaffAccessConfiguration.objects.create(
-        staff_id=staff, company_id=company, app_module=modules[0],
+        staff_id=staff.staff_unique_id,
+        company_id=company.unique_id,
+        app_module_id=modules[0].unique_id,
     )
     assert Staffcreation.objects.get(pk=staff.pk).app_module == modules[0].surface_key
 
     # Clearing the selection revokes mobile access rather than leaving a
     # stale surface key behind on the staff record.
-    config.app_module = None
-    config.save(update_fields=["app_module"])
+    config.app_module_id = None
+    config.save(update_fields=["app_module_id"])
     assert Staffcreation.objects.get(pk=staff.pk).app_module is None

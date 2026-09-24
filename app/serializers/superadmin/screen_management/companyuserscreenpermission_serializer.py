@@ -25,23 +25,65 @@ SUPPORTED_ACTION_NAMES = {"add", "edit", "delete", "view"}
 
 
 class CompanyUserScreenPermissionSerializer(serializers.ModelSerializer):
-    userscreen_name = serializers.CharField(source="userscreen_id.userscreen_name", read_only=True)
-    userscreenaction_name = serializers.CharField(source="userscreenaction_id.action_name", read_only=True)
-    mainscreen_name = serializers.CharField(source="mainscreen_id.mainscreen_name", read_only=True)
-    company_name = serializers.CharField(source="company_id.name", read_only=True)
-    project_name = serializers.CharField(source="project_id.name", read_only=True, allow_null=True, default=None)
-    state_name = serializers.CharField(source="state_id.name", read_only=True, allow_null=True, default=None)
-    district_name = serializers.CharField(source="district_id.name", read_only=True, allow_null=True, default=None)
-    city_name = serializers.CharField(source="city_id.name", read_only=True, allow_null=True, default=None)
-    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True, allow_null=True, default=None)
-    panchayat_name = serializers.CharField(
-        source="panchayat_id.panchayat_name", read_only=True, allow_null=True, default=None
-    )
-    ward_name = serializers.CharField(source="ward_id.ward_name", read_only=True, allow_null=True, default=None)
+    userscreen_name = serializers.SerializerMethodField()
+    userscreenaction_name = serializers.SerializerMethodField()
+    mainscreen_name = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
+    project_name = serializers.SerializerMethodField()
+    state_name = serializers.SerializerMethodField()
+    district_name = serializers.SerializerMethodField()
+    city_name = serializers.SerializerMethodField()
+    zone_name = serializers.SerializerMethodField()
+    panchayat_name = serializers.SerializerMethodField()
+    ward_name = serializers.SerializerMethodField()
 
     class Meta:
         model = CompanyUserScreenPermission
         fields = "__all__"
+
+    def get_userscreen_name(self, obj):
+        userscreen = obj.userscreen
+        return userscreen.userscreen_name if userscreen else None
+
+    def get_userscreenaction_name(self, obj):
+        userscreenaction = obj.userscreenaction
+        return userscreenaction.action_name if userscreenaction else None
+
+    def get_mainscreen_name(self, obj):
+        mainscreen = obj.mainscreen
+        return mainscreen.mainscreen_name if mainscreen else None
+
+    def get_company_name(self, obj):
+        company = obj.company
+        return company.name if company else None
+
+    def get_project_name(self, obj):
+        project = obj.project
+        return project.name if project else None
+
+    def get_state_name(self, obj):
+        state = obj.state
+        return state.name if state else None
+
+    def get_district_name(self, obj):
+        district = obj.district
+        return district.name if district else None
+
+    def get_city_name(self, obj):
+        city = obj.city
+        return city.name if city else None
+
+    def get_zone_name(self, obj):
+        zone = obj.zone
+        return zone.zone_name if zone else None
+
+    def get_panchayat_name(self, obj):
+        panchayat = obj.panchayat
+        return panchayat.panchayat_name if panchayat else None
+
+    def get_ward_name(self, obj):
+        ward = obj.ward
+        return ward.ward_name if ward else None
 
 
 class ScreenActionSerializer(serializers.Serializer):
@@ -161,7 +203,7 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
             try:
                 project = Project.objects.get(
                     unique_id=data["project_id"],
-                    company_id_id=company.unique_id,
+                    company_id=company.unique_id,
                     is_deleted=False,
                 )
             except Project.DoesNotExist:
@@ -218,7 +260,7 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         valid_screen_ids = set(
             UserScreen.objects.filter(
                 unique_id__in=screen_ids,
-                mainscreen_id_id=mainscreen.unique_id,
+                mainscreen_id=mainscreen.unique_id,
                 is_deleted=False,
             ).values_list("unique_id", flat=True)
         )
@@ -275,7 +317,7 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
             if column_ids is None:
                 continue
             screen_columns = UserScreenColumn.objects.filter(
-                userscreen_id_id=screen["userscreen_id"],
+                userscreen_id=screen["userscreen_id"],
                 is_active=True,
                 is_deleted=False,
             )
@@ -360,16 +402,14 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         created, updated, deleted = [], [], []
         created_columns, updated_columns, deleted_columns = [], [], []
 
-        existing_qs = CompanyUserScreenPermission.objects.select_related(
-            "userscreen_id", "userscreenaction_id"
-        ).filter(
-            company_id_id=company_id,
-            project_id_id=project_id,
-            mainscreen_id_id=mainscreen_id,
+        existing_qs = CompanyUserScreenPermission.objects.filter(
+            company_id=company_id,
+            project_id=project_id,
+            mainscreen_id=mainscreen_id,
             permission_type=permission_type,
         )
         existing_lookup = {
-            (obj.userscreen_id_id, obj.userscreenaction_id_id): obj
+            (obj.userscreen_id, obj.userscreenaction_id): obj
             for obj in existing_qs
         }
         incoming_action_keys = set()
@@ -388,13 +428,13 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                     permission.order_no = order_no
                     permission.description = screen_desc
                     permission.permission_type = permission_type
-                    permission.project_id_id = project_id
-                    permission.state_id_id = state_id
-                    permission.district_id_id = district_id
-                    permission.city_id_id = city_id
-                    permission.zone_id_id = zone_id
-                    permission.panchayat_id_id = panchayat_id
-                    permission.ward_id_id = ward_id
+                    permission.project_id = project_id
+                    permission.state_id = state_id
+                    permission.district_id = district_id
+                    permission.city_id = city_id
+                    permission.zone_id = zone_id
+                    permission.panchayat_id = panchayat_id
+                    permission.ward_id = ward_id
                     permission.save(update_fields=[
                         "is_deleted",
                         "is_active",
@@ -419,18 +459,18 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
                     })
 
                 permission = CompanyUserScreenPermission.objects.create(
-                    company_id_id=company_id,
-                    project_id_id=project_id,
-                    state_id_id=state_id,
-                    district_id_id=district_id,
-                    city_id_id=city_id,
-                    zone_id_id=zone_id,
-                    panchayat_id_id=panchayat_id,
-                    ward_id_id=ward_id,
-                    mainscreen_id_id=mainscreen_id,
+                    company_id=company_id,
+                    project_id=project_id,
+                    state_id=state_id,
+                    district_id=district_id,
+                    city_id=city_id,
+                    zone_id=zone_id,
+                    panchayat_id=panchayat_id,
+                    ward_id=ward_id,
+                    mainscreen_id=mainscreen_id,
                     permission_type=permission_type,
-                    userscreen_id_id=screen_id,
-                    userscreenaction_id_id=action_id,
+                    userscreen_id=screen_id,
+                    userscreenaction_id=action_id,
                     order_no=order_no,
                     description=screen_desc,
                     is_deleted=False,
@@ -478,11 +518,11 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
         description,
     ):
         existing = {
-            obj.column_id_id: obj
+            obj.column_id: obj
             for obj in CompanyUserScreenColumnPermission.objects.filter(
-                company_id_id=company_id,
-                project_id_id=project_id,
-                userscreen_id_id=userscreen_id,
+                company_id=company_id,
+                project_id=project_id,
+                userscreen_id=userscreen_id,
             )
         }
 
@@ -514,10 +554,10 @@ class CompanyUserScreenPermissionMultiScreenSerializer(serializers.Serializer):
 
             created.append(
                 CompanyUserScreenColumnPermission(
-                    company_id_id=company_id,
-                    project_id_id=project_id,
-                    userscreen_id_id=userscreen_id,
-                    column_id_id=column_id,
+                    company_id=company_id,
+                    project_id=project_id,
+                    userscreen_id=userscreen_id,
+                    column_id=column_id,
                     can_view=can_view,
                     order_no=order_no,
                     description=description,

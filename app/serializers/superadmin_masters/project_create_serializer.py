@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -18,12 +19,24 @@ def _is_platform_super_admin(user):
     )
 
 
+def _resolve_project_company(project):
+    if not project.company_id:
+        return None
+    return (
+        Company.objects.filter(Q(unique_id=project.company_id) | Q(name=project.company_id))
+        .only("unique_id", "name")
+        .first()
+    )
+
+
 class ProjectCreateSerializer(serializers.ModelSerializer):
     company_unique_id = serializers.CharField(max_length=30, required=False, write_only=True)
     admin_username = serializers.CharField(max_length=150, required=False, write_only=True)
     admin_password = serializers.CharField(write_only=True, min_length=8, required=False)
     admin_employee_name = serializers.CharField(max_length=200, required=False, write_only=True)
     admin_email = serializers.EmailField(required=False, allow_null=True, allow_blank=True, write_only=True)
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
     attendance_api_configured = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
@@ -51,6 +64,8 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
             "admin_password",
             "admin_employee_name",
             "admin_email",
+            "created_by",
+            "updated_by",
         ]
         extra_kwargs = {
             "attendance_api_key": {
@@ -124,19 +139,19 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
             defaults={"is_active": True, "is_deleted": False},
         )
         admin_role, _ = StaffUserType.objects.get_or_create(
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id,
             name="admin",
             defaults={"is_active": True, "is_deleted": False},
         )
 
         staff = Staffcreation.objects.create(
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
             employee_name=admin_employee_name,
             username=admin_username,
             password=admin_password,
-            user_type_id=staff_type,
-            staffusertype_id=admin_role,
+            user_type_id=staff_type.unique_id,
+            staffusertype_id=admin_role.unique_id,
             is_staff=False,
             is_active=True,
             is_deleted=False,
@@ -144,8 +159,8 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
 
         if admin_email:
             StaffPersonalDetails.objects.create(
-                company_id=company,
-                project_id=project,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 staff=staff,
                 staff_unique_id=staff.staff_unique_id,
                 contact_email=admin_email,
@@ -162,11 +177,13 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
         admin_password = validated_data.pop("admin_password", None)
         admin_employee_name = validated_data.pop("admin_employee_name", None)
         admin_email = validated_data.pop("admin_email", None)
+        created_by_id = validated_data.get("created_by_id")
+        updated_by_id = validated_data.get("updated_by_id")
 
         is_platform_super_admin = _is_platform_super_admin(user)
         company = self._resolve_company(user, company_unique_id, is_platform_super_admin)
 
-        has_existing_project = Project.objects.filter(company_id=company, is_deleted=False).exists()
+        has_existing_project = Project.objects.filter(company_id=company.unique_id, is_deleted=False).exists()
         self._validate_admin_payload(
             has_existing_project=has_existing_project,
             is_platform_super_admin=is_platform_super_admin,
@@ -177,7 +194,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
         )
 
         project = Project.objects.create(
-            company_id=company,
+            company_id=company.unique_id,
             name=validated_data["name"],
             description=validated_data.get("description"),
             project_logo=validated_data.get("project_logo"),
@@ -196,6 +213,8 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
             attendance_api_key=validated_data.get("attendance_api_key"),
             is_active=True,
             is_deleted=False,
+            created_by_id=created_by_id,
+            updated_by_id=updated_by_id,
         )
 
         self._company_admin_payload = None
@@ -233,8 +252,10 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
 
 
 class ProjectUpdateSerializer(serializers.ModelSerializer):
-    company_unique_id = serializers.CharField(source="company_id.unique_id", read_only=True)
-    company_name = serializers.CharField(source="company_id.name", read_only=True)
+    company_unique_id = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
     attendance_api_configured = serializers.SerializerMethodField()
 
     class Meta:
@@ -261,8 +282,10 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
             "attendance_api_key",
             "attendance_api_configured",
             "is_active",
+            "created_by",
+            "updated_by",
         ]
-        read_only_fields = ["unique_id", "company_unique_id", "company_name"]
+        read_only_fields = ["unique_id", "company_unique_id", "company_name", "created_by", "updated_by"]
         extra_kwargs = {
             "attendance_api_key": {
                 "write_only": True,
@@ -274,6 +297,14 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
     def get_attendance_api_configured(self, obj):
         return bool(obj.attendance_api_url and obj.attendance_api_key)
 
+    def get_company_unique_id(self, obj):
+        company = _resolve_project_company(obj)
+        return company.unique_id if company else obj.company_id
+
+    def get_company_name(self, obj):
+        company = _resolve_project_company(obj)
+        return company.name if company else None
+
     def update(self, instance, validated_data):
         # Keep legacy behavior: PUT without description clears description.
         if not self.partial and "description" not in validated_data:
@@ -282,8 +313,10 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
-    company_unique_id = serializers.CharField(source="company_id.unique_id", read_only=True)
-    company_name = serializers.CharField(source="company_id.name", read_only=True)
+    company_unique_id = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
     attendance_api_configured = serializers.SerializerMethodField()
 
     class Meta:
@@ -309,8 +342,25 @@ class ProjectSerializer(serializers.ModelSerializer):
             "attendance_api_url",
             "attendance_api_configured",
             "is_active",
+            "created_by",
+            "updated_by",
         ]
-        read_only_fields = ["unique_id", "company_unique_id", "company_name", "is_active"]
+        read_only_fields = [
+            "unique_id",
+            "company_unique_id",
+            "company_name",
+            "is_active",
+            "created_by",
+            "updated_by",
+        ]
 
     def get_attendance_api_configured(self, obj):
         return bool(obj.attendance_api_url and obj.attendance_api_key)
+
+    def get_company_unique_id(self, obj):
+        company = _resolve_project_company(obj)
+        return company.unique_id if company else obj.company_id
+
+    def get_company_name(self, obj):
+        company = _resolve_project_company(obj)
+        return company.name if company else None

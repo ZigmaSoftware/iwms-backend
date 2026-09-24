@@ -4,19 +4,6 @@ from django.db.models import UniqueConstraint
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
-from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.common_masters.state import State
-from app.models.masters.district import District
-from app.models.masters.city import City
-from app.models.masters.zone import Zone
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
-
 
 def generate_staff_access_configuration_id():
     return f"STFACCCFG-{generate_unique_id()}"
@@ -31,46 +18,18 @@ class StaffAccessConfiguration(BaseMaster):
         editable=False,
     )
 
-    staff_id = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.CASCADE,
-        to_field="staff_unique_id",
-        db_column="staff_id",
-        related_name="access_configuration",
-    )
+    staff_id = models.CharField(max_length=30, null=True, blank=True)
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        db_column="company_id",
-        related_name="staff_access_configurations",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
 
-    projects = models.ManyToManyField(
-        Project,
-        related_name="staff_access_configurations",
-        blank=True,
-    )
-
-    states = models.ManyToManyField(
-        State, related_name="staff_access_configurations", blank=True,
-    )
-    districts = models.ManyToManyField(
-        District, related_name="staff_access_configurations", blank=True,
-    )
-    cities = models.ManyToManyField(
-        City, related_name="staff_access_configurations", blank=True,
-    )
-    zones = models.ManyToManyField(
-        Zone, related_name="staff_access_configurations", blank=True,
-    )
-    panchayats = models.ManyToManyField(
-        Panchayat, related_name="staff_access_configurations", blank=True,
-    )
-    wards = models.ManyToManyField(
-        Ward, related_name="staff_access_configurations", blank=True,
-    )
+    # Store project/geo IDs as comma-separated strings for API integration
+    project_ids = models.TextField(blank=True, default="")
+    state_ids = models.TextField(blank=True, default="")
+    district_ids = models.TextField(blank=True, default="")
+    city_ids = models.TextField(blank=True, default="")
+    zone_ids = models.TextField(blank=True, default="")
+    panchayat_ids = models.TextField(blank=True, default="")
+    ward_ids = models.TextField(blank=True, default="")
 
     # The ONE mobile app this staff member signs into. Nothing selected means
     # the mobile login is refused outright; what they can do once inside comes
@@ -82,18 +41,15 @@ class StaffAccessConfiguration(BaseMaster):
     # is a read-only property that reads back through here, so the "which app
     # opens after sign-in" question and the "may they sign in at all"
     # question can no longer be answered differently.
-    app_module = models.ForeignKey(
-        "app.AppModule",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="staff_access_configurations",
-    )
+    app_module_id = models.CharField(max_length=30, null=True, blank=True)
 
     description = models.CharField(max_length=255, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ("granted_permissions",)
+    CACHE_SCOPES = ("staff_access_configuration_list", "staff_access_configuration_detail")
 
     class Meta:
         ordering = ["-updated_at"]
@@ -106,7 +62,49 @@ class StaffAccessConfiguration(BaseMaster):
         ]
 
     def __str__(self):
-        return f"{self.staff_id_id}"
+        return f"{self.staff_id}"
+
+    def get_project_ids(self):
+        return [p for p in self.project_ids.split(",") if p]
+
+    def get_state_ids(self):
+        return [s for s in self.state_ids.split(",") if s]
+
+    def get_district_ids(self):
+        return [d for d in self.district_ids.split(",") if d]
+
+    def get_city_ids(self):
+        return [c for c in self.city_ids.split(",") if c]
+
+    def get_zone_ids(self):
+        return [z for z in self.zone_ids.split(",") if z]
+
+    def get_panchayat_ids(self):
+        return [p for p in self.panchayat_ids.split(",") if p]
+
+    def get_ward_ids(self):
+        return [w for w in self.ward_ids.split(",") if w]
+
+    @property
+    def staff(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.staff_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.staff_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def app_module(self):
+        from app.models.screen_managements.app_module import AppModule
+        if self.app_module_id:
+            return AppModule.objects.filter(unique_id=self.app_module_id).first()
+        return None
 
     def delete(self, *args, **kwargs):
         self.is_active = False
@@ -133,34 +131,19 @@ class StaffAccessConfigurationPermission(BaseMaster):
         editable=False,
     )
 
-    staff_access_configuration_id = models.ForeignKey(
-        StaffAccessConfiguration,
-        on_delete=models.CASCADE,
-        to_field="unique_id",
-        db_column="staff_access_configuration_id",
-        related_name="granted_permissions",
-    )
+    staff_access_configuration_id = models.CharField(max_length=60, null=True, blank=True)
 
-    mainscreen_id = models.ForeignKey(
-        MainScreen, on_delete=models.PROTECT,
-        to_field="unique_id", db_column="mainscreen_id",
-        related_name="staff_access_configuration_permissions",
-    )
-    userscreen_id = models.ForeignKey(
-        UserScreen, on_delete=models.PROTECT,
-        to_field="unique_id", db_column="userscreen_id",
-        related_name="staff_access_configuration_permissions",
-    )
-    userscreenaction_id = models.ForeignKey(
-        UserScreenAction, on_delete=models.PROTECT,
-        to_field="unique_id", db_column="userscreenaction_id",
-        related_name="staff_access_configuration_permissions",
-    )
+    mainscreen_id = models.CharField(max_length=30, null=True, blank=True)
+    userscreen_id = models.CharField(max_length=30, null=True, blank=True)
+    userscreenaction_id = models.CharField(max_length=30, null=True, blank=True)
 
     order_no = models.IntegerField(default=1)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("staff_access_configuration_permission_list", "staff_access_configuration_permission_detail")
 
     class Meta:
         ordering = ["order_no"]
@@ -180,3 +163,30 @@ class StaffAccessConfigurationPermission(BaseMaster):
         self.is_active = False
         self.is_deleted = True
         self.save(update_fields=["is_active", "is_deleted"])
+
+    @property
+    def staff_access_configuration(self):
+        if self.staff_access_configuration_id:
+            return StaffAccessConfiguration.objects.filter(unique_id=self.staff_access_configuration_id).first()
+        return None
+
+    @property
+    def mainscreen(self):
+        from app.models.screen_managements.mainscreen import MainScreen
+        if self.mainscreen_id:
+            return MainScreen.objects.filter(unique_id=self.mainscreen_id).first()
+        return None
+
+    @property
+    def userscreen(self):
+        from app.models.screen_managements.userscreen import UserScreen
+        if self.userscreen_id:
+            return UserScreen.objects.filter(unique_id=self.userscreen_id).first()
+        return None
+
+    @property
+    def userscreenaction(self):
+        from app.models.screen_managements.userscreenaction import UserScreenAction
+        if self.userscreenaction_id:
+            return UserScreenAction.objects.filter(unique_id=self.userscreenaction_id).first()
+        return None

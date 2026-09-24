@@ -17,6 +17,9 @@ class CommaSeparatedListField(serializers.ListField):
 
 class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
     driver_id = NameOrUniqueIdField(
         slug_field="staff_unique_id",
         name_field="employee_name",

@@ -117,11 +117,14 @@ class DriverHouseholdTripSeeder(BaseSeeder):
         city = City.objects.filter(**scope).first()
         zone = Zone.objects.filter(**scope).first()
         vehicle = VehicleCreation.objects.filter(**scope).first()
+        pseudo_scope = {
+            "company_id": company.unique_id, "project_id": project.unique_id, "is_deleted": False,
+        }
         residential_property = Property.objects.filter(
-            **scope, property_name="Residential",
+            **pseudo_scope, property_name="Residential",
         ).first()
         residential_sub_property = SubProperty.objects.filter(
-            **scope, sub_property_name="Individual House",
+            **pseudo_scope, sub_property_name="Individual House",
         ).first()
 
         missing = [
@@ -135,7 +138,10 @@ class DriverHouseholdTripSeeder(BaseSeeder):
             self.log(f"Missing {PROJECT_NAME} masters: {', '.join(missing)}. Seed superadmin first.")
             return None
 
-        wet_type = WasteType.objects.filter(**scope, waste_type_name="Wet Waste").first()
+        wet_type = WasteType.objects.filter(
+            company_id=company.unique_id, project_id=project.unique_id,
+            is_deleted=False, waste_type_name="Wet Waste",
+        ).first()
         if not wet_type:
             self.log(f"Wet Waste WasteType not found under {PROJECT_NAME}. Seed superadmin first.")
             return None
@@ -148,7 +154,7 @@ class DriverHouseholdTripSeeder(BaseSeeder):
         if not operator:
             operator = driver
 
-        ward = Ward.objects.filter(unique_id=driver.ward_id_id, is_deleted=False).first()
+        ward = Ward.objects.filter(unique_id=driver.ward_id, is_deleted=False).first()
         if not ward:
             self.log(f"'{DRIVER_USERNAME}' has no ward assigned — run driver_wet_dry_bin_trips first.")
             return None
@@ -267,7 +273,8 @@ class DriverHouseholdTripSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
-        plan.wards.set([ctx["ward"]])
+        plan.ward_ids = ctx["ward"].unique_id
+        plan.save(update_fields=["ward_ids"])
         self.log(
             f"TripPlan {'created' if created else 'updated'}: {plan.unique_id} "
             f"[{HOUSEHOLD_PLAN_DISPLAY_CODE}] supervisor={ctx['supervisor'].username}"

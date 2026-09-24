@@ -28,21 +28,18 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
     )
 
     vehicle_type_id = NameOrUniqueIdField(
-        source="vehicle_type",
         name_field="vehicleType",
         queryset=VehicleTypeCreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
     fuel_type_id = NameOrUniqueIdField(
-        source="fuel_type",
         name_field="fuel_type",
         queryset=Fuel.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
     supervisor_id = NameOrUniqueIdField(
-        source="supervisor",
         slug_field="staff_unique_id",
         name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
@@ -50,18 +47,9 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
-    vehicle_type_name = serializers.CharField(
-        source="vehicle_type.vehicleType",
-        read_only=True
-    )
-    fuel_type_name = serializers.CharField(
-        source="fuel_type.fuel_type",
-        read_only=True
-    )
-    supervisor_name = serializers.CharField(
-        source="supervisor.employee_name",
-        read_only=True
-    )
+    vehicle_type_name = serializers.SerializerMethodField()
+    fuel_type_name = serializers.SerializerMethodField()
+    supervisor_name = serializers.SerializerMethodField()
 
     is_assigned_today = serializers.SerializerMethodField()
 
@@ -104,20 +92,32 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
         validators = []
 
     def get_company_id(self, obj):
-        company = getattr(obj, "company_id", None)
-        return getattr(company, "unique_id", None)
+        return obj.company_id
 
     def get_company_name(self, obj):
-        company = getattr(obj, "company_id", None)
-        return getattr(company, "name", None)
+        from app.models.superadmin_masters.company import Company
+        company = Company.objects.filter(unique_id=obj.company_id).first()
+        return company.name if company else None
 
     def get_project_id(self, obj):
-        project = getattr(obj, "project_id", None)
-        return getattr(project, "unique_id", None)
+        return obj.project_id
 
     def get_project_name(self, obj):
-        project = getattr(obj, "project_id", None)
-        return getattr(project, "name", None)
+        from app.models.superadmin_masters.project import Project
+        project = Project.objects.filter(unique_id=obj.project_id).first()
+        return project.name if project else None
+
+    def get_vehicle_type_name(self, obj):
+        vehicle_type = VehicleTypeCreation.objects.filter(unique_id=obj.vehicle_type_id).first()
+        return vehicle_type.vehicleType if vehicle_type else None
+
+    def get_fuel_type_name(self, obj):
+        fuel = Fuel.objects.filter(unique_id=obj.fuel_type_id).first()
+        return fuel.fuel_type if fuel else None
+
+    def get_supervisor_name(self, obj):
+        supervisor = Staffcreation.objects.filter(staff_unique_id=obj.supervisor_id).first()
+        return supervisor.employee_name if supervisor else None
 
     def validate(self, attrs):
         attrs.pop("company_id_input", None)

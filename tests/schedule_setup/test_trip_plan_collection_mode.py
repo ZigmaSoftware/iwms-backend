@@ -39,11 +39,11 @@ def ward_household_customer(db, company, project, continent, country, state, dis
         longitude="80.2707",
         id_proof_type="Aadhar",
         id_no="1111-9999-3333",
-        company_id=company, project_id=project,
-        country=country, state=state, district=district,
-        city=city, ward=panchayat_ward,
-        panchayat_id=panchayat,
-        property_ref=prop, sub_property=sub_prop,
+        company_id=company.unique_id, project_id=project.unique_id,
+        country_id=country.unique_id, state_id=state.unique_id, district_id=district.unique_id,
+        city_id=city.unique_id, ward_id=panchayat_ward.unique_id,
+        panchayat_id=panchayat.unique_id,
+        property_id=prop.unique_id, sub_property_id=sub_prop.unique_id,
         is_bulkwaste_generator=False,
     )
 
@@ -59,11 +59,11 @@ def ward_bulk_customer(db, company, project, continent, country, state, district
         longitude="80.2707",
         id_proof_type="Aadhar",
         id_no="4444-9999-6666",
-        company_id=company, project_id=project,
-        country=country, state=state, district=district,
-        city=city, ward=panchayat_ward,
-        panchayat_id=panchayat,
-        property_ref=prop, sub_property=sub_prop,
+        company_id=company.unique_id, project_id=project.unique_id,
+        country_id=country.unique_id, state_id=state.unique_id, district_id=district.unique_id,
+        city_id=city.unique_id, ward_id=panchayat_ward.unique_id,
+        panchayat_id=panchayat.unique_id,
+        property_id=prop.unique_id, sub_property_id=sub_prop.unique_id,
         is_bulkwaste_generator=True,
     )
 
@@ -107,7 +107,7 @@ class TestCollectionTypePersisted:
         )
         serializer = TripPlanSerializer(data=payload)
         assert serializer.is_valid(), serializer.errors
-        plan = serializer.save(company_id=company, project_id=project)
+        plan = serializer.save(company_id=company.unique_id, project_id=project.unique_id)
         plan.refresh_from_db()
         assert plan.collection_type == TripPlan.COLLECTION_TYPE_HOUSEHOLD
 
@@ -128,7 +128,7 @@ class TestCollectionTypePersisted:
         )
         serializer = TripPlanSerializer(data=payload)
         assert serializer.is_valid(), serializer.errors
-        plan = serializer.save(company_id=company, project_id=project)
+        plan = serializer.save(company_id=company.unique_id, project_id=project.unique_id)
         plan.refresh_from_db()
         assert plan.collection_type == TripPlan.COLLECTION_TYPE_BIN
 
@@ -147,15 +147,15 @@ class TestCatchAllStopValidation:
         )
         serializer = TripPlanSerializer(data=payload)
         assert serializer.is_valid(), serializer.errors
-        plan = serializer.save(company_id=company, project_id=project)
+        plan = serializer.save(company_id=company.unique_id, project_id=project.unique_id)
 
-        stops = TripPlanCollectionPoint.objects.filter(trip_plan_id=plan, is_deleted=False)
+        stops = TripPlanCollectionPoint.objects.filter(trip_plan_id=plan.unique_id, is_deleted=False)
         assert stops.count() == 1
         stop = stops.first()
-        assert stop.customer_id_id is None
+        assert stop.customer_id is None
         assert stop.collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD
         # Geo copied from the plan since there's no single customer to derive it from.
-        assert stop.panchayat_id_id == panchayat.unique_id
+        assert stop.panchayat_id == panchayat.unique_id
 
     def test_only_one_catch_all_stop_allowed(
         self, company, project, district, city, panchayat, panchayat_ward, staff_template,
@@ -208,17 +208,17 @@ class TestCatchAllStopExpandsToCustomers:
         )
         serializer = TripPlanSerializer(data=payload)
         assert serializer.is_valid(), serializer.errors
-        plan = serializer.save(company_id=company, project_id=project)
+        plan = serializer.save(company_id=company.unique_id, project_id=project.unique_id)
 
         target_date = __import__("datetime").date(2026, 8, 3)  # Monday
         run_for_date(target_date=target_date)
 
-        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan, trip_date=target_date)
-        rows = DailyTripHouseholdCollection.objects.filter(trip_assignment_id=assignment)
+        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan.unique_id, trip_date=target_date)
+        rows = DailyTripHouseholdCollection.objects.filter(trip_assignment_id=assignment.id)
         # Only the non-bulk customer in scope should be picked up for a
         # household-mode plan; the bulk generator is excluded.
         assert rows.count() == 1
-        assert rows.first().customer_id_id == ward_household_customer.unique_id
+        assert rows.first().customer_id == ward_household_customer.unique_id
         assert rows.first().collection_type == DailyTripHouseholdCollection.COLLECTION_TYPE_HOUSEHOLD
 
     def test_bulk_catch_all_expands_to_bulk_customers_only(
@@ -233,13 +233,13 @@ class TestCatchAllStopExpandsToCustomers:
         )
         serializer = TripPlanSerializer(data=payload)
         assert serializer.is_valid(), serializer.errors
-        plan = serializer.save(company_id=company, project_id=project)
+        plan = serializer.save(company_id=company.unique_id, project_id=project.unique_id)
 
         target_date = __import__("datetime").date(2026, 8, 3)  # Monday
         run_for_date(target_date=target_date)
 
-        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan, trip_date=target_date)
-        rows = DailyTripHouseholdCollection.objects.filter(trip_assignment_id=assignment)
+        assignment = DailyTripAssignment.objects.get(trip_plan_id=plan.unique_id, trip_date=target_date)
+        rows = DailyTripHouseholdCollection.objects.filter(trip_assignment_id=assignment.id)
         assert rows.count() == 1
-        assert rows.first().customer_id_id == ward_bulk_customer.unique_id
+        assert rows.first().customer_id == ward_bulk_customer.unique_id
         assert rows.first().collection_type == DailyTripHouseholdCollection.COLLECTION_TYPE_BULK

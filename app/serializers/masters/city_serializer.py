@@ -39,17 +39,17 @@ class CitySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         name_field="name",
         scope_fields=["company_id"],
     )
-    continent_name = serializers.CharField(source="continent_id.name", read_only=True)
-    country_name   = serializers.CharField(source="country_id.name", read_only=True)
-    state_name     = serializers.CharField(source="state_id.name", read_only=True)
-    district_name  = serializers.CharField(source="district_id.name", read_only=True)
-    company_name   = serializers.CharField(source="company_id.name", read_only=True)
-    project_name   = serializers.CharField(source="project_id.name", read_only=True)
+    continent_name = serializers.SerializerMethodField()
+    country_name = serializers.SerializerMethodField()
+    state_name = serializers.SerializerMethodField()
+    district_name = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
+    project_name = serializers.SerializerMethodField()
     # UUID read fields — separate names so FK write fields are not clobbered
-    continent_unique_id = serializers.CharField(source="continent_id.unique_id", read_only=True)
-    country_unique_id   = serializers.CharField(source="country_id.unique_id", read_only=True)
-    state_unique_id     = serializers.CharField(source="state_id.unique_id", read_only=True)
-    district_unique_id  = serializers.CharField(source="district_id.unique_id", read_only=True)
+    continent_unique_id = serializers.SerializerMethodField()
+    country_unique_id = serializers.SerializerMethodField()
+    state_unique_id = serializers.SerializerMethodField()
+    district_unique_id = serializers.SerializerMethodField()
     
 
     class Meta:
@@ -63,3 +63,39 @@ class CitySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             Model=City,
             scope_fields=["continent_id", "country_id", "state_id", "district_id"]
         )(self, attrs)
+
+    def get_continent_name(self, obj):
+        item = Continent.objects.filter(unique_id=obj.continent_id).first()
+        return item.name if item else None
+
+    def get_country_name(self, obj):
+        item = Country.objects.filter(unique_id=obj.country_id).first()
+        return item.name if item else None
+
+    def get_state_name(self, obj):
+        item = State.objects.filter(unique_id=obj.state_id).first()
+        return item.name if item else None
+
+    def get_district_name(self, obj):
+        item = District.objects.filter(unique_id=obj.district_id).first()
+        return item.name if item else None
+
+    def get_company_name(self, obj):
+        item = Company.objects.filter(unique_id=obj.company_id).first()
+        return item.name if item else None
+
+    def get_project_name(self, obj):
+        item = Project.objects.filter(unique_id=obj.project_id).first()
+        return item.name if item else None
+
+    def get_continent_unique_id(self, obj):
+        return obj.continent_id
+
+    def get_country_unique_id(self, obj):
+        return obj.country_id
+
+    def get_state_unique_id(self, obj):
+        return obj.state_id
+
+    def get_district_unique_id(self, obj):
+        return obj.district_id

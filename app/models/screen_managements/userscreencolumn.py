@@ -1,5 +1,4 @@
 from django.db import models
-from app.models.screen_managements.userscreen import UserScreen
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
@@ -17,13 +16,7 @@ class UserScreenColumn(BaseMaster):
         editable=False,
     )
 
-    userscreen_id = models.ForeignKey(
-        UserScreen,
-        on_delete=models.CASCADE,
-        related_name="screen_columns",
-        to_field="unique_id",
-        db_column="userscreen_id",
-    )
+    userscreen_id = models.CharField(max_length=30, null=True, blank=True)
 
     field_name = models.CharField(max_length=100)
     display_name = models.CharField(max_length=150)
@@ -50,6 +43,9 @@ class UserScreenColumn(BaseMaster):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ("companyuserscreencolumnpermissions",)
+    CACHE_SCOPES = ("user_screen_column_list", "user_screen_column_detail")
 
     class Meta:
         ordering = ["order_no"]
@@ -81,3 +77,15 @@ class UserScreenColumn(BaseMaster):
         self.is_active = False
         self.is_deleted = True
         self.save(update_fields=["is_active", "is_deleted"])
+
+    @property
+    def userscreen(self):
+        from .userscreen import UserScreen
+        if self.userscreen_id:
+            return UserScreen.objects.filter(unique_id=self.userscreen_id).first()
+        return None
+
+    @property
+    def companyuserscreencolumnpermissions(self):
+        from .companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
+        return CompanyUserScreenColumnPermission.objects.filter(column_id=self.unique_id)

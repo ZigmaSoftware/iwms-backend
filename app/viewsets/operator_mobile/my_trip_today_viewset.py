@@ -62,20 +62,6 @@ class MyTripsTodayViewSet(viewsets.ViewSet):
             DailyTripAssignment.objects
             .filter(trip_date=today, is_deleted=False)
             .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-            .select_related(
-                "panchayat_id",
-                "vehicle_id",
-                "trip_plan_id",
-                "alt_staff_template_id",
-                "staff_template_id",
-                "staff_template_id__driver_id",
-                "staff_template_id__driver_id__staffusertype_id",
-                "staff_template_id__driver_id__personal_details",
-                "staff_template_id__operator_id",
-                "staff_template_id__operator_id__staffusertype_id",
-                "staff_template_id__operator_id__personal_details",
-            )
-            .prefetch_related("waste_types", "wards")
         )
 
         # Driver ("captain") and operator apps are merged, so match either

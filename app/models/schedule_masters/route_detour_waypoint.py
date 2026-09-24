@@ -1,6 +1,5 @@
 from django.db import models
 
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
@@ -23,13 +22,7 @@ class RouteDetourWaypoint(BaseMaster):
         editable=False,
     )
 
-    trip_assignment_id = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.CASCADE,
-        db_column="trip_assignment_id",
-        to_field="unique_id",
-        related_name="route_detour_waypoints",
-    )
+    trip_assignment_id = models.CharField(max_length=30)
 
     # The RouteStop.id this waypoint comes immediately after — i.e. which
     # leg it belongs to. Plain string, not an FK: the stop before a leg can
@@ -47,4 +40,11 @@ class RouteDetourWaypoint(BaseMaster):
         ordering = ["trip_assignment_id", "after_stop_id", "sequence"]
 
     def __str__(self):
-        return f"{self.trip_assignment_id_id}:{self.after_stop_id}:{self.sequence}"
+        return f"{self.trip_assignment_id}:{self.after_stop_id}:{self.sequence}"
+
+    @property
+    def trip_assignment(self):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        if self.trip_assignment_id:
+            return DailyTripAssignment.objects.filter(unique_id=self.trip_assignment_id).first()
+        return None

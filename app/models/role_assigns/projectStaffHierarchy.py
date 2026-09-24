@@ -4,7 +4,6 @@ from django.core.exceptions import ValidationError
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from .staffUserType import StaffUserType
-from app.models.superadmin_masters.project import Project
 
 
 def generate_project_staff_hierarchy_id():
@@ -27,33 +26,20 @@ class ProjectStaffHierarchy(BaseMaster):
         editable=False,
     )
 
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.CASCADE,
-        db_column="project_id",
-        related_name="staff_hierarchy_levels",
-    )
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    staffusertype_id = models.ForeignKey(
-        StaffUserType,
-        on_delete=models.PROTECT,
-        db_column="staffusertype_id",
-        related_name="hierarchy_entries",
-    )
+    staffusertype_id = models.CharField(max_length=30, null=True, blank=True)
 
-    reports_to_staffusertype_id = models.ForeignKey(
-        StaffUserType,
-        on_delete=models.PROTECT,
-        db_column="reports_to_staffusertype_id",
-        related_name="subordinate_hierarchy_entries",
-        null=True,
-        blank=True,
+    reports_to_staffusertype_id = models.CharField(max_length=30, null=True, blank=True,
         help_text="Left blank for the top of the chain (e.g. Company Admin).",
     )
 
     level = models.PositiveIntegerField(
         help_text="Display/ordering rank within the project (1 = lowest level).",
     )
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("project_staff_hierarchy_list", "project_staff_hierarchy_detail")
 
     class Meta:
         ordering = ["project_id", "level"]
@@ -67,20 +53,28 @@ class ProjectStaffHierarchy(BaseMaster):
         ]
 
     def __str__(self):
-        reports_to = self.reports_to_staffusertype_id.name if self.reports_to_staffusertype_id else "—"
-        return f"{self.project_id.name}: {self.staffusertype_id.name} → {reports_to}"
+        reports_to = ""
+        if self.reports_to_staffusertype_id:
+            from .staffUserType import StaffUserType
+            st = StaffUserType.objects.filter(unique_id=self.reports_to_staffusertype_id).first()
+            if st:
+                reports_to = st.name
+        else:
+            reports_to = "—"
+        return f"{self.project_id}: {self.staffusertype_id} → {reports_to}"
 
     def clean(self):
-        if self.reports_to_staffusertype_id_id == self.staffusertype_id_id:
+        if self.reports_to_staffusertype_id == self.staffusertype_id:
             raise ValidationError("A staff user type cannot report to itself.")
 
-        if self.reports_to_staffusertype_id_id:
-            seen = {self.staffusertype_id_id}
+        if self.reports_to_staffusertype_id:
+            seen = {self.staffusertype_id}
             current = self.reports_to_staffusertype_id
             while current is not None:
-                if current.unique_id in seen:
+                if current in seen:
                     raise ValidationError("This mapping creates a reporting cycle.")
-                seen.add(current.unique_id)
+                seen.add(current)
+                from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
                 next_entry = (
                     ProjectStaffHierarchy.objects.filter(
                         project_id=self.project_id,
@@ -91,3 +85,24 @@ class ProjectStaffHierarchy(BaseMaster):
                     .first()
                 )
                 current = next_entry.reports_to_staffusertype_id if next_entry else None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def staffusertype(self):
+        from .staffUserType import StaffUserType
+        if self.staffusertype_id:
+            return StaffUserType.objects.filter(unique_id=self.staffusertype_id).first()
+        return None
+
+    @property
+    def reports_to_staffusertype(self):
+        from .staffUserType import StaffUserType
+        if self.reports_to_staffusertype_id:
+            return StaffUserType.objects.filter(unique_id=self.reports_to_staffusertype_id).first()
+        return None

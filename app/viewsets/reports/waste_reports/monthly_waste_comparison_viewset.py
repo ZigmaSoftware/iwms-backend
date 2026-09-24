@@ -13,16 +13,12 @@ from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedV
 
 class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):
     permission_resource = "MonthlyWasteComparisonReport"
-    queryset = MonthlyWeightReport.objects.select_related(
-        "company_id", "project_id", "panchayat_id", "waste_type_id"
-    )
+    queryset = MonthlyWeightReport.objects.all()
     serializer_class = MonthlyWeightReportSerializer
     lookup_field = "unique_id"
 
     def list(self, request):
-        queryset = DailyTripLog.objects.select_related(
-            "company_id", "project_id", "panchayat_id"
-        ).filter(is_deleted=False)
+        queryset = DailyTripLog.objects.filter(is_deleted=False)
         queryset = self.filter_queryset(queryset)
 
         month_value = request.query_params.get("month")
@@ -49,14 +45,14 @@ class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):
 
             location_filter = Q()
             if panchayat_ids:
-                location_filter |= Q(panchayat_id_id__in=panchayat_ids)
+                location_filter |= Q(panchayat_id__in=panchayat_ids)
             if zone_ids:
-                location_filter |= Q(zone_id_id__in=zone_ids)
+                location_filter |= Q(zone_id__in=zone_ids)
             queryset = queryset.filter(location_filter)
 
         waste_type_id = request.query_params.get("waste_type_id")
         if waste_type_id:
-            queryset = queryset.filter(waste_type_id_id=waste_type_id)
+            queryset = queryset.filter(waste_type_id=waste_type_id)
 
         payload = build_waste_collection_report(
             queryset,

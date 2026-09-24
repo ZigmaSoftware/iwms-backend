@@ -269,43 +269,47 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
                 project_id=project,
                 is_active=True,
                 is_deleted=False,
-            ).select_related("mainscreen_id", "userscreen_id", "userscreenaction_id")
+            )
         )
         if not catalog:
+            company_name = getattr(staff.company, "name", company)
+            project_name = getattr(staff.project, "name", project)
             self.log_error(
-                f"No permission catalog for {company.name}/{project.name} — "
+                f"No permission catalog for {company_name}/{project_name} — "
                 "run the screen-managements seeder first."
             )
             return
 
         config, created = StaffAccessConfiguration.objects.update_or_create(
-            staff_id=staff,
+            staff_id=staff.staff_unique_id,
             defaults={
                 "company_id": company,
                 "is_active": True,
                 "is_deleted": False,
             },
         )
-        config.projects.set([project])
+        config.project_ids = project
+        config.save(update_fields=["project_ids"])
+        project_name = getattr(staff.project, "name", project)
         self.log(
             f"Access configuration for {staff.employee_name} "
-            f"({'Created' if created else 'Updated'}) -> project {project.name}"
+            f"({'Created' if created else 'Updated'}) -> project {project_name}"
         )
 
         seen = set()
         granted = 0
         for order, entry in enumerate(catalog, start=1):
             key = (
-                entry.mainscreen_id_id,
-                entry.userscreen_id_id,
-                entry.userscreenaction_id_id,
+                entry.mainscreen_id,
+                entry.userscreen_id,
+                entry.userscreenaction_id,
             )
             if key in seen:
                 continue
             seen.add(key)
 
             StaffAccessConfigurationPermission.objects.update_or_create(
-                staff_access_configuration_id=config,
+                staff_access_configuration_id=config.unique_id,
                 mainscreen_id=entry.mainscreen_id,
                 userscreen_id=entry.userscreen_id,
                 userscreenaction_id=entry.userscreenaction_id,
@@ -325,12 +329,12 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
         stale_ids = [
             perm.unique_id
             for perm in StaffAccessConfigurationPermission.objects.filter(
-                staff_access_configuration_id=config,
+                staff_access_configuration_id=config.unique_id,
             )
             if (
-                perm.mainscreen_id_id,
-                perm.userscreen_id_id,
-                perm.userscreenaction_id_id,
+                perm.mainscreen_id,
+                perm.userscreen_id,
+                perm.userscreenaction_id,
             ) not in seen
         ]
         removed = len(stale_ids)

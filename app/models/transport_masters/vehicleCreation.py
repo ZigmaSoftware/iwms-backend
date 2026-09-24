@@ -3,9 +3,7 @@ from django.db import models
 from app.models.transport_masters.fuel import Fuel
 from .vehicleTypeCreation import VehicleTypeCreation
 from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.utils.base_models import BaseMaster
 
 
 def generate_vehicle_creation_id():
@@ -20,7 +18,7 @@ def vehicle_insurance_upload_path(instance, filename):
     return f"uploads/vehicles/insurance/{instance.unique_id}_{filename}"
 
 
-class VehicleCreation(models.Model):
+class VehicleCreation(BaseMaster):
     class ConditionChoices(models.TextChoices):
         NEW = "NEW", "New"
         SECOND_HAND = "SECOND_HAND", "Second Hand"
@@ -32,34 +30,13 @@ class VehicleCreation(models.Model):
         editable=False,
     )
 
-    fuel_type = models.ForeignKey(
-        Fuel, on_delete=models.SET_NULL, null=True, blank=True
-    )
-    vehicle_type = models.ForeignKey(
-        VehicleTypeCreation, on_delete=models.SET_NULL, null=True, blank=True
-    )
-    supervisor = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        to_field="staff_unique_id",
-        related_name="supervised_vehicles",
-        null=True,
-        blank=True,
-    )
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="vehicle_creations",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="vehicle_creations",
-        db_column="project_id",
-    )
+    fuel_type_id = models.CharField(max_length=30, null=True, blank=True)
+    vehicle_type_id = models.CharField(max_length=30, null=True, blank=True)
+    supervisor_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    vehicle_no = models.CharField(max_length=50, unique=True)
+    vehicle_no = models.CharField(max_length=50)
     capacity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     mileage_per_liter = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
@@ -82,10 +59,11 @@ class VehicleCreation(models.Model):
         upload_to=vehicle_insurance_upload_path, null=True, blank=True
     )
 
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("vehicle_creation_list", "vehicle_creation_detail")
 
     class Meta:
         ordering = ["-created_at"]
@@ -99,3 +77,36 @@ class VehicleCreation(models.Model):
         self.is_deleted = True
         self.is_active = False
         self.save(update_fields=["is_deleted", "is_active"])
+
+    @property
+    def fuel_type(self):
+        if self.fuel_type_id:
+            return Fuel.objects.filter(unique_id=self.fuel_type_id).first()
+        return None
+
+    @property
+    def vehicle_type(self):
+        if self.vehicle_type_id:
+            return VehicleTypeCreation.objects.filter(unique_id=self.vehicle_type_id).first()
+        return None
+
+    @property
+    def supervisor(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.supervisor_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.supervisor_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None

@@ -21,8 +21,4 @@ class LoginAuditViewSet(CompanyScopedViewSet):
     pagination_class = LimitOffsetWithPage
 
     def get_queryset(self):
-        return (
-            LoginAudit.objects
-            .select_related("company_id", "project_id")
-            .order_by("-timestamp")
-        )
+        return LoginAudit.objects.order_by("-timestamp")

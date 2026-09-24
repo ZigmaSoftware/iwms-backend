@@ -54,13 +54,7 @@ class StaffNotification(BaseMaster):
         editable=False,
     )
 
-    recipient_staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.CASCADE,
-        related_name="app_notifications",
-        to_field="staff_unique_id",
-        db_column="recipient_staff_id",
-    )
+    recipient_staff_id = models.CharField(max_length=30)
 
     notification_type = models.CharField(max_length=40, choices=TYPE_CHOICES)
     title = models.CharField(max_length=200)
@@ -77,8 +71,16 @@ class StaffNotification(BaseMaster):
         verbose_name = "Staff Notification"
         verbose_name_plural = "Staff Notifications"
         indexes = [
-            models.Index(fields=["recipient_staff", "is_read"]),
+            models.Index(fields=["recipient_staff_id", "is_read"]),
         ]
 
     def __str__(self):
         return f"{self.notification_type}: {self.recipient_staff_id}"
+
+    @property
+    def recipient_staff(self):
+        if self.recipient_staff_id:
+            return StaffcreationOfficeDetails.objects.filter(
+                staff_unique_id=self.recipient_staff_id
+            ).first()
+        return None

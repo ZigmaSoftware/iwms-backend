@@ -9,21 +9,11 @@ from django.contrib.auth.models import (
 from app.utils.base_models import BaseMaster
 
 from app.utils.comfun import generate_unique_id
-from app.models.role_assigns.userType import UserType
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.customers.customercreation import CustomerCreation
-from app.models.masters.district import District
-from app.models.masters.city import City
-from app.models.masters.zone import Zone
-from app.models.masters.ward import Ward
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-
 
 
 def generate_user_id():
     return f"SUPUSER-{generate_unique_id()}"
+
 
 class UserManager(BaseUserManager):
     """
@@ -72,20 +62,8 @@ class UserManager(BaseUserManager):
 
 class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     # -----------------------------
     # Core User Identity
@@ -110,80 +88,30 @@ class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
         editable=False,
     )
 
-    user_type_id = models.ForeignKey(
-        UserType,
-        on_delete=models.SET_NULL,
-        null=True,
-        db_column="user_type_id",
-        related_name="users"
-    )
+    user_type_id = models.CharField(max_length=30, null=True, blank=True)
 
     # -----------------------------
     # STAFF-RELATED FIELDS
     # -----------------------------
-    staffusertype_id = models.ForeignKey(
-        StaffUserType,
-        on_delete=models.SET_NULL,
-        null=True,
-        db_column="staffusertype_id",
-        related_name="users_staff_usertype"
-    )
+    staffusertype_id = models.CharField(max_length=30, null=True, blank=True)
 
-    staff_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="users_staff",
-        db_column="staff_id",
-        to_field="staff_unique_id"
-    )
+    staff_id = models.CharField(max_length=30, null=True, blank=True)
 
     # -----------------------------
     # CUSTOMER-RELATED FIELD
     # -----------------------------
-    customer_id = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="users_customer",
-        db_column="customer_id",
-        to_field="unique_id"
-    )
+    customer_id = models.CharField(max_length=30, null=True, blank=True)
 
     # -----------------------------
     # LOCATION FIELDS
     # -----------------------------
-    district_id = models.ForeignKey(
-        District,
-        on_delete=models.SET_NULL,
-        null=True,
-        db_column="district_id",
-        related_name="users_district"
-    )
+    district_id = models.CharField(max_length=30, null=True, blank=True)
 
-    city_id = models.ForeignKey(
-        City,
-        on_delete=models.SET_NULL,
-        null=True,
-        db_column="city_id",
-        related_name="users_city"
-    )
+    city_id = models.CharField(max_length=30, null=True, blank=True)
 
-    zone_id = models.ForeignKey(
-        Zone,
-        on_delete=models.SET_NULL,
-        null=True,
-        db_column="zone_id",
-        related_name="users_zone"
-    )
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
 
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.SET_NULL,
-        null=True,
-        db_column="ward_id",
-        related_name="users_ward"
-    )
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
 
     # -----------------------------
     # SYSTEM FIELDS
@@ -215,14 +143,83 @@ class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
                     Q(is_superuser=False)
                     | (
                         Q(is_superuser=True)
-                       
                         & Q(staff_id__isnull=True)
                         & Q(customer_id__isnull=True)
                     )
                 ),
             ),
-           
+            
         ]
 
     def __str__(self):
         return self.username or self.unique_id
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def user_type(self):
+        from app.models.role_assigns.userType import UserType
+        if self.user_type_id:
+            return UserType.objects.filter(unique_id=self.user_type_id).first()
+        return None
+
+    @property
+    def staffusertype(self):
+        from app.models.role_assigns.staffUserType import StaffUserType
+        if self.staffusertype_id:
+            return StaffUserType.objects.filter(unique_id=self.staffusertype_id).first()
+        return None
+
+    @property
+    def staff(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.staff_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.staff_id).first()
+        return None
+
+    @property
+    def customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def city(self):
+        from app.models.masters.city import City
+        if self.city_id:
+            return City.objects.filter(unique_id=self.city_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None

@@ -9,8 +9,8 @@ def department(db, company, project):
     return Department.objects.create(
         department_name="Engineering",
         department_code="ENG",
-        company_id=company,
-        project_id=project,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     )
 
 
@@ -18,9 +18,9 @@ def department(db, company, project):
 def designation(db, company, project, department):
     return Designation.objects.create(
         designation_name="Senior Engineer",
-        department_id=department,
-        company_id=company,
-        project_id=project,
+        department_id=department.unique_id,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     )
 
 
@@ -29,9 +29,9 @@ class TestDesignationCreate:
     def test_basic_create(self, company, project, department):
         d = Designation.objects.create(
             designation_name="Junior Engineer",
-            department_id=department,
-            company_id=company,
-            project_id=project,
+            department_id=department.unique_id,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
         assert d.designation_name == "Junior Engineer"
 
@@ -42,7 +42,7 @@ class TestDesignationCreate:
         assert str(designation) == "Senior Engineer"
 
     def test_foreign_key_department(self, designation, department):
-        assert designation.department_id == department
+        assert designation.department_id == department.unique_id
 
 
 @pytest.mark.django_db
@@ -57,8 +57,8 @@ class TestDesignationDefaults:
         assert designation.description is None
 
     def test_ordering_alphabetical(self, company, project, department):
-        Designation.objects.create(designation_name="Team Lead", department_id=department, company_id=company, project_id=project)
-        Designation.objects.create(designation_name="Analyst", department_id=department, company_id=company, project_id=project)
+        Designation.objects.create(designation_name="Team Lead", department_id=department.unique_id, company_id=company.unique_id, project_id=project.unique_id)
+        Designation.objects.create(designation_name="Analyst", department_id=department.unique_id, company_id=company.unique_id, project_id=project.unique_id)
         names = list(Designation.objects.values_list("designation_name", flat=True))
         assert names == sorted(names)
 

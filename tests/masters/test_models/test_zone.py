@@ -7,16 +7,16 @@ from app.models.masters.zone import Zone
 @pytest.mark.django_db
 class TestZoneCreate:
     def test_basic_create(self, state, district, city):
-        z = Zone.objects.create(zone_name="Zone Alpha", state_id=state, district_id=district, city_id=city)
+        z = Zone.objects.create(zone_name="Zone Alpha", state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id)
         assert z.zone_name == "Zone Alpha"
 
     def test_unique_id_prefix(self, zone):
         assert zone.unique_id.startswith("ZONE-")
 
     def test_foreign_keys(self, zone, state, district, city):
-        assert zone.state_id == state
-        assert zone.district_id == district
-        assert zone.city_id == city
+        assert zone.state_id == state.unique_id
+        assert zone.district_id == district.unique_id
+        assert zone.city_id == city.unique_id
 
 
 @pytest.mark.django_db
@@ -28,7 +28,7 @@ class TestZoneDefaults:
         assert zone.is_deleted is False
 
     def test_optional_geo_fields_null(self, state, district, city):
-        z = Zone.objects.create(zone_name="Zone Beta", state_id=state, district_id=district, city_id=city)
+        z = Zone.objects.create(zone_name="Zone Beta", state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id)
         assert z.latitude is None
         assert z.longitude is None
 

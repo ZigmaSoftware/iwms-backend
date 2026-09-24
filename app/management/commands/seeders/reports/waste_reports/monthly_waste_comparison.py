@@ -49,8 +49,8 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
                 is_deleted=False,
             ).order_by("panchayat_name")[:15])
         waste_types = list(WasteType.objects.filter(
-                company_id=company,
-                project_id=project,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 is_deleted=False,
             ).order_by("waste_type_name")[:2])
         if len(panchayats) < 15 or len(waste_types) < 2:
@@ -76,12 +76,12 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
             report_status = _status(actual_kg, agreed_kg)
 
             report, created = MonthlyWeightReport.objects.update_or_create(
-                panchayat_id=panchayat,
-                waste_type_id=waste_type,
+                panchayat_id=panchayat.unique_id,
+                waste_type_id=waste_type.unique_id,
                 month=month,
                 defaults={
-                    "company_id": company,
-                    "project_id": project,
+                    "company_id": company.unique_id,
+                    "project_id": project.unique_id,
                     "agreed_weight_kg": agreed_kg,
                     "actual_weight_kg": actual_kg,
                     "variance_kg": variance_kg,

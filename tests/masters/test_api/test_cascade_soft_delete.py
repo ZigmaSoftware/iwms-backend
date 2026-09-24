@@ -30,18 +30,18 @@ class TestDistrictCascadeSoftDelete:
 
         sibling_district = District.objects.create(
             name="Sibling District",
-            continent_id=continent,
-            country_id=country,
-            state_id=state,
+            continent_id=continent.unique_id,
+            country_id=country.unique_id,
+            state_id=state.unique_id,
         )
         sibling_city = City.objects.create(
             name="Sibling City",
-            continent_id=continent,
-            country_id=country,
-            state_id=state,
-            district_id=sibling_district,
-            company_id=company,
-            project_id=project,
+            continent_id=continent.unique_id,
+            country_id=country.unique_id,
+            state_id=state.unique_id,
+            district_id=sibling_district.unique_id,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
 
         resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/")
@@ -87,13 +87,13 @@ class TestComplaintTicketCascadeOneToOne:
         )
 
         return ComplaintTicket.objects.create(
-            company_id=company,
-            project_id=project,
-            ward=ward,
-            zone=zone,
-            category=category,
-            priority=priority,
-            status=status,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
+            ward_id=ward.unique_id,
+            zone_id=zone.unique_id,
+            category_id=category.unique_id,
+            priority_id=priority.unique_id,
+            status_id=status.unique_id,
         )
 
     def test_ticket_with_one_to_one_feedback_cascades(
@@ -103,7 +103,7 @@ class TestComplaintTicketCascadeOneToOne:
         from app.models.complaint_management.transactions import ComplaintFeedback
 
         ticket = self._make_ticket(company, project, ward, zone)
-        feedback = ComplaintFeedback.objects.create(ticket=ticket, rating=5)
+        feedback = ComplaintFeedback.objects.create(ticket_id=ticket.unique_id, rating=5)
 
         resp = auth_client.delete(
             f"/api/v1/complaint-ticket/tickets/{ticket.unique_id}/"

@@ -56,16 +56,20 @@ def _customers_for_household_stop(stop, wards=None):
 
     is_bulk_stop = stop.collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_BULK
 
-    if stop.customer_id_id:
+    if stop.customer_id:
         return CustomerCreation.objects.filter(
-            unique_id=stop.customer_id_id,
+            unique_id=stop.customer_id,
             is_deleted=False,
             is_bulkwaste_generator=is_bulk_stop,
         )
 
-    geo_filter = _geo_filter_for(stop) or _geo_filter_for(stop.trip_plan_id)
+    trip_plan = None
+    if stop.trip_plan_id:
+        from app.models.schedule_masters.trip_plan import TripPlan
+        trip_plan = TripPlan.objects.filter(unique_id=stop.trip_plan_id).first()
+    geo_filter = _geo_filter_for(stop) or _geo_filter_for(trip_plan)
     if not geo_filter:
-        ward_ids = list(wards.values_list("unique_id", flat=True)) if wards is not None else []
+        ward_ids = list(wards or [])
         if ward_ids:
             return CustomerCreation.objects.filter(
                 is_deleted=False,
@@ -82,7 +86,7 @@ def _customers_for_household_stop(stop, wards=None):
         is_bulkwaste_generator=is_bulk_stop,
         **{field: value},
     )
-    ward_ids = list(wards.values_list("unique_id", flat=True)) if wards is not None else []
+    ward_ids = list(wards or [])
     if ward_ids:
         queryset = queryset.filter(ward_id__in=ward_ids)
     return queryset
@@ -99,10 +103,11 @@ def _create_daily_household_collections(assignment, stop):
         else DailyTripHouseholdCollection.COLLECTION_TYPE_HOUSEHOLD
     )
     created_count = 0
-    for offset, customer in enumerate(_customers_for_household_stop(stop, wards=assignment.wards), start=0):
+    ward_ids = [ward_id for ward_id in (assignment.ward_ids or "").split(",") if ward_id]
+    for offset, customer in enumerate(_customers_for_household_stop(stop, wards=ward_ids), start=0):
         _, created = DailyTripHouseholdCollection.objects.get_or_create(
-            trip_assignment_id=assignment,
-            customer_id=customer,
+            trip_assignment_id=assignment.unique_id,
+            customer_id=customer.unique_id,
             collection_type=collection_type,
             defaults={
                 "sequence": stop.sequence + offset,
@@ -132,12 +137,15 @@ def sync_daily_assignment_stops_from_plan(assignment):
     callers use get_or_create, so nothing is ever duplicated no matter which
     path wins the race — mirrors TN_Iwms' design exactly.
     """
-    if not assignment.trip_plan_id_id:
+    if not assignment.trip_plan_id:
         return 0
 
-    plan = assignment.trip_plan_id
+    from app.models.schedule_masters.trip_plan import TripPlan
+    plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id).first()
+    if not plan:
+        return 0
     plan_stops = TripPlanCollectionPoint.objects.filter(
-        trip_plan_id=plan,
+        trip_plan_id=plan.unique_id,
         collection_type=plan.collection_type,
         is_active=True,
         is_deleted=False,
@@ -147,28 +155,34 @@ def sync_daily_assignment_stops_from_plan(assignment):
         DailyTripHouseholdCollection,
     )
 
-    selected_ward_ids = list(assignment.wards.values_list("unique_id", flat=True))
+    selected_ward_ids = [ward_id for ward_id in (assignment.ward_ids or "").split(",") if ward_id]
     if selected_ward_ids:
+        from app.models.customers.customercreation import CustomerCreation
+
+        stale_customer_ids = CustomerCreation.objects.exclude(
+            ward_id__in=selected_ward_ids
+        ).values_list("unique_id", flat=True)
         DailyTripHouseholdCollection.objects.filter(
-            trip_assignment_id=assignment,
+            trip_assignment_id=assignment.unique_id,
+            customer_id__in=stale_customer_ids,
             is_collected=False,
             is_deleted=False,
-        ).exclude(customer_id__ward_id__in=selected_ward_ids).delete()
+        ).delete()
 
     added = 0
     for stop in plan_stops:
         if stop.collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_BIN:
-            if not stop.collection_point_id_id or not stop.bin_id_id:
+            if not stop.collection_point_id or not stop.bin_id:
                 continue
             _, created = DailyTripCollectionPoint.objects.get_or_create(
-                trip_assignment_id=assignment,
+                trip_assignment_id=assignment.unique_id,
                 collection_point_id=stop.collection_point_id,
                 bin_id=stop.bin_id,
                 defaults={
                     "sequence": stop.sequence,
                     "is_collected": False,
                     "status": DailyTripCollectionPoint.STATUS_PENDING,
-                    "created_by": getattr(assignment, "created_by", None),
+                    "created_by_id": getattr(assignment, "created_by_id", None),
                 },
             )
             if created:
@@ -227,7 +241,7 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
        completion check that existed (`mark_completed_if_all_cps_collected`)
        looks at bin stops, which a household trip has none of.
     """
-    if not instance.trip_assignment_id_id or instance.is_deleted:
+    if not instance.trip_assignment_id or instance.is_deleted:
         return
 
     from app.models.schedule_masters.daily_trip_household_collection import (
@@ -245,7 +259,7 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
     # 1. Update / create the household collection entry
     dthc, _ = DailyTripHouseholdCollection.objects.get_or_create(
         trip_assignment_id=instance.trip_assignment_id,
-        customer_id=instance.customer,
+        customer_id=instance.customer_id,
         collection_type=collection_type,
         defaults={"status": DailyTripHouseholdCollection.STATUS_PENDING},
     )
@@ -267,7 +281,7 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
             _describe_waste_collection(instance),
             data={
                 "event": "household_collected",
-                "trip_assignment_id": str(instance.trip_assignment_id_id),
+                "trip_assignment_id": str(instance.trip_assignment_id),
                 "wet_waste": instance.wet_waste,
                 "dry_waste": instance.dry_waste,
                 "mixed_waste": instance.mixed_waste,
@@ -285,7 +299,7 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
 
     # 2. Find or auto-create the trip log
     log = DailyTripLog.objects.filter(
-        trip_assignment_id=instance.trip_assignment_id_id,
+        trip_assignment_id=instance.trip_assignment_id,
         is_deleted=False,
     ).first()
 
@@ -308,7 +322,7 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
     # 4. Driver app write path — ending the trip is now a driver-confirmed
     # action (see TripCompletionNudge on the app side) rather than an
     # automatic side effect of the last WasteCollection save.
-    instance.trip_assignment_id.mark_completed_if_all_household_stops_collected(
+    instance.trip_assignment.mark_completed_if_all_household_stops_collected(
         auto_end=False
     )
 
@@ -325,13 +339,13 @@ def sync_bin_collection_on_event_save(sender, instance, **kwargs):
     so panchayat-based reports (Daily/Monthly Waste Comparison) never saw bin
     data unless something else (e.g. a seeder) manually created the log.
     """
-    if not instance.trip_assignment_id_id or instance.is_deleted:
+    if not instance.trip_assignment_id or instance.is_deleted:
         return
 
     from app.models.schedule_masters.daily_trip_log import DailyTripLog
 
     log = DailyTripLog.objects.filter(
-        trip_assignment_id=instance.trip_assignment_id_id,
+        trip_assignment_id=instance.trip_assignment_id,
         is_deleted=False,
     ).first()
 

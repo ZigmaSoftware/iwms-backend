@@ -1,15 +1,13 @@
 from rest_framework import serializers
-from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.grivences.complaints import Complaint
 
 
-class ComplaintSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
-    customer_name = serializers.CharField(source="customer.customer_name", read_only=True)
-    customer_id = serializers.CharField(source="customer.unique_id", read_only=True)
-    zone_id = serializers.CharField(source="zone.unique_id", read_only=True)
-    ward_id = serializers.CharField(source="ward.unique_id", read_only=True)
-    zone_name = serializers.CharField(source="zone.zone_name", read_only=True)
-    ward_name = serializers.CharField(source="ward.ward_name", read_only=True)
+class ComplaintSerializer(serializers.ModelSerializer):
+    customer_name = serializers.SerializerMethodField()
+    zone_name = serializers.SerializerMethodField()
+    ward_name = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
+    project_name = serializers.SerializerMethodField()
     main_category = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     sub_category = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
@@ -19,11 +17,21 @@ class ComplaintSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
     class Meta:
         model = Complaint
         fields = "__all__"
-        extra_kwargs = {
-            "customer": {"write_only": True},
-            "zone": {"write_only": True, "required": False, "allow_null": True},
-            "ward": {"write_only": True, "required": False, "allow_null": True},
-        }
+
+    def get_customer_name(self, obj):
+        return getattr(obj.customer, "customer_name", None)
+
+    def get_zone_name(self, obj):
+        return getattr(obj.zone, "zone_name", None)
+
+    def get_ward_name(self, obj):
+        return getattr(obj.ward, "ward_name", None)
+
+    def get_company_name(self, obj):
+        return getattr(obj.company, "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(obj.project, "name", None)
 
     def get_image_url(self, obj):
         request = self.context.get("request")

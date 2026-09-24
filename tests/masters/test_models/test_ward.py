@@ -6,14 +6,14 @@ from app.models.masters.ward import Ward
 @pytest.mark.django_db
 class TestWardCreate:
     def test_basic_create(self, state, district, city, zone):
-        w = Ward.objects.create(ward_name="Ward Alpha", state_id=state, district_id=district, city_id=city, zone_id=zone)
+        w = Ward.objects.create(ward_name="Ward Alpha", state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id, zone_id=zone.unique_id)
         assert w.ward_name == "Ward Alpha"
 
     def test_unique_id_prefix(self, ward):
         assert ward.unique_id.startswith("WARD-")
 
     def test_foreign_key_zone(self, ward, zone):
-        assert ward.zone_id == zone
+        assert ward.zone_id == zone.unique_id
 
 
 @pytest.mark.django_db

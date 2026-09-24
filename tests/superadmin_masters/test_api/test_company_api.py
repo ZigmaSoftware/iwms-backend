@@ -25,13 +25,18 @@ class TestCompanyAPIList:
 
 @pytest.mark.django_db
 class TestCompanyAPICreate:
-    def test_create_returns_201(self, auth_client):
+    def test_create_returns_201(self, auth_client, superuser):
         resp = auth_client.post(BASE, {"name": "New Company"}, format="json")
         assert resp.status_code in (200, 201)
+        company_data = resp.json().get("company", resp.json())
+        assert company_data["created_by"] == superuser.unique_id
+        assert company_data["updated_by"] == superuser.unique_id
 
-    def test_create_persists_to_db(self, auth_client):
+    def test_create_persists_to_db(self, auth_client, superuser):
         auth_client.post(BASE, {"name": "Persist Co"}, format="json")
-        assert Company.objects.filter(name="Persist Co").exists()
+        company = Company.objects.get(name="Persist Co")
+        assert company.created_by_id == superuser.unique_id
+        assert company.updated_by_id == superuser.unique_id
 
 
 @pytest.mark.django_db
@@ -53,12 +58,13 @@ class TestCompanyAPIUpdate:
         )
         assert resp.status_code in (200, 204)
 
-    def test_patch_updates_db(self, auth_client, company):
+    def test_patch_updates_db(self, auth_client, company, superuser):
         auth_client.patch(
             f"{BASE}{company.unique_id}/", {"name": "DB Updated"}, format="json"
         )
         company.refresh_from_db()
         assert company.name == "DB Updated"
+        assert company.updated_by_id == superuser.unique_id
 
 
 @pytest.mark.django_db

@@ -8,16 +8,45 @@ from app.models.screen_managements.userscreencolumn import UserScreenColumn
 
 
 class CompanyUserScreenColumnPermissionSerializer(serializers.ModelSerializer):
-    column_name = serializers.CharField(source="column_id.field_name", read_only=True)
-    display_name = serializers.CharField(source="column_id.display_name", read_only=True)
-    data_type = serializers.CharField(source="column_id.data_type", read_only=True)
-    userscreen_name = serializers.CharField(source="userscreen_id.userscreen_name", read_only=True)
-    company_name = serializers.CharField(source="company_id.name", read_only=True)
-    project_name = serializers.CharField(source="project_id.name", read_only=True)
+    column_name = serializers.SerializerMethodField()
+    display_name = serializers.SerializerMethodField()
+    data_type = serializers.SerializerMethodField()
+    userscreen_name = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
+    project_name = serializers.SerializerMethodField()
 
     class Meta:
         model = CompanyUserScreenColumnPermission
         fields = "__all__"
+
+    def _column(self, obj):
+        return UserScreenColumn.objects.filter(unique_id=obj.column_id).first()
+
+    def get_column_name(self, obj):
+        col = self._column(obj)
+        return col.field_name if col else ""
+
+    def get_display_name(self, obj):
+        col = self._column(obj)
+        return col.display_name if col else ""
+
+    def get_data_type(self, obj):
+        col = self._column(obj)
+        return col.data_type if col else ""
+
+    def get_userscreen_name(self, obj):
+        screen = UserScreen.objects.filter(unique_id=obj.userscreen_id).first()
+        return screen.userscreen_name if screen else ""
+
+    def get_company_name(self, obj):
+        from app.models.superadmin_masters.company import Company
+        company = Company.objects.filter(unique_id=obj.company_id).first()
+        return company.name if company else ""
+
+    def get_project_name(self, obj):
+        from app.models.superadmin_masters.project import Project
+        project = Project.objects.filter(unique_id=obj.project_id).first()
+        return project.name if project else ""
 
 
 # ---------------------------------------------------------------------------
@@ -33,14 +62,18 @@ class UserScreenColumnPermissionSerializer(serializers.ModelSerializer):
     """
 
     userscreencolumnpermission_id = serializers.CharField(source="unique_id", read_only=True)
-    userscreencolumn_id = serializers.CharField(source="column_id_id", read_only=True)
+    userscreencolumn_id = serializers.CharField(source="column_id", read_only=True)
     column_name = serializers.SerializerMethodField()
     is_active = serializers.BooleanField(source="can_view", read_only=True)
-    userscreen_name = serializers.CharField(source="userscreen_id.userscreen_name", read_only=True)
+    userscreen_name = serializers.SerializerMethodField()
 
     def get_column_name(self, obj):
-        col = obj.column_id
+        col = UserScreenColumn.objects.filter(unique_id=obj.column_id).first()
         return (col.display_name or col.field_name) if col else ""
+
+    def get_userscreen_name(self, obj):
+        screen = UserScreen.objects.filter(unique_id=obj.userscreen_id).first()
+        return screen.userscreen_name if screen else ""
 
     class Meta:
         model = CompanyUserScreenColumnPermission
@@ -88,7 +121,7 @@ class UserScreenColumnPermissionWriteSerializer(serializers.Serializer):
         if userscreen_id and column_id:
             if not UserScreenColumn.objects.filter(
                 unique_id=column_id,
-                userscreen_id_id=userscreen_id,
+                userscreen_id=userscreen_id,
                 is_deleted=False,
             ).exists():
                 raise serializers.ValidationError(

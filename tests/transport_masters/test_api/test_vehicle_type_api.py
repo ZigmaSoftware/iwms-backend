@@ -7,8 +7,8 @@ BASE = "/api/v1/transport-masters/vehicle-type/"
 
 @pytest.mark.django_db
 class TestVehicleTypeAPIList:
-    def test_list_authenticated_returns_200(self, auth_client, company, project):
-        VehicleTypeCreation.objects.create(vehicleType="Compactor", company_id=company, project_id=project)
+    def test_list_authenticated_returns_200(self, auth_client):
+        VehicleTypeCreation.objects.create(vehicleType="Compactor")
         resp = auth_client.get(BASE)
         assert resp.status_code == 200
 
@@ -26,23 +26,23 @@ class TestVehicleTypeAPICreate:
 
 @pytest.mark.django_db
 class TestVehicleTypeAPIRetrieve:
-    def test_retrieve_returns_200(self, auth_client, company, project):
-        vt = VehicleTypeCreation.objects.create(vehicleType="Loader", company_id=company, project_id=project)
+    def test_retrieve_returns_200(self, auth_client):
+        vt = VehicleTypeCreation.objects.create(vehicleType="Loader")
         resp = auth_client.get(f"{BASE}{vt.unique_id}/")
         assert resp.status_code == 200
 
 
 @pytest.mark.django_db
 class TestVehicleTypeAPIUpdate:
-    def test_patch_returns_success(self, auth_client, company, project):
-        vt = VehicleTypeCreation.objects.create(vehicleType="Dumper", company_id=company, project_id=project)
+    def test_patch_returns_success(self, auth_client):
+        vt = VehicleTypeCreation.objects.create(vehicleType="Dumper")
         resp = auth_client.patch(f"{BASE}{vt.unique_id}/", {"vehicleType": "Updated"}, format="json")
         assert resp.status_code in (200, 204)
 
 
 @pytest.mark.django_db
 class TestVehicleTypeAPIDelete:
-    def test_delete_returns_success(self, auth_client, company, project):
-        vt = VehicleTypeCreation.objects.create(vehicleType="TempType", company_id=company, project_id=project)
+    def test_delete_returns_success(self, auth_client):
+        vt = VehicleTypeCreation.objects.create(vehicleType="TempType")
         resp = auth_client.delete(f"{BASE}{vt.unique_id}/")
         assert resp.status_code in (200, 204)

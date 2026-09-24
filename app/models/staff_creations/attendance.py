@@ -1,9 +1,6 @@
 from django.db import models
 
-from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 def generate_employee_unique_id():
@@ -15,20 +12,8 @@ def generate_recognized_unique_id():
 
 
 class Employee(models.Model):
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     unique_id = models.CharField(
         max_length=30,
@@ -37,13 +22,7 @@ class Employee(models.Model):
         editable=False,
     )
     emp_id = models.CharField(max_length=8, unique=True)
-    staff = models.OneToOneField(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        to_field="staff_unique_id",
-        db_column="staff_id",
-        related_name="attendance_profile",
-    )
+    staff_id = models.CharField(max_length=30, unique=True)
     name = models.CharField(max_length=100)
     department = models.CharField(max_length=100)
     image_path = models.CharField(max_length=255)
@@ -70,24 +49,34 @@ class Employee(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["emp_id"]),
-            models.Index(fields=["staff"]),
+            models.Index(fields=["staff_id"]),
         ]
 
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def staff(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        if self.staff_id:
+            return Staffcreation.objects.filter(staff_unique_id=self.staff_id).first()
+        return None
+
+
 class Recognized(models.Model):
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     unique_id = models.CharField(
         max_length=30,
@@ -96,13 +85,7 @@ class Recognized(models.Model):
         editable=False,
     )
 
-    staff = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        to_field="staff_unique_id",
-        db_column="staff_id",
-        related_name="recognitions",
-    )
+    staff_id = models.CharField(max_length=30)
     emp_id = models.CharField(max_length=8)
     emp_id_raw = models.CharField(max_length=50, null=True)
     name = models.CharField(max_length=100)
@@ -118,5 +101,26 @@ class Recognized(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["emp_id"]),
-            models.Index(fields=["staff"]),
+            models.Index(fields=["staff_id"]),
         ]
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def staff(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        if self.staff_id:
+            return Staffcreation.objects.filter(staff_unique_id=self.staff_id).first()
+        return None

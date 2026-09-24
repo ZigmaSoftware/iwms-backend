@@ -6,23 +6,23 @@ from app.models.superadmin_masters.project import Project
 @pytest.mark.django_db
 class TestProjectCreate:
     def test_basic_create(self, company):
-        p = Project.objects.create(name="Main Project", company_id=company)
+        p = Project.objects.create(name="Main Project", company_id=company.unique_id)
         assert p.name == "Main Project"
 
     def test_unique_id_prefix(self, company):
-        p = Project.objects.create(name="Prefix Project", company_id=company)
+        p = Project.objects.create(name="Prefix Project", company_id=company.unique_id)
         assert p.unique_id.startswith("PROJ-")
 
     def test_str(self, company):
-        p = Project.objects.create(name="My Project", company_id=company)
+        p = Project.objects.create(name="My Project", company_id=company.unique_id)
         assert "My Project" in str(p)
 
     def test_foreign_key_company(self, project, company):
-        assert project.company_id == company
+        assert project.company_id == company.unique_id
 
     def test_unique_ids_differ(self, company):
-        p1 = Project.objects.create(name="P1", company_id=company)
-        p2 = Project.objects.create(name="P2", company_id=company)
+        p1 = Project.objects.create(name="P1", company_id=company.unique_id)
+        p2 = Project.objects.create(name="P2", company_id=company.unique_id)
         assert p1.unique_id != p2.unique_id
 
 

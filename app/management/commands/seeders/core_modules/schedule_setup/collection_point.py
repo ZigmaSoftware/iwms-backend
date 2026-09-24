@@ -24,7 +24,7 @@ class CollectionPointSeeder(BaseSeeder):
         # --- Ward-based CPs (1 per ward, 15 total) ---
         wards = list(
             Ward.objects.filter(
-                company_id=company, project_id=project, is_deleted=False
+                company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
             ).order_by("ward_name")
         )
         ward_created = 0
@@ -34,12 +34,12 @@ class CollectionPointSeeder(BaseSeeder):
             lon = float(ward.longitude) + 0.0005 if ward.longitude else 80.2720
             cp, created = Collection_point.objects.update_or_create(
                 cp_name=cp_name,
-                company_id=company,
-                project_id=project,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 defaults={
-                    "state_id": tamil_nadu,
-                    "district_id": chennai_dist,
-                    "city_id": chennai_city,
+                    "state_id": tamil_nadu.unique_id,
+                    "district_id": chennai_dist.unique_id,
+                    "city_id": chennai_city.unique_id,
                     "panchayat_id": None,
                     "latitude": lat,
                     "longitude": lon,
@@ -47,14 +47,15 @@ class CollectionPointSeeder(BaseSeeder):
                     "is_deleted": False,
                 },
             )
-            cp.wards.set([ward])
+            cp.ward_ids = ward.unique_id
+            cp.save(update_fields=["ward_ids"])
             if created:
                 ward_created += 1
 
         # --- Panchayat-based CPs (1 per panchayat, 15 total) ---
         panchayats = list(
             Panchayat.objects.filter(
-                company_id=company, project_id=project, is_deleted=False
+                company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
             ).order_by("panchayat_name")
         )
         pan_created = 0
@@ -65,20 +66,21 @@ class CollectionPointSeeder(BaseSeeder):
             lon = float(panchayat.longitude) + 0.0005 if panchayat.longitude else 80.2000
             cp, created = Collection_point.objects.update_or_create(
                 cp_name=cp_name,
-                panchayat_id=panchayat,
-                company_id=company,
-                project_id=project,
+                panchayat_id=panchayat.unique_id,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 defaults={
-                    "state_id": tamil_nadu,
-                    "district_id": chennai_dist,
-                    "city_id": chennai_city,
+                    "state_id": tamil_nadu.unique_id,
+                    "district_id": chennai_dist.unique_id,
+                    "city_id": chennai_city.unique_id,
                     "latitude": lat,
                     "longitude": lon,
                     "is_active": True,
                     "is_deleted": False,
                 },
             )
-            cp.wards.clear()
+            cp.ward_ids = ""
+            cp.save(update_fields=["ward_ids"])
             if created:
                 pan_created += 1
 

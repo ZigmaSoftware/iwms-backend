@@ -22,14 +22,15 @@ from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
 from app.serializers.superadmin.staff_management.staffcreation_serializer import StaffcreationSerializer
 
 
-# (write-payload key, model, m2m accessor name on StaffAccessConfiguration, is geo-scoped-to-project)
+# (write-payload key, model, field name storing the comma-separated ids on
+# StaffAccessConfiguration, is geo-scoped-to-project)
 LOCATION_LEVELS = (
-    ("state_ids", State, "states", False),
-    ("district_ids", District, "districts", True),
-    ("city_ids", City, "cities", True),
-    ("zone_ids", Zone, "zones", True),
-    ("panchayat_ids", Panchayat, "panchayats", True),
-    ("ward_ids", Ward, "wards", True),
+    ("state_ids", State, "state_ids", False),
+    ("district_ids", District, "district_ids", True),
+    ("city_ids", City, "city_ids", True),
+    ("zone_ids", Zone, "zone_ids", True),
+    ("panchayat_ids", Panchayat, "panchayat_ids", True),
+    ("ward_ids", Ward, "ward_ids", True),
 )
 
 
@@ -39,20 +40,26 @@ def _project_enabled_screen_action_keys(company_id, project_ids):
     restriction" — i.e. the staff is scoped to the whole company, so the
     catalog is the company-level (project_id IS NULL) permissions only."""
     qs = CompanyUserScreenPermission.objects.filter(
-        company_id_id=company_id,
+        company_id=company_id,
         permission_type="screen",
         is_deleted=False,
         is_active=True,
     )
     if project_ids:
-        qs = qs.filter(project_id_id__in=project_ids)
+        qs = qs.filter(project_id__in=project_ids)
     else:
         qs = qs.filter(project_id__isnull=True)
     qs = qs.exclude(
-        Q(userscreenaction_id__action_name__iexact="show")
-        | Q(userscreenaction_id__variable_name__iexact="show")
-    ).values_list("userscreen_id_id", "userscreenaction_id_id", "mainscreen_id_id")
+        Q(userscreenaction_id__in=_action_ids_named("show"))
+    ).values_list("userscreen_id", "userscreenaction_id", "mainscreen_id")
     return {(row[0], row[1]): row[2] for row in qs}
+
+
+def _action_ids_named(name):
+    from app.models.screen_managements.userscreenaction import UserScreenAction
+    return UserScreenAction.objects.filter(
+        Q(action_name__iexact=name) | Q(variable_name__iexact=name)
+    ).values_list("unique_id", flat=True)
 
 
 class StaffAccessConfigurationPermissionInputSerializer(serializers.Serializer):
@@ -86,16 +93,16 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
     loginConfig = serializers.JSONField(required=False, write_only=True)
     dataScope = serializers.JSONField(required=False, write_only=True)
 
-    staff_name = serializers.CharField(source="staff_id.employee_name", read_only=True)
-    username = serializers.CharField(source="staff_id.username", read_only=True, default=None)
-    employee_name = serializers.CharField(source="staff_id.employee_name", read_only=True)
-    contact_mobile = serializers.CharField(source="staff_id.personal_details.contact_mobile", read_only=True, default=None)
-    contact_email = serializers.CharField(source="staff_id.personal_details.contact_email", read_only=True, default=None)
-    doj = serializers.DateField(source="staff_id.doj", read_only=True, default=None)
-    user_type_id = serializers.CharField(source="staff_id.user_type_id_id", read_only=True, default=None)
-    staffusertype_id = serializers.CharField(source="staff_id.staffusertype_id_id", read_only=True, default=None)
-    staffusertype_name = serializers.CharField(source="staff_id.staffusertype_id.name", read_only=True, default=None)
-    company_name = serializers.CharField(source="company_id.name", read_only=True)
+    staff_name = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
+    employee_name = serializers.SerializerMethodField()
+    contact_mobile = serializers.SerializerMethodField()
+    contact_email = serializers.SerializerMethodField()
+    doj = serializers.SerializerMethodField()
+    user_type_id = serializers.SerializerMethodField()
+    staffusertype_id = serializers.SerializerMethodField()
+    staffusertype_name = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
 
     # The one app this staff member signs into. Selecting a module is what
     # makes the mobile login succeed at all; what they can do inside comes
@@ -115,16 +122,69 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StaffAccessConfiguration
-        exclude = (
-            "projects", "states", "districts", "cities", "zones",
-            "panchayats", "wards", "app_module",
-        )
+        exclude = ()
+
+    # -- helpers to resolve the staff behind `staff_id` (a plain CharField
+    # holding StaffcreationOfficeDetails.staff_unique_id) for the read-only
+    # profile fields below. Resolved once per representation via `_staff`,
+    # not per-field, to avoid N queries per row in list views.
+    def _staff_for(self, obj):
+        cache = getattr(self, "_staff_cache", None)
+        if cache is None:
+            cache = {}
+            self._staff_cache = cache
+        if obj.unique_id not in cache:
+            cache[obj.unique_id] = obj.staff
+        return cache[obj.unique_id]
+
+    def get_staff_name(self, obj):
+        staff = self._staff_for(obj)
+        return staff.employee_name if staff else None
+
+    def get_username(self, obj):
+        staff = self._staff_for(obj)
+        return staff.username if staff else None
+
+    def get_employee_name(self, obj):
+        staff = self._staff_for(obj)
+        return staff.employee_name if staff else None
+
+    def get_contact_mobile(self, obj):
+        staff = self._staff_for(obj)
+        personal = getattr(staff, "personal_details", None) if staff else None
+        return getattr(personal, "contact_mobile", None)
+
+    def get_contact_email(self, obj):
+        staff = self._staff_for(obj)
+        personal = getattr(staff, "personal_details", None) if staff else None
+        return getattr(personal, "contact_email", None)
+
+    def get_doj(self, obj):
+        staff = self._staff_for(obj)
+        return staff.doj if staff else None
+
+    def get_user_type_id(self, obj):
+        staff = self._staff_for(obj)
+        return staff.user_type_id if staff else None
+
+    def get_staffusertype_id(self, obj):
+        staff = self._staff_for(obj)
+        return staff.staffusertype_id if staff else None
+
+    def get_staffusertype_name(self, obj):
+        staff = self._staff_for(obj)
+        usertype = getattr(staff, "staffusertype", None) if staff else None
+        return getattr(usertype, "name", None)
+
+    def get_company_name(self, obj):
+        company = obj.company
+        return company.name if company else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data["staff_id"] = instance.staff_id_id
-        data["staff_unique_id"] = instance.staff_id_id
-        data["company_id"] = instance.company_id_id
+        data["staff_id"] = instance.staff_id
+        data["staff_unique_id"] = instance.staff_id
+        data["company_id"] = instance.company_id
 
         module = instance.app_module if instance.app_module_id else None
         if module and module.is_deleted:
@@ -133,38 +193,48 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         data["app_module_key"] = module.surface_key if module else None
         data["app_module_label"] = module.label if module else None
 
-        data["project_ids"] = list(instance.projects.values_list("unique_id", flat=True))
-        data["project_names"] = list(instance.projects.values_list("name", flat=True))
+        project_ids = instance.get_project_ids()
+        projects = list(Project.objects.filter(unique_id__in=project_ids)) if project_ids else []
+        projects_by_id = {p.unique_id: p for p in projects}
+        data["project_ids"] = project_ids
+        data["project_names"] = [
+            projects_by_id[pid].name for pid in project_ids if pid in projects_by_id
+        ]
 
         name_fields = {
-            "states": "name",
-            "districts": "name",
-            "cities": "name",
-            "zones": "zone_name",
-            "panchayats": "panchayat_name",
-            "wards": "ward_name",
+            "state_ids": (State, "name"),
+            "district_ids": (District, "name"),
+            "city_ids": (City, "name"),
+            "zone_ids": (Zone, "zone_name"),
+            "panchayat_ids": (Panchayat, "panchayat_name"),
+            "ward_ids": (Ward, "ward_name"),
         }
-        for accessor, name_field in name_fields.items():
-            manager = getattr(instance, accessor)
-            singular = accessor[:-1] if accessor != "cities" else "city"
-            data[f"{singular}_ids"] = list(manager.values_list("unique_id", flat=True))
-            data[f"{singular}_names"] = list(manager.values_list(name_field, flat=True))
+        resolved_states = []
+        for field_key, (model, name_field) in name_fields.items():
+            ids = getattr(instance, f"get_{field_key}")()
+            rows = list(model.objects.filter(unique_id__in=ids)) if ids else []
+            rows_by_id = {r.unique_id: r for r in rows}
+            singular = field_key[:-4] if field_key != "city_ids" else "city"
+            data[f"{singular}_ids"] = ids
+            data[f"{singular}_names"] = [
+                getattr(rows_by_id[i], name_field) for i in ids if i in rows_by_id
+            ]
+            if field_key == "state_ids":
+                resolved_states = rows
 
         continent_ids = []
         continent_names = []
         country_ids = []
         country_names = []
-        for state in instance.states.all().select_related("continent_id", "country_id"):
-            if state.continent_id:
-                c_id = state.continent_id.unique_id
-                if c_id not in continent_ids:
-                    continent_ids.append(c_id)
-                    continent_names.append(state.continent_id.name)
-            if state.country_id:
-                c_id = state.country_id.unique_id
-                if c_id not in country_ids:
-                    country_ids.append(c_id)
-                    country_names.append(state.country_id.name)
+        for state in resolved_states:
+            continent = state.continent
+            if continent and continent.unique_id not in continent_ids:
+                continent_ids.append(continent.unique_id)
+                continent_names.append(continent.name)
+            country = state.country
+            if country and country.unique_id not in country_ids:
+                country_ids.append(country.unique_id)
+                country_names.append(country.name)
         data["continent_ids"] = continent_ids
         data["continent_names"] = continent_names
         data["country_ids"] = country_ids
@@ -191,8 +261,10 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         data["scope_level"] = scope_level
 
         if instance.staff_id:
-            staff_data = StaffcreationSerializer(instance.staff_id, context=self.context).data
-            data["password"] = staff_data.get("password", "")
+            staff = instance.staff
+            if staff:
+                staff_data = StaffcreationSerializer(staff, context=self.context).data
+                data["password"] = staff_data.get("password", "")
         return data
 
     def _nested_value(self, *keys, default=None):
@@ -265,7 +337,7 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
 
         return {key: value for key, value in payload.items() if value not in ("", None)}
 
-    def _save_staff(self, company, project, existing_staff=None):
+    def _save_staff(self, company, project_id, existing_staff=None):
         payload = self._build_staff_payload(existing_staff)
         if not existing_staff and not payload.get("employee_name"):
             raise serializers.ValidationError({
@@ -278,39 +350,59 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
             context=self.context,
         )
         serializer.is_valid(raise_exception=True)
-        return serializer.save(company_id=company, project_id=project)
+        return serializer.save(company_id=company.unique_id, project_id=project_id)
 
     def get_granted_permissions(self, obj):
-        rows = obj.granted_permissions.filter(is_deleted=False).select_related(
-            "mainscreen_id", "userscreen_id", "userscreenaction_id"
+        rows = StaffAccessConfigurationPermission.objects.filter(
+            staff_access_configuration_id=obj.unique_id, is_deleted=False,
         )
+        rows = list(rows)
+
+        from app.models.screen_managements.mainscreen import MainScreen
+        from app.models.screen_managements.userscreen import UserScreen
+
+        mainscreen_ids = {r.mainscreen_id for r in rows if r.mainscreen_id}
+        userscreen_ids = {r.userscreen_id for r in rows if r.userscreen_id}
+        mainscreens = {
+            m.unique_id: m for m in MainScreen.objects.filter(unique_id__in=mainscreen_ids)
+        }
+        userscreens = {
+            u.unique_id: u for u in UserScreen.objects.filter(unique_id__in=userscreen_ids)
+        }
+
         grouped = {}
         for row in rows:
+            mainscreen = mainscreens.get(row.mainscreen_id)
+            userscreen = userscreens.get(row.userscreen_id)
             screen = grouped.setdefault(
-                row.userscreen_id_id,
+                row.userscreen_id,
                 {
-                    "mainScreenId": row.mainscreen_id_id,
-                    "mainScreenName": row.mainscreen_id.mainscreen_name,
-                    "userScreenId": row.userscreen_id_id,
-                    "userScreenName": row.userscreen_id.userscreen_name,
+                    "mainScreenId": row.mainscreen_id,
+                    "mainScreenName": mainscreen.mainscreen_name if mainscreen else None,
+                    "userScreenId": row.userscreen_id,
+                    "userScreenName": userscreen.userscreen_name if userscreen else None,
                     "actionIds": [],
                 },
             )
-            screen["actionIds"].append(row.userscreenaction_id_id)
+            screen["actionIds"].append(row.userscreenaction_id)
         return list(grouped.values())
 
     def get_main_screen_count(self, obj):
         return (
-            obj.granted_permissions.filter(is_deleted=False)
-            .values("mainscreen_id_id")
+            StaffAccessConfigurationPermission.objects.filter(
+                staff_access_configuration_id=obj.unique_id, is_deleted=False,
+            )
+            .values("mainscreen_id")
             .distinct()
             .count()
         )
 
     def get_screen_count(self, obj):
         return (
-            obj.granted_permissions.filter(is_deleted=False)
-            .values("userscreen_id_id")
+            StaffAccessConfigurationPermission.objects.filter(
+                staff_access_configuration_id=obj.unique_id, is_deleted=False,
+            )
+            .values("userscreen_id")
             .distinct()
             .count()
         )
@@ -340,7 +432,7 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         project_ids = list(dict.fromkeys(project_ids))
 
         projects = list(Project.objects.filter(
-            unique_id__in=project_ids, company_id_id=company.unique_id, is_deleted=False,
+            unique_id__in=project_ids, company_id=company.unique_id, is_deleted=False,
         ))
         found_project_ids = {p.unique_id for p in projects}
         missing = [pid for pid in project_ids if pid not in found_project_ids]
@@ -350,23 +442,23 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
             })
 
         resolved_locations = {}
-        for field_key, model, accessor, project_scoped in LOCATION_LEVELS:
+        for field_key, model, storage_field, project_scoped in LOCATION_LEVELS:
             ids = data.get(field_key) or self._nested_list(
                 "dataScope", field_key, field_key[:-4] + "Ids"
             )
             ids = list(dict.fromkeys(ids))
             if not ids:
                 # Empty means "unrestricted at this level" — still resolve to
-                # an empty instance list so update() clears any previously
-                # granted records at this level instead of leaving them stale.
-                resolved_locations[accessor] = []
+                # an empty id list so update() clears any previously granted
+                # ids at this level instead of leaving them stale.
+                resolved_locations[storage_field] = []
                 continue
 
             qs = model.objects.filter(unique_id__in=ids, is_deleted=False)
             if project_scoped:
-                qs = qs.filter(company_id_id=company.unique_id)
+                qs = qs.filter(company_id=company.unique_id)
                 if found_project_ids:
-                    qs = qs.filter(project_id_id__in=found_project_ids)
+                    qs = qs.filter(project_id__in=found_project_ids)
             instances = list(qs)
             found_ids = {obj.unique_id for obj in instances}
             missing_ids = [i for i in ids if i not in found_ids]
@@ -374,7 +466,7 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     field_key: f"Invalid {field_key}: {', '.join(missing_ids)}"
                 })
-            resolved_locations[accessor] = instances
+            resolved_locations[storage_field] = [obj.unique_id for obj in instances]
 
         permissions = data.get("permissions") or []
         enabled_keys = _project_enabled_screen_action_keys(company.unique_id, found_project_ids)
@@ -406,7 +498,7 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
 
         data["resolved_staff"] = staff
         data["resolved_company"] = company
-        data["resolved_projects"] = projects
+        data["resolved_project_ids"] = list(found_project_ids)
         data["resolved_locations"] = resolved_locations
         data["resolved_permissions"] = normalized_permissions
         return data
@@ -465,43 +557,46 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        primary_project = validated_data["resolved_projects"][0] if validated_data["resolved_projects"] else None
+        resolved_project_ids = validated_data["resolved_project_ids"]
+        primary_project_id = resolved_project_ids[0] if resolved_project_ids else None
         staff = validated_data["resolved_staff"] or self._save_staff(
             validated_data["resolved_company"],
-            primary_project,
+            primary_project_id,
         )
         instance, _ = StaffAccessConfiguration.objects.update_or_create(
-            staff_id=staff,
+            staff_id=staff.staff_unique_id,
             defaults={
-                "company_id": validated_data["resolved_company"],
+                "company_id": validated_data["resolved_company"].unique_id,
                 "description": validated_data.get("description", ""),
                 "is_deleted": False,
                 "is_active": True,
             },
         )
-        instance.projects.set(validated_data["resolved_projects"])
-        for accessor, instances in validated_data["resolved_locations"].items():
-            getattr(instance, accessor).set(instances)
+        instance.project_ids = ",".join(resolved_project_ids)
+        for storage_field, ids in validated_data["resolved_locations"].items():
+            setattr(instance, storage_field, ",".join(ids))
+        instance.save()
         self._sync_app_module(instance, validated_data)
         self._sync_permissions(instance, validated_data["resolved_permissions"])
         return instance
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        primary_project = validated_data["resolved_projects"][0] if validated_data["resolved_projects"] else None
+        resolved_project_ids = validated_data["resolved_project_ids"]
+        primary_project_id = resolved_project_ids[0] if resolved_project_ids else None
         staff = self._save_staff(
             validated_data["resolved_company"],
-            primary_project,
-            validated_data["resolved_staff"] or instance.staff_id,
+            primary_project_id,
+            validated_data["resolved_staff"] or instance.staff,
         )
-        instance.staff_id = staff
-        instance.company_id = validated_data["resolved_company"]
+        instance.staff_id = staff.staff_unique_id
+        instance.company_id = validated_data["resolved_company"].unique_id
         instance.description = validated_data.get("description", instance.description)
-        instance.save()
 
-        instance.projects.set(validated_data["resolved_projects"])
-        for accessor, instances in validated_data["resolved_locations"].items():
-            getattr(instance, accessor).set(instances)
+        instance.project_ids = ",".join(resolved_project_ids)
+        for storage_field, ids in validated_data["resolved_locations"].items():
+            setattr(instance, storage_field, ",".join(ids))
+        instance.save()
 
         self._sync_app_module(instance, validated_data)
 
@@ -514,14 +609,17 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         if not self._app_module_field_sent():
             return
         module = validated_data.get("resolved_app_module")
-        if instance.app_module_id != (module.unique_id if module else None):
-            instance.app_module = module
-            instance.save(update_fields=["app_module"])
+        new_app_module_id = module.unique_id if module else None
+        if instance.app_module_id != new_app_module_id:
+            instance.app_module_id = new_app_module_id
+            instance.save(update_fields=["app_module_id"])
 
     def _sync_permissions(self, instance, permissions):
         existing = {
-            (p.userscreen_id_id, p.userscreenaction_id_id): p
-            for p in instance.granted_permissions.filter(is_deleted=False)
+            (p.userscreen_id, p.userscreenaction_id): p
+            for p in StaffAccessConfigurationPermission.objects.filter(
+                staff_access_configuration_id=instance.unique_id, is_deleted=False,
+            )
         }
         incoming_keys = set()
         for order_no, perm in enumerate(permissions, start=1):
@@ -530,10 +628,10 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
             if key in existing:
                 continue
             StaffAccessConfigurationPermission.objects.create(
-                staff_access_configuration_id=instance,
-                mainscreen_id_id=perm["mainscreen_id"],
-                userscreen_id_id=perm["userscreen_id"],
-                userscreenaction_id_id=perm["userscreenaction_id"],
+                staff_access_configuration_id=instance.unique_id,
+                mainscreen_id=perm["mainscreen_id"],
+                userscreen_id=perm["userscreen_id"],
+                userscreenaction_id=perm["userscreenaction_id"],
                 order_no=order_no,
             )
 

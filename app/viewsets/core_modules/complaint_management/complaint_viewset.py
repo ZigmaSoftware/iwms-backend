@@ -13,9 +13,7 @@ from app.utils.filters import (
 class ComplaintViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = ComplaintSerializer
     lookup_field = "unique_id"
-    queryset = Complaint.objects.filter(is_deleted=False).select_related(
-        "customer", "zone", "ward"
-    )
+    queryset = Complaint.objects.filter(is_deleted=False)
     filter_backends = [ModelFieldQueryFilter, ModelFieldSearchFilter, SerializerOrderingFilter]
 
     AUDIT_MODULE = "grivences"

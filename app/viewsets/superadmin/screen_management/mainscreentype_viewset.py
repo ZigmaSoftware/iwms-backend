@@ -18,9 +18,7 @@ from app.utils.pagination import LimitOffsetWithPage
 
 class MainScreenTypeViewSet(CompanyScopedViewSet):
     serializer_class = MainScreenTypeSerializer
-    queryset = MainScreenType.objects.filter(is_deleted=False).select_related(
-        "company_id", "project_id"
-    )
+    queryset = MainScreenType.objects.filter(is_deleted=False)
     lookup_field = "unique_id"
     filter_backends = [
         ModelFieldQueryFilter,

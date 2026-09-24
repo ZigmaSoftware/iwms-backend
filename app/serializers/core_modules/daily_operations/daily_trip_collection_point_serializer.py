@@ -15,6 +15,9 @@ class DailyTripCollectionPointSerializer(
     TenancyReadSerializerMixin,
     serializers.ModelSerializer,
 ):
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
     trip_assignment_id = UniqueIdOrPkField(
         slug_field="unique_id",
         queryset=DailyTripAssignment.objects.filter(is_deleted=False),
@@ -88,7 +91,7 @@ class DailyTripCollectionPointSerializer(
         validators = []
 
     def get_trip_assignment(self, obj):
-        assignment = obj.trip_assignment_id
+        assignment = obj.trip_assignment
         if not assignment:
             return None
         trip_plan = getattr(assignment, "trip_plan_id", None)
@@ -103,18 +106,19 @@ class DailyTripCollectionPointSerializer(
         }
 
     def get_collection_point(self, obj):
-        cp = obj.collection_point_id
+        cp = obj.collection_point
         if not cp:
             return None
         first_ward = cp.wards.first()
-        zone = getattr(first_ward, "zone_id", None)
+        zone = getattr(first_ward, "zone", None)
+        panchayat = cp.panchayat
         return {
             "unique_id": cp.unique_id,
             "cp_name": cp.cp_name,
             "latitude": cp.latitude,
             "longitude": cp.longitude,
-            "panchayat_id": getattr(cp.panchayat_id, "unique_id", None),
-            "panchayat_name": getattr(cp.panchayat_id, "panchayat_name", None),
+            "panchayat_id": getattr(panchayat, "unique_id", None),
+            "panchayat_name": getattr(panchayat, "panchayat_name", None),
             "ward_id": getattr(first_ward, "unique_id", None),
             "ward_name": getattr(first_ward, "ward_name", None),
             "zone_id": getattr(zone, "unique_id", None),
@@ -122,10 +126,10 @@ class DailyTripCollectionPointSerializer(
         }
 
     def get_bin(self, obj):
-        bin_obj = obj.bin_id
+        bin_obj = obj.bin
         if not bin_obj:
             return None
-        waste_type = getattr(bin_obj, "wastetype_id", None)
+        waste_type = getattr(bin_obj, "wastetype", None)
         return {
             "unique_id": bin_obj.unique_id,
             "bin_name": bin_obj.bin_name,
@@ -139,7 +143,7 @@ class DailyTripCollectionPointSerializer(
         }
 
     def get_collected_by_staff(self, obj):
-        staff = obj.collected_by
+        staff = obj.collected_by_user
         if not staff:
             return None
         return {
@@ -159,12 +163,22 @@ class DailyTripCollectionPointSerializer(
         )
         bin_obj = attrs.get("bin_id", getattr(instance, "bin_id", None))
 
-        if assignment and assignment.status == DailyTripAssignment.STATUS_CANCELLED:
+        # assignment/bin_obj above are plain unique_id strings (this model's
+        # string-pseudo-FK convention, same as trip_assignment_id/bin_id on
+        # the model itself) — resolve the actual rows before touching
+        # anything but their id.
+        assignment_obj = (
+            DailyTripAssignment.objects.filter(unique_id=assignment).first()
+            if assignment else None
+        )
+        bin_row = Bins.objects.filter(unique_id=bin_obj).first() if bin_obj else None
+
+        if assignment_obj and assignment_obj.status == DailyTripAssignment.STATUS_CANCELLED:
             raise serializers.ValidationError(
                 "Cannot add collection points to a cancelled trip assignment."
             )
 
-        if bin_obj and collection_point and bin_obj.collection_point_id != collection_point:
+        if bin_row and collection_point and bin_row.collection_point_id != collection_point:
             raise serializers.ValidationError(
                 {"bin_id": "Selected bin does not belong to the collection point."}
             )

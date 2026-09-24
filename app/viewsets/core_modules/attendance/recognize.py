@@ -94,8 +94,8 @@ class RecognizeViewSet(ViewSet):
                 status=400
             )
 
-        # Find registered employee (Employee.staff stores the Staffcreation relation)
-        employee = Employee.objects.filter(staff__staff_unique_id=staff_unique_id).first()
+        # Find registered employee (Employee.staff_id stores the Staffcreation unique id)
+        employee = Employee.objects.filter(staff_id=staff_unique_id).first()
         if not employee:
             return Response({"error": "Employee not registered"}, status=404)
 
@@ -165,16 +165,16 @@ class RecognizeViewSet(ViewSet):
         today = timezone.localdate()
         last = (
             Recognized.objects
-            .filter(staff=employee.staff, recognition_date=today)
+            .filter(staff_id=employee.staff_id, recognition_date=today)
             .order_by("-records")
             .first()
         )
         punch_type = "OUT" if last and last.punch_type == "IN" else "IN"
 
         Recognized.objects.create(
-            company_id=employee.staff.company_id,
-            project_id=employee.staff.project_id,
-            staff=employee.staff,
+            company_id=employee.company_id,
+            project_id=employee.project_id,
+            staff_id=employee.staff_id,
             emp_id=employee.emp_id,
             emp_id_raw=staff_unique_id,          # keep raw string too
             name=employee.name,

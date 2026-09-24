@@ -16,23 +16,6 @@ from django.db.models import Max
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.customers.customercreation import CustomerCreation
-from app.models.common_masters.state import State
-from app.models.masters.district import District
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.zone import Zone
-from app.models.masters.ward import Ward
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
-from app.models.complaint_management.masters import (
-    ComplaintCategory,
-    ComplaintLanguage,
-    ComplaintPriority,
-    ComplaintSource,
-    ComplaintStatus,
-    ComplaintSubcategory,
-)
 
 
 def generate_ticket_unique_id():
@@ -65,6 +48,7 @@ class ComplaintTicket(BaseMaster):
         "feedback",
         "address_change_request",
     )
+    CACHE_SCOPES = ("complaint_ticket_list", "complaint_ticket_detail")
 
     unique_id = models.CharField(
         max_length=30,
@@ -79,37 +63,11 @@ class ComplaintTicket(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-        related_name="complaint_tickets",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-        related_name="complaint_tickets",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    source = models.ForeignKey(
-        ComplaintSource,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="tickets",
-    )
-    customer = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_tickets",
-    )
+    source_id = models.CharField(max_length=30, null=True, blank=True)
+    customer_id = models.CharField(max_length=30, null=True, blank=True)
     wa_phone = models.CharField(max_length=20, null=True, blank=True)
     email = models.EmailField(max_length=254, null=True, blank=True)
     profile_name = models.CharField(max_length=150, null=True, blank=True)
@@ -120,36 +78,12 @@ class ComplaintTicket(BaseMaster):
         ("transgender", "Transgender"),
     ]
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, null=True, blank=True)
-    language = models.ForeignKey(
-        ComplaintLanguage,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="tickets",
-    )
+    language_id = models.CharField(max_length=30, null=True, blank=True)
 
-    category = models.ForeignKey(
-        ComplaintCategory,
-        on_delete=models.PROTECT,
-        related_name="tickets",
-    )
-    subcategory = models.ForeignKey(
-        ComplaintSubcategory,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="tickets",
-    )
-    priority = models.ForeignKey(
-        ComplaintPriority,
-        on_delete=models.PROTECT,
-        related_name="tickets",
-    )
-    status = models.ForeignKey(
-        ComplaintStatus,
-        on_delete=models.PROTECT,
-        related_name="tickets",
-    )
+    category_id = models.CharField(max_length=30, null=True, blank=True)
+    subcategory_id = models.CharField(max_length=30, null=True, blank=True)
+    priority_id = models.CharField(max_length=30, null=True, blank=True)
+    status_id = models.CharField(max_length=30, null=True, blank=True)
 
     title = models.CharField(max_length=250, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
@@ -160,69 +94,16 @@ class ComplaintTicket(BaseMaster):
     # Flat geo, mirroring CustomerCreation. `zone`/`ward` are the operational
     # scope the supervisor queues filter on; state/district/panchayat are the
     # administrative rollup kept for reporting.
-    state = models.ForeignKey(
-        State,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_tickets",
-        db_column="state_id",
-    )
-    district = models.ForeignKey(
-        District,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_tickets",
-        db_column="district_id",
-    )
-    panchayat = models.ForeignKey(
-        Panchayat,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_tickets",
-        db_column="panchayat_id",
-    )
-    zone = models.ForeignKey(
-        Zone,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_tickets",
-        db_column="zone_id",
-    )
-    ward = models.ForeignKey(
-        Ward,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_tickets",
-        db_column="ward_id",
-    )
+    state_id = models.CharField(max_length=30, null=True, blank=True)
+    district_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
 
-    assigned_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="assigned_complaint_tickets",
-    )
-    assigned_staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="assigned_complaint_tickets_staff",
-    )
+    assigned_user_id = models.CharField(max_length=30, null=True, blank=True)
+    assigned_staff_id = models.CharField(max_length=30, null=True, blank=True)
     is_escalated = models.BooleanField(default=False)
-    escalated_to_staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="escalated_complaint_tickets",
-    )
+    escalated_to_staff_id = models.CharField(max_length=30, null=True, blank=True)
     escalation_level = models.PositiveIntegerField(
         default=0,
         help_text="Current hop in the project's staff hierarchy (0 = first assignee, matches ProjectStaffHierarchy.level).",
@@ -238,13 +119,7 @@ class ComplaintTicket(BaseMaster):
     closed_at = models.DateTimeField(null=True, blank=True)
 
     reopened_count = models.IntegerField(default=0)
-    parent_ticket = models.ForeignKey(
-        "self",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="child_tickets",
-    )
+    parent_ticket_id = models.CharField(max_length=30, null=True, blank=True)
     idempotency_key = models.CharField(max_length=150, db_index=True, null=True, blank=True)
     is_sensitive = models.BooleanField(default=False)
 
@@ -263,3 +138,128 @@ class ComplaintTicket(BaseMaster):
 
     def __str__(self):
         return self.ticket_no
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def source(self):
+        from app.models.complaint_management.masters import ComplaintSource
+        if self.source_id:
+            return ComplaintSource.objects.filter(unique_id=self.source_id).first()
+        return None
+
+    @property
+    def customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+        return None
+
+    @property
+    def language(self):
+        from app.models.complaint_management.masters import ComplaintLanguage
+        if self.language_id:
+            return ComplaintLanguage.objects.filter(unique_id=self.language_id).first()
+        return None
+
+    @property
+    def category(self):
+        from app.models.complaint_management.masters import ComplaintCategory
+        if self.category_id:
+            return ComplaintCategory.objects.filter(unique_id=self.category_id).first()
+        return None
+
+    @property
+    def subcategory(self):
+        from app.models.complaint_management.masters import ComplaintSubcategory
+        if self.subcategory_id:
+            return ComplaintSubcategory.objects.filter(unique_id=self.subcategory_id).first()
+        return None
+
+    @property
+    def priority(self):
+        from app.models.complaint_management.masters import ComplaintPriority
+        if self.priority_id:
+            return ComplaintPriority.objects.filter(unique_id=self.priority_id).first()
+        return None
+
+    @property
+    def status(self):
+        from app.models.complaint_management.masters import ComplaintStatus
+        if self.status_id:
+            return ComplaintStatus.objects.filter(unique_id=self.status_id).first()
+        return None
+
+    @property
+    def state(self):
+        from app.models.common_masters.state import State
+        if self.state_id:
+            return State.objects.filter(unique_id=self.state_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def assigned_user(self):
+        from django.conf import settings
+        if self.assigned_user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.assigned_user_id).first()
+        return None
+
+    @property
+    def assigned_staff(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.assigned_staff_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.assigned_staff_id).first()
+        return None
+
+    @property
+    def escalated_to_staff(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.escalated_to_staff_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.escalated_to_staff_id).first()
+        return None
+
+    @property
+    def parent_ticket(self):
+        if self.parent_ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.parent_ticket_id).first()
+        return None

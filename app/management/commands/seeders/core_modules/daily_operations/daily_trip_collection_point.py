@@ -14,7 +14,6 @@ class DailyTripCollectionPointSeeder(BaseSeeder):
             DailyTripAssignment.objects
             .filter(trip_date=today, is_deleted=False)
             .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-            .select_related("trip_plan_id")
         )
 
         if not assignments.exists():
@@ -22,7 +21,6 @@ class DailyTripCollectionPointSeeder(BaseSeeder):
                 DailyTripAssignment.objects
                 .filter(is_deleted=False)
                 .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-                .select_related("trip_plan_id")
                 .order_by("-trip_date", "-scheduled_time")[:10]
             )
 

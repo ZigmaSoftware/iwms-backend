@@ -1,13 +1,8 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
-from app.models.customers.customercreation import CustomerCreation
-from app.models.masters.zone import Zone
-from app.models.masters.ward import Ward
 from app.utils.comfun import generate_unique_id
 from django.utils import timezone
 from django.db.models import Max
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 def generate_complaint_id():
@@ -38,20 +33,8 @@ def complaint_upload_path(instance, filename):
 
 class Complaint(BaseMaster):
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     class StatusChoices(models.TextChoices):
         PROGRESSING = "PROGRESSING", "Progressing"
@@ -78,14 +61,9 @@ class Complaint(BaseMaster):
     )
     
 
-    # Column in DB is customer_id_id from legacy naming; keep attribute as customer
-    customer = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.PROTECT,
-        db_column="customer_id_id",
-    )
-    zone = models.ForeignKey(Zone, on_delete=models.PROTECT, null=True, blank=True)
-    ward = models.ForeignKey(Ward, on_delete=models.PROTECT, null=True, blank=True)
+    customer_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
 
     contact_no = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
@@ -126,18 +104,54 @@ class Complaint(BaseMaster):
         return self.unique_id
 
     def save(self, *args, **kwargs):
-        if self.customer:
-            self.zone = self.customer.zone
-            self.ward = self.customer.ward
-            self.contact_no = self.customer.contact_no
+        customer = self.customer
+        if customer:
+            self.zone_id = customer.zone_id
+            self.ward_id = customer.ward_id
+            self.contact_no = customer.contact_no
             self.address = (
-                f"{self.customer.building_no}, "
-                f"{self.customer.street}, "
-                f"{self.customer.area}, "
-                f"{self.customer.city.name if self.customer.city else ''}"
+                f"{customer.building_no}, "
+                f"{customer.street}, "
+                f"{customer.area}, "
+                f"{customer.city.name if customer.city else ''}"
             )
 
         if self.status == "CLOSED" and not self.complaint_closed_at:
             self.complaint_closed_at = timezone.now()
 
         super().save(*args, **kwargs)
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None

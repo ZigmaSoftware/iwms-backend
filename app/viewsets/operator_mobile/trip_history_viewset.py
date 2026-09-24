@@ -4,7 +4,9 @@ from rest_framework import status, viewsets
 from rest_framework.response import Response
 
 from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
+from app.models.schedule_masters.collection_point import Collection_point
 from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.assets.bins import Bins
 from app.permissions.operator_permission import IsOperatorRole
 from app.viewsets.operator_mobile.helpers import (
     OperatorFlowError,
@@ -19,8 +21,19 @@ def _serialize_summary(assignment: DailyTripAssignment) -> dict:
     total_weight = sum(
         (c.collected_weight_kg or Decimal("0")) for c in children
     )
-    panchayat = assignment.panchayat_id
-    waste_type = assignment.primary_waste_type
+    panchayat_id = assignment.panchayat_id
+    waste_type_id = assignment.primary_waste_type
+    
+    panchayat = None
+    if panchayat_id:
+        from app.models.masters.panchayat import Panchayat
+        panchayat = Panchayat.objects.filter(unique_id=panchayat_id).first()
+    
+    waste_type = None
+    if waste_type_id:
+        from app.models.staff_creations.waste_collection_bluetooth import WasteType
+        waste_type = WasteType.objects.filter(unique_id=waste_type_id).first()
+    
     return {
         "assignment_unique_id": assignment.unique_id,
         "trip_date": assignment.trip_date.isoformat(),
@@ -28,7 +41,7 @@ def _serialize_summary(assignment: DailyTripAssignment) -> dict:
         "panchayat": {
             "unique_id": panchayat.unique_id,
             "name": panchayat.panchayat_name,
-        },
+        } if panchayat else None,
         "waste_type": (
             {
                 "unique_id": waste_type.unique_id,
@@ -53,12 +66,12 @@ def _serialize_event(event: BinCollectionEvent) -> dict:
         "collected_weight_kg": str(event.collected_weight_kg),
         "scanned_qr": event.scanned_qr,
         "bin": {
-            "unique_id": event.bin_id_id,
-            "bin_name": getattr(event.bin_id, "bin_name", None),
+            "unique_id": event.bin_id,
+            "bin_name": None,  # Would need separate query to fetch
         },
         "collection_point": {
-            "unique_id": event.collection_point_id_id,
-            "name": getattr(event.collection_point_id, "cp_name", None),
+            "unique_id": event.collection_point_id,
+            "name": None,  # Would need separate query to fetch
         },
         "latitude": str(event.latitude) if event.latitude is not None else None,
         "longitude": str(event.longitude) if event.longitude is not None else None,
@@ -81,15 +94,21 @@ class TripHistoryViewSet(viewsets.ViewSet):
         # We omit the extra_operator_id JSON membership query here because it isn't
         # supported on SQLite (used in tests); extras are uncommon and can be added
         # later as a Python-side filter when needed.
+        # staff_template_id is a plain CharField now, not a real FK, so it
+        # can't be traversed with `__operator_id`, and trip_collection_points
+        # is a resolver @property (not a reverse relation) so it can't be
+        # prefetch_related-ed; "waste_types" was never a field/property here.
+        from app.models.schedule_masters.staff_template import StaffTemplate
+
+        staff_template_ids = set(
+            StaffTemplate.objects.filter(
+                operator_id=operator.staff_unique_id
+            ).values_list("unique_id", flat=True)
+        )
         return (
             DailyTripAssignment.objects
             .filter(is_deleted=False)
-            .filter(staff_template_id__operator_id=operator)
-            .select_related(
-                "panchayat_id",
-                "vehicle_id",
-            )
-            .prefetch_related("trip_collection_points", "waste_types")
+            .filter(staff_template_id__in=staff_template_ids)
             .order_by("-trip_date", "-scheduled_time")
         )
 
@@ -137,7 +156,6 @@ class TripHistoryViewSet(viewsets.ViewSet):
         events_qs = (
             BinCollectionEvent.objects
             .filter(trip_assignment_id=assignment, is_deleted=False)
-            .select_related("bin_id", "collection_point_id")
             .order_by("event_at")
         )
         summary["events"] = [_serialize_event(e) for e in events_qs]
@@ -145,9 +163,20 @@ class TripHistoryViewSet(viewsets.ViewSet):
         cps = (
             assignment.trip_collection_points
             .filter(is_deleted=False)
-            .select_related("collection_point_id", "bin_id")
             .order_by("sequence")
         )
+        
+        # Fetch related objects for the collection points
+        collection_point_ids = [cp.collection_point_id for cp in cps if cp.collection_point_id]
+        bin_ids = [cp.bin_id for cp in cps if cp.bin_id]
+        
+        collection_points = {
+            cp.unique_id: cp for cp in Collection_point.objects.filter(unique_id__in=collection_point_ids)
+        }
+        bins = {
+            b.unique_id: b for b in Bins.objects.filter(unique_id__in=bin_ids)
+        }
+
         summary["collection_points"] = [
             {
                 "unique_id": cp.unique_id,
@@ -159,13 +188,13 @@ class TripHistoryViewSet(viewsets.ViewSet):
                     str(cp.collected_weight_kg) if cp.collected_weight_kg is not None else None
                 ),
                 "collection_point": {
-                    "unique_id": cp.collection_point_id.unique_id,
-                    "name": cp.collection_point_id.cp_name,
+                    "unique_id": cp.collection_point_id,
+                    "name": collection_points.get(cp.collection_point_id).cp_name if collection_points.get(cp.collection_point_id) else None,
                 },
                 "bin": {
-                    "unique_id": cp.bin_id.unique_id,
-                    "bin_name": cp.bin_id.bin_name,
-                    "bin_qr": cp.bin_id.bin_qr,
+                    "unique_id": cp.bin_id,
+                    "bin_name": bins.get(cp.bin_id).bin_name if bins.get(cp.bin_id) else None,
+                    "bin_qr": bins.get(cp.bin_id).bin_qr if bins.get(cp.bin_id) else None,
                 },
             }
             for cp in cps

@@ -70,17 +70,13 @@ class JWTUserAuthentication(BaseAuthentication):
             return (customer, None)
 
         # Try to find user in PanchayatLeaderLogin (uses unique_id with prefix PLDR-)
-        leader = PanchayatLeaderLogin.objects.select_related(
-            "panchayat_id", "company_id", "project_id"
-        ).filter(unique_id=unique_id).first()
+        leader = PanchayatLeaderLogin.objects.filter(unique_id=unique_id).first()
         if leader:
             request.jwt_payload = payload
             return (leader, None)
 
         # Try to find user in DistrictLeaderLogin (uses unique_id with prefix DLDR-)
-        district_leader = DistrictLeaderLogin.objects.select_related(
-            "district_id", "company_id", "project_id"
-        ).filter(unique_id=unique_id).first()
+        district_leader = DistrictLeaderLogin.objects.filter(unique_id=unique_id).first()
         if district_leader:
             request.jwt_payload = payload
             return (district_leader, None)

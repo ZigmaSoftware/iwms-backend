@@ -58,21 +58,21 @@ class ComplaintCategorySeeder(BaseSeeder):
                 category_code=code,
                 defaults={
                     "category_name": name,
-                    "default_priority": priority,
-                    "module": module,
+                    "default_priority_id": priority.unique_id if priority else None,
+                    "module_id": module.unique_id if module else None,
                     "requires_location": req_loc,
                     "requires_media": req_media,
                     "sort_order": sort_order,
                     "is_active": True,
                     "is_deleted": False,
-                    "company_id": company,
-                    "project_id": project,
+                    "company_id": company.unique_id if company else None,
+                    "project_id": project.unique_id if project else None,
                 },
             )
             # Backfill tenancy on a category seeded before this fix, so
             # existing rows aren't left permanently untenanted.
-            if not created and company and project and not category.company_id_id:
-                category.company_id = company
-                category.project_id = project
+            if not created and company and project and not category.company_id:
+                category.company_id = company.unique_id
+                category.project_id = project.unique_id
                 category.save(update_fields=["company_id", "project_id"])
         self.log(f"---Complaint ticket categories seeded ({len(self.CATEGORIES)} records)---")

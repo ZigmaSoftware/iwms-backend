@@ -43,7 +43,7 @@ def company(db):
 
 def _payload_for_staff(staff):
     return resolve_permission_payload(
-        company_unique_id=getattr(staff.company_id, "unique_id", None),
+        company_unique_id=staff.company_id,
         staff_unique_id=staff.staff_unique_id,
         role_name="Company Supervisor",
         user_type="staff",
@@ -54,7 +54,7 @@ def _payload_for_staff(staff):
 def test_supervisor_role_name_alone_grants_no_app(db, company):
     """The regression: no configuration means no app, whatever the role."""
     staff = Staffcreation.objects.create(
-        employee_name="supervisor_user", company_id=company,
+        employee_name="supervisor_user", company_id=company.unique_id,
     )
     payload = _payload_for_staff(staff)
 
@@ -67,10 +67,10 @@ def test_configuration_without_a_selection_grants_no_app(
 ):
     """A configuration that exists but selects no app is still a refusal."""
     staff = Staffcreation.objects.create(
-        employee_name="supervisor_user", company_id=company,
+        employee_name="supervisor_user", company_id=company.unique_id,
     )
     StaffAccessConfiguration.objects.create(
-        staff_id=staff, company_id=company, app_module=None,
+        staff_id=staff.staff_unique_id, company_id=company.unique_id, app_module_id=None,
     )
 
     assert _payload_for_staff(staff)["app_modules"] == []
@@ -78,10 +78,12 @@ def test_configuration_without_a_selection_grants_no_app(
 
 def test_explicit_selection_grants_that_app(db, company, supervisor_module):
     staff = Staffcreation.objects.create(
-        employee_name="supervisor_user", company_id=company,
+        employee_name="supervisor_user", company_id=company.unique_id,
     )
     StaffAccessConfiguration.objects.create(
-        staff_id=staff, company_id=company, app_module=supervisor_module,
+        staff_id=staff.staff_unique_id,
+        company_id=company.unique_id,
+        app_module_id=supervisor_module.unique_id,
     )
 
     payload = _payload_for_staff(staff)

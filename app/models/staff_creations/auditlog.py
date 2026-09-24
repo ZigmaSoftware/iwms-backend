@@ -1,12 +1,5 @@
 from django.db import models
 from app.utils.comfun import generate_unique_id
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 
@@ -15,20 +8,8 @@ def generate_login_id():
 
 
 class AuditLog(models.Model):
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     # -------------------------------------------------
     # PRIMARY IDENTIFIER
@@ -43,55 +24,24 @@ class AuditLog(models.Model):
     # -------------------------------------------------
     # WHO performed the action
     # -------------------------------------------------
-    user_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        to_field="staff_unique_id",
-        db_column="user_id",
-        related_name="audit_logs"
-    )
+    user_id = models.CharField(max_length=30)
 
     # -------------------------------------------------
     # AS WHICH ROLE (snapshot at action time)
     # -------------------------------------------------
-    staffusertype_id = models.ForeignKey(
-        StaffUserType,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="staffusertype_id",
-        related_name="audit_logs"
-    )
+    staffusertype_id = models.CharField(max_length=30, null=True, blank=True)
 
     # -------------------------------------------------
     # WHERE the action occurred
     # -------------------------------------------------
-    mainscreen_id = models.ForeignKey(
-        MainScreen,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        db_column="mainscreen_id",
-        related_name="audit_logs"
-    )
+    mainscreen_id = models.CharField(max_length=30)
 
-    userscreen_id = models.ForeignKey(
-        UserScreen,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        db_column="userscreen_id",
-        related_name="audit_logs"
-    )
+    userscreen_id = models.CharField(max_length=30)
 
     # -------------------------------------------------
     # WHAT action was performed
     # -------------------------------------------------
-    userscreenaction_id = models.ForeignKey(
-        UserScreenAction,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        db_column="userscreenaction_id",
-        related_name="audit_logs"
-    )
+    userscreenaction_id = models.CharField(max_length=30)
 
     # -------------------------------------------------
     # OUTCOME (MANDATORY)
@@ -143,3 +93,52 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.unique_id} | {self.user_id} | {self.userscreenaction_id}"
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def user(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        if self.user_id:
+            return Staffcreation.objects.filter(staff_unique_id=self.user_id).first()
+        return None
+
+    @property
+    def staffusertype(self):
+        from app.models.role_assigns.staffUserType import StaffUserType
+        if self.staffusertype_id:
+            return StaffUserType.objects.filter(unique_id=self.staffusertype_id).first()
+        return None
+
+    @property
+    def mainscreen(self):
+        from app.models.screen_managements.mainscreen import MainScreen
+        if self.mainscreen_id:
+            return MainScreen.objects.filter(unique_id=self.mainscreen_id).first()
+        return None
+
+    @property
+    def userscreen(self):
+        from app.models.screen_managements.userscreen import UserScreen
+        if self.userscreen_id:
+            return UserScreen.objects.filter(unique_id=self.userscreen_id).first()
+        return None
+
+    @property
+    def userscreenaction(self):
+        from app.models.screen_managements.userscreenaction import UserScreenAction
+        if self.userscreenaction_id:
+            return UserScreenAction.objects.filter(unique_id=self.userscreenaction_id).first()
+        return None

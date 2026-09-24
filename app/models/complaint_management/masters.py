@@ -10,10 +10,6 @@ from django.db import models
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.staff_creations.department import Department
-from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 def generate_source_id():
@@ -189,48 +185,16 @@ class ComplaintCategory(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_categories",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_categories",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    module = models.ForeignKey(
-        ComplaintModule,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="categories",
-    )
+    module_id = models.CharField(max_length=30, null=True, blank=True)
     category_code = models.CharField(max_length=80)
     category_name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
 
-    default_priority = models.ForeignKey(
-        ComplaintPriority,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="default_for_categories",
-    )
-    default_department = models.ForeignKey(
-        Department,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="default_for_complaint_categories",
-    )
+    default_priority_id = models.CharField(max_length=30, null=True, blank=True)
+    default_department_id = models.CharField(max_length=30, null=True, blank=True)
 
     requires_location = models.BooleanField(default=True)
     requires_media = models.BooleanField(default=False)
@@ -252,6 +216,39 @@ class ComplaintCategory(BaseMaster):
     def __str__(self):
         return self.category_name
 
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def module(self):
+        if self.module_id:
+            return ComplaintModule.objects.filter(unique_id=self.module_id).first()
+        return None
+
+    @property
+    def default_priority(self):
+        if self.default_priority_id:
+            return ComplaintPriority.objects.filter(unique_id=self.default_priority_id).first()
+        return None
+
+    @property
+    def default_department(self):
+        from app.models.staff_creations.department import Department
+        if self.default_department_id:
+            return Department.objects.filter(unique_id=self.default_department_id).first()
+        return None
+
 
 class ComplaintSubcategory(BaseMaster):
     """Subcategories under a complaint category.
@@ -268,55 +265,59 @@ class ComplaintSubcategory(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_subcategories",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_subcategories",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    category = models.ForeignKey(
-        ComplaintCategory,
-        on_delete=models.PROTECT,
-        related_name="subcategories",
-    )
+    category_id = models.CharField(max_length=30, null=True, blank=True)
     subcategory_code = models.CharField(max_length=80)
     subcategory_name = models.CharField(max_length=150)
-    default_priority = models.ForeignKey(
-        ComplaintPriority,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="default_for_subcategories",
-    )
+    default_priority_id = models.CharField(max_length=30, null=True, blank=True)
     sort_order = models.IntegerField(default=0)
 
     class Meta:
         ordering = ["sort_order"]
         verbose_name = "Complaint Subcategory"
         verbose_name_plural = "Complaint Subcategories"
-        unique_together = ("category", "subcategory_code")
+        unique_together = ("category_id", "subcategory_code")
 
     def save(self, *args, **kwargs):
         # A subcategory belongs to exactly one category, so its tenancy is
         # never an independent choice — always take it from the parent.
         if self.category_id:
-            self.company_id_id = self.category.company_id_id
-            self.project_id_id = self.category.project_id_id
+            category = self.category
+            if category:
+                self.company_id = category.company_id
+                self.project_id = category.project_id
         super().save(*args, **kwargs)
 
     def __str__(self):
         return self.subcategory_name
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def category(self):
+        if self.category_id:
+            return ComplaintCategory.objects.filter(unique_id=self.category_id).first()
+        return None
+
+    @property
+    def default_priority(self):
+        if self.default_priority_id:
+            return ComplaintPriority.objects.filter(unique_id=self.default_priority_id).first()
+        return None
 
 
 class ComplaintSlaRule(BaseMaster):
@@ -333,47 +334,13 @@ class ComplaintSlaRule(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_sla_rules",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_sla_rules",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    category = models.ForeignKey(
-        ComplaintCategory,
-        on_delete=models.PROTECT,
-        related_name="sla_rules",
-    )
-    subcategory = models.ForeignKey(
-        ComplaintSubcategory,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="sla_rules",
-    )
-    priority = models.ForeignKey(
-        ComplaintPriority,
-        on_delete=models.PROTECT,
-        related_name="sla_rules",
-    )
-    source = models.ForeignKey(
-        ComplaintSource,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="sla_rules",
-    )
+    category_id = models.CharField(max_length=30, null=True, blank=True)
+    subcategory_id = models.CharField(max_length=30, null=True, blank=True)
+    priority_id = models.CharField(max_length=30, null=True, blank=True)
+    source_id = models.CharField(max_length=30, null=True, blank=True)
 
     assign_within_minutes = models.IntegerField(null=True, blank=True)
     working_hours_only = models.BooleanField(default=False)
@@ -389,12 +356,56 @@ class ComplaintSlaRule(BaseMaster):
     def save(self, *args, **kwargs):
         # Same reasoning as ComplaintSubcategory: tenancy follows the category.
         if self.category_id:
-            self.company_id_id = self.category.company_id_id
-            self.project_id_id = self.category.project_id_id
+            category = self.category
+            if category:
+                self.company_id = category.company_id
+                self.project_id = category.project_id
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"SLA {self.category_id} / {self.priority_id}"
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def category(self):
+        if self.category_id:
+            return ComplaintCategory.objects.filter(unique_id=self.category_id).first()
+        return None
+
+    @property
+    def subcategory(self):
+        if self.subcategory_id:
+            return ComplaintSubcategory.objects.filter(unique_id=self.subcategory_id).first()
+        return None
+
+    @property
+    def priority(self):
+        if self.priority_id:
+            return ComplaintPriority.objects.filter(unique_id=self.priority_id).first()
+        return None
+
+    @property
+    def source(self):
+        if self.source_id:
+            return ComplaintSource.objects.filter(unique_id=self.source_id).first()
+        return None
+
+    @property
+    def escalation_levels(self):
+        return ComplaintSlaEscalationLevel.objects.filter(sla_rule_id=self.unique_id)
 
 
 def generate_sla_escalation_level_id():
@@ -420,11 +431,7 @@ class ComplaintSlaEscalationLevel(BaseMaster):
         editable=False,
     )
 
-    sla_rule = models.ForeignKey(
-        ComplaintSlaRule,
-        on_delete=models.CASCADE,
-        related_name="escalation_levels",
-    )
+    sla_rule_id = models.CharField(max_length=30, null=True, blank=True)
     level = models.PositiveIntegerField(
         help_text="Hierarchy level this window applies to (matches ProjectStaffHierarchy.level).",
     )
@@ -437,12 +444,12 @@ class ComplaintSlaEscalationLevel(BaseMaster):
     )
 
     class Meta:
-        ordering = ["sla_rule", "level"]
+        ordering = ["sla_rule_id", "level"]
         verbose_name = "Complaint SLA Escalation Level"
         verbose_name_plural = "Complaint SLA Escalation Levels"
         constraints = [
             models.UniqueConstraint(
-                fields=["sla_rule", "level"],
+                fields=["sla_rule_id", "level"],
                 condition=models.Q(is_deleted=False),
                 name="unique_sla_escalation_level_per_rule",
             )
@@ -450,3 +457,9 @@ class ComplaintSlaEscalationLevel(BaseMaster):
 
     def __str__(self):
         return f"{self.sla_rule_id} L{self.level}: {self.resolve_within_minutes}m"
+
+    @property
+    def sla_rule(self):
+        if self.sla_rule_id:
+            return ComplaintSlaRule.objects.filter(unique_id=self.sla_rule_id).first()
+        return None

@@ -34,16 +34,16 @@ class PlantGNOSeeder(BaseSeeder):
             return
 
         project = Project.objects.filter(
-            name=PROJECT_NAME, company_id=company, is_deleted=False
+            name=PROJECT_NAME, company_id=company.unique_id, is_deleted=False
         ).first()
         if not project:
             self.log(f"Project '{PROJECT_NAME}' not found under {COMPANY_NAME}.")
             return
 
         plant, created = Plant.objects.update_or_create(
-            project_id=project,
+            project_id=project.unique_id,
             defaults={
-                "company_id": company,
+                "company_id": company.unique_id,
                 "name": PLANT_NAME,
                 "latitude": LATITUDE,
                 "longitude": LONGITUDE,

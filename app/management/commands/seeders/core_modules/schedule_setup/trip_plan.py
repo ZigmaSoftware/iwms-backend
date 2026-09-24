@@ -41,8 +41,8 @@ class TripPlanSeeder(BaseSeeder):
             self.log("TripPlanSeeder skipped (missing company/project).")
             return
 
-        district = District.objects.filter(company_id=company, project_id=project).first()
-        city = City.objects.filter(company_id=company, project_id=project).first()
+        district = District.objects.filter(company_id=company.unique_id, project_id=project.unique_id).first()
+        city = City.objects.filter(company_id=company.unique_id, project_id=project.unique_id).first()
         property_obj = Property.objects.filter(is_deleted=False).first()
         sub_property_obj = SubProperty.objects.filter(is_deleted=False).first()
         supervisor = Staffcreation.objects.filter(is_deleted=False).order_by("created_at").first()
@@ -65,7 +65,7 @@ class TripPlanSeeder(BaseSeeder):
         ).order_by("created_at"))
 
         vehicles = list(VehicleCreation.objects.filter(
-            company_id=company, project_id=project, is_deleted=False
+            company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
         ).order_by("created_at"))
 
         if not staff_templates or not vehicles:
@@ -86,11 +86,11 @@ class TripPlanSeeder(BaseSeeder):
             return ids
 
         common_defaults = dict(
-            district_id=district,
-            city_id=city,
-            supervisor_id=supervisor,
-            property_id=property_obj,
-            sub_property_id=sub_property_obj,
+            district_id=district.unique_id,
+            city_id=city.unique_id,
+            supervisor_id=supervisor.staff_unique_id,
+            property_id=property_obj.unique_id,
+            sub_property_id=sub_property_obj.unique_id,
             trip_trigger_weight_kg=800,
             max_vehicle_capacity_kg=3000,
             approval_status=TripPlan.ApprovalStatus.APPROVED,
@@ -109,8 +109,8 @@ class TripPlanSeeder(BaseSeeder):
         # zone_id is derived from each ward's own zone FK (ward → Zone 1).
         # ------------------------------------------------------------------
         wards = list(Ward.objects.filter(
-            company_id=company, project_id=project, is_deleted=False
-        ).select_related("zone_id").order_by("ward_name")[:15])
+            company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
+        ).order_by("ward_name")[:15])
 
         ward_created = ward_skipped = 0
         for idx, ward in enumerate(wards):
@@ -126,11 +126,11 @@ class TripPlanSeeder(BaseSeeder):
 
             scheduled_time = BASE_TIMES[idx % len(BASE_TIMES)]
             plan, created = TripPlan.objects.update_or_create(
-                company_id=company,
-                project_id=project,
-                staff_template_id=staff_template,
-                vehicle_id=vehicle,
-                waste_type_id=waste_type,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
+                staff_template_id=staff_template.unique_id,
+                vehicle_id=vehicle.unique_id,
+                waste_type_id=waste_type.unique_id,
                 panchayat_id=None,
                 scheduled_time=scheduled_time,
                 defaults={
@@ -139,7 +139,8 @@ class TripPlanSeeder(BaseSeeder):
                     "waste_type_ids": plan_waste_ids,
                 },
             )
-            plan.wards.set([ward])
+            plan.ward_ids = ward.unique_id
+            plan.save(update_fields=["ward_ids"])
             if created:
                 ward_created += 1
 
@@ -148,7 +149,7 @@ class TripPlanSeeder(BaseSeeder):
         # Panchayats are rural; zone_id is not applicable (set to None).
         # ------------------------------------------------------------------
         panchayats = list(Panchayat.objects.filter(
-            company_id=company, project_id=project, is_deleted=False
+            company_id=company.unique_id, project_id=project.unique_id, is_deleted=False
         ).order_by("panchayat_name")[:15])
 
         pan_created = pan_skipped = 0
@@ -168,12 +169,12 @@ class TripPlanSeeder(BaseSeeder):
 
             scheduled_time = BASE_TIMES[idx % len(BASE_TIMES)]
             plan, created = TripPlan.objects.update_or_create(
-                company_id=company,
-                project_id=project,
-                staff_template_id=staff_template,
-                vehicle_id=vehicle,
-                waste_type_id=waste_type,
-                panchayat_id=panchayat,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
+                staff_template_id=staff_template.unique_id,
+                vehicle_id=vehicle.unique_id,
+                waste_type_id=waste_type.unique_id,
+                panchayat_id=panchayat.unique_id,
                 scheduled_time=scheduled_time,
                 defaults={
                     **common_defaults,
@@ -181,7 +182,8 @@ class TripPlanSeeder(BaseSeeder):
                     "waste_type_ids": plan_waste_ids,
                 },
             )
-            plan.wards.clear()
+            plan.ward_ids = ""
+            plan.save(update_fields=["ward_ids"])
             if created:
                 pan_created += 1
 
@@ -201,11 +203,11 @@ class TripPlanSeeder(BaseSeeder):
             household_waste_type = waste_types.get("wet") or fallback_waste
 
             household_plan, household_created = TripPlan.objects.update_or_create(
-                company_id=company,
-                project_id=project,
-                staff_template_id=household_staff_template,
-                vehicle_id=household_vehicle,
-                waste_type_id=household_waste_type,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
+                staff_template_id=household_staff_template.unique_id,
+                vehicle_id=household_vehicle.unique_id,
+                waste_type_id=household_waste_type.unique_id,
                 panchayat_id=None,
                 scheduled_time=time(9, 0),
                 collection_type=TripPlan.COLLECTION_TYPE_HOUSEHOLD,
@@ -215,9 +217,10 @@ class TripPlanSeeder(BaseSeeder):
                     "waste_type_ids": waste_id_list(household_waste_type),
                 },
             )
-            household_plan.wards.set([household_ward])
+            household_plan.ward_ids = household_ward.unique_id
+            household_plan.save(update_fields=["ward_ids"])
             TripPlanCollectionPoint.objects.get_or_create(
-                trip_plan_id=household_plan,
+                trip_plan_id=household_plan.unique_id,
                 sequence=1,
                 defaults={
                     "collection_type": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,

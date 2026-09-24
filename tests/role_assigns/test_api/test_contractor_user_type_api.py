@@ -6,6 +6,11 @@ from app.models.role_assigns.contractorUserType import ContractorUserType
 BASE = "/api/v1/role-assigns/contractorusertypes/"
 
 
+def response_items(resp):
+    data = resp.data
+    return data.get("results", data) if isinstance(data, dict) else data
+
+
 @pytest.fixture
 def contractor_user_type(db):
     return UserType.objects.create(name="contractor")
@@ -28,15 +33,31 @@ class TestContractorUserTypeAPIList:
     ):
         ContractorUserType.objects.create(
             name="contractor_admin",
-            usertype_id=contractor_user_type,
+            usertype_id=contractor_user_type.unique_id,
         )
         resp = auth_client.get(BASE)
 
         assert resp.status_code == 200
         assert any(
             item["name"] == "Contractor Admin"
-            for item in resp.data
+            for item in response_items(resp)
         )
+
+    def test_list_returns_usertype_id_and_name(
+        self,
+        auth_client,
+        contractor_user_type,
+    ):
+        role = ContractorUserType.objects.create(
+            name="contractor_driver",
+            usertype_id=contractor_user_type.unique_id,
+        )
+        resp = auth_client.get(BASE)
+
+        assert resp.status_code == 200
+        row = next(item for item in response_items(resp) if item["unique_id"] == role.unique_id)
+        assert row["usertype_id"] == contractor_user_type.unique_id
+        assert row["usertype_name"] == contractor_user_type.name
 
 
 @pytest.mark.django_db
@@ -53,7 +74,7 @@ class TestContractorUserTypeAPICreate:
 @pytest.mark.django_db
 class TestContractorUserTypeAPIRetrieve:
     def test_retrieve_returns_200(self, auth_client, contractor_user_type):
-        cut = ContractorUserType.objects.create(name="contractor_supervisor", usertype_id=contractor_user_type)
+        cut = ContractorUserType.objects.create(name="contractor_supervisor", usertype_id=contractor_user_type.unique_id)
         resp = auth_client.get(f"{BASE}{cut.unique_id}/")
         assert resp.status_code == 200
         assert resp.data["name"] == "Contractor Supervisor"
@@ -62,7 +83,7 @@ class TestContractorUserTypeAPIRetrieve:
 @pytest.mark.django_db
 class TestContractorUserTypeAPIUpdate:
     def test_patch_returns_success(self, auth_client, contractor_user_type):
-        cut = ContractorUserType.objects.create(name="contractor_driver", usertype_id=contractor_user_type)
+        cut = ContractorUserType.objects.create(name="contractor_driver", usertype_id=contractor_user_type.unique_id)
         resp = auth_client.patch(
             f"{BASE}{cut.unique_id}/", {"name": "contractor_worker"}, format="json"
         )
@@ -72,6 +93,6 @@ class TestContractorUserTypeAPIUpdate:
 @pytest.mark.django_db
 class TestContractorUserTypeAPIDelete:
     def test_delete_returns_success(self, auth_client, contractor_user_type):
-        cut = ContractorUserType.objects.create(name="contractor_operator", usertype_id=contractor_user_type)
+        cut = ContractorUserType.objects.create(name="contractor_operator", usertype_id=contractor_user_type.unique_id)
         resp = auth_client.delete(f"{BASE}{cut.unique_id}/")
         assert resp.status_code in (200, 204)

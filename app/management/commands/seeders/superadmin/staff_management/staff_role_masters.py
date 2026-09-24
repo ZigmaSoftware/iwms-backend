@@ -46,7 +46,7 @@ class StaffRoleMastersSeeder(BaseSeeder):
             return None, None
 
         project = Project.objects.filter(
-            company_id=company, is_deleted=False
+            company_id=company.unique_id, is_deleted=False
         ).order_by("name").first()
         if not project:
             self.log_error(
@@ -63,12 +63,14 @@ class StaffRoleMastersSeeder(BaseSeeder):
             return
 
         self.log(f"Seeding for company '{company.name}' / project '{project.name}'")
+        company_id = company.unique_id if hasattr(company, 'unique_id') else company
+        project_id = project.unique_id if hasattr(project, 'unique_id') else project
 
         departments: dict[str, Department] = {}
         for code, name, description in self.DEPARTMENTS:
             department, created = Department.objects.update_or_create(
-                company_id=company,
-                project_id=project,
+                company_id=company_id,
+                project_id=project_id,
                 department_code=code,
                 defaults={
                     "department_name": name,
@@ -89,10 +91,10 @@ class StaffRoleMastersSeeder(BaseSeeder):
                 continue
 
             designation, created = Designation.objects.update_or_create(
-                company_id=company,
-                project_id=project,
+                company_id=company_id,
+                project_id=project_id,
                 designation_name=designation_name,
-                department_id=department,
+                department_id=department.unique_id if hasattr(department, 'unique_id') else department,
                 defaults={
                     "designation_group": group,
                     "description": description,
