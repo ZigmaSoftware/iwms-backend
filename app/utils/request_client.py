@@ -1,8 +1,6 @@
-"""Which client a request came from — the same "mobile" test the App Module
-login gate and the captcha check both need.
+"""Which client a request came from — used by the App Module login gate.
 
-Kept in one place so "what counts as mobile" can't drift between the two:
-the app sends `client: "mobile"` on every login (see AuthRepository in the
+The app sends `client: "mobile"` on every login (see AuthRepository in the
 Flutter app); a browser sends nothing, which defaults to "web".
 """
 
