@@ -10,15 +10,6 @@ from unittest.mock import patch, MagicMock
 LOGIN_BASE = "/api/v1/login/login-user/"
 
 
-@pytest.fixture(autouse=True)
-def _bypass_captcha():
-    """These tests exercise credential/role logic, not the captcha challenge
-    itself (that's covered separately) — LoginViewSet requires a valid
-    captcha for non-mobile clients, which these tests never solve."""
-    with patch("app.viewsets.login.login_viewset.verify_captcha", return_value=True):
-        yield
-
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
