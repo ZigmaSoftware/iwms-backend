@@ -1,6 +1,4 @@
 from django.db import models
-
-from .company import Company
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
@@ -17,13 +15,7 @@ class Project(BaseMaster):
         default=generate_project_id,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="projects",
-        to_field="unique_id",
-        db_column="company_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
@@ -54,13 +46,46 @@ class Project(BaseMaster):
     attendance_api_url = models.URLField(max_length=500, blank=True, null=True)
     attendance_api_key = models.CharField(max_length=255, blank=True, null=True)
 
+    CASCADE_SOFT_DELETE = (
+        "district_set",
+        "plants",
+        "departments",
+        "designations",
+        "staff_office_details",
+        "staff_personal_details",
+        "staff_templates",
+        "staffusertype_set",
+        "contractorusertype_set",
+        "usertype_set",
+        "wastetype_set",
+        "mainscreentype_set",
+        "mainscreen_set",
+        "userscreen_set",
+        "userscreenaction_set",
+        "userscreen_column_permissions",
+        "user_set",
+        "maincategory_set",
+        "complaint_set",
+        "complaint_categories",
+        "complaint_subcategories",
+        "complaint_sla_rules",
+        "property_set",
+        "subproperty_set",
+        "staff_hierarchy_levels",
+    )
+    CACHE_SCOPES = ("project_list", "project_detail")
+
     class Meta:
         ordering = ["name"]
 
     def __str__(self):
-        return f"{self.name} ({self.company_id.name})"
+        from app.models.superadmin_masters.company import Company
+        company_name = Company.objects.filter(unique_id=self.company_id).values_list("name", flat=True).first()
+        return f"{self.name} ({company_name})"
 
-    def delete(self, *args, **kwargs):
-        self.is_deleted = True
-        self.is_active = False
-        self.save(update_fields=["is_deleted", "is_active"]) 
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None

@@ -98,8 +98,9 @@ class PublicGrievanceViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def meta(self, request):
         categories = ComplaintCategory.objects.filter(is_deleted=False, is_active=True).order_by("sort_order")
+        active_category_ids = categories.values_list("unique_id", flat=True)
         subcategories = ComplaintSubcategory.objects.filter(
-            is_deleted=False, is_active=True, category__is_deleted=False, category__is_active=True
+            is_deleted=False, is_active=True, category_id__in=active_category_ids
         ).order_by("sort_order")
         return Response({
             "categories": [
@@ -130,7 +131,7 @@ class PublicGrievanceViewSet(viewsets.ViewSet):
             rows = rows.filter(state_id=state_id)
         rows = rows.order_by("name")
         return Response([
-            {"unique_id": d.unique_id, "name": d.name, "state_id": d.state_id_id}
+            {"unique_id": d.unique_id, "name": d.name, "state_id": d.state_id}
             for d in rows
         ])
 
@@ -158,7 +159,7 @@ class PublicGrievanceViewSet(viewsets.ViewSet):
             is_deleted=False, is_active=True, panchayat_id=panchayat_id
         ).order_by("ward_name")
         return Response([
-            {"unique_id": w.unique_id, "name": w.ward_name, "zone_id": w.zone_id_id}
+            {"unique_id": w.unique_id, "name": w.ward_name, "zone_id": w.zone_id}
             for w in rows
         ])
 
@@ -320,23 +321,59 @@ class PublicGrievanceViewSet(viewsets.ViewSet):
                 status=http_status.HTTP_400_BAD_REQUEST,
             )
 
-        qs = (
-            ComplaintTicket.objects.filter(is_deleted=False)
-            .select_related("status", "category", "subcategory")
-            .prefetch_related("status_history", "status_history__to_status")
-        )
+        # status/category/subcategory/status_history/to_status are all plain
+        # id columns (or resolver @properties) now, not real relations, so
+        # they can't be select_related/prefetch_related-ed. Resolve them
+        # with a handful of batched lookups instead of per-row queries.
+        qs = ComplaintTicket.objects.filter(is_deleted=False)
         qs = qs.filter(ticket_no__iexact=ticket_no) if ticket_no else qs.filter(wa_phone=mobile)
         tickets = list(qs.order_by("-created")[:20])
         if not tickets:
             return Response({"detail": "No grievance found."}, status=http_status.HTTP_404_NOT_FOUND)
 
+        ticket_ids = [t.unique_id for t in tickets]
+        status_ids = {t.status_id for t in tickets if t.status_id}
+        category_ids = {t.category_id for t in tickets if t.category_id}
+        subcategory_ids = {t.subcategory_id for t in tickets if t.subcategory_id}
+
+        history_rows = list(
+            ComplaintStatusHistory.objects.filter(
+                ticket_id__in=ticket_ids, visible_to_citizen=True
+            ).order_by("changed_at")
+        )
+        status_ids.update(h.to_status_id for h in history_rows if h.to_status_id)
+
+        statuses_by_id = {
+            s.unique_id: s
+            for s in ComplaintStatus.objects.filter(unique_id__in=status_ids)
+        }
+        categories_by_id = {
+            c.unique_id: c
+            for c in ComplaintCategory.objects.filter(unique_id__in=category_ids)
+        }
+        subcategories_by_id = {
+            s.unique_id: s
+            for s in ComplaintSubcategory.objects.filter(unique_id__in=subcategory_ids)
+        }
+
+        history_by_ticket = {}
+        for h in history_rows:
+            history_by_ticket.setdefault(h.ticket_id, []).append(h)
+
         def timeline_for(ticket):
-            entries = [h for h in ticket.status_history.all() if h.visible_to_citizen]
-            entries.sort(key=lambda h: h.changed_at)
+            entries = history_by_ticket.get(ticket.unique_id, [])
             return [
                 {
-                    "status": h.to_status.status_name if h.to_status else None,
-                    "status_code": h.to_status.status_code if h.to_status else None,
+                    "status": (
+                        statuses_by_id[h.to_status_id].status_name
+                        if h.to_status_id in statuses_by_id
+                        else None
+                    ),
+                    "status_code": (
+                        statuses_by_id[h.to_status_id].status_code
+                        if h.to_status_id in statuses_by_id
+                        else None
+                    ),
                     "at": h.changed_at,
                     "remarks": h.remarks or "",
                 }
@@ -346,10 +383,22 @@ class PublicGrievanceViewSet(viewsets.ViewSet):
         return Response([
             {
                 "ticket_no": t.ticket_no,
-                "status": t.status.status_name if t.status else None,
-                "status_code": t.status.status_code if t.status else None,
-                "category": t.category.category_name if t.category else None,
-                "subcategory": t.subcategory.subcategory_name if t.subcategory else None,
+                "status": (
+                    statuses_by_id[t.status_id].status_name
+                    if t.status_id in statuses_by_id else None
+                ),
+                "status_code": (
+                    statuses_by_id[t.status_id].status_code
+                    if t.status_id in statuses_by_id else None
+                ),
+                "category": (
+                    categories_by_id[t.category_id].category_name
+                    if t.category_id in categories_by_id else None
+                ),
+                "subcategory": (
+                    subcategories_by_id[t.subcategory_id].subcategory_name
+                    if t.subcategory_id in subcategories_by_id else None
+                ),
                 "description": t.description,
                 "location_text": t.location_text,
                 "created": t.created,

@@ -12,6 +12,9 @@ from app.validators.unique_name_validator import unique_name_validator
 
 class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
 
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
     state_id = NameOrUniqueIdField(
         queryset=State.objects.filter(is_deleted=False),
         name_field="name",
@@ -26,16 +29,16 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
         name_field="name",
         scope_fields=["district_id", "state_id"],
     )
-    state_name        = serializers.CharField(source="state_id.name", read_only=True)
-    state_unique_id   = serializers.CharField(source="state_id.unique_id", read_only=True)
-    country_unique_id = serializers.CharField(source="state_id.country_id.unique_id", read_only=True)
-    continent_unique_id = serializers.CharField(source="state_id.continent_id.unique_id", read_only=True)
-    country_name      = serializers.CharField(source="state_id.country_id.name", read_only=True)
-    continent_name    = serializers.CharField(source="state_id.continent_id.name", read_only=True)
-    city_name         = serializers.CharField(source="city_id.name", read_only=True)
-    city_unique_id    = serializers.CharField(source="city_id.unique_id", read_only=True)
-    district_name     = serializers.CharField(source="district_id.name", read_only=True)
-    district_unique_id = serializers.CharField(source="district_id.unique_id", read_only=True)
+    state_name = serializers.SerializerMethodField()
+    state_unique_id = serializers.SerializerMethodField()
+    country_unique_id = serializers.SerializerMethodField()
+    continent_unique_id = serializers.SerializerMethodField()
+    country_name = serializers.SerializerMethodField()
+    continent_name = serializers.SerializerMethodField()
+    city_name = serializers.SerializerMethodField()
+    city_unique_id = serializers.SerializerMethodField()
+    district_name = serializers.SerializerMethodField()
+    district_unique_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Zone
@@ -81,6 +84,50 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
             "company_id",
             "project_id",
         ]
+
+    def get_state_name(self, obj):
+        state = obj.state
+        return state.name if state else None
+
+    def get_state_unique_id(self, obj):
+        state = obj.state
+        return state.unique_id if state else None
+
+    def get_country_name(self, obj):
+        state = obj.state
+        country = state.country if state else None
+        return country.name if country else None
+
+    def get_country_unique_id(self, obj):
+        state = obj.state
+        country = state.country if state else None
+        return country.unique_id if country else None
+
+    def get_continent_name(self, obj):
+        state = obj.state
+        continent = state.continent if state else None
+        return continent.name if continent else None
+
+    def get_continent_unique_id(self, obj):
+        state = obj.state
+        continent = state.continent if state else None
+        return continent.unique_id if continent else None
+
+    def get_city_name(self, obj):
+        city = obj.city
+        return city.name if city else None
+
+    def get_city_unique_id(self, obj):
+        city = obj.city
+        return city.unique_id if city else None
+
+    def get_district_name(self, obj):
+        district = obj.district
+        return district.name if district else None
+
+    def get_district_unique_id(self, obj):
+        district = obj.district
+        return district.unique_id if district else None
 
     def validate(self, attrs):
 

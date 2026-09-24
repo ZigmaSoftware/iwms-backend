@@ -1,7 +1,7 @@
 """API tests for CollectionPoint endpoint — CRUD operations."""
 import pytest
 
-BASE = "/api/v1/assets/collection-point/"
+BASE = "/api/v1/schedule-setup/collection-points/"
 
 
 @pytest.mark.django_db

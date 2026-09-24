@@ -6,6 +6,7 @@ from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignmen
 from app.models.transport_masters.vehicleCreation import VehicleCreation
 from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 
 
 class VehicleBreakdownSerializer(serializers.ModelSerializer):
@@ -19,8 +20,7 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     )
 
     # Trip assignments have no separate name, so they stay ID-based.
-    trip_assignment_id = serializers.SlugRelatedField(
-        slug_field="unique_id",
+    trip_assignment_id = UniqueIdOrPkField(
         queryset=DailyTripAssignment.objects.filter(is_deleted=False),
     )
     # Vehicles/staff accept either their unique_id or their human-readable
@@ -41,14 +41,12 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     replacement_driver_id = NameOrUniqueIdField(
-        slug_field="staff_unique_id",
         name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
     replacement_operator_id = NameOrUniqueIdField(
-        slug_field="staff_unique_id",
         name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
@@ -311,14 +309,12 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
         allow_null=True,
     )
     replacement_driver_id = NameOrUniqueIdField(
-        slug_field="staff_unique_id",
         name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
     replacement_operator_id = NameOrUniqueIdField(
-        slug_field="staff_unique_id",
         name_field="employee_name",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,

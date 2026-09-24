@@ -21,23 +21,6 @@ from django.db import models
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.customers.customercreation import CustomerCreation
-from app.models.common_masters.state import State
-from app.models.masters.district import District
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.zone import Zone
-from app.models.masters.ward import Ward
-from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.complaint_management.masters import (
-    ComplaintCategory,
-    ComplaintPriority,
-    ComplaintSlaRule,
-    ComplaintStatus,
-    ComplaintSubcategory,
-)
-from app.models.complaint_management.ticket import ComplaintTicket
 
 
 def generate_extra_detail_id():
@@ -94,17 +77,16 @@ class ComplaintTicketExtraDetail(BaseMaster):
         editable=False,
     )
 
-    ticket = models.ForeignKey(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="extra_details",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
     field_key = models.CharField(max_length=100)
     field_value = models.TextField(blank=True, null=True)
     field_type = models.CharField(max_length=50, default="text")
     is_sensitive = models.BooleanField(default=False)
 
     created = models.DateTimeField(auto_now_add=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_ticket_extra_detail_list", "complaint_ticket_extra_detail_detail")
 
     class Meta:
         ordering = ["-created"]
@@ -113,6 +95,13 @@ class ComplaintTicketExtraDetail(BaseMaster):
 
     def __str__(self):
         return f"{self.field_key}={self.field_value}"
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
 
 
 class ComplaintAttachment(BaseMaster):
@@ -125,25 +114,9 @@ class ComplaintAttachment(BaseMaster):
         editable=False,
     )
 
-    ticket = models.ForeignKey(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="attachments",
-    )
-    uploaded_by_customer = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_attachments",
-    )
-    uploaded_by_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_attachments",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
+    uploaded_by_customer_id = models.CharField(max_length=30, null=True, blank=True)
+    uploaded_by_user_id = models.CharField(max_length=30, null=True, blank=True)
 
     file = models.FileField(upload_to=complaint_attachment_upload_path, null=True, blank=True)
     file_name = models.CharField(max_length=255, blank=True, null=True)
@@ -154,6 +127,9 @@ class ComplaintAttachment(BaseMaster):
 
     created = models.DateTimeField(auto_now_add=True)
 
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_attachment_list", "complaint_attachment_detail")
+
     class Meta:
         ordering = ["-created"]
         verbose_name = "Complaint Attachment"
@@ -161,6 +137,27 @@ class ComplaintAttachment(BaseMaster):
 
     def __str__(self):
         return self.file_name or self.unique_id
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
+
+    @property
+    def uploaded_by_customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.uploaded_by_customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.uploaded_by_customer_id).first()
+        return None
+
+    @property
+    def uploaded_by_user(self):
+        from django.conf import settings
+        if self.uploaded_by_user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.uploaded_by_user_id).first()
+        return None
 
 
 class ComplaintStatusHistory(BaseMaster):
@@ -173,42 +170,19 @@ class ComplaintStatusHistory(BaseMaster):
         editable=False,
     )
 
-    ticket = models.ForeignKey(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="status_history",
-    )
-    from_status = models.ForeignKey(
-        ComplaintStatus,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="status_history_from",
-    )
-    to_status = models.ForeignKey(
-        ComplaintStatus,
-        on_delete=models.PROTECT,
-        related_name="status_history_to",
-    )
-    changed_by_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_status_changes",
-    )
-    changed_by_customer = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_status_changes",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
+    from_status_id = models.CharField(max_length=30, null=True, blank=True)
+    to_status_id = models.CharField(max_length=30, null=True, blank=True)
+    changed_by_user_id = models.CharField(max_length=30, null=True, blank=True)
+    changed_by_customer_id = models.CharField(max_length=30, null=True, blank=True)
     changed_by_system = models.BooleanField(default=False)
     remarks = models.TextField(blank=True, null=True)
     visible_to_citizen = models.BooleanField(default=True)
 
     changed_at = models.DateTimeField(auto_now_add=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_status_history_list", "complaint_status_history_detail")
 
     class Meta:
         ordering = ["-changed_at"]
@@ -217,6 +191,41 @@ class ComplaintStatusHistory(BaseMaster):
 
     def __str__(self):
         return f"{self.ticket_id}: {self.to_status_id}"
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
+
+    @property
+    def from_status(self):
+        from app.models.complaint_management.masters import ComplaintStatus
+        if self.from_status_id:
+            return ComplaintStatus.objects.filter(unique_id=self.from_status_id).first()
+        return None
+
+    @property
+    def to_status(self):
+        from app.models.complaint_management.masters import ComplaintStatus
+        if self.to_status_id:
+            return ComplaintStatus.objects.filter(unique_id=self.to_status_id).first()
+        return None
+
+    @property
+    def changed_by_user(self):
+        from django.conf import settings
+        if self.changed_by_user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.changed_by_user_id).first()
+        return None
+
+    @property
+    def changed_by_customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.changed_by_customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.changed_by_customer_id).first()
+        return None
 
 
 class ComplaintAssignmentHistory(BaseMaster):
@@ -229,49 +238,18 @@ class ComplaintAssignmentHistory(BaseMaster):
         editable=False,
     )
 
-    ticket = models.ForeignKey(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="assignment_history",
-    )
-    from_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_assignment_from",
-    )
-    to_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_assignment_to",
-    )
-    from_staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_assignment_from_staff",
-    )
-    to_staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_assignment_to_staff",
-    )
-    assigned_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_assignment_by",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
+    from_user_id = models.CharField(max_length=30, null=True, blank=True)
+    to_user_id = models.CharField(max_length=30, null=True, blank=True)
+    from_staff_id = models.CharField(max_length=30, null=True, blank=True)
+    to_staff_id = models.CharField(max_length=30, null=True, blank=True)
+    assigned_by_id = models.CharField(max_length=30, null=True, blank=True)
     assignment_reason = models.TextField(blank=True, null=True)
 
     assigned_at = models.DateTimeField(auto_now_add=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_assignment_history_list", "complaint_assignment_history_detail")
 
     class Meta:
         ordering = ["-assigned_at"]
@@ -280,6 +258,48 @@ class ComplaintAssignmentHistory(BaseMaster):
 
     def __str__(self):
         return f"{self.ticket_id} -> {self.to_staff_id}"
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
+
+    @property
+    def from_user(self):
+        from django.conf import settings
+        if self.from_user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.from_user_id).first()
+        return None
+
+    @property
+    def to_user(self):
+        from django.conf import settings
+        if self.to_user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.to_user_id).first()
+        return None
+
+    @property
+    def from_staff(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.from_staff_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.from_staff_id).first()
+        return None
+
+    @property
+    def to_staff(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.to_staff_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.to_staff_id).first()
+        return None
+
+    @property
+    def assigned_by(self):
+        from django.conf import settings
+        if self.assigned_by_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.assigned_by_id).first()
+        return None
 
 
 class ComplaintComment(BaseMaster):
@@ -292,30 +312,17 @@ class ComplaintComment(BaseMaster):
         editable=False,
     )
 
-    ticket = models.ForeignKey(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="comments",
-    )
-    comment_by_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_comments",
-    )
-    comment_by_customer = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_comments",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
+    comment_by_user_id = models.CharField(max_length=30, null=True, blank=True)
+    comment_by_customer_id = models.CharField(max_length=30, null=True, blank=True)
     comment_text = models.TextField()
     is_internal = models.BooleanField(default=False)
     is_sensitive = models.BooleanField(default=False)
 
     created = models.DateTimeField(auto_now_add=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_comment_list", "complaint_comment_detail")
 
     class Meta:
         ordering = ["-created"]
@@ -324,6 +331,27 @@ class ComplaintComment(BaseMaster):
 
     def __str__(self):
         return f"{self.ticket_id} comment {self.unique_id}"
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
+
+    @property
+    def comment_by_user(self):
+        from django.conf import settings
+        if self.comment_by_user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.comment_by_user_id).first()
+        return None
+
+    @property
+    def comment_by_customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.comment_by_customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.comment_by_customer_id).first()
+        return None
 
 
 class ComplaintRoutingRule(BaseMaster):
@@ -341,96 +369,22 @@ class ComplaintRoutingRule(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="complaint_routing_rules",
-        db_column="company_id",
-        null=True,
-        blank=True,
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="complaint_routing_rules",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    category = models.ForeignKey(
-        ComplaintCategory,
-        on_delete=models.PROTECT,
-        related_name="routing_rules",
-    )
-    subcategory = models.ForeignKey(
-        ComplaintSubcategory,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="routing_rules",
-    )
-    state = models.ForeignKey(
-        State,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_routing_rules",
-        db_column="state_id",
-    )
-    district = models.ForeignKey(
-        District,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_routing_rules",
-        db_column="district_id",
-    )
-    panchayat = models.ForeignKey(
-        Panchayat,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_routing_rules",
-        db_column="panchayat_id",
-    )
-    zone = models.ForeignKey(
-        Zone,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_routing_rules",
-        db_column="zone_id",
-    )
-    ward = models.ForeignKey(
-        Ward,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_routing_rules",
-        db_column="ward_id",
-    )
-    priority = models.ForeignKey(
-        ComplaintPriority,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="routing_rules",
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_routing_rules",
-    )
-    sla_rule = models.ForeignKey(
-        ComplaintSlaRule,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="routing_rules",
-    )
+    category_id = models.CharField(max_length=30, null=True, blank=True)
+    subcategory_id = models.CharField(max_length=30, null=True, blank=True)
+    state_id = models.CharField(max_length=30, null=True, blank=True)
+    district_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    priority_id = models.CharField(max_length=30, null=True, blank=True)
+    user_id = models.CharField(max_length=30, null=True, blank=True)
+    sla_rule_id = models.CharField(max_length=30, null=True, blank=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_routing_rule_list", "complaint_routing_rule_detail")
 
     class Meta:
         ordering = ["unique_id"]
@@ -440,12 +394,99 @@ class ComplaintRoutingRule(BaseMaster):
     def save(self, *args, **kwargs):
         # Tenancy follows the category, as with the SLA rule.
         if self.category_id:
-            self.company_id_id = self.category.company_id_id
-            self.project_id_id = self.category.project_id_id
+            from app.models.complaint_management.masters import ComplaintCategory
+            cat = ComplaintCategory.objects.filter(unique_id=self.category_id).first()
+            if cat:
+                self.company_id = cat.company_id
+                self.project_id = cat.project_id
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Route {self.category_id} -> {self.sla_rule_id}"
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def category(self):
+        from app.models.complaint_management.masters import ComplaintCategory
+        if self.category_id:
+            return ComplaintCategory.objects.filter(unique_id=self.category_id).first()
+        return None
+
+    @property
+    def subcategory(self):
+        from app.models.complaint_management.masters import ComplaintSubcategory
+        if self.subcategory_id:
+            return ComplaintSubcategory.objects.filter(unique_id=self.subcategory_id).first()
+        return None
+
+    @property
+    def state(self):
+        from app.models.common_masters.state import State
+        if self.state_id:
+            return State.objects.filter(unique_id=self.state_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def priority(self):
+        from app.models.complaint_management.masters import ComplaintPriority
+        if self.priority_id:
+            return ComplaintPriority.objects.filter(unique_id=self.priority_id).first()
+        return None
+
+    @property
+    def user(self):
+        from django.conf import settings
+        if self.user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.user_id).first()
+        return None
+
+    @property
+    def sla_rule(self):
+        from app.models.complaint_management.masters import ComplaintSlaRule
+        if self.sla_rule_id:
+            return ComplaintSlaRule.objects.filter(unique_id=self.sla_rule_id).first()
+        return None
 
 
 class ComplaintEscalationHistory(BaseMaster):
@@ -458,30 +499,17 @@ class ComplaintEscalationHistory(BaseMaster):
         editable=False,
     )
 
-    ticket = models.ForeignKey(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="escalation_history",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
     escalation_level = models.IntegerField(default=1)
-    escalated_to_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_escalations",
-    )
-    escalated_to_staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_escalations_staff",
-    )
+    escalated_to_user_id = models.CharField(max_length=30, null=True, blank=True)
+    escalated_to_staff_id = models.CharField(max_length=30, null=True, blank=True)
     reason = models.TextField(blank=True, null=True)
     escalated_by_system = models.BooleanField(default=False)
 
     escalated_at = models.DateTimeField(auto_now_add=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_escalation_history_list", "complaint_escalation_history_detail")
 
     class Meta:
         ordering = ["-escalated_at"]
@@ -490,6 +518,27 @@ class ComplaintEscalationHistory(BaseMaster):
 
     def __str__(self):
         return f"{self.ticket_id} esc L{self.escalation_level}"
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
+
+    @property
+    def escalated_to_user(self):
+        from django.conf import settings
+        if self.escalated_to_user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.escalated_to_user_id).first()
+        return None
+
+    @property
+    def escalated_to_staff(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.escalated_to_staff_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.escalated_to_staff_id).first()
+        return None
 
 
 class ComplaintFeedback(BaseMaster):
@@ -502,23 +551,16 @@ class ComplaintFeedback(BaseMaster):
         editable=False,
     )
 
-    ticket = models.OneToOneField(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="feedback",
-    )
-    customer = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_feedback",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
+    customer_id = models.CharField(max_length=30, null=True, blank=True)
     rating = models.IntegerField(null=True, blank=True)
     feedback_text = models.TextField(blank=True, null=True)
     is_issue_solved = models.BooleanField(default=False)
 
     submitted_at = models.DateTimeField(auto_now_add=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_feedback_list", "complaint_feedback_detail")
 
     class Meta:
         ordering = ["-submitted_at"]
@@ -527,6 +569,20 @@ class ComplaintFeedback(BaseMaster):
 
     def __str__(self):
         return f"{self.ticket_id} feedback {self.rating}"
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
+
+    @property
+    def customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+        return None
 
 
 class ComplaintReopenHistory(BaseMaster):
@@ -539,35 +595,16 @@ class ComplaintReopenHistory(BaseMaster):
         editable=False,
     )
 
-    ticket = models.ForeignKey(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="reopen_history",
-    )
-    reopened_by_customer = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_reopens",
-    )
-    reopened_by_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="complaint_reopens",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
+    reopened_by_customer_id = models.CharField(max_length=30, null=True, blank=True)
+    reopened_by_user_id = models.CharField(max_length=30, null=True, blank=True)
     reopen_reason = models.TextField(blank=True, null=True)
-    previous_status = models.ForeignKey(
-        ComplaintStatus,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="reopen_history",
-    )
+    previous_status_id = models.CharField(max_length=30, null=True, blank=True)
 
     reopened_at = models.DateTimeField(auto_now_add=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_reopen_history_list", "complaint_reopen_history_detail")
 
     class Meta:
         ordering = ["-reopened_at"]
@@ -576,6 +613,34 @@ class ComplaintReopenHistory(BaseMaster):
 
     def __str__(self):
         return f"{self.ticket_id} reopened"
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
+
+    @property
+    def reopened_by_customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.reopened_by_customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.reopened_by_customer_id).first()
+        return None
+
+    @property
+    def reopened_by_user(self):
+        from django.conf import settings
+        if self.reopened_by_user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.reopened_by_user_id).first()
+        return None
+
+    @property
+    def previous_status(self):
+        from app.models.complaint_management.masters import ComplaintStatus
+        if self.previous_status_id:
+            return ComplaintStatus.objects.filter(unique_id=self.previous_status_id).first()
+        return None
 
 
 class ComplaintNotification(BaseMaster):
@@ -602,27 +667,9 @@ class ComplaintNotification(BaseMaster):
         editable=False,
     )
 
-    ticket = models.ForeignKey(
-        ComplaintTicket,
-        on_delete=models.CASCADE,
-        related_name="notifications",
-        null=True,
-        blank=True,
-    )
-    recipient_staff = models.ForeignKey(
-        StaffcreationOfficeDetails,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="complaint_notifications",
-    )
-    recipient_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="complaint_notifications",
-    )
+    ticket_id = models.CharField(max_length=30, null=True, blank=True)
+    recipient_staff_id = models.CharField(max_length=30, null=True, blank=True)
+    recipient_user_id = models.CharField(max_length=30, null=True, blank=True)
 
     event_type = models.CharField(max_length=20, choices=EVENT_CHOICES)
     title = models.CharField(max_length=200)
@@ -633,14 +680,38 @@ class ComplaintNotification(BaseMaster):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("complaint_notification_list", "complaint_notification_detail")
+
     class Meta:
         ordering = ["-created_at"]
         verbose_name = "Complaint Notification"
         verbose_name_plural = "Complaint Notifications"
         indexes = [
-            models.Index(fields=["recipient_staff", "is_read"]),
-            models.Index(fields=["recipient_user", "is_read"]),
+            models.Index(fields=["recipient_staff_id", "is_read"]),
+            models.Index(fields=["recipient_user_id", "is_read"]),
         ]
 
     def __str__(self):
         return f"{self.event_type}: {self.ticket_id}"
+
+    @property
+    def ticket(self):
+        from app.models.complaint_management.ticket import ComplaintTicket
+        if self.ticket_id:
+            return ComplaintTicket.objects.filter(unique_id=self.ticket_id).first()
+        return None
+
+    @property
+    def recipient_staff(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.recipient_staff_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.recipient_staff_id).first()
+        return None
+
+    @property
+    def recipient_user(self):
+        from django.conf import settings
+        if self.recipient_user_id:
+            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.recipient_user_id).first()
+        return None

@@ -1,15 +1,11 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.masters.city import City
-from app.models.masters.district import District
-from app.models.common_masters.state import State
-from app.models.masters.block_panchayat_union import BlockPanchayatUnion
+
 
 def generate_panchayat_id():
     return f"PANCHAYAT-{generate_unique_id()}"
+
 
 class GeoFencingType(models.TextChoices):
     POLYGON = "polygon", "Polygon"
@@ -32,42 +28,12 @@ class Panchayat(BaseMaster):
         editable=False
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="pancahyat",
-        db_column="company_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="pancahyat",
-        db_column="project_id",
-    )
-
-    state_id = models.ForeignKey(
-        State,
-        on_delete = models.PROTECT,
-        related_name="panchayat",
-        db_column="state_id",
-        
-    )
-
-    city_id = models.ForeignKey(
-        City,
-        on_delete = models.PROTECT,
-        related_name="panchayat",
-        db_column="city_id",
-        
-    )
-
-    district_id = models.ForeignKey(
-        District,
-        on_delete = models.PROTECT,
-        related_name="panchayat",
-        db_column="district_id",
-    )
+    state_id = models.CharField(max_length=30, null=True, blank=True)
+    city_id = models.CharField(max_length=30, null=True, blank=True)
+    district_id = models.CharField(max_length=30, null=True, blank=True)
 
     geofencing_type = models.CharField(
         max_length=20,
@@ -92,17 +58,63 @@ class Panchayat(BaseMaster):
         blank=True,
         help_text="Date from which this agreed weight is valid",
     )
-    latitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6,null=True,blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
-    block_id = models.ForeignKey(
-        BlockPanchayatUnion,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="panchayats",
-        db_column="block_id",
-    )
+    block_id = models.CharField(max_length=30, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ("wards", "leader_logins")
+    CACHE_SCOPES = ("panchayat_list", "panchayat_detail")
+
+    def __str__(self):
+        return self.panchayat_name
+
+    @property
+    def state(self):
+        from app.models.common_masters.state import State
+        if self.state_id:
+            return State.objects.filter(unique_id=self.state_id).first()
+        return None
+
+    @property
+    def city(self):
+        from app.models.masters.city import City
+        if self.city_id:
+            return City.objects.filter(unique_id=self.city_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def block(self):
+        from app.models.masters.block_panchayat_union import BlockPanchayatUnion
+        if self.block_id:
+            return BlockPanchayatUnion.objects.filter(unique_id=self.block_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def wards(self):
+        from app.models.masters.ward import Ward
+        return Ward.objects.filter(panchayat_id=self.unique_id)

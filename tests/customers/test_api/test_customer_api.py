@@ -18,11 +18,11 @@ BASE = "/api/v1/customer-masters/customercreations/"
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="Customer API Panchayat",
-        company_id=company,
-        project_id=project,
-        state_id=state,
-        district_id=district,
-        city_id=city,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
     )
 
 
@@ -63,17 +63,17 @@ def create_customer(
         longitude="80.2707",
         id_proof_type="Aadhar",
         id_no=f"1234-5678-{id_suffix:04d}",
-        company_id=company,
-        project_id=project,
-        country=country,
-        state=state,
-        district=district,
-        city=city,
-        zone=zone,
-        ward=ward,
-        panchayat_id=panchayat,
-        property_ref=property_ref,
-        sub_property=sub_property,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+        country_id=country.unique_id,
+        state_id=state.unique_id,
+        district_id=district.unique_id,
+        city_id=city.unique_id,
+        zone_id=zone.unique_id,
+        ward_id=ward.unique_id,
+        panchayat_id=panchayat.unique_id,
+        property_id=property_ref.unique_id,
+        sub_property_id=sub_property.unique_id,
     )
 
 
@@ -146,8 +146,8 @@ class TestCustomerFcmRegistration:
         old_customer.save(update_fields=["fcm_token"])
         staff = Staffcreation.objects.create(
             employee_name="Token Owner",
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
             fcm_token=token,
         )
 

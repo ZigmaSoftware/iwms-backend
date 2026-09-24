@@ -36,13 +36,13 @@ STOP_TYPES = {
         "trip_collection_points",
         DailyTripCollectionPoint,
         TripCollectionPointSerializer,
-        ("collection_point_id", "bin_id"),
+        (),
     ),
     "household": (
         "trip_household_collections",
         DailyTripHouseholdCollection,
         HouseholdCollectionSerializer,
-        ("customer_id", "customer_id__city"),
+        (),
     ),
 }
 

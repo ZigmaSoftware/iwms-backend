@@ -48,7 +48,7 @@ class SubCategorySeeder(BaseSeeder):
             for sub_name in sub_list:
                 SubCategory.objects.get_or_create(
                     name=sub_name,
-                    mainCategory=main_category,
+                    mainCategory=main_category.unique_id,
                     defaults={
                         "is_active": True,
                         "is_deleted": False,

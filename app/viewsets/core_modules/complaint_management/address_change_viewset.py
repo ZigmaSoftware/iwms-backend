@@ -46,7 +46,7 @@ def _snapshot_customer_address(customer):
         "longitude": customer.longitude,
         "state_id": customer.state_id,
         "district_id": customer.district_id,
-        "panchayat_id": customer.panchayat_id_id,
+        "panchayat_id": customer.panchayat_id,
         "zone_id": customer.zone_id,
         "ward_id": customer.ward_id,
     }
@@ -59,9 +59,7 @@ class ComplaintAddressChangeViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     AUDIT_ENDPOINT = "address-change"
 
     def get_queryset(self):
-        qs = ComplaintAddressChangeRequest.objects.filter(is_deleted=False).select_related(
-            "ticket", "customer"
-        ).order_by("-created")
+        qs = ComplaintAddressChangeRequest.objects.filter(is_deleted=False).order_by("-created")
         ticket = self.request.query_params.get("ticket")
         if ticket:
             qs = qs.filter(ticket_id=ticket)
@@ -77,9 +75,7 @@ class ComplaintAddressChangeViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.is_active = False
-        instance.save(update_fields=["is_deleted", "is_active"])
+        self.perform_destroy(instance)
         return Response({"message": "Request deleted successfully"}, status=http_status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], url_path="verify")

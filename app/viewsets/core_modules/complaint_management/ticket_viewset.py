@@ -103,7 +103,7 @@ def _is_entry_level_staff(user):
     scope") so a deployment that hasn't configured hierarchy/SLA levels yet
     keeps working as before rather than hiding tickets from everyone.
     """
-    from app.models.complaint_management.masters import ComplaintSlaEscalationLevel
+    from app.models.complaint_management.masters import ComplaintSlaEscalationLevel, ComplaintSlaRule
     from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
 
     staffusertype_id = getattr(user, "staffusertype_id_id", None)
@@ -123,12 +123,14 @@ def _is_entry_level_staff(user):
     if own_level is None:
         return True
 
+    matching_sla_rule_ids = ComplaintSlaRule.objects.filter(
+        project_id=project_id, is_deleted=False,
+    ).values_list("unique_id", flat=True)
     enabled_levels = set(
         ComplaintSlaEscalationLevel.objects.filter(
             is_enabled=True,
             is_deleted=False,
-            sla_rule__project_id=project_id,
-            sla_rule__is_deleted=False,
+            sla_rule_id__in=matching_sla_rule_ids,
         ).values_list("level", flat=True)
     )
     if not enabled_levels:
@@ -185,15 +187,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         return ComplaintTicketSerializer
 
     def get_queryset(self):
-        qs = ComplaintTicket.objects.filter(is_deleted=False).select_related(
-            "category", "subcategory", "priority", "status", "source",
-            "customer", "assigned_staff", "escalated_to_staff",
-            "state", "district", "panchayat", "zone", "ward",
-        ).prefetch_related(
-            "status_history", "status_history__to_status",
-            "escalation_history",
-            "attachments", "extra_details",
-        ).order_by("-created")
+        qs = ComplaintTicket.objects.filter(is_deleted=False).order_by("-created")
         params = self.request.query_params
 
         if self.action in ("list", "counts"):
@@ -300,9 +294,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.is_active = False
-        instance.save(update_fields=["is_deleted", "is_active"])
+        self.perform_destroy(instance)
         return Response({"message": "Ticket deleted successfully"}, status=http_status.HTTP_200_OK)
 
     def _finalize_and_backfill(self, ticket):

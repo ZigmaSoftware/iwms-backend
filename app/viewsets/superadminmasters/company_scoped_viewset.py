@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import ForeignKey, Q
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -7,6 +7,24 @@ from app.models.superadmin_masters.project import Project
 from app.models.staff_creations.staffcreation import Staffcreation
 from app.utils.base_models import Account
 from app.utils.name_or_id_field import resolve_by_name_or_id
+
+
+def _tenant_value(model, field_name, value):
+    """Company/project scoping is shared by models where `company_id`/
+    `project_id` is a real ForeignKey and models where it's a plain CharField
+    holding the parent's `unique_id`. A ForeignKey needs the instance itself
+    (Django resolves it to the pk on save/filter); a CharField needs the
+    `unique_id` string directly, since assigning it an instance would
+    silently `str()` it via the wrong `__str__`."""
+    if value is None or isinstance(value, str):
+        return value
+    try:
+        model_field = model._meta.get_field(field_name)
+    except Exception:
+        return value
+    if isinstance(model_field, ForeignKey):
+        return value
+    return value.unique_id
 
 
 class CompanyScopedViewSet(viewsets.ModelViewSet):
@@ -86,13 +104,20 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         Merges base_kwargs with audit fields (created_by, updated_by)
         only if the model actually has those fields.
         Prevents TypeError for models that don't extend BaseMaster.
+
+        `created_by`/`updated_by` are Account instances passed in by the
+        caller, but BaseMaster stores them as a `<field>_id` CharField (the
+        Account's account_id) — the actual field name gets the `_id` suffix
+        and the instance is reduced to its id before being handed to
+        `serializer.save()`.
         """
         model = getattr(getattr(serializer, "Meta", None), "model", None)
         result = dict(base_kwargs)
 
         for field_name, value in audit_fields.items():
-            if model and hasattr(model, field_name):
-                result[field_name] = value
+            id_field_name = f"{field_name}_id"
+            if model and hasattr(model, id_field_name):
+                result[id_field_name] = getattr(value, "account_id", value)
 
         return result
 
@@ -251,12 +276,16 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Company user required")
 
         if hasattr(queryset.model, "company_id"):
-            queryset = queryset.filter(company_id=company)
+            queryset = queryset.filter(
+                company_id=_tenant_value(queryset.model, "company_id", company)
+            )
 
         project = self._project()
 
         if project and hasattr(queryset.model, "project_id"):
-            queryset = queryset.filter(project_id=project)
+            queryset = queryset.filter(
+                project_id=_tenant_value(queryset.model, "project_id", project)
+            )
 
         return queryset
 
@@ -296,7 +325,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
                         )
                         if not company:
                             raise ValidationError({"company_id": "Invalid company_id"})
-                        save_kwargs["company_id"] = company
+                        save_kwargs["company_id"] = _tenant_value(model, "company_id", company)
                 elif not company_field.null:
                     raise ValidationError({"company_id": "company_id is required"})
 
@@ -336,7 +365,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
                         project = resolve_by_name_or_id(project_qs, project_unique_id)
                     if not project:
                         raise ValidationError({"project_id": "Invalid project_id"})
-                    save_kwargs["project_id"] = project
+                    save_kwargs["project_id"] = _tenant_value(model, "project_id", project)
 
             # ← safe: only pass created_by if model has the field
             final_kwargs = self._build_save_kwargs(
@@ -354,7 +383,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         save_kwargs = {}
 
         if model and hasattr(model, "company_id"):
-            save_kwargs["company_id"] = company
+            save_kwargs["company_id"] = _tenant_value(model, "company_id", company)
 
         if model and hasattr(model, "project_id"):
 
@@ -363,7 +392,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
             if not project:
                 raise ValidationError({"project_id": "project_id is required"})
 
-            save_kwargs["project_id"] = project
+            save_kwargs["project_id"] = _tenant_value(model, "project_id", project)
 
         # ← safe: only pass created_by if model has the field
         final_kwargs = self._build_save_kwargs(
@@ -404,7 +433,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
                         )
                         if not company:
                             raise ValidationError({"company_id": "Invalid company_id"})
-                        save_kwargs["company_id"] = company
+                        save_kwargs["company_id"] = _tenant_value(model, "company_id", company)
                 else:
                     save_kwargs["company_id"] = getattr(instance, "company_id", None)
 
@@ -443,7 +472,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
                         project = resolve_by_name_or_id(project_qs, project_unique_id)
                     if not project:
                         raise ValidationError({"project_id": "Invalid project_id"})
-                    save_kwargs["project_id"] = project
+                    save_kwargs["project_id"] = _tenant_value(model, "project_id", project)
                 else:
                     save_kwargs["project_id"] = getattr(instance, "project_id", None)
 
@@ -466,10 +495,14 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         save_kwargs = {}
 
         if model and hasattr(model, "company_id"):
-            save_kwargs["company_id"] = getattr(instance, "company_id", None) or company
+            save_kwargs["company_id"] = getattr(instance, "company_id", None) or _tenant_value(
+                model, "company_id", company
+            )
 
         if model and hasattr(model, "project_id"):
-            save_kwargs["project_id"] = getattr(instance, "project_id", None) or self._project()
+            save_kwargs["project_id"] = getattr(instance, "project_id", None) or _tenant_value(
+                model, "project_id", self._project()
+            )
 
         # ← safe: only pass updated_by if model has the field
         final_kwargs = self._build_save_kwargs(
@@ -486,13 +519,9 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         account = self._get_account()
 
         if hasattr(instance, "is_deleted"):
-
-            instance.is_deleted = True
-
-            if hasattr(instance, "updated_by"):
-                instance.updated_by = account
-
-            instance.save()
-
+            # Routes through the model's own delete() so BaseMaster's
+            # cascading soft-delete (and any per-model override) always
+            # runs, instead of hand-flipping the flag here.
+            instance.delete(updated_by=account)
         else:
             instance.delete()

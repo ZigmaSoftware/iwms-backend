@@ -9,7 +9,7 @@ BASE = "/api/v1/staff-creations/departments/"
 def department(db, company, project):
     return Department.objects.create(
         department_name="Engineering", department_code="ENG",
-        company_id=company, project_id=project,
+        company_id=company.unique_id, project_id=project.unique_id,
     )
 
 

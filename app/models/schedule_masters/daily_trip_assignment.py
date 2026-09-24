@@ -4,15 +4,6 @@ from django.db import connection, models, transaction
 from django.utils import timezone
 
 from app.utils.base_models import BaseMaster
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
 
 
 def _generate_trip_assignment_unique_id(company_id, project_id):
@@ -92,69 +83,27 @@ class DailyTripAssignment(BaseMaster):
     # TENANCY
     # ------------------------------------------------------------------
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        db_column="company_id",
-        related_name="daily_trip_assignments",
-    )
-
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        db_column="project_id",
-        related_name="daily_trip_assignments",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     # ------------------------------------------------------------------
     # TRIP PLAN & STAFF
     # ------------------------------------------------------------------
 
-    trip_plan_id = models.ForeignKey(
-        TripPlan,
-        on_delete=models.PROTECT,
-        db_column="trip_plan_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-    )
+    trip_plan_id = models.CharField(max_length=30, null=True, blank=True)
 
-    staff_template_id = models.ForeignKey(
-        StaffTemplate,
-        on_delete=models.PROTECT,
-        db_column="staff_template_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-    )
+    staff_template_id = models.CharField(max_length=20, null=True, blank=True)
 
-    alt_staff_template_id = models.ForeignKey(
-        AlternativeStaffTemplate,
-        on_delete=models.PROTECT,
-        db_column="alt_staff_template_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-        null=True,
-        blank=True,
-    )
+    alt_staff_template_id = models.CharField(max_length=50, null=True, blank=True)
 
     # ------------------------------------------------------------------
     # LOCATION
     # ------------------------------------------------------------------
 
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        db_column="panchayat_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-        null=True,
-        blank=True,
-    )
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
 
-    wards = models.ManyToManyField(
-        Ward,
-        related_name="daily_trip_assignments_m2m",
-        blank=True,
-    )
+    # Store ward IDs as comma-separated string
+    ward_ids = models.TextField(blank=True, default="")
 
     # ------------------------------------------------------------------
     # WASTE TYPE
@@ -166,34 +115,15 @@ class DailyTripAssignment(BaseMaster):
         help_text="List of waste type unique_ids assigned to this daily trip plan.",
     )
 
-    # Waste types collected on this daily trip (inherited from the Trip Plan;
-    # can be narrowed per-trip). Mirrors TripPlan.waste_types.
-    waste_types = models.ManyToManyField(
-        WasteType,
-        related_name="daily_trip_assignments_multi",
-        blank=True,
-    )
-
-    # Multiple waste types for household collection stops on this trip
-    household_waste_type_ids = models.ManyToManyField(
-        WasteType,
-        related_name="household_trip_assignments",
-        blank=True,
-    )
+    # Store waste type IDs as comma-separated string
+    waste_type_ids_csv = models.TextField(blank=True, default="")
+    household_waste_type_ids = models.TextField(blank=True, default="")
 
     # ------------------------------------------------------------------
     # VEHICLE (explicit for operator-mobile flow)
     # ------------------------------------------------------------------
 
-    vehicle_id = models.ForeignKey(
-        VehicleCreation,
-        on_delete=models.PROTECT,
-        db_column="vehicle_id",
-        to_field="unique_id",
-        related_name="daily_trip_assignments",
-        null=True,
-        blank=True,
-    )
+    vehicle_id = models.CharField(max_length=30, null=True, blank=True)
 
     # ------------------------------------------------------------------
     # SCHEDULING
@@ -244,6 +174,17 @@ class DailyTripAssignment(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    CASCADE_SOFT_DELETE = (
+        "daily_trip_log",
+        "trip_collection_points",
+        "trip_household_collections",
+        "bin_collection_events",
+        "waste_collections",
+        "vehicle_breakdown",
+        "route_detour_waypoints",
+    )
+    CACHE_SCOPES = ("daily_trip_assignment_list", "daily_trip_assignment_detail")
+
     # ------------------------------------------------------------------
     # META
     # ------------------------------------------------------------------
@@ -271,19 +212,18 @@ class DailyTripAssignment(BaseMaster):
     # ------------------------------------------------------------------
 
     def save(self, *args, **kwargs):
+        from app.models.schedule_masters.trip_plan import TripPlan
         if self.trip_plan_id:
-            # Accessing an unset non-nullable FK descriptor on an unsaved
-            # instance raises RelatedObjectDoesNotExist rather than
-            # returning None, so check the raw FK id first (works whether
-            # the field was left unset entirely or explicitly set to None).
-            if not self.staff_template_id_id:
-                self.staff_template_id = self.trip_plan_id.staff_template_id
-            if not self.vehicle_id_id:
-                self.vehicle_id = self.trip_plan_id.vehicle_id
-            if not self.panchayat_id_id:
-                self.panchayat_id = self.trip_plan_id.panchayat_id
-            self.scheduled_time = self.scheduled_time or self.trip_plan_id.scheduled_time
-            self.waste_type_ids = self.waste_type_ids or self.trip_plan_id.waste_type_ids
+            tp = TripPlan.objects.filter(unique_id=self.trip_plan_id).first()
+            if tp:
+                if not self.staff_template_id:
+                    self.staff_template_id = tp.staff_template_id
+                if not self.vehicle_id:
+                    self.vehicle_id = tp.vehicle_id
+                if not self.panchayat_id:
+                    self.panchayat_id = tp.panchayat_id
+                self.scheduled_time = self.scheduled_time or tp.scheduled_time
+                self.waste_type_ids = self.waste_type_ids or tp.waste_type_ids
         is_new = self._state.adding
         if not self.unique_id:
             with transaction.atomic():
@@ -295,34 +235,52 @@ class DailyTripAssignment(BaseMaster):
             super().save(*args, **kwargs)
 
         if is_new and self.trip_plan_id:
-            if not self.waste_types.exists():
-                self.waste_types.set(self.trip_plan_id.waste_types.all())
-            if not self.wards.exists():
-                self.wards.set(self.trip_plan_id.wards.all())
-                # post_save fires before M2M wards are available on this
-                # instance, so household/bulk stops (which are narrowed to
-                # the assignment's wards) may have been under-matched on the
-                # first cloning pass. Re-sync once more now that wards are
-                # copied — idempotent, mirrors TN_Iwms.
-                from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
-                sync_daily_assignment_stops_from_plan(self)
+            from app.models.schedule_masters.trip_plan import TripPlan
+            tp = TripPlan.objects.filter(unique_id=self.trip_plan_id).first()
+            if tp:
+                # Sync waste types
+                waste_type_ids = tp.get_waste_type_ids()
+                self.waste_type_ids_csv = ",".join(waste_type_ids)
+            
+            # Sync wards
+            ward_ids = tp.get_ward_ids()
+            self.ward_ids = ",".join(ward_ids)
+            self.save(update_fields=["waste_type_ids_csv", "ward_ids"])
+            
+            # Sync household/bulk stops
+            from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
+            sync_daily_assignment_stops_from_plan(self)
 
     def __str__(self):
         return self.unique_id
+
+    def get_ward_ids(self):
+        return [w for w in self.ward_ids.split(",") if w]
+
+    def get_waste_type_ids(self):
+        return [w for w in self.waste_type_ids_csv.split(",") if w]
+
+    def get_household_waste_type_ids(self):
+        return [w for w in self.household_waste_type_ids.split(",") if w]
 
     @property
     def primary_waste_type(self):
         if not self.waste_type_ids:
             return None
-        return WasteType.objects.filter(
-            unique_id=self.waste_type_ids[0],
-            is_deleted=False,
-        ).first()
+        return self.get_waste_type_ids()[0] if self.get_waste_type_ids() else None
+
+    @property
+    def trip_collection_points(self):
+        from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+        return DailyTripCollectionPoint.objects.filter(trip_assignment_id=self.unique_id)
+
+    @property
+    def trip_household_collections(self):
+        from app.models.schedule_masters.daily_trip_household_collection import DailyTripHouseholdCollection
+        return DailyTripHouseholdCollection.objects.filter(trip_assignment_id=self.unique_id)
 
     def pending_bin_stops(self):
         """Bin collection points still awaiting the driver."""
-        from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-
         return self.trip_collection_points.filter(is_deleted=False).exclude(
             status__in=(
                 DailyTripCollectionPoint.STATUS_COLLECTED,
@@ -505,3 +463,57 @@ class DailyTripAssignment(BaseMaster):
 
         self.mark_ended()
         return True
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def trip_plan(self):
+        from app.models.schedule_masters.trip_plan import TripPlan
+        if self.trip_plan_id:
+            return TripPlan.objects.filter(unique_id=self.trip_plan_id).first()
+        return None
+
+    @property
+    def staff_template(self):
+        from app.models.schedule_masters.staff_template import StaffTemplate
+        if self.staff_template_id:
+            return StaffTemplate.objects.filter(unique_id=self.staff_template_id).first()
+        return None
+
+    @property
+    def alt_staff_template(self):
+        from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
+        if self.alt_staff_template_id:
+            return AlternativeStaffTemplate.objects.filter(unique_id=self.alt_staff_template_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def wards(self):
+        from app.models.masters.ward import Ward
+        return Ward.objects.filter(unique_id__in=self.get_ward_ids())
+
+    @property
+    def vehicle(self):
+        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        if self.vehicle_id:
+            return VehicleCreation.objects.filter(unique_id=self.vehicle_id).first()
+        return None

@@ -206,19 +206,19 @@ class TestLoginStaffBranch:
         from app.utils.password_encryption import encrypt_password
 
         staff_user_type = StaffUserType.objects.create(
-            usertype_id=user_type,
+            usertype_id=user_type.unique_id,
             name="company_admin",
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
         Staffcreation.objects.create(
             username="admin",
             password=encrypt_password("12345678"),
             employee_name="admin",
-            company_id=company,
-            project_id=project,
-            user_type_id=user_type,
-            staffusertype_id=staff_user_type,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
+            user_type_id=user_type.unique_id,
+            staffusertype_id=staff_user_type.unique_id,
             approval_status=Staffcreation.APPROVAL_APPROVED,
             login_enabled=True,
         )

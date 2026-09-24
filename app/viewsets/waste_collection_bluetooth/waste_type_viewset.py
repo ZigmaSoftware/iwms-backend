@@ -15,9 +15,7 @@ class WasteTypeViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     AUDIT_ENDPOINT = "types"
 
     def get_queryset(self):
-        return WasteType.objects.filter(is_deleted=False).select_related(
-            "company_id", "project_id"
-        )
+        return WasteType.objects.filter(is_deleted=False)
 
     def perform_destroy(self, instance):
         instance.is_deleted = True

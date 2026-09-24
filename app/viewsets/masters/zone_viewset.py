@@ -13,9 +13,9 @@ from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 class ZoneViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
     location_scope_chain = [
         ("zones", "unique_id"),
-        ("cities", "city_id__unique_id"),
-        ("districts", "district_id__unique_id"),
-        ("states", "state_id__unique_id"),
+        ("cities", "city_id"),
+        ("districts", "district_id"),
+        ("states", "state_id"),
     ]
 
     queryset = Zone.objects.filter(is_deleted=False)
@@ -35,25 +35,22 @@ class ZoneViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedVi
         project_uid = self.request.query_params.get("project_id")
 
         if company_uid:
-            queryset = queryset.filter(company_id__unique_id=company_uid)
+            queryset = queryset.filter(company_id=company_uid)
 
         if project_uid:
-            queryset = queryset.filter(project_id__unique_id=project_uid)
+            queryset = queryset.filter(project_id=project_uid)
 
         district_uid = self.request.query_params.get("district") or self.request.query_params.get("district_id")
         city_uid = self.request.query_params.get("city") or self.request.query_params.get("city_id")
         state_uid = self.request.query_params.get("state") or self.request.query_params.get("state_id")
 
         if district_uid:
-            queryset = queryset.filter(district_id__unique_id=district_uid)
+            queryset = queryset.filter(district_id=district_uid)
 
         if city_uid:
-            queryset = queryset.filter(city_id__unique_id=city_uid)
+            queryset = queryset.filter(city_id=city_uid)
 
         if state_uid:
-            queryset = queryset.filter(state_id__unique_id=state_uid)
+            queryset = queryset.filter(state_id=state_uid)
 
         return self.filter_queryset_by_location_scope(queryset)
-
-    def perform_destroy(self, instance):
-        instance.delete()

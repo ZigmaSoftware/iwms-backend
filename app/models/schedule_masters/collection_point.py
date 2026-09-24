@@ -1,18 +1,11 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.city import City
-from app.models.masters.district import District
-from app.models.masters.ward import Ward
-from app.models.masters.zone import Zone
-from app.models.common_masters.state import State
-from django.core.exceptions import ValidationError
+
 
 def geneate_collection_point_id():
     return f"CP-{generate_unique_id()}"
+
 
 class Collection_point(BaseMaster):
     COLLECTION_TYPE_BIN = "bin_collection"
@@ -42,68 +35,27 @@ class Collection_point(BaseMaster):
         editable=False
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="company_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="project_id",
-    )
+    state_id = models.CharField(max_length=30, null=True, blank=True)
+    city_id = models.CharField(max_length=30, null=True, blank=True)
+    district_id = models.CharField(max_length=30, null=True, blank=True)
 
-    state_id = models.ForeignKey(
-        State,
-        on_delete = models.PROTECT,
-        related_name="cp",
-        db_column="state_id",
-        
-    )
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
 
-    city_id = models.ForeignKey(
-        City,
-        on_delete = models.PROTECT,
-        related_name="cp",
-        db_column="city_id",
-        
-    )
+    # Store ward IDs as comma-separated string
+    ward_ids = models.TextField(blank=True, default="")
 
-    district_id = models.ForeignKey(
-        District,
-        on_delete = models.PROTECT,
-        related_name="cp",
-        db_column="district_id",
-        
+    CASCADE_SOFT_DELETE = (
+        "bin",
+        "trip_plan_cps",
+        "daily_trip_logs",
+        "daily_trip_cps",
+        "bin_collection_events",
     )
-
-
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="panchayat_id",
-        null=True,
-        blank=True
-    )
-
-    zone_id = models.ForeignKey(
-        Zone,
-        on_delete=models.PROTECT,
-        related_name="cp",
-        db_column="zone_id",
-        null=True,
-        blank=True
-    )
-
-    wards = models.ManyToManyField(
-        Ward,
-        related_name="collection_points",
-        blank=True,
-    )
+    CACHE_SCOPES = ("collection_point_list", "collection_point_detail")
 
     collection_type = models.CharField(
         max_length=30,
@@ -119,11 +71,71 @@ class Collection_point(BaseMaster):
     updated_at = models.DateTimeField(auto_now=True)
 
     def clean(self):
-        # XOR validation is done in the serializer (M2M not available pre-save),
-        # but keep a basic guard for admin/shell usage.
-        pass
+        from django.core.exceptions import ValidationError
+        if not self.panchayat_id and not self.get_ward_ids():
+            raise ValidationError("A collection point must have either a panchayat or at least one ward.")
 
     def __str__(self):
         if self.panchayat_id:
-            return f"{self.cp_name} (Panchayat: {self.panchayat_id.panchayat_name})"
+            from app.models.masters.panchayat import Panchayat
+            panchayat_name = Panchayat.objects.filter(unique_id=self.panchayat_id).values_list("panchayat_name", flat=True).first()
+            return f"{self.cp_name} (Panchayat: {panchayat_name})"
         return self.cp_name
+
+    def get_ward_ids(self):
+        return [w for w in self.ward_ids.split(",") if w]
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def state(self):
+        from app.models.common_masters.state import State
+        if self.state_id:
+            return State.objects.filter(unique_id=self.state_id).first()
+        return None
+
+    @property
+    def city(self):
+        from app.models.masters.city import City
+        if self.city_id:
+            return City.objects.filter(unique_id=self.city_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def wards(self):
+        from app.models.masters.ward import Ward
+        ward_ids = self.get_ward_ids()
+        return Ward.objects.filter(unique_id__in=ward_ids)

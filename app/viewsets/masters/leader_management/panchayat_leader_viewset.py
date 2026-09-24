@@ -9,11 +9,7 @@ from app.serializers.masters.leader_management.panchayat_leader_serializer impor
 
 
 class PanchayatLeaderLoginViewSet(AuditViewSetMixin, CompanyScopedViewSet):
-    queryset = PanchayatLeaderLogin.objects.select_related(
-        "panchayat_id",
-        "company_id",
-        "project_id",
-    ).filter(is_deleted=False)
+    queryset = PanchayatLeaderLogin.objects.filter(is_deleted=False)
 
     serializer_class = PanchayatLeaderLoginSerializer
     lookup_field = "unique_id"
@@ -24,17 +20,15 @@ class PanchayatLeaderLoginViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     pagination_class = LimitOffsetWithPage
-    search_fields = ["username", "leader_name", "email", "panchayat_id__panchayat_name"]
+    search_fields = ["username", "leader_name", "email"]
     ordering_fields = ["username", "created_at"]
 
     def get_queryset(self):
-        qs = PanchayatLeaderLogin.objects.select_related(
-            "panchayat_id", "company_id", "project_id"
-        ).filter(is_deleted=False)
+        qs = PanchayatLeaderLogin.objects.filter(is_deleted=False)
 
         panchayat_id = self.request.query_params.get("panchayat_id")
         if panchayat_id:
-            qs = qs.filter(panchayat_id__unique_id=panchayat_id)
+            qs = qs.filter(panchayat_id=panchayat_id)
 
         return qs.order_by("-created_at")
 

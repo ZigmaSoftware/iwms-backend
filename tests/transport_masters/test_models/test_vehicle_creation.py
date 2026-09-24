@@ -11,19 +11,19 @@ def fuel(db):
 
 
 @pytest.fixture
-def vehicle_type(db, company, project):
-    return VehicleTypeCreation.objects.create(vehicleType="Compactor", company_id=company, project_id=project)
+def vehicle_type(db):
+    return VehicleTypeCreation.objects.create(vehicleType="Compactor")
 
 
 @pytest.fixture
 def vehicle(db, company, project, fuel, vehicle_type):
     return VehicleCreation.objects.create(
         vehicle_no="TN01AB1234",
-        fuel_type=fuel,
-        vehicle_type=vehicle_type,
+        fuel_type_id=fuel.unique_id,
+        vehicle_type_id=vehicle_type.unique_id,
         capacity=10,
-        company_id=company,
-        project_id=project,
+        company_id=company.unique_id,
+        project_id=project.unique_id,
     )
 
 
@@ -43,7 +43,8 @@ class TestVehicleCreationCreate:
         assert vehicle.vehicle_type == vehicle_type
 
     def test_foreign_key_company(self, vehicle, company):
-        assert vehicle.company_id == company
+        assert vehicle.company_id == company.unique_id
+        assert vehicle.company == company
 
 
 @pytest.mark.django_db

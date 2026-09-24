@@ -18,12 +18,12 @@ def log_permission_change(sender, instance, created, **kwargs):
             updated_by = getattr(account, "staff", None)
 
         PermissionAuditLog.objects.create(
-            company_id=instance.company_id_id,
-            project_id=instance.project_id_id,
-            mainscreen_id=instance.mainscreen_id_id,
-            userscreen_id=instance.userscreen_id_id,
-            userscreenaction_id=instance.userscreenaction_id_id,
-            updated_by=updated_by,
+            company_id=instance.company_id,
+            project_id=instance.project_id,
+            mainscreen_id=instance.mainscreen_id,
+            userscreen_id=instance.userscreen_id,
+            userscreenaction_id=instance.userscreenaction_id,
+            updated_by=updated_by.staff_unique_id if updated_by else None,
             is_active=instance.is_active,
             is_deleted=instance.is_deleted,
             action_type=action_type,

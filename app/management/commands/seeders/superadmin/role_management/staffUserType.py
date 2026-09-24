@@ -24,7 +24,7 @@ class StaffUserTypeSeeder(BaseSeeder):
 
             for role_name in roles:
                 StaffUserType.objects.get_or_create(
-                    usertype_id=user_type,
+                    usertype_id=user_type.unique_id,
                     name=role_name,
                     defaults={
                         "is_active": True,
@@ -33,5 +33,4 @@ class StaffUserTypeSeeder(BaseSeeder):
                 )
 
         self.log("---Staff user types seeded for staff and platform roles---")
-
 

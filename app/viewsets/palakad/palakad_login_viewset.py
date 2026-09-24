@@ -74,13 +74,7 @@ class PalakadLoginViewSet(ViewSet):
         # ── 1. Find candidates by username / employee_name / emp_id ──────
         candidates = (
             Staffcreation.objects
-            .select_related(
-                "user_type_id",
-                "staffusertype_id",
-                "personal_details",
-                "company_id",
-                "district_id",
-            )
+            .select_related("personal_details")
             .filter(is_active=True, is_deleted=False)
             .filter(
                 Q(employee_name__iexact=username)
@@ -107,7 +101,7 @@ class PalakadLoginViewSet(ViewSet):
             )
 
         # ── 2. Enforce Company Admin role ────────────────────────────────
-        usertype = getattr(staff, "staffusertype_id", None)
+        usertype = staff.staffusertype
         actual_role_name = getattr(usertype, "name", None)
         if (
             not usertype
@@ -144,7 +138,7 @@ class PalakadLoginViewSet(ViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        company = getattr(staff, "company_id", None)
+        company = staff.company
         if not company:
             _audit(staff.staff_unique_id, False, "No company assigned")
             return Response(
@@ -245,12 +239,8 @@ class PalakadLoginViewSet(ViewSet):
             "company_unique_id": company.unique_id,
             "company_name": company_name,
             "company_logo": company_logo_url,
-            "district_unique_id": getattr(
-                getattr(staff, "district_id", None), "unique_id", None
-            ),
-            "district_name": getattr(
-                getattr(staff, "district_id", None), "name", None
-            ),
+            "district_unique_id": getattr(staff.district, "unique_id", None),
+            "district_name": getattr(staff.district, "name", None),
             "staffusertype_unique_id": usertype.unique_id,
         }
 

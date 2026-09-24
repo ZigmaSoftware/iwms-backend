@@ -8,6 +8,7 @@ from app.models.screen_managements.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
 from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.screen_managements.userscreencolumn import UserScreenColumn
 from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
@@ -40,11 +41,11 @@ def normalize_permission_key(value):
 def build_action_permissions(queryset):
     permissions = {}
     for perm in queryset.order_by("order_no"):
-        main_name = perm.mainscreen_id.mainscreen_name
-        screen_name = perm.userscreen_id.userscreen_name
+        main_name = perm.mainscreen.mainscreen_name if perm.mainscreen else ""
+        screen_name = perm.userscreen.userscreen_name if perm.userscreen else ""
         action_name = (
-            perm.userscreenaction_id.variable_name
-            or perm.userscreenaction_id.action_name
+            perm.userscreenaction.variable_name
+            or perm.userscreenaction.action_name
             or ""
         ).lower()
 
@@ -60,73 +61,74 @@ def build_permission_details(action_queryset, column_queryset=None):
     details = {}
     screen_meta = {}
 
-    for perm in action_queryset.order_by("mainscreen_id__order_no", "userscreen_id__order_no", "order_no"):
-        main_name = perm.mainscreen_id.mainscreen_name
-        screen_name = perm.userscreen_id.userscreen_name
+    for perm in action_queryset.order_by("order_no"):
+        main_name = perm.mainscreen.mainscreen_name if perm.mainscreen else ""
+        screen_name = perm.userscreen.userscreen_name if perm.userscreen else ""
         action_name = (
-            perm.userscreenaction_id.variable_name
-            or perm.userscreenaction_id.action_name
+            perm.userscreenaction.variable_name
+            or perm.userscreenaction.action_name
             or ""
         ).lower()
 
         screen_payload = details.setdefault(main_name, {}).setdefault(
             screen_name,
             {
-                "mainScreenId": perm.mainscreen_id_id,
+                "mainScreenId": perm.mainscreen_id,
                 "mainScreenName": main_name,
                 "mainScreenKey": normalize_permission_key(main_name),
-                "userScreenId": perm.userscreen_id_id,
+                "userScreenId": perm.userscreen_id,
                 "screenKey": normalize_permission_key(
-                    getattr(perm.userscreen_id, "folder_name", "") or screen_name
+                    getattr(perm.userscreen, "folder_name", "") or screen_name
                 ),
-                "folderName": getattr(perm.userscreen_id, "folder_name", None),
-                "orderNo": getattr(perm.userscreen_id, "order_no", None),
+                "folderName": getattr(perm.userscreen, "folder_name", None),
+                "orderNo": getattr(perm.userscreen, "order_no", None),
                 "permissions": base_action_map(),
                 "columns": [],
             },
         )
-        screen_meta[perm.userscreen_id_id] = (main_name, screen_name)
+        screen_meta[perm.userscreen_id] = (main_name, screen_name)
         if action_name in screen_payload["permissions"]:
             screen_payload["permissions"][action_name] = True
 
     if column_queryset is None:
+        from app.models.screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
         column_queryset = CompanyUserScreenColumnPermission.objects.none()
 
-    for column_permission in column_queryset.order_by("userscreen_id__order_no", "order_no"):
-        screen_id = column_permission.userscreen_id_id
+    for column_permission in column_queryset.order_by("order_no"):
+        screen_id = column_permission.userscreen_id
         if screen_id not in screen_meta:
-            main_name = column_permission.userscreen_id.mainscreen_id.mainscreen_name
-            screen_name = column_permission.userscreen_id.userscreen_name
+            main_name = column_permission.userscreen.mainscreen.mainscreen_name if column_permission.userscreen and column_permission.userscreen.mainscreen else ""
+            screen_name = column_permission.userscreen.userscreen_name if column_permission.userscreen else ""
             screen_meta[screen_id] = (main_name, screen_name)
             details.setdefault(main_name, {}).setdefault(
                 screen_name,
                 {
-                    "mainScreenId": column_permission.userscreen_id.mainscreen_id_id,
+                    "mainScreenId": column_permission.userscreen.mainscreen_id if column_permission.userscreen and column_permission.userscreen.mainscreen else None,
                     "mainScreenName": main_name,
                     "mainScreenKey": normalize_permission_key(main_name),
                     "userScreenId": screen_id,
                     "screenKey": normalize_permission_key(
-                        getattr(column_permission.userscreen_id, "folder_name", "")
+                        getattr(column_permission.userscreen, "folder_name", "")
                         or screen_name
                     ),
-                    "folderName": getattr(column_permission.userscreen_id, "folder_name", None),
-                    "orderNo": getattr(column_permission.userscreen_id, "order_no", None),
+                    "folderName": getattr(column_permission.userscreen, "folder_name", None),
+                    "orderNo": getattr(column_permission.userscreen, "order_no", None),
                     "permissions": base_action_map(),
                     "columns": [],
                 },
             )
 
         main_name, screen_name = screen_meta[screen_id]
-        column = column_permission.column_id
+        column = column_permission.column
         details[main_name][screen_name]["columns"].append({
-            "id": column.unique_id,
-            "columnId": column.unique_id,
-            "fieldName": column.field_name,
-            "displayName": column.display_name,
-            "dataType": column.data_type,
-            "dbColumn": column.db_column,
+            "id": column.unique_id if column else None,
+            "columnId": column.unique_id if column else None,
+            "fieldName": column.field_name if column else "",
+            "displayName": column.display_name if column else "",
+            "dataType": column.data_type if column else "",
+            "dbColumn": column.db_column if column else "",
             "canView": column_permission.can_view,
-            "isRequired": column.is_required,
+            "isRequired": column.is_required if column else False,
             "orderNo": column_permission.order_no,
         })
 
@@ -137,41 +139,38 @@ def build_column_permissions(column_queryset):
     grouped = {}
     flat = []
 
-    for column_permission in column_queryset.order_by(
-        "userscreen_id__mainscreen_id__order_no",
-        "userscreen_id__order_no",
-        "order_no",
-    ):
-        userscreen = column_permission.userscreen_id
-        mainscreen = userscreen.mainscreen_id
-        column = column_permission.column_id
+    for column_permission in column_queryset.order_by("order_no"):
+        userscreen = column_permission.userscreen
+        mainscreen = userscreen.mainscreen if userscreen else None
+        column = column_permission.column
 
         payload = {
             "uniqueId": column_permission.unique_id,
-            "companyId": column_permission.company_id_id,
-            "projectId": column_permission.project_id_id,
-            "mainScreenId": mainscreen.unique_id,
-            "mainScreenName": mainscreen.mainscreen_name,
-            "mainScreenKey": normalize_permission_key(mainscreen.mainscreen_name),
-            "userScreenId": userscreen.unique_id,
-            "userScreenName": userscreen.userscreen_name,
-            "screenKey": normalize_permission_key(userscreen.folder_name or userscreen.userscreen_name),
-            "folderName": userscreen.folder_name,
-            "columnId": column.unique_id,
-            "fieldName": column.field_name,
-            "displayName": column.display_name,
-            "dataType": column.data_type,
-            "dbColumn": column.db_column,
+            "companyId": column_permission.company_id,
+            "projectId": column_permission.project_id,
+            "mainScreenId": mainscreen.unique_id if mainscreen else None,
+            "mainScreenName": mainscreen.mainscreen_name if mainscreen else "",
+            "mainScreenKey": normalize_permission_key(mainscreen.mainscreen_name) if mainscreen else "",
+            "userScreenId": userscreen.unique_id if userscreen else None,
+            "userScreenName": userscreen.userscreen_name if userscreen else "",
+            "screenKey": normalize_permission_key(userscreen.folder_name or userscreen.userscreen_name) if userscreen else "",
+            "folderName": userscreen.folder_name if userscreen else None,
+            "columnId": column.unique_id if column else None,
+            "fieldName": column.field_name if column else "",
+            "displayName": column.display_name if column else "",
+            "dataType": column.data_type if column else "",
+            "dbColumn": column.db_column if column else "",
             "canView": column_permission.can_view,
-            "isRequired": column.is_required,
+            "isRequired": column.is_required if column else False,
             "orderNo": column_permission.order_no,
         }
 
         flat.append(payload)
-        grouped.setdefault(mainscreen.mainscreen_name, {}).setdefault(
-            userscreen.userscreen_name,
-            [],
-        ).append(payload)
+        if mainscreen and userscreen:
+            grouped.setdefault(mainscreen.mainscreen_name, {}).setdefault(
+                userscreen.userscreen_name,
+                [],
+            ).append(payload)
 
     return {
         "grouped": grouped,
@@ -183,40 +182,36 @@ def build_module_access(action_queryset, column_queryset=None):
     modules = {}
     screen_lookup = {}
 
-    for perm in action_queryset.order_by(
-        "mainscreen_id__order_no",
-        "userscreen_id__order_no",
-        "order_no",
-    ):
-        mainscreen = perm.mainscreen_id
-        userscreen = perm.userscreen_id
+    for perm in action_queryset.order_by("order_no"):
+        mainscreen = perm.mainscreen
+        userscreen = perm.userscreen
         action_name = (
-            perm.userscreenaction_id.variable_name
-            or perm.userscreenaction_id.action_name
+            perm.userscreenaction.variable_name
+            or perm.userscreenaction.action_name
             or ""
         ).lower()
 
         module_entry = modules.setdefault(
-            mainscreen.unique_id,
+            mainscreen.unique_id if mainscreen else None,
             {
-                "moduleId": mainscreen.unique_id,
-                "moduleName": mainscreen.mainscreen_name,
-                "moduleKey": normalize_permission_key(mainscreen.mainscreen_name),
-                "orderNo": mainscreen.order_no,
+                "moduleId": mainscreen.unique_id if mainscreen else None,
+                "moduleName": mainscreen.mainscreen_name if mainscreen else "",
+                "moduleKey": normalize_permission_key(mainscreen.mainscreen_name) if mainscreen else "",
+                "orderNo": mainscreen.order_no if mainscreen else None,
                 "screens": {},
             },
         )
 
         screen_entry = module_entry["screens"].setdefault(
-            userscreen.unique_id,
+            userscreen.unique_id if userscreen else None,
             {
-                "userScreenId": userscreen.unique_id,
-                "screenName": userscreen.userscreen_name,
+                "userScreenId": userscreen.unique_id if userscreen else None,
+                "screenName": userscreen.userscreen_name if userscreen else "",
                 "screenKey": normalize_permission_key(
                     userscreen.folder_name or userscreen.userscreen_name
-                ),
-                "folderName": userscreen.folder_name,
-                "orderNo": userscreen.order_no,
+                ) if userscreen else "",
+                "folderName": userscreen.folder_name if userscreen else None,
+                "orderNo": userscreen.order_no if userscreen else None,
                 "permissions": base_action_map(),
                 "columns": [],
             },
@@ -227,42 +222,40 @@ def build_module_access(action_queryset, column_queryset=None):
             screen_entry["permissions"][action_name] = True
 
     if column_queryset is None:
+        from app.models.screen_managements.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
         column_queryset = CompanyUserScreenColumnPermission.objects.none()
 
-    for column_permission in column_queryset.order_by(
-        "userscreen_id__mainscreen_id__order_no",
-        "userscreen_id__order_no",
-        "order_no",
-    ):
-        userscreen = column_permission.userscreen_id
-        mainscreen = userscreen.mainscreen_id
+    for column_permission in column_queryset.order_by("order_no"):
+        userscreen = column_permission.userscreen
+        mainscreen = userscreen.mainscreen if userscreen else None
         module_entry = modules.setdefault(
-            mainscreen.unique_id,
+            mainscreen.unique_id if mainscreen else None,
             {
-                "moduleId": mainscreen.unique_id,
-                "moduleName": mainscreen.mainscreen_name,
-                "moduleKey": normalize_permission_key(mainscreen.mainscreen_name),
-                "orderNo": mainscreen.order_no,
+                "moduleId": mainscreen.unique_id if mainscreen else None,
+                "moduleName": mainscreen.mainscreen_name if mainscreen else "",
+                "moduleKey": normalize_permission_key(mainscreen.mainscreen_name) if mainscreen else "",
+                "orderNo": mainscreen.order_no if mainscreen else None,
                 "screens": {},
             },
         )
         screen_entry = module_entry["screens"].setdefault(
-            userscreen.unique_id,
+            userscreen.unique_id if userscreen else None,
             {
-                "userScreenId": userscreen.unique_id,
-                "screenName": userscreen.userscreen_name,
+                "userScreenId": userscreen.unique_id if userscreen else None,
+                "screenName": userscreen.userscreen_name if userscreen else "",
                 "screenKey": normalize_permission_key(
                     userscreen.folder_name or userscreen.userscreen_name
-                ),
-                "folderName": userscreen.folder_name,
-                "orderNo": userscreen.order_no,
+                ) if userscreen else "",
+                "folderName": userscreen.folder_name if userscreen else None,
+                "orderNo": userscreen.order_no if userscreen else None,
                 "permissions": base_action_map(),
                 "columns": [],
             },
         )
+        
         screen_lookup[userscreen.unique_id] = screen_entry
 
-        column = column_permission.column_id
+        column = UserScreenColumn.objects.get(unique_id=column_permission.column_id)
         screen_entry["columns"].append(
             {
                 "columnId": column.unique_id,
@@ -505,11 +498,11 @@ def permission_querysets(
         action_queryset = CompanyUserScreenPermission.objects.filter(
             is_active=True,
             is_deleted=False,
-        ).select_related("mainscreen_id", "userscreen_id", "userscreenaction_id")
+        )
         column_queryset = CompanyUserScreenColumnPermission.objects.filter(
             is_active=True,
             is_deleted=False,
-        ).select_related("userscreen_id", "userscreen_id__mainscreen_id", "column_id")
+        )
         return action_queryset, column_queryset
 
     empty_action = StaffAccessConfigurationPermission.objects.none()
@@ -520,7 +513,7 @@ def permission_querysets(
 
     config = (
         StaffAccessConfiguration.objects.filter(
-            staff_id_id=staff_unique_id,
+            staff_id=staff_unique_id,
             is_active=True,
             is_deleted=False,
         )
@@ -530,25 +523,22 @@ def permission_querysets(
         return empty_action, empty_column
 
     action_queryset = StaffAccessConfigurationPermission.objects.filter(
-        staff_access_configuration_id_id=config.unique_id,
+        staff_access_configuration_id=config.unique_id,
         is_active=True,
         is_deleted=False,
-    ).select_related("mainscreen_id", "userscreen_id", "userscreenaction_id")
+    )
 
     column_queryset = CompanyUserScreenColumnPermission.objects.filter(
-        company_id_id=config.company_id_id,
-        userscreen_id_id__in=action_queryset.values_list("userscreen_id_id", flat=True),
+        company_id=config.company_id,
+        userscreen_id__in=action_queryset.values_list("userscreen_id", flat=True),
         is_active=True,
         is_deleted=False,
     )
     # No projects configured => unrestricted access to every project under
     # the company, so don't narrow by project at all.
-    project_ids = list(config.projects.values_list("unique_id", flat=True))
+    project_ids = config.get_project_ids()
     if project_ids:
-        column_queryset = column_queryset.filter(project_id_id__in=project_ids)
-    column_queryset = column_queryset.select_related(
-        "userscreen_id", "userscreen_id__mainscreen_id", "column_id"
-    )
+        column_queryset = column_queryset.filter(project_id__in=project_ids)
 
     return action_queryset, column_queryset
 
@@ -573,7 +563,7 @@ def staff_access_config(staff_unique_id):
     if not staff_unique_id:
         return None
     return StaffAccessConfiguration.objects.filter(
-        staff_id_id=staff_unique_id,
+        staff_id=staff_unique_id,
         is_active=True,
         is_deleted=False,
     ).first()

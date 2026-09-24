@@ -254,36 +254,36 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         }
 
     def get_district(self, obj):
-        return self._ref(obj, "district_id")
+        return self._ref(obj, "district")
 
     def get_city(self, obj):
-        return self._ref(obj, "city_id")
+        return self._ref(obj, "city")
 
     def get_zone(self, obj):
-        return self._ref(obj, "zone_id")
+        return self._ref(obj, "zone")
 
     def get_panchayat(self, obj):
-        return self._ref(obj, "panchayat_id", "panchayat_name")
+        return self._ref(obj, "panchayat", "panchayat_name")
 
     def get_wards(self, obj):
         return [
             {"unique_id": w.unique_id, "ward_name": w.ward_name}
-            for w in obj.wards.all()
+            for w in obj.wards
         ]
 
     def get_staff_template(self, obj):
-        st = obj.staff_template_id
+        st = obj.staff_template
         if not st:
             return None
         return {
             "unique_id": st.unique_id,
             "display_code": st.display_code,
-            "driver": getattr(getattr(st, "driver_id", None), "employee_name", None),
-            "operator": getattr(getattr(st, "operator_id", None), "employee_name", None),
+            "driver": getattr(st.driver, "employee_name", None),
+            "operator": getattr(st.operator, "employee_name", None),
         }
 
     def get_vehicle(self, obj):
-        vehicle = obj.vehicle_id
+        vehicle = obj.vehicle
         if not vehicle:
             return None
         return {
@@ -293,7 +293,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         }
 
     def get_supervisor(self, obj):
-        supervisor = obj.supervisor_id
+        supervisor = obj.supervisor
         if not supervisor:
             return None
         return {
@@ -302,18 +302,18 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         }
 
     def get_property(self, obj):
-        return self._ref(obj, "property_id", "property_name")
+        return self._ref(obj, "property_obj", "property_name")
 
     def get_sub_property(self, obj):
-        return self._ref(obj, "sub_property_id", "sub_property_name")
+        return self._ref(obj, "sub_property_obj", "sub_property_name")
 
     def get_waste_type(self, obj):
-        return self._ref(obj, "waste_type_id", "waste_type_name")
+        return self._ref(obj, "waste_type", "waste_type_name")
 
     def get_waste_types(self, obj):
         ids = obj.waste_type_ids or []
-        if not ids and obj.waste_type_id_id:
-            ids = [obj.waste_type_id_id]
+        if not ids and obj.waste_type_id:
+            ids = [obj.waste_type_id]
         waste_types = WasteType.objects.filter(
             unique_id__in=ids,
             is_deleted=False,
@@ -329,30 +329,28 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         return str(obj.scheduled_time) if obj.scheduled_time else None
 
     def get_plan_collection_points(self, obj):
-        stops = obj.plan_collection_points.filter(is_deleted=False).select_related(
-            "collection_point_id",
-            "bin_id",
-            "customer_id",
+        stops = TripPlanCollectionPoint.objects.filter(
+            trip_plan_id=obj.unique_id, is_deleted=False,
         )
         result = []
         for stop in stops:
-            cp = stop.collection_point_id
-            bin_obj = stop.bin_id
-            customer = stop.customer_id
+            cp = stop.collection_point
+            bin_obj = stop.bin
+            customer = stop.customer
             result.append({
                 "unique_id": stop.unique_id,
                 "collection_type": stop.collection_type,
-                "collection_point_id": stop.collection_point_id_id,
+                "collection_point_id": stop.collection_point_id,
                 "collection_point": {
                     "unique_id": cp.unique_id,
                     "cp_name": cp.cp_name,
                 } if cp else None,
-                "bin_id": stop.bin_id_id,
+                "bin_id": stop.bin_id,
                 "bin": {
                     "unique_id": bin_obj.unique_id,
                     "bin_name": bin_obj.bin_name,
                 } if bin_obj else None,
-                "customer_id": stop.customer_id_id,
+                "customer_id": stop.customer_id,
                 "customer": {
                     "unique_id": customer.unique_id,
                     "customer_name": customer.customer_name,
@@ -363,13 +361,15 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         return result
 
     def get_stop_count(self, obj):
-        stops = obj.plan_collection_points.filter(
+        stops = TripPlanCollectionPoint.objects.filter(
+            trip_plan_id=obj.unique_id,
             is_deleted=False,
             is_active=True,
-        ).select_related("collection_point_id", "bin_id", "customer_id")
+        )
         if obj.collection_type == TripPlan.COLLECTION_TYPE_BIN:
             return stops.count()
 
+        ward_ids = [w.unique_id for w in obj.wards]
         customer_ids = set()
         for stop in stops:
             if stop.collection_type not in {
@@ -378,7 +378,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             }:
                 continue
             customer_ids.update(
-                _customers_for_household_stop(stop, wards=obj.wards)
+                _customers_for_household_stop(stop, wards=ward_ids)
                 .values_list("unique_id", flat=True)
             )
         return len(customer_ids)
@@ -441,7 +441,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
                 )
             attrs["waste_type_ids"] = normalized_waste_type_ids
             if normalized_waste_type_ids:
-                attrs["waste_type_id"] = WasteType.objects.get(unique_id=normalized_waste_type_ids[0])
+                attrs["waste_type_id"] = normalized_waste_type_ids[0]
         elif not waste_type:
             raise serializers.ValidationError(
                 {"waste_type_ids": "Select at least one waste type."}
@@ -505,16 +505,16 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
                         raise serializers.ValidationError(
                             {"collection_points": "Invalid collection point."}
                         )
-                    if not bin_obj or bin_obj.collection_point_id != cp:
+                    if not bin_obj or bin_obj.collection_point_id != cp.unique_id:
                         raise serializers.ValidationError(
                             {"collection_points": "Selected bin does not belong to the collection point."}
                         )
                     reserved_bins = TripPlanCollectionPoint.objects.filter(
-                        bin_id=bin_obj,
-                        trip_plan_id__is_deleted=False,
+                        bin_id=bin_obj.unique_id,
+                        is_deleted=False,
                     )
                     if instance:
-                        reserved_bins = reserved_bins.exclude(trip_plan_id=instance)
+                        reserved_bins = reserved_bins.exclude(trip_plan_id=instance.unique_id)
                     if reserved_bins.exists():
                         raise serializers.ValidationError(
                             {"collection_points": "This bin is already assigned to another Trip Plan."}
@@ -554,7 +554,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         if stops is None:
             return
 
-        existing_stops = TripPlanCollectionPoint.objects.filter(trip_plan_id=trip_plan)
+        existing_stops = TripPlanCollectionPoint.objects.filter(trip_plan_id=trip_plan.unique_id)
         max_sequence = existing_stops.aggregate(max_sequence=Max("sequence")).get("max_sequence") or 0
         existing_stops.update(
             is_deleted=True,
@@ -571,33 +571,27 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             cp = None
             bin_obj = None
             customer = None
-            zone = None
-            ward = None
-            panchayat = None
+            zone_id = None
+            ward_id = None
+            panchayat_id = None
 
             if collection_type == TripPlanCollectionPoint.COLLECTION_TYPE_BIN:
-                cp = Collection_point.objects.select_related(
-                    "panchayat_id",
-                ).get(unique_id=stop["collection_point_id"])
+                cp = Collection_point.objects.get(unique_id=stop["collection_point_id"])
                 bin_obj = Bins.objects.get(unique_id=stop["bin_id"])
-                panchayat = cp.panchayat_id
-                first_ward = cp.wards.select_related("zone_id").first()
-                ward = first_ward
-                zone = first_ward.zone_id if first_ward else None
+                panchayat_id = cp.panchayat_id
+                first_ward = Ward.objects.filter(unique_id__in=cp.get_ward_ids()).first()
+                ward_id = first_ward.unique_id if first_ward else None
+                zone_id = first_ward.zone_id if first_ward else None
             elif collection_type in (
                 TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD,
                 TripPlanCollectionPoint.COLLECTION_TYPE_BULK,
             ):
                 customer_id = stop.get("customer_id")
                 if customer_id:
-                    customer = CustomerCreation.objects.select_related(
-                        "panchayat_id",
-                        "ward",
-                        "zone",
-                    ).get(unique_id=customer_id)
-                    panchayat = getattr(customer, "panchayat_id", None)
-                    ward = getattr(customer, "ward", None)
-                    zone = getattr(customer, "zone", None)
+                    customer = CustomerCreation.objects.get(unique_id=customer_id)
+                    panchayat_id = customer.panchayat_id
+                    ward_id = customer.ward_id
+                    zone_id = customer.zone_id
                 else:
                     # The auto-assign catch-all stop: no single customer, so
                     # geo comes straight from the trip plan itself. bulk_create
@@ -609,21 +603,21 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
                     # expand this single row into one
                     # DailyTripHouseholdCollection per matching customer in
                     # scope at daily-trip-generation time (not here).
-                    panchayat = trip_plan.panchayat_id
-                    zone = trip_plan.zone_id
-                    ward = None
+                    panchayat_id = trip_plan.panchayat_id
+                    zone_id = trip_plan.zone_id
+                    ward_id = None
 
             new_stops.append(TripPlanCollectionPoint(
                 company_id=trip_plan.company_id,
                 project_id=trip_plan.project_id,
-                trip_plan_id=trip_plan,
+                trip_plan_id=trip_plan.unique_id,
                 collection_type=collection_type,
-                collection_point_id=cp,
-                bin_id=bin_obj,
-                customer_id=customer,
-                zone_id=zone,
-                ward_id=ward,
-                panchayat_id=panchayat,
+                collection_point_id=cp.unique_id if cp else None,
+                bin_id=bin_obj.unique_id if bin_obj else None,
+                customer_id=customer.unique_id if customer else None,
+                zone_id=zone_id,
+                ward_id=ward_id,
+                panchayat_id=panchayat_id,
                 sequence=stop["sequence"],
                 is_active=stop.get("is_active", True),
             ))
@@ -633,14 +627,17 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
     def _sync_wards(self, trip_plan, ward_ids):
         if ward_ids is None:
             return
-        wards = Ward.objects.filter(unique_id__in=ward_ids, is_deleted=False)
-        trip_plan.wards.set(wards)
+        valid_ids = list(
+            Ward.objects.filter(unique_id__in=ward_ids, is_deleted=False).values_list("unique_id", flat=True)
+        )
+        trip_plan.ward_ids = ",".join(valid_ids)
+        trip_plan.save(update_fields=["ward_ids"])
 
     def _resync_daily_assignments(self, trip_plan):
         assignments = DailyTripAssignment.objects.filter(
-            trip_plan_id=trip_plan,
+            trip_plan_id=trip_plan.unique_id,
             is_deleted=False,
-        ).exclude(status=DailyTripAssignment.STATUS_CANCELLED).prefetch_related("wards")
+        ).exclude(status=DailyTripAssignment.STATUS_CANCELLED)
         for assignment in assignments:
             sync_daily_assignment_stops_from_plan(assignment)
 
@@ -656,12 +653,12 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
     def update(self, instance, validated_data):
         stops = validated_data.pop("collection_points", None)
         ward_ids = validated_data.pop("ward_ids", None)
-        old_vehicle_id = instance.vehicle_id_id
-        old_template_id = instance.staff_template_id_id
+        old_vehicle_id = instance.vehicle_id
+        old_template_id = instance.staff_template_id
         with transaction.atomic():
             trip_plan = super().update(instance, validated_data)
-            vehicle_changed = trip_plan.vehicle_id_id != old_vehicle_id
-            template_changed = trip_plan.staff_template_id_id != old_template_id
+            vehicle_changed = trip_plan.vehicle_id != old_vehicle_id
+            template_changed = trip_plan.staff_template_id != old_template_id
             if vehicle_changed or template_changed:
                 trip_plan.display_code = trip_plan._generate_display_code()
                 trip_plan.save(update_fields=["display_code"])

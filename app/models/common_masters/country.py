@@ -1,6 +1,5 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
-from .continent import Continent
 from app.utils.comfun import generate_unique_id
 
 
@@ -17,17 +16,14 @@ class Country(BaseMaster):
         default=generate_country_id
     )
 
-    continent_id = models.ForeignKey(
-        Continent,
-        on_delete=models.PROTECT,
-        related_name="countries",
-        to_field="unique_id",
-        db_column="continent_id",
-    )
+    continent_id = models.CharField(max_length=30, null=True, blank=True)
 
     name = models.CharField(max_length=100)
     currency = models.CharField(max_length=20, blank=True, null=True)
     mob_code = models.CharField(max_length=5, blank=True, null=True)
+
+    CASCADE_SOFT_DELETE = ("states", "customer_creation")
+    CACHE_SCOPES = ("country_list", "country_detail")
 
     class Meta:
         ordering = ["name"]
@@ -35,6 +31,14 @@ class Country(BaseMaster):
     def __str__(self):
         return self.name
 
-    def delete(self, *args, **kwargs):
-        self.is_deleted = True
-        self.save(update_fields=["is_deleted"])
+    @property
+    def continent(self):
+        from app.models.common_masters.continent import Continent
+        if self.continent_id:
+            return Continent.objects.filter(unique_id=self.continent_id).first()
+        return None
+
+    @property
+    def states(self):
+        from app.models.common_masters.state import State
+        return State.objects.filter(country_id=self.unique_id)

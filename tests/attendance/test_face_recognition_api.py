@@ -68,7 +68,7 @@ def staff(db, company):
     return Staffcreation.objects.create(
         employee_name="Face Test User",
         staff_unique_id="STC-FACETEST-1",
-        company_id=company,
+        company_id=company.unique_id,
     )
 
 
@@ -115,7 +115,7 @@ def test_register_then_recognize_same_person_marks_attendance(staff, auth_client
     assert res.status_code == 200, res.content
     assert res.json()["provider"] == "insightface"
 
-    employee = Employee.objects.get(staff=staff)
+    employee = Employee.objects.get(staff_id=staff.staff_unique_id)
     # The embedding must be cached at registration so a punch only has to
     # process the incoming selfie.
     assert employee.face_embedding and len(employee.face_embedding) == 512
@@ -169,7 +169,7 @@ def test_register_rejects_an_image_with_no_face(staff, auth_client):
     assert res.status_code == 400
     assert "No face detected" in res.json()["error"]
     # A rejected photo must not become the reference — no Employee row at all.
-    assert not Employee.objects.filter(staff=staff).exists()
+    assert not Employee.objects.filter(staff_id=staff.staff_unique_id).exists()
 
 
 @override_settings(FACE_RECOGNITION_PROVIDER="insightface")
@@ -199,7 +199,7 @@ def test_punch_backfills_embedding_for_employee_enrolled_under_compreface(staff,
         format="multipart",
     )
 
-    employee = Employee.objects.get(staff=staff)
+    employee = Employee.objects.get(staff_id=staff.staff_unique_id)
     employee.face_embedding = None  # simulate the pre-InsightFace state
     employee.save(update_fields=["face_embedding"])
 
@@ -259,7 +259,7 @@ def test_compreface_register_and_punch_still_work(staff, auth_client, monkeypatc
     assert res.status_code == 200, res.content
     assert res.json()["provider"] == "compreface"
 
-    employee = Employee.objects.get(staff=staff)
+    employee = Employee.objects.get(staff_id=staff.staff_unique_id)
     # CompreFace compares image files on its own server, so nothing is cached.
     assert employee.face_embedding is None
 

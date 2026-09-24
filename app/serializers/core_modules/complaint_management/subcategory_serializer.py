@@ -12,9 +12,10 @@ class SubCategorySerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
         name_field="main_categoryName",
         queryset=MainCategory.objects.filter(is_deleted=False)
     )
-    mainCategory_name = serializers.CharField(
-        source="mainCategory.main_categoryName", read_only=True
-    )
+    mainCategory_name = serializers.SerializerMethodField()
+
+    def get_mainCategory_name(self, obj):
+        return getattr(obj.mainCategory_obj, "main_categoryName", None)
 
     class Meta:
         model = SubCategory

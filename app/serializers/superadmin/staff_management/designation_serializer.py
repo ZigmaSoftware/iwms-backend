@@ -48,7 +48,8 @@ class DesignationSerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
 
     def get_department_name(self, obj):
         if obj.department_id:
-            return obj.department_id.department_name
+            department = Department.objects.filter(unique_id=obj.department_id).first()
+            return department.department_name if department else None
         return None
 
     def validate(self, attrs):

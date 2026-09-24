@@ -36,16 +36,16 @@ class PermissionSeeder(BaseSeeder):
             StaffAccessConfigurationPermission,
         )
 
-        staff = (
-            Staffcreation.objects.select_related("company_id", "project_id")
-            .filter(
-                username="haripillai",
-                project_id__name="Palakkad BP",
-                is_active=True,
-                is_deleted=False,
-            )
-            .first()
-        )
+        project = Project.objects.filter(name="Palakkad BP", is_deleted=False).first()
+        if not project:
+            return
+
+        staff = Staffcreation.objects.filter(
+            username="haripillai",
+            project_id=project.unique_id if hasattr(project, 'unique_id') else project,
+            is_active=True,
+            is_deleted=False,
+        ).first()
         if not staff:
             return
 
@@ -59,8 +59,7 @@ class PermissionSeeder(BaseSeeder):
         )
         active_screens = (
             UserScreen.objects.filter(is_active=True, is_deleted=False)
-            .select_related("mainscreen_id")
-            .order_by("mainscreen_id__order_no", "order_no", "unique_id")
+            .order_by("mainscreen_id", "order_no", "unique_id")
         )
         created = 0
         for screen in active_screens:
@@ -69,8 +68,8 @@ class PermissionSeeder(BaseSeeder):
                     company_id=staff.company_id,
                     project_id=staff.project_id,
                     mainscreen_id=screen.mainscreen_id,
-                    userscreen_id=screen,
-                    userscreenaction_id=action,
+                    userscreen_id=screen.unique_id,
+                    userscreenaction_id=action.unique_id if hasattr(action, 'unique_id') else action,
                     defaults={
                         "order_no": order_no,
                         "description": f"{action.variable_name} {screen.userscreen_name}",
@@ -88,7 +87,7 @@ class PermissionSeeder(BaseSeeder):
                 project_id=staff.project_id,
                 is_active=True,
                 is_deleted=False,
-            ).select_related("mainscreen_id", "userscreen_id", "userscreenaction_id")
+            )
         )
         if not catalog:
             self.log(
@@ -98,29 +97,30 @@ class PermissionSeeder(BaseSeeder):
             return
 
         config, _ = StaffAccessConfiguration.objects.update_or_create(
-            staff_id=staff,
+            staff_id=staff.staff_unique_id if hasattr(staff, 'staff_unique_id') else staff,
             defaults={
                 "company_id": staff.company_id,
                 "is_active": True,
                 "is_deleted": False,
             },
         )
-        config.projects.set([staff.project_id])
+        config.project_ids = staff.project_id or ""
+        config.save(update_fields=["project_ids", "updated_at"])
 
         seen = set()
         granted = 0
         for order, entry in enumerate(catalog, start=1):
             key = (
-                entry.mainscreen_id_id,
-                entry.userscreen_id_id,
-                entry.userscreenaction_id_id,
+                entry.mainscreen_id,
+                entry.userscreen_id,
+                entry.userscreenaction_id,
             )
             if key in seen:
                 continue
             seen.add(key)
 
             StaffAccessConfigurationPermission.objects.update_or_create(
-                staff_access_configuration_id=config,
+                staff_access_configuration_id=config.unique_id if hasattr(config, 'unique_id') else config,
                 mainscreen_id=entry.mainscreen_id,
                 userscreen_id=entry.userscreen_id,
                 userscreenaction_id=entry.userscreenaction_id,
@@ -135,12 +135,12 @@ class PermissionSeeder(BaseSeeder):
         stale_ids = [
             perm.unique_id
             for perm in StaffAccessConfigurationPermission.objects.filter(
-                staff_access_configuration_id=config,
+                staff_access_configuration_id=config.unique_id if hasattr(config, 'unique_id') else config,
             )
             if (
-                perm.mainscreen_id_id,
-                perm.userscreen_id_id,
-                perm.userscreenaction_id_id,
+                perm.mainscreen_id,
+                perm.userscreen_id,
+                perm.userscreenaction_id,
             )
             not in seen
         ]
@@ -158,7 +158,7 @@ class PermissionSeeder(BaseSeeder):
     def _move_mainscreen_orders_out_of_range(self, mainscreentype, reserved_count):
         """Free the target 1..N order range without tripping MySQL unique checks."""
         screens = list(
-            MainScreen.objects.filter(mainscreentype_id=mainscreentype)
+            MainScreen.objects.filter(mainscreentype_id=mainscreentype.unique_id if hasattr(mainscreentype, 'unique_id') else mainscreentype)
             .order_by("order_no", "unique_id")
         )
         if not screens:
@@ -179,7 +179,7 @@ class PermissionSeeder(BaseSeeder):
         assign to someone else.
         """
         max_order = (
-            UserScreen.objects.filter(mainscreen_id=main).aggregate(
+            UserScreen.objects.filter(mainscreen_id=main.unique_id if hasattr(main, 'unique_id') else main).aggregate(
                 top=Max("order_no")
             )["top"]
             or 0
@@ -189,7 +189,7 @@ class PermissionSeeder(BaseSeeder):
     def _move_userscreen_orders_out_of_range(self, main):
         """Free per-main user screen orders before applying canonical order."""
         screens = list(
-            UserScreen.objects.filter(mainscreen_id=main)
+            UserScreen.objects.filter(mainscreen_id=main.unique_id if hasattr(main, 'unique_id') else main)
             .order_by("order_no", "unique_id")
         )
         if not screens:
@@ -256,10 +256,10 @@ class PermissionSeeder(BaseSeeder):
         retired_ids = list(retired.values_list("unique_id", flat=True))
         if retired_ids:
             CompanyUserScreenPermission.objects.filter(
-                userscreen_id_id__in=retired_ids
+                userscreen_id__in=retired_ids
             ).update(is_active=False, is_deleted=True)
             StaffAccessConfigurationPermission.objects.filter(
-                userscreen_id_id__in=retired_ids
+                userscreen_id__in=retired_ids
             ).update(is_active=False, is_deleted=True)
             retired.update(is_active=False, is_deleted=True)
             self.log(f"Retired {len(retired_ids)} per-surface app feature screens.")
@@ -536,7 +536,7 @@ class PermissionSeeder(BaseSeeder):
             main, _ = MainScreen.objects.update_or_create(
                 mainscreen_name=main_name,
                 defaults={
-                    "mainscreentype_id": screen_types[group_name],
+                    "mainscreentype_id": screen_types[group_name].unique_id if hasattr(screen_types[group_name], 'unique_id') else screen_types[group_name],
                     "icon_name": main_name,
                     "order_no": module_order[main_name],
                     "is_active": True,
@@ -554,7 +554,7 @@ class PermissionSeeder(BaseSeeder):
                 if screen_name == "companywisescreenpermissions":
                     legacy_screen = UserScreen.objects.filter(
                         userscreen_name="CompanyUserScreenPermission",
-                        mainscreen_id=main,
+                        mainscreen_id=main.unique_id if hasattr(main, 'unique_id') else main,
                     ).first()
                     canonical_exists = UserScreen.objects.filter(
                         userscreen_name=screen_name,
@@ -575,7 +575,7 @@ class PermissionSeeder(BaseSeeder):
                 screen, _ = UserScreen.objects.get_or_create(
                     userscreen_name=screen_name,
                     defaults={
-                        "mainscreen_id": main,
+                        "mainscreen_id": main.unique_id if hasattr(main, 'unique_id') else main,
                         "folder_name": screen_name,
                         "icon_name": screen_name,
                         "order_no": idx,
@@ -583,7 +583,8 @@ class PermissionSeeder(BaseSeeder):
                         "is_deleted": False,
                     },
                 )
-                if screen.mainscreen_id_id != main.pk:
+                main_id = main.unique_id if hasattr(main, 'unique_id') else main
+                if screen.mainscreen_id != main_id:
                     # `_move_userscreen_orders_out_of_range` above only parked
                     # the screens ALREADY under `main`. A screen arriving from
                     # a different mainscreen — as the complaint masters do when
@@ -593,7 +594,7 @@ class PermissionSeeder(BaseSeeder):
                     # about to hand to a different screen. Park it into the same
                     # out-of-range band on the way in so the two cannot collide
                     # on (mainscreen_id, order_no).
-                    screen.mainscreen_id = main
+                    screen.mainscreen_id = main_id
                     screen.order_no = self._parked_order_no(main)
                     screen.save(update_fields=["mainscreen_id", "order_no"])
                 ordered_screens.append(screen)
@@ -606,7 +607,7 @@ class PermissionSeeder(BaseSeeder):
             # lost their CRUD pages). Soft-delete only — the permission rows
             # hanging off them are left intact in case a screen comes back.
             canonical_ids = {screen.pk for screen in ordered_screens}
-            orphaned = UserScreen.objects.filter(mainscreen_id=main).exclude(
+            orphaned = UserScreen.objects.filter(mainscreen_id=main.unique_id if hasattr(main, 'unique_id') else main).exclude(
                 pk__in=canonical_ids
             )
             for screen in orphaned:
@@ -637,7 +638,7 @@ class PermissionSeeder(BaseSeeder):
 
         legacy_megamenu = MainScreenType.objects.filter(type_name="megamenu").first()
         if legacy_megamenu and not MainScreen.objects.filter(
-            mainscreentype_id=legacy_megamenu,
+            mainscreentype_id=legacy_megamenu.unique_id if hasattr(legacy_megamenu, 'unique_id') else legacy_megamenu,
             is_active=True,
             is_deleted=False,
         ).exists():
@@ -651,7 +652,7 @@ class PermissionSeeder(BaseSeeder):
         reports_main = mainscreens.get("reports")
         if reports_main:
             monthly_waste_screen = UserScreen.objects.filter(
-                mainscreen_id=reports_main,
+                mainscreen_id=reports_main.unique_id if hasattr(reports_main, 'unique_id') else reports_main,
                 userscreen_name="monthly-waste-comparison",
                 is_deleted=False,
             ).first()
@@ -673,7 +674,7 @@ class PermissionSeeder(BaseSeeder):
                 ]
                 for field_name, display_name, data_type, db_col, order_no in monthly_waste_columns:
                     UserScreenColumn.objects.update_or_create(
-                        userscreen_id=monthly_waste_screen,
+                        userscreen_id=monthly_waste_screen.unique_id if hasattr(monthly_waste_screen, 'unique_id') else monthly_waste_screen,
                         field_name=field_name,
                         is_deleted=False,
                         defaults={
@@ -699,7 +700,7 @@ class PermissionSeeder(BaseSeeder):
         masters_main = mainscreens.get("masters")
         if masters_main:
             panchayat_screen = UserScreen.objects.filter(
-                mainscreen_id=masters_main,
+                mainscreen_id=masters_main.unique_id if hasattr(masters_main, 'unique_id') else masters_main,
                 userscreen_name="panchayat",
                 is_deleted=False,
             ).first()
@@ -711,7 +712,7 @@ class PermissionSeeder(BaseSeeder):
                 ]
                 for field_name, display_name, data_type, db_column, order_no in panchayat_columns:
                     UserScreenColumn.objects.update_or_create(
-                        userscreen_id=panchayat_screen,
+                        userscreen_id=panchayat_screen.unique_id if hasattr(panchayat_screen, 'unique_id') else panchayat_screen,
                         field_name=field_name,
                         is_deleted=False,
                         defaults={
@@ -744,7 +745,7 @@ class PermissionSeeder(BaseSeeder):
             self.log(f"--- Seeding baseline permissions for company: {company.name} ---")
 
             company_project = (
-                Project.objects.filter(company_id=company, is_active=True, is_deleted=False)
+                Project.objects.filter(company_id=company.unique_id if hasattr(company, 'unique_id') else company, is_active=True, is_deleted=False)
                 .order_by("unique_id")
                 .first()
             )
@@ -762,14 +763,15 @@ class PermissionSeeder(BaseSeeder):
                 else:
                     screen_actions = list(actions.values())
 
-                for screen in UserScreen.objects.filter(mainscreen_id=main, is_deleted=False):
+                main_id = main.unique_id if hasattr(main, 'unique_id') else main
+                for screen in UserScreen.objects.filter(mainscreen_id=main_id, is_deleted=False):
                     for order_no, action in enumerate(screen_actions, start=1):
                         CompanyUserScreenPermission.objects.get_or_create(
-                            company_id=company,
-                            project_id=company_project,
-                            mainscreen_id=main,
-                            userscreen_id=screen,
-                            userscreenaction_id=action,
+                            company_id=company.unique_id if hasattr(company, 'unique_id') else company,
+                            project_id=company_project.unique_id if hasattr(company_project, 'unique_id') else company_project,
+                            mainscreen_id=main_id,
+                            userscreen_id=screen.unique_id if hasattr(screen, 'unique_id') else screen,
+                            userscreenaction_id=action.unique_id if hasattr(action, 'unique_id') else action,
                             defaults={
                                 "order_no": order_no,
                                 "description": f"{action.variable_name} {screen.userscreen_name}",
@@ -787,22 +789,22 @@ class PermissionSeeder(BaseSeeder):
 
         for company in companies:
             company_project = (
-                Project.objects.filter(company_id=company, is_active=True, is_deleted=False)
+                Project.objects.filter(company_id=company.unique_id if hasattr(company, 'unique_id') else company, is_active=True, is_deleted=False)
                 .order_by("unique_id")
                 .first()
             )
             for screen in all_screens:
                 columns = UserScreenColumn.objects.filter(
-                    userscreen_id=screen,
+                    userscreen_id=screen.unique_id if hasattr(screen, 'unique_id') else screen,
                     is_deleted=False,
                     is_active=True,
                 )
                 for order_no, column in enumerate(columns, start=1):
                     CompanyUserScreenColumnPermission.objects.update_or_create(
-                        company_id=company,
-                        project_id=company_project,
-                        userscreen_id=screen,
-                        column_id=column,
+                        company_id=company.unique_id if hasattr(company, 'unique_id') else company,
+                        project_id=company_project.unique_id if hasattr(company_project, 'unique_id') else company_project,
+                        userscreen_id=screen.unique_id if hasattr(screen, 'unique_id') else screen,
+                        column_id=column.unique_id if hasattr(column, 'unique_id') else column,
                         defaults={
                             "can_view": True,
                             "order_no": order_no,

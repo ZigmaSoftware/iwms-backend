@@ -14,7 +14,7 @@ class ContractorUserTypeSeeder(BaseSeeder):
 
         for role_name, _ in ContractorUserType.CONTRACTOR_ROLE_CHOICES:
             role, created = ContractorUserType.objects.get_or_create(
-                usertype_id=contractor_type,
+                usertype_id=contractor_type.unique_id,
                 name=role_name,
                 defaults={
                     "is_active": True,

@@ -9,7 +9,7 @@ from app.utils.pagination import LimitOffsetWithPage
 class DistrictViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
     location_scope_chain = [
         ("districts", "unique_id"),
-        ("states", "state_id__unique_id"),
+        ("states", "state_id"),
     ]
 
     queryset = District.objects.filter(is_deleted=False)
@@ -32,25 +32,22 @@ class DistrictViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScop
         project_uid = self.request.query_params.get("project_id")
 
         if company_uid:
-            queryset = queryset.filter(company_id__unique_id=company_uid)
+            queryset = queryset.filter(company_id=company_uid)
 
         if project_uid:
-            queryset = queryset.filter(project_id__unique_id=project_uid)
+            queryset = queryset.filter(project_id=project_uid)
 
         country_uid = self.request.query_params.get("country")
         state_uid = self.request.query_params.get("state")
         continent_uid = self.request.query_params.get("continent")
 
         if country_uid:
-            queryset = queryset.filter(country_id__unique_id=country_uid)
+            queryset = queryset.filter(country_id=country_uid)
 
         if state_uid:
-            queryset = queryset.filter(state_id__unique_id=state_uid)
+            queryset = queryset.filter(state_id=state_uid)
 
         if continent_uid:
-            queryset = queryset.filter(continent_id__unique_id=continent_uid)
+            queryset = queryset.filter(continent_id=continent_uid)
 
         return self.filter_queryset_by_location_scope(queryset)
-
-    def perform_destroy(self, instance):
-        instance.delete()

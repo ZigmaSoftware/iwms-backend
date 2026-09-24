@@ -1,13 +1,6 @@
 from django.db import models
-from app.models.superadmin_masters.company import Company
 from app.utils.base_models import BaseMaster
-from ..common_masters.country import Country
-from ..common_masters.state import State
-from .district import District
-from ..common_masters.continent import Continent
 from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.project import Project
-
 
 
 def generate_city_id():
@@ -23,55 +16,89 @@ class City(BaseMaster):
         default=generate_city_id
     )
 
-    continent_id = models.ForeignKey(
-        Continent,
-        on_delete=models.PROTECT,
-        related_name="cities",
-        db_column="continent_id",
-    )
-
-    country_id = models.ForeignKey(
-        Country,
-        on_delete=models.PROTECT,
-        related_name="cities",
-        db_column="country_id",
-    )
-
-    state_id = models.ForeignKey(
-        State,
-        on_delete=models.PROTECT,
-        related_name="cities",
-        db_column="state_id",
-    )
-
-    district_id = models.ForeignKey(
-        District,
-        on_delete=models.PROTECT,
-        related_name="cities",
-        db_column="district_id",
-    )
+    continent_id = models.CharField(max_length=30, null=True, blank=True)
+    country_id = models.CharField(max_length=30, null=True, blank=True)
+    state_id = models.CharField(max_length=30, null=True, blank=True)
+    district_id = models.CharField(max_length=30, null=True, blank=True)
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
-    company_id=models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="cities",
-        db_column="company_id",
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
+
+    CASCADE_SOFT_DELETE = (
+        "zone_set",
+        "panchayat",
+        "ward_set",
+        "bin",
+        "customer_creation",
+        "users_city",
+        "userscreenpermissions",
+        "staff_city",
     )
-    project_id=models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="cities",
-        db_column="project_id",
-    )
+    CACHE_SCOPES = ("city_list", "city_detail")
 
     class Meta:
         ordering = ["name"]
 
     def __str__(self):
-        return f"{self.name} ({self.state_id.name})"
+        from app.models.common_masters.state import State
+        state_name = State.objects.filter(unique_id=self.state_id).values_list("name", flat=True).first()
+        return f"{self.name} ({state_name})"
 
-    def delete(self, *args, **kwargs):
-        self.is_deleted = True
-        self.save(update_fields=["is_deleted"])
+    @property
+    def continent(self):
+        from app.models.common_masters.continent import Continent
+        if self.continent_id:
+            return Continent.objects.filter(unique_id=self.continent_id).first()
+        return None
+
+    @property
+    def country(self):
+        from app.models.common_masters.country import Country
+        if self.country_id:
+            return Country.objects.filter(unique_id=self.country_id).first()
+        return None
+
+    @property
+    def state(self):
+        from app.models.common_masters.state import State
+        if self.state_id:
+            return State.objects.filter(unique_id=self.state_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def zones(self):
+        from app.models.masters.zone import Zone
+        return Zone.objects.filter(city_id=self.unique_id)
+
+    @property
+    def panchayats(self):
+        from app.models.masters.panchayat import Panchayat
+        return Panchayat.objects.filter(city_id=self.unique_id)
+
+    @property
+    def wards(self):
+        from app.models.masters.ward import Ward
+        return Ward.objects.filter(city_id=self.unique_id)

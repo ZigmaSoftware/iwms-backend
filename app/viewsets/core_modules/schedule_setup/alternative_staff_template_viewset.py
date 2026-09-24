@@ -28,13 +28,9 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     - Filter by status, date, template
     """
 
-    queryset = AlternativeStaffTemplate.objects.select_related(
-        "staff_template",
-        "driver_id",
-        "operator_id",
-        "company_id",
-        "project_id",
-    )
+    # staff_template/driver_id/operator_id/company_id/project_id are plain
+    # unique_id CharFields now — not select_related-able.
+    queryset = AlternativeStaffTemplate.objects.all()
     serializer_class = AlternativeStaffTemplateSerializer
 
     #  CRITICAL: single source of truth for middleware
@@ -70,15 +66,7 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if to_date:
             qs = qs.filter(to_date__lte=to_date)
 
-        return qs.select_related(
-            "staff_template",
-            "driver_id",
-            "operator_id",
-            # "requested_by",
-            "approved_by",
-            "company_id",
-            "project_id",
-        )
+        return qs
 
     # --------------------------------------------------
     # ✅ USER RESOLUTION (NO SUPERADMIN CREATION)
@@ -214,7 +202,7 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             entity_type=StaffTemplateAuditLog.EntityType.ALTERNATIVE_TEMPLATE,
             entity_id=str(entity_id),
             action=action,
-            performed_by=user,
+            performed_by=getattr(user, "staff_unique_id", None),
             performed_role=self._resolve_performed_role(user),
             change_remarks=remarks if isinstance(remarks, str) else None,
             company_id=company_id or getattr(user, "company_id", None),

@@ -17,7 +17,7 @@ pytestmark = pytest.mark.django_db
 def assignment_factory(bin_plan):
     def create(day, status="Scheduled"):
         return DailyTripAssignment.objects.create(
-            trip_plan_id=bin_plan, staff_template_id=bin_plan.staff_template_id,
+            trip_plan_id=bin_plan.unique_id, staff_template_id=bin_plan.staff_template_id,
             company_id=bin_plan.company_id, project_id=bin_plan.project_id,
             vehicle_id=bin_plan.vehicle_id, trip_date=day,
             scheduled_time=bin_plan.scheduled_time, status=status,
@@ -108,8 +108,8 @@ def test_mixed_collected_and_missed_stops_are_an_exception(assignment_factory, s
     second_bin.unique_id = 'TEST-BIN-SECOND'
     second_bin.save()
     for sequence, state in enumerate(['Collected', 'Missed'], start=1):
-        DailyTripCollectionPoint.objects.create(trip_assignment_id=trip,
-            collection_point_id=collection_point, bin_id=bin_obj if sequence == 1 else second_bin, sequence=sequence,
+        DailyTripCollectionPoint.objects.create(trip_assignment_id=trip.id,
+            collection_point_id=collection_point.unique_id, bin_id=(bin_obj if sequence == 1 else second_bin).unique_id, sequence=sequence,
             status=state, company_id=trip.company_id, project_id=trip.project_id,
             is_collected=state == 'Collected')
     response = get_list(supervisor, trip_view='history', exceptions_only='true')

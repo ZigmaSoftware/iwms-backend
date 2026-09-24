@@ -1,3 +1,4 @@
+from django.db import models
 from rest_framework import filters, viewsets, status
 from app.models.schedule_masters.collection_point import Collection_point
 from app.serializers.core_modules.schedule_setup.collection_point_serializer import CollectionPointSerializer
@@ -23,18 +24,7 @@ class CollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     AUDIT_ENDPOINT = "collection-point"
 
     def get_queryset(self):
-        queryset = Collection_point.objects.prefetch_related(
-            "wards",
-            "wards__zone_id",
-            "wards__panchayat_id",
-        ).select_related(
-            "company_id",
-            "project_id",
-            "state_id",
-            "district_id",
-            "city_id",
-            "panchayat_id",
-        ).filter(is_deleted=False)
+        queryset = Collection_point.objects.filter(is_deleted=False)
 
         company_uid = self.request.query_params.get("company_id")
         project_uid = self.request.query_params.get("project_id")
@@ -46,25 +36,31 @@ class CollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         collection_type = self.request.query_params.get("collection_type")
 
         if company_uid:
-            queryset = queryset.filter(company_id__unique_id=company_uid)
+            queryset = queryset.filter(company_id=company_uid)
 
         if project_uid:
-            queryset = queryset.filter(project_id__unique_id=project_uid)
+            queryset = queryset.filter(project_id=project_uid)
 
         if district_uid:
-            queryset = queryset.filter(district_id__unique_id=district_uid)
+            queryset = queryset.filter(district_id=district_uid)
 
         if city_uid:
-            queryset = queryset.filter(city_id__unique_id=city_uid)
+            queryset = queryset.filter(city_id=city_uid)
 
         if panchayat_uid:
-            queryset = queryset.filter(panchayat_id__unique_id=panchayat_uid)
+            queryset = queryset.filter(panchayat_id=panchayat_uid)
 
         if ward_uid:
-            queryset = queryset.filter(wards__unique_id=ward_uid).distinct()
+            queryset = queryset.filter(ward_ids__contains=ward_uid)
 
         if zone_uid:
-            queryset = queryset.filter(wards__zone_id__unique_id=zone_uid).distinct()
+            from app.models.masters.ward import Ward
+
+            zone_ward_ids = Ward.objects.filter(zone_id=zone_uid).values_list("unique_id", flat=True)
+            zone_filter = models.Q()
+            for zone_ward_id in zone_ward_ids:
+                zone_filter |= models.Q(ward_ids__contains=zone_ward_id)
+            queryset = queryset.filter(zone_filter) if zone_ward_ids else queryset.none()
 
         # Collection points expose only bin + bulk at the API boundary. The
         # serializer blocks household on write; this filter restricts reads too.

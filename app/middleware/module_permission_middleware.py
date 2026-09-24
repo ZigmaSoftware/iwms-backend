@@ -103,6 +103,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Zone",
         "Ward",
         "Panchayat",
+        "Plant",
         # Department/Designation moved to the "staff-creations" module.
         "PanchayatLeaderLogin",
         "DistrictLeaderLogin",
@@ -474,18 +475,18 @@ def _authenticate_request(request):
         return None
 
     # Panchayat leader (localbody portal)
-    leader = PanchayatLeaderLogin.objects.select_related(
-        "panchayat_id", "company_id", "project_id"
-    ).filter(unique_id=unique_id).first()
+    leader = PanchayatLeaderLogin.objects.filter(
+        unique_id=unique_id
+    ).first()
     if leader:
         request.user = leader
         request.jwt_payload = payload
         return None
 
     # District leader (district portal)
-    district_leader = DistrictLeaderLogin.objects.select_related(
-        "district_id", "company_id", "project_id"
-    ).filter(unique_id=unique_id).first()
+    district_leader = DistrictLeaderLogin.objects.filter(
+        unique_id=unique_id
+    ).first()
     if district_leader:
         request.user = district_leader
         request.jwt_payload = payload
@@ -508,7 +509,7 @@ def _authenticate_request(request):
 
 
 def _permission_filters_for_user(user):
-    company = getattr(user, "company_id", None)
+    company = getattr(user, "company", None)
     company_unique_id = getattr(company, "unique_id", None)
     staff_unique_id = getattr(user, "staff_unique_id", None)
 
@@ -524,8 +525,8 @@ def _permission_filters_for_user(user):
     # which would cost an extra query on every authenticated request to
     # produce a value the resolver does not consult here.
     role_obj = (
-        getattr(user, "staffusertype_id", None)
-        or getattr(user, "contractorusertype_id", None)
+        getattr(user, "staffusertype", None)
+        or getattr(user, "contractorusertype", None)
     )
 
     return {

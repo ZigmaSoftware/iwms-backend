@@ -1,8 +1,9 @@
 from rest_framework import serializers
+from django.db.models import ForeignKey as ForeignKeyRelatedField
 
 
 class NameOrUniqueIdField(serializers.SlugRelatedField):
-    """A related-object field that WRITES via either the opaque `unique_id`
+    """A field that WRITES via either the opaque `unique_id`
     or the master's human-readable name, but keeps READING as `unique_id`.
 
     Every master table's real primary key is a generated, unguessable string
@@ -17,13 +18,7 @@ class NameOrUniqueIdField(serializers.SlugRelatedField):
       attrs first (so "Dry Waste" resolves to the uploading company/project's
       own row, not some other tenant's identically named one), then falls
       back to an unscoped match if nothing scoped is found.
-    * **Read** (API GET, Excel export/download) is UNCHANGED — still
-      `unique_id` — because existing edit-form dropdowns and other frontend
-      code match this field's response value directly against a master
-      list's `unique_id` options. Downloads get the human name from each
-      serializer's separate read-only `..._name` companion field instead
-      (e.g. `country_name`), which already exists on every master serializer
-      this is applied to.
+    * **Read** (API GET, Excel export/download) returns `unique_id`.
 
     `scope_fields` names sibling fields *on the same serializer* (e.g.
     ``["company_id", "project_id"]``) — their validated values are read from
@@ -43,6 +38,8 @@ class NameOrUniqueIdField(serializers.SlugRelatedField):
         self.name_field = name_field
         self.scope_fields = list(scope_fields or [])
         kwargs.setdefault("slug_field", "unique_id")
+        kwargs.setdefault("required", False)
+        kwargs.setdefault("allow_null", True)
         super().__init__(*args, **kwargs)
 
     def _scope_values(self):
@@ -58,7 +55,6 @@ class NameOrUniqueIdField(serializers.SlugRelatedField):
                 raw = initial_data.get(field_name)
             if raw in (None, ""):
                 raw = getattr(instance, field_name, None)
-                raw = getattr(raw, "unique_id", raw)
             if raw not in (None, ""):
                 values[field_name] = raw
         return values
@@ -66,27 +62,60 @@ class NameOrUniqueIdField(serializers.SlugRelatedField):
     def to_internal_value(self, data):
         value = str(data).strip() if data is not None else ""
         if not value:
-            self.fail("does_not_exist", model_name=self._model_name(), value=data)
+            return None
 
         queryset = self.get_queryset()
+        if queryset is None:
+            self.fail("does_not_exist", model_name="RelatedModel", value=value)
 
+        # Try exact slug_field (unique_id, or a custom override) match first
         exact = queryset.filter(**{self.slug_field: value}).first()
         if exact:
-            return exact
+            return self._finalize(exact)
 
+        # Try name match (with optional scoping)
         base_lookup = {f"{self.name_field}__iexact": value}
 
         scope_values = self._scope_values()
         if scope_values:
             scoped = queryset.filter(**base_lookup, **scope_values).first()
             if scoped:
-                return scoped
+                return self._finalize(scoped)
 
         unscoped = queryset.filter(**base_lookup).first()
         if unscoped:
-            return unscoped
+            return self._finalize(unscoped)
 
-        self.fail("does_not_exist", model_name=self._model_name(), value=data)
+        self.fail("does_not_exist", model_name=self._model_name(), value=value)
+
+    def _finalize(self, instance):
+        """Return the resolved instance as-is when the backing model field is
+        a real ForeignKey (Django needs the instance to save it); return its
+        `unique_id` string when the backing field is anything else (e.g. a
+        plain CharField holding the parent's unique_id), since assigning an
+        instance there would silently `str()` it via the wrong `__str__`."""
+        if self._backing_field_is_foreign_key():
+            return instance
+        return getattr(instance, self.slug_field)
+
+    def _backing_field_is_foreign_key(self):
+        parent = getattr(self, "parent", None)
+        model = getattr(getattr(parent, "Meta", None), "model", None)
+        if model is None or not self.field_name:
+            return True
+        try:
+            model_field = model._meta.get_field(self.source or self.field_name)
+        except Exception:
+            return True
+        return isinstance(model_field, ForeignKeyRelatedField)
+
+    def to_representation(self, value):
+        """Return the unique_id for read operations."""
+        if value is None:
+            return None
+        if hasattr(value, 'unique_id'):
+            return value.unique_id
+        return str(value)
 
     def _model_name(self):
         return self.get_queryset().model.__name__

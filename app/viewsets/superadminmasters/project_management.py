@@ -18,7 +18,7 @@ class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     # MultiPart/Form parsers accept the project_logo upload.
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     permission_resource = "Project"
-    queryset = Project.objects.select_related("company_id").filter(is_deleted=False).order_by("name")
+    queryset = Project.objects.filter(is_deleted=False).order_by("name")
     serializer_class = ProjectSerializer
     lookup_field = "unique_id"
 
@@ -28,19 +28,19 @@ class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     
 
     def get_queryset(self):
-        queryset = Project.objects.select_related("company_id").filter(is_deleted=False).order_by("name")
+        queryset = Project.objects.filter(is_deleted=False).order_by("name")
         user = getattr(self.request, "user", None)
         if self._is_platform_super_admin(user):
             company_unique_id = self.request.query_params.get("company_unique_id")
             if company_unique_id:
-                queryset = queryset.filter(company_id__unique_id=company_unique_id)
+                queryset = queryset.filter(company_id=company_unique_id)
             return queryset
 
         company = getattr(user, "company_id", None)
         if not company:
             return Project.objects.none()
 
-        queryset = queryset.filter(company_id=company)
+        queryset = queryset.filter(company_id=company.unique_id)
 
         # Staff members (Staffcreation instances) are scoped to their assigned project.
         # hasattr check distinguishes them from Django platform users who also have company_id.

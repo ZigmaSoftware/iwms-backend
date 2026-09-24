@@ -1,16 +1,14 @@
 from django.db import models
 from django.db.models import Max
 from app.utils.comfun import generate_unique_id
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
+from app.utils.base_models import BaseMaster
 
 
 def generate_alternative_staff_template_id():
     return f"ALTSTAFFTEMPLATE-{generate_unique_id()}"
 
 
-class AlternativeStaffTemplate(models.Model):
+class AlternativeStaffTemplate(BaseMaster):
     """
     Tracks temporary or permanent staff substitutions against
     a staff template with approval workflow and audit trail.
@@ -37,56 +35,22 @@ class AlternativeStaffTemplate(models.Model):
     # BUSINESS RELATIONSHIPS
     # ------------------------------------------------------------------
 
-    staff_template = models.ForeignKey(
-        'app.StaffTemplate',
-        on_delete=models.PROTECT,
-        db_column='staff_template_id',
-        related_name='alternative_templates'
-    )
+    staff_template_id = models.CharField(max_length=20, null=True, blank=True)
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="alternative_staff_templates",
-        db_column="company_id",
-        null=True,
-        blank=True
-    )
-
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="alternative_staff_templates",
-        db_column="project_id",
-        null=True,
-        blank=True
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     from_date = models.DateField(null=True, blank=True)
     to_date = models.DateField(null=True, blank=True)
 
 
-    # effective_date = models.DateField()
-
     # ------------------------------------------------------------------
     # STAFF ASSIGNMENT
     # ------------------------------------------------------------------
 
-    driver_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column="driver_id",
-        to_field="staff_unique_id",
-        related_name='alt_driver_templates'
-    )
+    driver_id = models.CharField(max_length=30, null=True, blank=True)
 
-    operator_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column="operator_id",
-        to_field="staff_unique_id",
-        related_name='alt_operator_templates'
-    )
+    operator_id = models.CharField(max_length=30, null=True, blank=True)
 
     extra_operator_id = models.JSONField(
         default=list,
@@ -111,21 +75,7 @@ class AlternativeStaffTemplate(models.Model):
     # APPROVAL WORKFLOW
     # ------------------------------------------------------------------
 
-    # requested_by = models.ForeignKey(
-    #     Staffcreation,
-    #     on_delete=models.PROTECT,
-    #     db_column='requested_by',
-    #     related_name='alt_staff_requested'
-    # )
-
-    approved_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        db_column='approved_by',
-        related_name='alt_staff_approved',
-        null=True,
-        blank=True
-    )
+    approved_by = models.CharField(max_length=30, null=True, blank=True)
 
     approval_status = models.CharField(
         max_length=10,
@@ -159,7 +109,7 @@ class AlternativeStaffTemplate(models.Model):
         ordering = ['-created_at']
 
         indexes = [
-            models.Index(fields=['staff_template']),
+            models.Index(fields=['staff_template_id']),
             models.Index(fields=['approval_status']),
             models.Index(fields=['display_code']),
         ]
@@ -183,10 +133,12 @@ class AlternativeStaffTemplate(models.Model):
         VIKR-NAVE-01-ALT-01
         """
 
-        def resolve_staff_name(staff, fallback):
-            if not staff:
+        def resolve_staff_name(staff_id, fallback):
+            if not staff_id:
                 return fallback
-            if hasattr(staff, 'employee_name') and staff.employee_name:
+            from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+            staff = StaffcreationOfficeDetails.objects.filter(staff_unique_id=staff_id).first()
+            if staff and staff.employee_name:
                 return staff.employee_name
             return fallback
 
@@ -206,8 +158,8 @@ class AlternativeStaffTemplate(models.Model):
         )
 
         existing_base_codes = []
-        if self.staff_template:
-            StaffTemplate = self.staff_template.__class__
+        if self.staff_template_id:
+            from app.models.schedule_masters.staff_template import StaffTemplate
             existing_base_codes.extend(
                 StaffTemplate.objects
                 .filter(display_code__startswith=f"{staff_base}-")
@@ -267,15 +219,15 @@ class AlternativeStaffTemplate(models.Model):
         try:
             prev = (
                 AlternativeStaffTemplate.objects
-                .only("driver_id", "operator_id", "staff_template")
+                .only("driver_id", "operator_id", "staff_template_id")
                 .get(pk=self.pk)
             )
         except AlternativeStaffTemplate.DoesNotExist:
             return False
 
         return (
-            prev.driver_id_id != self.driver_id_id
-            or prev.operator_id_id != self.operator_id_id
+            prev.driver_id != self.driver_id
+            or prev.operator_id != self.operator_id
             or prev.staff_template_id != self.staff_template_id
         )
 
@@ -292,3 +244,45 @@ class AlternativeStaffTemplate(models.Model):
 
     def __str__(self):
         return self.display_code
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def staff_template(self):
+        from app.models.schedule_masters.staff_template import StaffTemplate
+        if self.staff_template_id:
+            return StaffTemplate.objects.filter(unique_id=self.staff_template_id).first()
+        return None
+
+    @property
+    def driver(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.driver_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.driver_id).first()
+        return None
+
+    @property
+    def operator(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.operator_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.operator_id).first()
+        return None
+
+    @property
+    def approved_by_user(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.approved_by:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.approved_by).first()
+        return None

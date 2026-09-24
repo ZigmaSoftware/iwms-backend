@@ -102,8 +102,8 @@ class StaffTemplateSeeder(BaseSeeder):
             company_id=company,
             project_id=project,
             extra_operator_id=[],
-            created_by=account,
-            updated_by=account,
+            created_by_id=getattr(account, "account_id", None),
+            updated_by_id=getattr(account, "account_id", None),
             status="ACTIVE",
         )
         return True

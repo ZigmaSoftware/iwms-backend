@@ -28,8 +28,8 @@ class CustomerAccessConfigurationSerializer(serializers.ModelSerializer):
         child=serializers.CharField(), required=False, write_only=True
     )
 
-    customer_name = serializers.CharField(source="customer_id.customer_name", read_only=True)
-    contact_no = serializers.CharField(source="customer_id.contact_no", read_only=True)
+    customer_name = serializers.CharField(source="customer.customer_name", read_only=True)
+    contact_no = serializers.CharField(source="customer.contact_no", read_only=True)
 
     class Meta:
         model = CustomerAccessConfiguration
@@ -38,14 +38,14 @@ class CustomerAccessConfigurationSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data["customer_id"] = instance.customer_id_id
-        data["company_id"] = instance.company_id_id
+        data["customer_id"] = instance.customer_id
+        data["company_id"] = instance.company_id
 
-        modules = instance.app_modules.filter(is_deleted=False)
+        modules = instance.app_modules_resolved.filter(is_deleted=False)
         data["app_module_ids"] = [m.unique_id for m in modules]
         data["app_module_keys"] = [m.surface_key for m in modules]
 
-        screens = instance.app_screens.filter(is_deleted=False)
+        screens = instance.app_screens_resolved.filter(is_deleted=False)
         data["app_screen_ids"] = [s.unique_id for s in screens]
         data["app_screen_names"] = [s.userscreen_name for s in screens]
         return data
@@ -114,7 +114,7 @@ class CustomerAccessConfigurationSerializer(serializers.ModelSerializer):
         screen_ids = validated_data.pop("app_screen_ids", [])
 
         instance, _ = CustomerAccessConfiguration.objects.update_or_create(
-            customer_id=customer,
+            customer_id=customer.unique_id,
             defaults={
                 "company_id": customer.company_id,
                 "description": validated_data.get("description", ""),
@@ -133,7 +133,7 @@ class CustomerAccessConfigurationSerializer(serializers.ModelSerializer):
         screen_ids = validated_data.pop("app_screen_ids", None)
 
         if customer:
-            instance.customer_id = customer
+            instance.customer_id = customer.unique_id
             instance.company_id = customer.company_id
         instance.description = validated_data.get("description", instance.description)
         instance.save()
@@ -149,11 +149,20 @@ class CustomerAccessConfigurationSerializer(serializers.ModelSerializer):
     def _apply(instance, module_ids, screen_ids):
         """Omitted lists leave existing ticks alone, so a partial update
         cannot silently revoke a customer's app access."""
+        update_fields = []
         if module_ids is not None:
-            instance.app_modules.set(
-                AppModule.objects.filter(unique_id__in=module_ids, is_deleted=False)
+            instance.app_modules = list(
+                AppModule.objects.filter(
+                    unique_id__in=module_ids, is_deleted=False
+                ).values_list("unique_id", flat=True)
             )
+            update_fields.append("app_modules")
         if screen_ids is not None:
-            instance.app_screens.set(
-                UserScreen.objects.filter(unique_id__in=screen_ids, is_deleted=False)
+            instance.app_screens = list(
+                UserScreen.objects.filter(
+                    unique_id__in=screen_ids, is_deleted=False
+                ).values_list("unique_id", flat=True)
             )
+            update_fields.append("app_screens")
+        if update_fields:
+            instance.save(update_fields=update_fields)

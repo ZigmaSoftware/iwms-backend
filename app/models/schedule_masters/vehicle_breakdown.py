@@ -2,12 +2,6 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from app.utils.base_models import BaseMaster
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
 
 
 def _generate_vehicle_breakdown_id():
@@ -70,89 +64,27 @@ class VehicleBreakdown(BaseMaster):
     )
 
     # ── Tenancy ─────────────────────────────────────────────────────
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        db_column="company_id",
-        related_name="vehicle_breakdowns",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        db_column="project_id",
-        related_name="vehicle_breakdowns",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     # ── Trip Reference ───────────────────────────────────────────────
-    trip_assignment_id = models.OneToOneField(
-        DailyTripAssignment,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        db_column="trip_assignment_id",
-        related_name="vehicle_breakdown",
-    )
+    trip_assignment_id = models.CharField(max_length=50, null=True, blank=True)
 
     # ── Vehicles ─────────────────────────────────────────────────────
-    breakdown_vehicle_id = models.ForeignKey(
-        VehicleCreation,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        db_column="breakdown_vehicle_id",
-        related_name="vehicle_breakdowns_as_broken",
-    )
+    breakdown_vehicle_id = models.CharField(max_length=30, null=True, blank=True)
     # Null until the supervisor arranges a replacement at /verify/ — the
     # driver reporting a breakdown usually doesn't know it yet.
-    replacement_vehicle_id = models.ForeignKey(
-        VehicleCreation,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        db_column="replacement_vehicle_id",
-        related_name="vehicle_breakdowns_as_replacement",
-        null=True,
-        blank=True,
-    )
+    replacement_vehicle_id = models.CharField(max_length=30, null=True, blank=True)
 
     # ── Replacement Staff (assigned later by the supervisor) ──────────
-    replacement_driver_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        to_field="staff_unique_id",
-        db_column="replacement_driver_id",
-        related_name="vehicle_breakdowns_as_driver",
-        null=True,
-        blank=True,
-    )
-    replacement_operator_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        to_field="staff_unique_id",
-        db_column="replacement_operator_id",
-        related_name="vehicle_breakdowns_as_operator",
-        null=True,
-        blank=True,
-    )
+    replacement_driver_id = models.CharField(max_length=30, null=True, blank=True)
+    replacement_operator_id = models.CharField(max_length=30, null=True, blank=True)
 
     # ── Created AlternativeStaffTemplate (set during approval) ───────
-    alt_staff_template_id = models.ForeignKey(
-        AlternativeStaffTemplate,
-        on_delete=models.SET_NULL,
-        to_field="unique_id",
-        db_column="alt_staff_template_id",
-        related_name="vehicle_breakdown",
-        null=True,
-        blank=True,
-    )
+    alt_staff_template_id = models.CharField(max_length=50, null=True, blank=True)
 
     # ── Continuation trip created on verify (mirrors TripRetripRequest.new_assignment) ──
-    new_assignment = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.SET_NULL,
-        to_field="unique_id",
-        db_column="new_assignment_id",
-        related_name="breakdown_source",
-        null=True,
-        blank=True,
-    )
+    new_assignment = models.CharField(max_length=50, null=True, blank=True)
 
     # ── Breakdown Details ─────────────────────────────────────────────
     breakdown_time = models.TimeField(null=True, blank=True)
@@ -183,20 +115,15 @@ class VehicleBreakdown(BaseMaster):
         default=APPROVAL_PENDING,
         db_index=True,
     )
-    approved_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        to_field="staff_unique_id",
-        db_column="approved_by",
-        related_name="vehicle_breakdown_approvals",
-        null=True,
-        blank=True,
-    )
+    approved_by = models.CharField(max_length=30, null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     rejection_remarks = models.TextField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("vehicle_breakdown_list", "vehicle_breakdown_detail")
 
     class Meta:
         ordering = ["-created_at"]
@@ -213,6 +140,76 @@ class VehicleBreakdown(BaseMaster):
     def __str__(self):
         return self.unique_id
 
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def trip_assignment(self):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        if self.trip_assignment_id:
+            return DailyTripAssignment.objects.filter(unique_id=self.trip_assignment_id).first()
+        return None
+
+    @property
+    def breakdown_vehicle(self):
+        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        if self.breakdown_vehicle_id:
+            return VehicleCreation.objects.filter(unique_id=self.breakdown_vehicle_id).first()
+        return None
+
+    @property
+    def replacement_vehicle(self):
+        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        if self.replacement_vehicle_id:
+            return VehicleCreation.objects.filter(unique_id=self.replacement_vehicle_id).first()
+        return None
+
+    @property
+    def replacement_driver(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.replacement_driver_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.replacement_driver_id).first()
+        return None
+
+    @property
+    def replacement_operator(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.replacement_operator_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.replacement_operator_id).first()
+        return None
+
+    @property
+    def alt_staff_template(self):
+        from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
+        if self.alt_staff_template_id:
+            return AlternativeStaffTemplate.objects.filter(unique_id=self.alt_staff_template_id).first()
+        return None
+
+    @property
+    def new_assignment_obj(self):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        if self.new_assignment:
+            return DailyTripAssignment.objects.filter(unique_id=self.new_assignment).first()
+        return None
+
+    @property
+    def approved_by_user(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.approved_by:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.approved_by).first()
+        return None
+
 
 def vehicle_breakdown_photo_upload_path(instance, filename):
     return f"uploads/vehicle_breakdown/{instance.breakdown_id}/{filename}"
@@ -223,15 +220,18 @@ class VehicleBreakdownPhoto(models.Model):
     tyre, the accident scene). Optional — a breakdown can have zero, one, or
     several."""
 
-    breakdown = models.ForeignKey(
-        VehicleBreakdown,
-        on_delete=models.CASCADE,
-        to_field="unique_id",
-        db_column="breakdown_id",
-        related_name="photos",
-    )
+    breakdown_id = models.CharField(max_length=50, null=True, blank=True)
     photo = models.ImageField(upload_to=vehicle_breakdown_photo_upload_path)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("vehicle_breakdown_photo_list", "vehicle_breakdown_photo_detail")
+
     def __str__(self):
         return f"{self.breakdown_id} photo #{self.pk}"
+
+    @property
+    def breakdown(self):
+        if self.breakdown_id:
+            return VehicleBreakdown.objects.filter(unique_id=self.breakdown_id).first()
+        return None

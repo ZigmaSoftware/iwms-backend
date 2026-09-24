@@ -1,20 +1,6 @@
 from django.db import models
 from django.utils import timezone
 
-from app.models.assets.bins import Bins
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.ward import Ward
-from app.models.masters.zone import Zone
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import (
-    DailyTripCollectionPoint,
-)
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 from app.utils.hierarchy import copy_flat_geo
@@ -44,99 +30,20 @@ class BinCollectionEvent(BaseMaster):
         editable=False,
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        db_column="company_id",
-        related_name="bin_collection_events",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        db_column="project_id",
-        related_name="bin_collection_events",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    trip_assignment_id = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.PROTECT,
-        db_column="trip_assignment_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-    )
-    trip_collection_point_id = models.ForeignKey(
-        DailyTripCollectionPoint,
-        on_delete=models.PROTECT,
-        db_column="trip_collection_point_id",
-        to_field="unique_id",
-        related_name="bin_collection_event",
-    )
+    trip_assignment_id = models.CharField(max_length=50, null=True, blank=True)
+    trip_collection_point_id = models.CharField(max_length=30, null=True, blank=True)
 
-    collection_point_id = models.ForeignKey(
-        Collection_point,
-        on_delete=models.PROTECT,
-        db_column="collection_point_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-    )
-    bin_id = models.ForeignKey(
-        Bins,
-        on_delete=models.PROTECT,
-        db_column="bin_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-    )
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        db_column="panchayat_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-        null=True,
-        blank=True,
-    )
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.PROTECT,
-        db_column="ward_id",
-        related_name="bin_collection_events",
-        null=True,
-        blank=True,
-    )
-    zone_id = models.ForeignKey(
-        Zone,
-        on_delete=models.PROTECT,
-        db_column="zone_id",
-        related_name="bin_collection_events",
-        null=True,
-        blank=True,
-    )
-    waste_type_id = models.ForeignKey(
-        WasteType,
-        on_delete=models.PROTECT,
-        db_column="waste_type_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-    )
-    vehicle_id = models.ForeignKey(
-        VehicleCreation,
-        on_delete=models.PROTECT,
-        db_column="vehicle_id",
-        to_field="unique_id",
-        related_name="bin_collection_events",
-        null=True,
-        blank=True,
-    )
-    vehicle_breakdown_id = models.ForeignKey(
-        "VehicleBreakdown",
-        on_delete=models.SET_NULL,
-        db_column="vehicle_breakdown_id",
-        related_name="bin_collection_events",
-        null=True,
-        blank=True,
-    )
-
-
+    collection_point_id = models.CharField(max_length=30, null=True, blank=True)
+    bin_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    waste_type_id = models.CharField(max_length=30, null=True, blank=True)
+    vehicle_id = models.CharField(max_length=30, null=True, blank=True)
+    vehicle_breakdown_id = models.CharField(max_length=30, null=True, blank=True)
 
     collected_weight_kg = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True,
@@ -161,13 +68,14 @@ class BinCollectionEvent(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("bin_collection_event_list", "bin_collection_event_detail")
+
     class Meta:
         ordering = ["-collection_date", "-created_at"]
         indexes = [
             models.Index(fields=["trip_assignment_id", "created_at"]),
             models.Index(fields=["collection_date"]),
-            # models.Index(fields=["operator_id", "created_at"]),
-            # models.Index(fields=["panchayat_id", "created_at"]),
         ]
 
     def save(self, *args, **kwargs):
@@ -179,16 +87,108 @@ class BinCollectionEvent(BaseMaster):
         # assignment has no single `ward` FK, only a `wards` M2M, so ward/
         # zone are resolved separately when the assignment carries exactly
         # one ward).
-        if self.trip_assignment_id_id and not self.panchayat_id_id:
-            copy_flat_geo(self, self.trip_assignment_id)
-        if self.trip_assignment_id_id and not self.ward_id_id:
-            assignment_wards = self.trip_assignment_id.wards.select_related("zone_id").all()
-            if len(assignment_wards) == 1:
-                ward = assignment_wards[0]
-                self.ward_id = ward
-                if not self.zone_id_id:
-                    self.zone_id = getattr(ward, "zone_id", None)
+        if self.trip_assignment_id and not self.panchayat_id:
+            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+            assignment = DailyTripAssignment.objects.filter(unique_id=self.trip_assignment_id).first()
+            if assignment:
+                copy_flat_geo(self, assignment)
+        if self.trip_assignment_id and not self.ward_id:
+            from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+            from app.models.masters.ward import Ward
+            assignment = DailyTripAssignment.objects.filter(unique_id=self.trip_assignment_id).first()
+            if assignment:
+                ward_ids = assignment.get_ward_ids()
+                if len(ward_ids) == 1:
+                    ward = Ward.objects.filter(unique_id=ward_ids[0]).first()
+                    if ward:
+                        self.ward_id = ward.unique_id
+                        if not self.zone_id:
+                            self.zone_id = ward.zone_id
         super().save(*args, **kwargs)
 
     def __str__(self):
         return self.unique_id
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def trip_assignment(self):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        if self.trip_assignment_id:
+            return DailyTripAssignment.objects.filter(unique_id=self.trip_assignment_id).first()
+        return None
+
+    @property
+    def trip_collection_point(self):
+        from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
+        if self.trip_collection_point_id:
+            return DailyTripCollectionPoint.objects.filter(unique_id=self.trip_collection_point_id).first()
+        return None
+
+    @property
+    def collection_point(self):
+        from app.models.schedule_masters.collection_point import Collection_point
+        if self.collection_point_id:
+            return Collection_point.objects.filter(unique_id=self.collection_point_id).first()
+        return None
+
+    @property
+    def bin(self):
+        from app.models.assets.bins import Bins
+        if self.bin_id:
+            return Bins.objects.filter(unique_id=self.bin_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def waste_type(self):
+        from app.models.staff_creations.waste_collection_bluetooth import WasteType
+        if self.waste_type_id:
+            return WasteType.objects.filter(unique_id=self.waste_type_id).first()
+        return None
+
+    @property
+    def vehicle(self):
+        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        if self.vehicle_id:
+            return VehicleCreation.objects.filter(unique_id=self.vehicle_id).first()
+        return None
+
+    @property
+    def vehicle_breakdown(self):
+        from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
+        if self.vehicle_breakdown_id:
+            return VehicleBreakdown.objects.filter(unique_id=self.vehicle_breakdown_id).first()
+        return None

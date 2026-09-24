@@ -11,6 +11,9 @@ from app.validators.unique_name_validator import unique_name_validator
 
 class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
     state_id = NameOrUniqueIdField(
         queryset=State.objects.filter(is_deleted=False),
         name_field="name",

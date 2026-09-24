@@ -8,9 +8,18 @@ BASE = "/api/v1/role-assigns/staffusertypes/"
 @pytest.mark.django_db
 class TestStaffUserTypeAPIList:
     def test_list_authenticated_returns_200(self, auth_client, user_type):
-        StaffUserType.objects.create(name="driver", usertype_id=user_type)
+        StaffUserType.objects.create(name="driver", usertype_id=user_type.unique_id)
         resp = auth_client.get(BASE)
         assert resp.status_code == 200
+
+    def test_list_returns_usertype_id_and_name(self, auth_client, user_type):
+        role = StaffUserType.objects.create(name="company_driver", usertype_id=user_type.unique_id)
+        resp = auth_client.get(BASE)
+
+        assert resp.status_code == 200
+        row = next(item for item in resp.data if item["unique_id"] == role.unique_id)
+        assert row["usertype_id"] == user_type.unique_id
+        assert row["usertype_name"] == user_type.name
 
 
 @pytest.mark.django_db
@@ -27,7 +36,7 @@ class TestStaffUserTypeAPICreate:
 @pytest.mark.django_db
 class TestStaffUserTypeAPIRetrieve:
     def test_retrieve_returns_200(self, auth_client, user_type):
-        sut = StaffUserType.objects.create(name="supervisor", usertype_id=user_type)
+        sut = StaffUserType.objects.create(name="supervisor", usertype_id=user_type.unique_id)
         resp = auth_client.get(f"{BASE}{sut.unique_id}/")
         assert resp.status_code == 200
 
@@ -35,7 +44,7 @@ class TestStaffUserTypeAPIRetrieve:
 @pytest.mark.django_db
 class TestStaffUserTypeAPIUpdate:
     def test_patch_returns_success(self, auth_client, user_type):
-        sut = StaffUserType.objects.create(name="company_driver", usertype_id=user_type)
+        sut = StaffUserType.objects.create(name="company_driver", usertype_id=user_type.unique_id)
         resp = auth_client.patch(f"{BASE}{sut.unique_id}/", {"name": "company_supervisor"}, format="json")
         assert resp.status_code in (200, 204)
 
@@ -43,6 +52,6 @@ class TestStaffUserTypeAPIUpdate:
 @pytest.mark.django_db
 class TestStaffUserTypeAPIDelete:
     def test_delete_returns_success(self, auth_client, user_type):
-        sut = StaffUserType.objects.create(name="temp_staff", usertype_id=user_type)
+        sut = StaffUserType.objects.create(name="temp_staff", usertype_id=user_type.unique_id)
         resp = auth_client.delete(f"{BASE}{sut.unique_id}/")
         assert resp.status_code in (200, 204)

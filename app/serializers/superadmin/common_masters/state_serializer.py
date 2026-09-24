@@ -20,10 +20,10 @@ class StateSerializer( serializers.ModelSerializer):
         queryset=Continent.objects.filter(is_deleted=False),
         name_field="name",
     )
-    continent_name = serializers.CharField(source="continent_id.name", read_only=True)
-    country_name = serializers.CharField(source="country_id.name", read_only=True)
-    continent_unique_id = serializers.CharField(source="continent_id.unique_id", read_only=True)
-    country_unique_id   = serializers.CharField(source="country_id.unique_id", read_only=True)
+    continent_name = serializers.SerializerMethodField()
+    country_name = serializers.SerializerMethodField()
+    continent_unique_id = serializers.SerializerMethodField()
+    country_unique_id = serializers.SerializerMethodField()
 
     class Meta:
         model = State
@@ -36,3 +36,17 @@ class StateSerializer( serializers.ModelSerializer):
             Model=State,
             scope_fields=["continent_id", "country_id"]
         )(self, attrs)
+
+    def get_continent_name(self, obj):
+        continent = Continent.objects.filter(unique_id=obj.continent_id).first()
+        return continent.name if continent else None
+
+    def get_country_name(self, obj):
+        country = Country.objects.filter(unique_id=obj.country_id).first()
+        return country.name if country else None
+
+    def get_continent_unique_id(self, obj):
+        return obj.continent_id
+
+    def get_country_unique_id(self, obj):
+        return obj.country_id

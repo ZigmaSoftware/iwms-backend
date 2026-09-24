@@ -24,13 +24,38 @@ class Company(BaseMaster):
         null=True,
     )
 
+    CASCADE_SOFT_DELETE = (
+        "projects",
+        "district_set",
+        "plants",
+        "departments",
+        "designations",
+        "staff_office_details",
+        "staff_personal_details",
+        "staff_templates",
+        "staffusertype_set",
+        "contractorusertype_set",
+        "usertype_set",
+        "wastetype_set",
+        "mainscreentype_set",
+        "mainscreen_set",
+        "userscreen_set",
+        "userscreenaction_set",
+        "userscreen_column_permissions",
+        "user_set",
+        "maincategory_set",
+        "complaint_set",
+        "complaint_categories",
+        "complaint_subcategories",
+        "complaint_sla_rules",
+        "staff_access_configurations",
+        "customer_access_configurations",
+        "property_set",
+        "subproperty_set",
+    )
+
     class Meta:
         ordering = ["name"]
 
     def __str__(self):
         return self.name
-
-    def delete(self, *args, **kwargs):
-        self.is_deleted = True
-        self.is_active = False
-        self.save(update_fields=["is_deleted", "is_active"])

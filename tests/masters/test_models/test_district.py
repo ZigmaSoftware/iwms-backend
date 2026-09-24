@@ -7,7 +7,7 @@ from app.models.masters.district import District
 @pytest.mark.django_db
 class TestDistrictCreate:
     def test_basic_create(self, continent, country, state):
-        d = District.objects.create(name="Coimbatore", continent_id=continent, country_id=country, state_id=state)
+        d = District.objects.create(name="Coimbatore", continent_id=continent.unique_id, country_id=country.unique_id, state_id=state.unique_id)
         assert d.name == "Coimbatore"
 
     def test_unique_id_prefix(self, district):
@@ -17,7 +17,7 @@ class TestDistrictCreate:
         assert "Chennai" in str(district)
 
     def test_foreign_key_state(self, district, state):
-        assert district.state_id == state
+        assert district.state_id == state.unique_id
 
 
 @pytest.mark.django_db
@@ -35,9 +35,9 @@ class TestDistrictDefaults:
 @pytest.mark.django_db
 class TestDistrictConstraints:
     def test_unique_together_state_name(self, continent, country, state):
-        District.objects.create(name="Tiruchi", continent_id=continent, country_id=country, state_id=state)
+        District.objects.create(name="Tiruchi", continent_id=continent.unique_id, country_id=country.unique_id, state_id=state.unique_id)
         with pytest.raises(IntegrityError):
-            District.objects.create(name="Tiruchi", continent_id=continent, country_id=country, state_id=state)
+            District.objects.create(name="Tiruchi", continent_id=continent.unique_id, country_id=country.unique_id, state_id=state.unique_id)
 
 
 @pytest.mark.django_db

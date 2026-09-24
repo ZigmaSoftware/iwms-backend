@@ -16,14 +16,13 @@ class Command(BaseCommand):
     help = "Set escalation_level/next_escalation_due_at on open tickets missing it."
 
     def handle(self, *args, **options):
-        stuck = (
-            ComplaintTicket.objects.filter(
-                next_escalation_due_at__isnull=True,
-                is_deleted=False,
-            )
-            .exclude(status__is_final=True)
-            .select_related("category", "priority", "status")
-        )
+        from app.models.complaint_management.masters import ComplaintStatus
+
+        final_status_ids = ComplaintStatus.objects.filter(is_final=True).values("unique_id")
+        stuck = ComplaintTicket.objects.filter(
+            next_escalation_due_at__isnull=True,
+            is_deleted=False,
+        ).exclude(status_id__in=final_status_ids)
 
         updated = 0
         skipped = 0

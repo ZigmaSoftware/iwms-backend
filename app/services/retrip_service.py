@@ -33,21 +33,21 @@ def build_pending_snapshot(assignment):
             "unique_id": stop.unique_id,
             "sequence": stop.sequence,
             "status": stop.status,
-            "collection_point_id": stop.collection_point_id_id,
-            "name": getattr(stop.collection_point_id, "cp_name", None),
-            "bin_id": stop.bin_id_id,
+            "collection_point_id": stop.collection_point_id,
+            "name": getattr(stop.collection_point, "cp_name", None),
+            "bin_id": stop.bin_id,
         }
-        for stop in assignment.pending_bin_stops().select_related("collection_point_id")
+        for stop in assignment.pending_bin_stops()
     ]
     households = [
         {
             "unique_id": stop.unique_id,
             "sequence": stop.sequence,
             "status": stop.status,
-            "customer_id": stop.customer_id_id,
-            "name": getattr(stop.customer_id, "customer_name", None),
+            "customer_id": stop.customer_id,
+            "name": getattr(stop.customer, "customer_name", None),
         }
-        for stop in assignment.pending_household_stops().select_related("customer_id")
+        for stop in assignment.pending_household_stops()
     ]
     return {"collection_points": bins, "households": households}
 
@@ -82,8 +82,8 @@ def request_retrip(assignment, *, requested_by, reason):
     request = TripRetripRequest.objects.create(
         company_id=assignment.company_id,
         project_id=assignment.project_id,
-        assignment=assignment,
-        requested_by=requested_by,
+        assignment_id=assignment.unique_id,
+        requested_by_id=getattr(requested_by, "staff_unique_id", None),
         reason=reason,
         pending_bin_count=len(snapshot["collection_points"]),
         pending_household_count=len(snapshot["households"]),
@@ -139,12 +139,11 @@ def _create_continuation_assignment(
         remarks=remarks or f"Re-Trip continuation of {source.unique_id}",
         waste_type_ids=list(source.waste_type_ids or []),
     )
-    continuation.save()
     # Carry the SOURCE trip's waste types/wards, which may be narrower than
-    # the plan's. Set after save() (M2M needs a saved instance on both sides).
-    continuation.waste_types.set(source.waste_types.all())
-    continuation.wards.set(source.wards.all())
-    continuation.household_waste_type_ids.set(source.household_waste_type_ids.all())
+    # the plan's.
+    continuation.ward_ids = source.ward_ids
+    continuation.household_waste_type_ids = source.household_waste_type_ids
+    continuation.save()
     return continuation
 
 
@@ -176,9 +175,9 @@ def create_breakdown_continuation(
         raise ValueError("There are no pending stops to carry over.")
 
     carry_bin_keys = {
-        (stop.collection_point_id_id, stop.bin_id_id) for stop in pending_bins
+        (stop.collection_point_id, stop.bin_id) for stop in pending_bins
     }
-    carry_customer_ids = {stop.customer_id_id for stop in pending_households}
+    carry_customer_ids = {stop.customer_id for stop in pending_households}
 
     continuation = _create_continuation_assignment(
         source,
@@ -250,9 +249,9 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
     # A bin stop is identified by the (collection point, bin) PAIR — one
     # collection point can hold several bins, each its own stop.
     carry_bin_keys = {
-        (stop.collection_point_id_id, stop.bin_id_id) for stop in pending_bins
+        (stop.collection_point_id, stop.bin_id) for stop in pending_bins
     }
-    carry_customer_ids = {stop.customer_id_id for stop in pending_households}
+    carry_customer_ids = {stop.customer_id for stop in pending_households}
 
     continuation = _create_continuation_assignment(source)
 

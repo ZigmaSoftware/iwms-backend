@@ -122,7 +122,7 @@ SCREEN_PERMISSIONS = {
     "supervisor.notifications": ("schedule-operations", "staff-notifications", "view"),
     "supervisor.livemap": ("schedule-operations", "daily-trip-collection-points", "view"),
     "supervisor.vehicles": ("transport-masters", "vehicle-creation", "view"),
-    "supervisor.attendance": ("attendance", "attendance", "view"),
+    "supervisor.attendance": ("attendance", "daily-attendance", "view"),
     "supervisor.profile": None,
 
     # ---- Driver ----
@@ -134,7 +134,7 @@ SCREEN_PERMISSIONS = {
     "driver.retrips": ("schedule-operations", "retrip-requests", "view"),
     "driver.notifications": ("schedule-operations", "staff-notifications", "view"),
     "driver.customers": ("customers", "customercreations", "view"),
-    "driver.attendance": ("attendance", "attendance", "view"),
+    "driver.attendance": ("attendance", "daily-attendance", "view"),
     "driver.profile": None,
 
     # ---- Operator (deprecated shell, same permissions as Driver) ----
@@ -143,7 +143,7 @@ SCREEN_PERMISSIONS = {
     "operator.bins": ("schedule-operations", "bin-collection-events", "view"),
     "operator.breakdowns": ("schedule-operations", "vehicle-breakdowns", "view"),
     "operator.notifications": ("schedule-operations", "staff-notifications", "view"),
-    "operator.attendance": ("attendance", "attendance", "view"),
+    "operator.attendance": ("attendance", "daily-attendance", "view"),
     "operator.profile": None,
 
     # ---- Citizen ----
@@ -236,7 +236,7 @@ ROLE_SCREEN_TEMPLATES = {
             "retrip-requests": ["view"],
         },
         "attendance": {
-            "attendance": ["view", "add", "edit"],
+            "daily-attendance": ["view", "add", "edit"],
         },
         "schedule-setup": {
             "collection-points": ["view"],
@@ -265,7 +265,7 @@ ROLE_SCREEN_TEMPLATES = {
             "retrip-requests": ["view"],
         },
         "attendance": {
-            "attendance": ["view", "add", "edit"],
+            "daily-attendance": ["view", "add", "edit"],
         },
         "schedule-setup": {
             "collection-points": ["view"],
@@ -308,7 +308,7 @@ ROLE_SCREEN_TEMPLATES = {
             "retrip-requests": ["view", "add"],
         },
         "attendance": {
-            "attendance": ["view", "add", "edit"],
+            "daily-attendance": ["view", "add", "edit"],
         },
         "schedule-setup": {
             # The Crew screen creates and edits templates, and creates an

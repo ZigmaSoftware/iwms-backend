@@ -47,14 +47,14 @@ class TestStaffAPIUpdate:
     ):
         staff = StaffcreationOfficeDetails.objects.create(
             employee_name="Old Staff",
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
         StaffPersonalDetails.objects.create(
             staff=staff,
             staff_unique_id=staff.staff_unique_id,
-            company_id=company,
-            project_id=project,
+            company_id=company.unique_id,
+            project_id=project.unique_id,
         )
 
         resp = auth_client.patch(

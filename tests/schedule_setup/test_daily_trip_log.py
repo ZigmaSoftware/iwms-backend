@@ -49,8 +49,8 @@ from app.models.waste_types.subproperty import SubProperty
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="Trip Log Panchayat",
-        company_id=company, project_id=project,
-        state_id=state, district_id=district, city_id=city,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id,
     )
 
 
@@ -61,72 +61,73 @@ def waste_type_obj(db):
 
 @pytest.fixture
 def driver(db, company, project):
-    return Staffcreation.objects.create(employee_name="Driver One", company_id=company, project_id=project)
+    return Staffcreation.objects.create(employee_name="Driver One", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.fixture
 def operator(db, company, project):
-    return Staffcreation.objects.create(employee_name="Operator One", company_id=company, project_id=project)
+    return Staffcreation.objects.create(employee_name="Operator One", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.fixture
 def alt_driver(db, company, project):
-    return Staffcreation.objects.create(employee_name="Alt Driver", company_id=company, project_id=project)
+    return Staffcreation.objects.create(employee_name="Alt Driver", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.fixture
 def alt_operator(db, company, project):
-    return Staffcreation.objects.create(employee_name="Alt Operator", company_id=company, project_id=project)
+    return Staffcreation.objects.create(employee_name="Alt Operator", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.fixture
 def supervisor(db, company, project):
-    return Staffcreation.objects.create(employee_name="Supervisor One", company_id=company, project_id=project)
+    return Staffcreation.objects.create(employee_name="Supervisor One", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.fixture
 def extra_op(db, company, project):
-    return Staffcreation.objects.create(employee_name="Extra Operator", company_id=company, project_id=project)
+    return Staffcreation.objects.create(employee_name="Extra Operator", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.fixture
 def staff_template(db, company, project, driver, operator):
-    return StaffTemplate.objects.create(company_id=company, project_id=project, driver_id=driver, operator_id=operator)
+    return StaffTemplate.objects.create(company_id=company.unique_id, project_id=project.unique_id, driver_id=driver.staff_unique_id, operator_id=operator.staff_unique_id)
 
 
 @pytest.fixture
 def alt_staff_template(db, company, project, staff_template, alt_driver, alt_operator):
     return AlternativeStaffTemplate.objects.create(
-        staff_template=staff_template,
-        company_id=company, project_id=project, driver_id=alt_driver, operator_id=alt_operator,
+        staff_template_id=staff_template.unique_id,
+        company_id=company.unique_id, project_id=project.unique_id, driver_id=alt_driver.staff_unique_id, operator_id=alt_operator.staff_unique_id,
     )
 
 
 @pytest.fixture
 def vehicle(db, company, project):
-    return VehicleCreation.objects.create(company_id=company, project_id=project, vehicle_no="TN01LOG1234")
+    return VehicleCreation.objects.create(company_id=company.unique_id, project_id=project.unique_id, vehicle_no="TN01LOG1234")
 
 
 @pytest.fixture
 def collection_point(db, company, project, state, district, city, panchayat, ward):
     cp = Collection_point.objects.create(
         cp_name="Trip Log CP",
-        company_id=company, project_id=project,
-        state_id=state, city_id=city, district_id=district,
-        panchayat_id=panchayat,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
+        panchayat_id=panchayat.unique_id,
         latitude="13.0827", longitude="80.2707",
     )
-    cp.wards.set([ward])
+    cp.ward_ids = ward.unique_id
+    cp.save(update_fields=["ward_ids"])
     return cp
 
 
 @pytest.fixture
 def bin_obj(db, company, project, district, city, collection_point, waste_type_obj):
     return Bins.objects.create(
-        company_id=company, project_id=project,
-        district_id=district, city_id=city,
-        collection_point_id=collection_point,
-        wastetype_id=waste_type_obj,
+        company_id=company.unique_id, project_id=project.unique_id,
+        district_id=district.unique_id, city_id=city.unique_id,
+        collection_point_id=collection_point.unique_id,
+        wastetype_id=waste_type_obj.unique_id,
         bin_capacity=100,
         bin_type="small",
         bin_name="Trip Log Bin",
@@ -155,11 +156,11 @@ def household_customer(db, company, project, continent, country, state, district
         longitude="80.2707",
         id_proof_type="Aadhar",
         id_no="2222-3333-4444",
-        company_id=company, project_id=project,
-        country=country, state=state, district=district,
-        city=city, zone=zone, ward=ward,
-        panchayat_id=panchayat,
-        property_ref=prop, sub_property=sub_prop,
+        company_id=company.unique_id, project_id=project.unique_id,
+        country_id=country.unique_id, state_id=state.unique_id, district_id=district.unique_id,
+        city_id=city.unique_id, zone_id=zone.unique_id, ward_id=ward.unique_id,
+        panchayat_id=panchayat.unique_id,
+        property_id=prop.unique_id, sub_property_id=sub_prop.unique_id,
         is_bulkwaste_generator=False,
     )
 
@@ -167,13 +168,13 @@ def household_customer(db, company, project, continent, country, state, district
 def _make_plan(company, project, district, city, panchayat, staff_template, vehicle,
                 supervisor, waste_type_obj, is_auto_assign=False):
     return TripPlan.objects.create(
-        company_id=company, project_id=project,
-        district_id=district, city_id=city,
-        panchayat_id=panchayat,
-        staff_template_id=staff_template,
-        vehicle_id=vehicle,
-        supervisor_id=supervisor,
-        waste_type_id=waste_type_obj,
+        company_id=company.unique_id, project_id=project.unique_id,
+        district_id=district.unique_id, city_id=city.unique_id,
+        panchayat_id=panchayat.unique_id,
+        staff_template_id=staff_template.unique_id,
+        vehicle_id=vehicle.unique_id,
+        supervisor_id=supervisor.staff_unique_id,
+        waste_type_id=waste_type_obj.unique_id,
         waste_type_ids=[waste_type_obj.unique_id],
         trip_trigger_weight_kg=800,
         max_vehicle_capacity_kg=3000,
@@ -189,8 +190,9 @@ def _make_plan(company, project, district, city, panchayat, staff_template, vehi
 @pytest.fixture
 def bin_plan(db, company, project, district, city, panchayat, staff_template, vehicle, supervisor, waste_type_obj, ward):
     plan = _make_plan(company, project, district, city, panchayat, staff_template, vehicle, supervisor, waste_type_obj)
-    plan.wards.set([ward])
-    plan.waste_types.set([waste_type_obj])
+    plan.ward_ids = ward.unique_id
+    plan.waste_type_ids_csv = waste_type_obj.unique_id
+    plan.save(update_fields=["ward_ids", "waste_type_ids_csv"])
     return plan
 
 
@@ -198,14 +200,14 @@ def bin_plan(db, company, project, district, city, panchayat, staff_template, ve
 def assignment(db, bin_plan):
     return DailyTripAssignment.objects.create(
         company_id=bin_plan.company_id, project_id=bin_plan.project_id,
-        trip_plan_id=bin_plan, trip_date=date(2026, 8, 3),
+        trip_plan_id=bin_plan.unique_id, trip_date=date(2026, 8, 3),
         actual_start_time=time(7, 0),
     )
 
 
 @pytest.fixture
 def assignment_with_alt(db, assignment, alt_staff_template):
-    assignment.alt_staff_template_id = alt_staff_template
+    assignment.alt_staff_template_id = alt_staff_template.unique_id
     assignment.save(update_fields=["alt_staff_template_id"])
     return assignment
 
@@ -213,12 +215,12 @@ def assignment_with_alt(db, assignment, alt_staff_template):
 @pytest.fixture
 def stop(db, assignment, collection_point, bin_obj):
     return DailyTripCollectionPoint.objects.create(
-        trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+        trip_assignment_id=assignment.unique_id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
     )
 
 
 def _make_log(assignment, **kwargs):
-    return DailyTripLog.objects.create(trip_assignment_id=assignment, **kwargs)
+    return DailyTripLog.objects.create(trip_assignment_id=assignment.unique_id, **kwargs)
 
 
 # ----------------------------------------------------------------------
@@ -229,43 +231,44 @@ def _make_log(assignment, **kwargs):
 class TestAutofillFromAssignment:
     def test_company_and_project_copied(self, assignment):
         log = _make_log(assignment)
-        assert log.company_id_id == assignment.company_id_id
-        assert log.project_id_id == assignment.project_id_id
+        assert log.company_id == assignment.company_id
+        assert log.project_id == assignment.project_id
 
     def test_geo_copied_via_ward_fallback(self, assignment, panchayat):
         # assignment has no panchayat_id/zone_id of its own but has one ward
         # whose panchayat is set — autofill should derive panchayat from it.
         log = _make_log(assignment)
-        assert log.panchayat_id_id == panchayat.pk
+        assert log.panchayat_id == panchayat.pk
 
     def test_staff_template_and_alt_copied(self, assignment_with_alt, alt_staff_template, staff_template):
         log = _make_log(assignment_with_alt)
-        assert log.staff_template_id_id == staff_template.pk
-        assert log.alt_staff_template_id_id == alt_staff_template.pk
+        assert log.staff_template_id == staff_template.pk
+        assert log.alt_staff_template_id == alt_staff_template.pk
 
     def test_driver_and_operator_from_effective_template(self, assignment, driver, operator):
         # No alt template -> effective template is the base staff_template.
         log = _make_log(assignment)
-        assert log.driver_id_id == driver.pk
-        assert log.operator_id_id == operator.pk
+        assert log.driver_id == driver.staff_unique_id
+        assert log.operator_id == operator.staff_unique_id
 
     def test_driver_and_operator_prefer_alt_template(self, assignment_with_alt, alt_driver, alt_operator):
         log = _make_log(assignment_with_alt)
-        assert log.driver_id_id == alt_driver.pk
-        assert log.operator_id_id == alt_operator.pk
+        assert log.driver_id == alt_driver.staff_unique_id
+        assert log.operator_id == alt_operator.staff_unique_id
 
     def test_extra_operators_settable(self, assignment, extra_op):
         log = _make_log(assignment)
-        log.extra_operator_ids.set([extra_op])
-        assert list(log.extra_operator_ids.all()) == [extra_op]
+        log.extra_operator_ids = extra_op.staff_unique_id
+        log.save(update_fields=["extra_operator_ids"])
+        assert log.get_extra_operator_ids() == [extra_op.staff_unique_id]
 
     def test_vehicle_copied(self, assignment, vehicle):
         log = _make_log(assignment)
-        assert log.vehicle_id_id == vehicle.pk
+        assert log.vehicle_id == vehicle.pk
 
     def test_waste_type_copied(self, assignment, waste_type_obj):
         log = _make_log(assignment)
-        assert log.waste_type_id_id == waste_type_obj.pk
+        assert log.waste_type_id == waste_type_obj.pk
 
     def test_trip_date_copied(self, assignment):
         log = _make_log(assignment)
@@ -281,7 +284,7 @@ class TestAutofillFromAssignment:
 
     def test_collection_point_defaulted_from_first_stop(self, assignment, stop, collection_point):
         log = _make_log(assignment)
-        assert log.collection_point_id_id == collection_point.pk
+        assert log.collection_point_id == collection_point.pk
 
     def test_unique_id_generated(self, assignment):
         log = _make_log(assignment)
@@ -298,15 +301,15 @@ class TestWeightSync:
     def test_bin_events_summed(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("10.00"),
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("10.00"),
         )
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("5.50"),
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("5.50"),
         )
         log = _make_log(assignment)
         assert log.collected_weight_kg == Decimal("15.50")
@@ -316,17 +319,17 @@ class TestWeightSync:
         # ignore NULLs rather than blow up or coerce to a falsy total.
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj,
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id,
             status=BinCollectionEvent.STATUS_NOT_COLLECTED,
             status_reason="Bin missing",
         )
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("7.25"),
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("7.25"),
         )
         log = _make_log(assignment)
         assert log.collected_weight_kg == Decimal("7.25")
@@ -342,14 +345,14 @@ class TestWeightSync:
         # IWMS enhancement beyond TN's manual-create-only flow) — so no
         # separate _make_log() call here, just fetch what the signal made.
         WasteCollection.objects.create(
-            trip_assignment_id=assignment, customer=household_customer,
-            wet_waste=2.0, dry_waste=1.0,
+            trip_assignment_id=assignment.unique_id, customer_id=household_customer.unique_id,
+            wet_waste=2.0, dry_waste=1.0, status=WasteCollection.STATUS_COLLECTED,
         )
         WasteCollection.objects.create(
-            trip_assignment_id=assignment, customer=household_customer,
-            sanitary_waste=0.5,
+            trip_assignment_id=assignment.unique_id, customer_id=household_customer.unique_id,
+            sanitary_waste=0.5, status=WasteCollection.STATUS_COLLECTED,
         )
-        log = DailyTripLog.objects.get(trip_assignment_id=assignment)
+        log = DailyTripLog.objects.get(trip_assignment_id=assignment.unique_id)
         assert log.household_collected_weight_kg == Decimal("3.5")
 
     def test_household_collection_sends_customer_push(
@@ -359,9 +362,10 @@ class TestWeightSync:
             "app.services.push_notification_service.send_push_to_customer"
         ) as send_push:
             WasteCollection.objects.create(
-                trip_assignment_id=assignment,
-                customer=household_customer,
+                trip_assignment_id=assignment.unique_id,
+                customer_id=household_customer.unique_id,
                 wet_waste=2.5,
+                status=WasteCollection.STATUS_COLLECTED,
             )
 
         send_push.assert_called_once()
@@ -403,9 +407,9 @@ class TestStatusFlow:
     def test_verify_succeeds_with_positive_weight(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("3.00"),
         )
         log = _make_log(assignment)  # auto-synced to 3.00 on create
         log.log_status = DailyTripLog.LOG_STATUS_VERIFIED
@@ -416,9 +420,9 @@ class TestStatusFlow:
     def test_verified_log_is_read_only(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("3.00"),
         )
         log = _make_log(assignment)
         log.log_status = DailyTripLog.LOG_STATUS_VERIFIED
@@ -438,9 +442,9 @@ class TestAssignmentCompletionOnEndTime:
     def test_end_time_marks_assignment_completed(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("3.00"),
         )
         log = _make_log(assignment, actual_end_time=time(9, 45))
         assignment.refresh_from_db()
@@ -450,9 +454,9 @@ class TestAssignmentCompletionOnEndTime:
         assert assignment.actual_end_time is None
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("3.00"),
         )
         log = _make_log(assignment, actual_end_time=time(9, 45))
         assignment.refresh_from_db()
@@ -463,9 +467,9 @@ class TestAssignmentCompletionOnEndTime:
         assignment.save(update_fields=["actual_end_time"])
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("3.00"),
         )
         log = _make_log(assignment, actual_end_time=time(11, 30))
         assignment.refresh_from_db()
@@ -474,9 +478,9 @@ class TestAssignmentCompletionOnEndTime:
     def test_verify_also_marks_assignment_completed(self, assignment, stop, collection_point, bin_obj, waste_type_obj):
         BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("3.00"),
+            trip_assignment_id=assignment.unique_id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("3.00"),
         )
         log = _make_log(assignment, actual_end_time=time(9, 45))
         log.log_status = DailyTripLog.LOG_STATUS_VERIFIED

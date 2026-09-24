@@ -6,12 +6,6 @@ from app.utils.comfun import generate_unique_id
 from ..role_assigns.userType import UserType
 from ..role_assigns.staffUserType import StaffUserType
 from ..role_assigns.contractorUserType import ContractorUserType
-from app.models.masters.district import District
-from app.models.masters.city import City
-from app.models.masters.zone import Zone
-from app.models.masters.ward import Ward
-from app.models.staff_creations.department import Department
-from app.models.staff_creations.designation import Designation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.customer_qr import generate_customer_qr_content
@@ -50,7 +44,6 @@ class StaffcreationOfficeDetails(BaseMaster):
     )
     emp_id = models.CharField(
         max_length=8,
-        unique=True,
         blank=True,
         null=True,
         editable=False,
@@ -59,22 +52,8 @@ class StaffcreationOfficeDetails(BaseMaster):
     doj = models.DateField(blank=True, null=True)
     department = models.CharField(max_length=200, blank=True, null=True)
     designation = models.CharField(max_length=200, blank=True, null=True)
-    department_id = models.ForeignKey(
-        Department,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="department_id",
-        related_name="staff_members",
-    )
-    designation_id = models.ForeignKey(
-        Designation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="designation_id",
-        related_name="staff_members",
-    )
+    department_id = models.CharField(max_length=30, null=True, blank=True)
+    designation_id = models.CharField(max_length=30, null=True, blank=True)
 
     grade = models.CharField(max_length=50, blank=True, null=True)
     site_name = models.CharField(max_length=200, blank=True, null=True)
@@ -107,7 +86,6 @@ class StaffcreationOfficeDetails(BaseMaster):
     # =============================================
     username = models.CharField(
         max_length=150,
-        unique=True,
         null=True,
         blank=True,
         help_text="Required for platform super admins. Staff users may be created without it."
@@ -157,14 +135,7 @@ class StaffcreationOfficeDetails(BaseMaster):
         db_index=True,
     )
     login_enabled = models.BooleanField(default=False, db_index=True)
-    approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="approved_staff_users",
-        db_column="approved_by",
-    )
+    approved_by = models.CharField(max_length=30, null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     rejected_reason = models.TextField(null=True, blank=True)
     failed_login_attempts = models.PositiveIntegerField(default=0)
@@ -172,88 +143,26 @@ class StaffcreationOfficeDetails(BaseMaster):
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
 
     # Type Links
-    user_type_id = models.ForeignKey(
-        UserType,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="user_type_id",
-        related_name="staff_users"
-    )
-
-    staffusertype_id = models.ForeignKey(
-        StaffUserType,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="staffusertype_id",
-        related_name="staff_users"
-    )
-
-    contractorusertype_id = models.ForeignKey(
-        ContractorUserType,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="contractorusertype_id",
-        related_name="staff_users"
-    )
+    user_type_id = models.CharField(max_length=30, null=True, blank=True)
+    staffusertype_id = models.CharField(max_length=30, null=True, blank=True)
+    contractorusertype_id = models.CharField(max_length=30, null=True, blank=True)
 
     # -----------------------------
     # LOCATION FIELDS (match auth_user)
     # -----------------------------
-    district_id = models.ForeignKey(
-        District,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="district_id",
-        related_name="staff_district"
-    )
+    district_id = models.CharField(max_length=30, null=True, blank=True)
+    city_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
 
-    city_id = models.ForeignKey(
-        City,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="city_id",
-        related_name="staff_city"
-    )
-
-    zone_id = models.ForeignKey(
-        Zone,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="zone_id",
-        related_name="staff_zone"
-    )
-
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column="ward_id",
-        related_name="staff_ward"
-    )
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="staff_office_details",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="staff_office_details",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ("personal_details", "access_configuration")
+    CACHE_SCOPES = ("staff_list", "staff_detail")
 
     class Meta:
         ordering = ["-created_at"]
@@ -309,8 +218,8 @@ class StaffcreationOfficeDetails(BaseMaster):
                 .first()
             )
             if previous_scope and (
-                previous_scope["company_id"] != self.company_id_id
-                or previous_scope["project_id"] != self.project_id_id
+                previous_scope["company_id"] != self.company_id
+                or previous_scope["project_id"] != self.project_id
             ):
                 self.staff_id = ""
                 update_fields = kwargs.get("update_fields")
@@ -332,15 +241,15 @@ class StaffcreationOfficeDetails(BaseMaster):
                 lock_tenant_scope(
                     company_model=Company,
                     project_model=Project,
-                    company_id=self.company_id_id,
-                    project_id=self.project_id_id,
+                    company_id=self.company_id,
+                    project_id=self.project_id,
                 )
                 self.staff_id = next_scoped_display_id(
                     model=StaffcreationOfficeDetails,
                     field_name="staff_id",
                     prefix="STF",
-                    company_id=self.company_id_id,
-                    project_id=self.project_id_id,
+                    company_id=self.company_id,
+                    project_id=self.project_id,
                 )
                 update_fields = kwargs.get("update_fields")
                 if update_fields is not None:
@@ -366,6 +275,83 @@ class StaffcreationOfficeDetails(BaseMaster):
         return True
 
     @property
+    def department_obj(self):
+        from app.models.staff_creations.department import Department
+        if self.department_id:
+            return Department.objects.filter(unique_id=self.department_id).first()
+        return None
+
+    @property
+    def designation_obj(self):
+        from app.models.staff_creations.designation import Designation
+        if self.designation_id:
+            return Designation.objects.filter(unique_id=self.designation_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def city(self):
+        from app.models.masters.city import City
+        if self.city_id:
+            return City.objects.filter(unique_id=self.city_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def user_type(self):
+        from ..role_assigns.userType import UserType
+        if self.user_type_id:
+            return UserType.objects.filter(unique_id=self.user_type_id).first()
+        return None
+
+    @property
+    def staffusertype(self):
+        from ..role_assigns.staffUserType import StaffUserType
+        if self.staffusertype_id:
+            return StaffUserType.objects.filter(unique_id=self.staffusertype_id).first()
+        return None
+
+    @property
+    def contractorusertype(self):
+        from ..role_assigns.contractorUserType import ContractorUserType
+        if self.contractorusertype_id:
+            return ContractorUserType.objects.filter(unique_id=self.contractorusertype_id).first()
+        return None
+
+    @property
     def app_module(self):
         """Surface key of the ONE mobile app this staff member signs into.
 
@@ -377,8 +363,11 @@ class StaffcreationOfficeDetails(BaseMaster):
         no tabs. None means no mobile access, and the login gate refuses a
         mobile sign-in for that.
         """
-        config = self.access_configuration.filter(
-            is_active=True, is_deleted=False,
+        from app.models.staff_creations.staff_access_configuration import (
+            StaffAccessConfiguration,
+        )
+        config = StaffAccessConfiguration.objects.filter(
+            staff_id=self.staff_unique_id, is_active=True, is_deleted=False,
         ).first()
         if not config or not config.app_module_id:
             return None
@@ -397,20 +386,8 @@ class StaffPersonalDetails(models.Model):
         primary_key=True,
         editable=False
     )
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="staff_personal_details",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="staff_personal_details",
-        db_column="project_id",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
     marital_status = models.CharField(max_length=50, blank=True, null=True)
     dob = models.DateField(blank=True, null=True)
     age = models.PositiveSmallIntegerField(blank=True, null=True)
@@ -424,6 +401,9 @@ class StaffPersonalDetails(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("staff_personal_details_list", "staff_personal_details_detail")
+
     class Meta:
         ordering = ["-created_at"]
 
@@ -434,6 +414,20 @@ class StaffPersonalDetails(models.Model):
         if self.staff and not self.staff_unique_id:
             self.staff_unique_id = self.staff.staff_unique_id
         super().save(*args, **kwargs)
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
 
 
 # Backward compatibility alias

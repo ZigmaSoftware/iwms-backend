@@ -7,9 +7,11 @@ from app.utils.pagination import LimitOffsetWithPage
 
 class CountryViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.ModelViewSet):
     # Country isn't independently assignable — it's derived from whichever
-    # states are in scope, via State.country_id.
+    # states are in scope. "states__country_id" is a
+    # LocationScopedViewSetMixin special case: it resolves the scoped
+    # States' own country_id CharField, not a real Django relation.
     location_scope_field = "states"
-    location_scope_lookup = "states__unique_id"
+    location_scope_lookup = "states__country_id"
 
     queryset = Country.objects.filter(is_deleted=False)
     serializer_class = CountrySerializer
@@ -29,11 +31,6 @@ class CountryViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.Mod
         # Filter by Continent Unique ID
         continent_uid = self.request.query_params.get("continent")
         if continent_uid:
-            queryset = queryset.filter(
-                continent_id__unique_id=continent_uid
-            )
+            queryset = queryset.filter(continent_id=continent_uid)
 
         return self.filter_queryset_by_location_scope(queryset).distinct()
-
-    def perform_destroy(self, instance):
-        instance.delete()  # Soft delete

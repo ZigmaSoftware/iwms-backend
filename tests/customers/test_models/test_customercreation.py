@@ -6,7 +6,7 @@ from app.models.waste_types.property import Property
 from app.models.waste_types.subproperty import SubProperty
 
 
-def create_customer_in_scope(source, *, name, project):
+def create_customer_in_scope(source, *, name, project_id):
     return CustomerCreation.objects.create(
         customer_name=name,
         contact_no="9123456789",
@@ -16,16 +16,16 @@ def create_customer_in_scope(source, *, name, project):
         id_proof_type=source.id_proof_type,
         id_no=f"{source.id_no}-{name}",
         company_id=source.company_id,
-        project_id=project,
-        country=source.country,
-        state=source.state,
-        district=source.district,
-        city=source.city,
-        zone=source.zone,
-        ward=source.ward,
+        project_id=project_id,
+        country_id=source.country_id,
+        state_id=source.state_id,
+        district_id=source.district_id,
+        city_id=source.city_id,
+        zone_id=source.zone_id,
+        ward_id=source.ward_id,
         panchayat_id=source.panchayat_id,
-        property_ref=source.property_ref,
-        sub_property=source.sub_property,
+        property_id=source.property_id,
+        sub_property_id=source.sub_property_id,
     )
 
 
@@ -33,8 +33,8 @@ def create_customer_in_scope(source, *, name, project):
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="Customer Panchayat",
-        company_id=company, project_id=project,
-        state_id=state, district_id=district, city_id=city,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id,
     )
 
 
@@ -58,11 +58,11 @@ def customer(db, company, project, continent, country, state, district, city, zo
         longitude="80.2707",
         id_proof_type="Aadhar",
         id_no="1234-5678-9012",
-        company_id=company, project_id=project,
-        country=country, state=state, district=district,
-        city=city, zone=zone, ward=ward,
-        panchayat_id=panchayat,
-        property_ref=prop, sub_property=sub_prop,
+        company_id=company.unique_id, project_id=project.unique_id,
+        country_id=country.unique_id, state_id=state.unique_id, district_id=district.unique_id,
+        city_id=city.unique_id, zone_id=zone.unique_id, ward_id=ward.unique_id,
+        panchayat_id=panchayat.unique_id,
+        property_id=prop.unique_id, sub_property_id=sub_prop.unique_id,
     )
 
 
@@ -85,7 +85,7 @@ class TestCustomerCreationCreate:
         assert CustomerCreationSerializer(customer).data["customer_id"] == "CUST0001"
 
     def test_foreign_key_company(self, customer, company):
-        assert customer.company_id == company
+        assert customer.company_id == company.unique_id
 
     def test_optional_fields_null(self, customer):
         assert customer.building_no is None
@@ -140,7 +140,7 @@ class TestCustomerCreationDisplayId:
         second_customer = create_customer_in_scope(
             customer,
             name="Second Customer",
-            project=customer.project_id,
+            project_id=customer.project_id,
         )
 
         assert second_customer.customer_id == "CUST0002"
@@ -148,11 +148,11 @@ class TestCustomerCreationDisplayId:
     def test_customer_id_restarts_for_another_project(self, customer, company):
         from app.models.superadmin_masters.project import Project
 
-        other_project = Project.objects.create(name="Other Project", company_id=company)
+        other_project = Project.objects.create(name="Other Project", company_id=company.unique_id)
         other_customer = create_customer_in_scope(
             customer,
             name="Other Project Customer",
-            project=other_project,
+            project_id=other_project.unique_id,
         )
 
         assert other_customer.customer_id == "CUST0001"

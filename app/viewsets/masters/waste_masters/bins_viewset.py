@@ -73,18 +73,7 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         return Response(serializer.data, status=201)
     
     def get_queryset(self):
-        queryset = Bins.objects.select_related(
-            "district_id",
-            "city_id",
-            "panchayat_id",
-            "zone_id",
-            "ward_id",
-            "collection_point_id",
-            "collection_point_id__panchayat_id",
-            "wastetype_id",
-            "company_id",
-            "project_id",
-        ).filter(is_deleted=False)
+        queryset = Bins.objects.filter(is_deleted=False)
 
         company_uid = self.request.query_params.get("company_id")
         project_uid = self.request.query_params.get("project_id")
@@ -99,30 +88,27 @@ class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         )
 
         if company_uid:
-            queryset = queryset.filter(company_id__unique_id=company_uid)
+            queryset = queryset.filter(company_id=company_uid)
 
         if project_uid:
-            queryset = queryset.filter(project_id__unique_id=project_uid)
+            queryset = queryset.filter(project_id=project_uid)
 
         if district_uid:
-            queryset = queryset.filter(district_id__unique_id=district_uid)
+            queryset = queryset.filter(district_id=district_uid)
 
         if city_uid:
-            queryset = queryset.filter(city_id__unique_id=city_uid)
+            queryset = queryset.filter(city_id=city_uid)
 
         if panchayat_uid:
-            queryset = queryset.filter(panchayat_id__unique_id=panchayat_uid)
+            queryset = queryset.filter(panchayat_id=panchayat_uid)
 
         if ward_uid:
-            queryset = queryset.filter(ward_id__unique_id=ward_uid)
+            queryset = queryset.filter(ward_id=ward_uid)
 
         if zone_uid:
-            queryset = queryset.filter(zone_id__unique_id=zone_uid)
+            queryset = queryset.filter(zone_id=zone_uid)
 
         if collection_point_uid:
-            queryset = queryset.filter(collection_point_id__unique_id=collection_point_uid)
+            queryset = queryset.filter(collection_point_id=collection_point_uid)
 
         return queryset
-    
-    def perform_destroy(self, instance):
-        instance.delete()

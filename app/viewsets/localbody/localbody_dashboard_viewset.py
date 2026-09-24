@@ -86,7 +86,7 @@ class LocalBodyDashboardViewSet(ViewSet):
         base_qs = DailyTripLog.objects.filter(
             panchayat_id=panchayat_uid,
             is_deleted=False,
-        ).select_related("waste_type_id", "collection_point_id")
+        )
 
         monthly_data = self._monthly_report(base_qs, panchayat, month, sort)
         daily_data   = self._daily_data(base_qs, month)

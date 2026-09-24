@@ -48,8 +48,8 @@ from app.models.waste_types.subproperty import SubProperty
 def panchayat(db, company, project, state, district, city):
     return Panchayat.objects.create(
         panchayat_name="Daily Ops Panchayat",
-        company_id=company, project_id=project,
-        state_id=state, district_id=district, city_id=city,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id,
     )
 
 
@@ -65,49 +65,50 @@ def waste_type_obj_2(db):
 
 @pytest.fixture
 def driver(db, company, project):
-    return Staffcreation.objects.create(employee_name="Driver One", company_id=company, project_id=project)
+    return Staffcreation.objects.create(employee_name="Driver One", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.fixture
 def operator(db, company, project):
-    return Staffcreation.objects.create(employee_name="Operator One", company_id=company, project_id=project)
+    return Staffcreation.objects.create(employee_name="Operator One", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.fixture
 def supervisor(db, company, project):
-    return Staffcreation.objects.create(employee_name="Supervisor One", company_id=company, project_id=project)
+    return Staffcreation.objects.create(employee_name="Supervisor One", company_id=company.unique_id, project_id=project.unique_id)
 
 
 @pytest.fixture
 def staff_template(db, company, project, driver, operator):
-    return StaffTemplate.objects.create(company_id=company, project_id=project, driver_id=driver, operator_id=operator)
+    return StaffTemplate.objects.create(company_id=company.unique_id, project_id=project.unique_id, driver_id=driver.staff_unique_id, operator_id=operator.staff_unique_id)
 
 
 @pytest.fixture
 def vehicle(db, company, project):
-    return VehicleCreation.objects.create(company_id=company, project_id=project, vehicle_no="TN01AB1234")
+    return VehicleCreation.objects.create(company_id=company.unique_id, project_id=project.unique_id, vehicle_no="TN01AB1234")
 
 
 @pytest.fixture
 def collection_point(db, company, project, state, district, city, panchayat, ward):
     cp = Collection_point.objects.create(
         cp_name="Daily Ops CP",
-        company_id=company, project_id=project,
-        state_id=state, city_id=city, district_id=district,
-        panchayat_id=panchayat,
+        company_id=company.unique_id, project_id=project.unique_id,
+        state_id=state.unique_id, city_id=city.unique_id, district_id=district.unique_id,
+        panchayat_id=panchayat.unique_id,
         latitude="13.0827", longitude="80.2707",
     )
-    cp.wards.set([ward])
+    cp.ward_ids = ward.unique_id
+    cp.save(update_fields=["ward_ids"])
     return cp
 
 
 @pytest.fixture
 def bin_obj(db, company, project, district, city, collection_point, waste_type_obj):
     return Bins.objects.create(
-        company_id=company, project_id=project,
-        district_id=district, city_id=city,
-        collection_point_id=collection_point,
-        wastetype_id=waste_type_obj,
+        company_id=company.unique_id, project_id=project.unique_id,
+        district_id=district.unique_id, city_id=city.unique_id,
+        collection_point_id=collection_point.unique_id,
+        wastetype_id=waste_type_obj.unique_id,
         bin_capacity=100,
         bin_type="small",
         bin_name="Daily Ops Bin",
@@ -136,11 +137,11 @@ def household_customer(db, company, project, continent, country, state, district
         longitude="80.2707",
         id_proof_type="Aadhar",
         id_no="1111-2222-3333",
-        company_id=company, project_id=project,
-        country=country, state=state, district=district,
-        city=city, zone=zone, ward=ward,
-        panchayat_id=panchayat,
-        property_ref=prop, sub_property=sub_prop,
+        company_id=company.unique_id, project_id=project.unique_id,
+        country_id=country.unique_id, state_id=state.unique_id, district_id=district.unique_id,
+        city_id=city.unique_id, zone_id=zone.unique_id, ward_id=ward.unique_id,
+        panchayat_id=panchayat.unique_id,
+        property_id=prop.unique_id, sub_property_id=sub_prop.unique_id,
         is_bulkwaste_generator=False,
     )
 
@@ -149,13 +150,13 @@ def _make_plan(company, project, district, city, panchayat, staff_template, vehi
                 supervisor, waste_type_obj, collection_type=TripPlan.COLLECTION_TYPE_BIN,
                 is_auto_assign=True, repeat_days=None):
     return TripPlan.objects.create(
-        company_id=company, project_id=project,
-        district_id=district, city_id=city,
-        panchayat_id=panchayat,
-        staff_template_id=staff_template,
-        vehicle_id=vehicle,
-        supervisor_id=supervisor,
-        waste_type_id=waste_type_obj,
+        company_id=company.unique_id, project_id=project.unique_id,
+        district_id=district.unique_id, city_id=city.unique_id,
+        panchayat_id=panchayat.unique_id,
+        staff_template_id=staff_template.unique_id,
+        vehicle_id=vehicle.unique_id,
+        supervisor_id=supervisor.staff_unique_id,
+        waste_type_id=waste_type_obj.unique_id,
         waste_type_ids=[waste_type_obj.unique_id],
         trip_trigger_weight_kg=800,
         max_vehicle_capacity_kg=3000,
@@ -174,18 +175,19 @@ def bin_plan(db, company, project, district, city, panchayat, staff_template, ve
         company, project, district, city, panchayat, staff_template, vehicle,
         supervisor, waste_type_obj, collection_type=TripPlan.COLLECTION_TYPE_BIN,
     )
-    plan.wards.set([ward])
-    plan.waste_types.set([waste_type_obj])
+    plan.ward_ids = ward.unique_id
+    plan.waste_type_ids_csv = waste_type_obj.unique_id
+    plan.save(update_fields=["ward_ids", "waste_type_ids_csv"])
     return plan
 
 
 @pytest.fixture
 def bin_stop(db, bin_plan, collection_point, bin_obj):
     return TripPlanCollectionPoint.objects.create(
-        trip_plan_id=bin_plan,
+        trip_plan_id=bin_plan.unique_id,
         collection_type=TripPlanCollectionPoint.COLLECTION_TYPE_BIN,
-        collection_point_id=collection_point,
-        bin_id=bin_obj,
+        collection_point_id=collection_point.unique_id,
+        bin_id=bin_obj.unique_id,
         sequence=1,
         is_active=True,
     )
@@ -199,7 +201,7 @@ def assignment(db, bin_plan):
     it explicitly against a bin/collection_point combo of their choosing."""
     a = DailyTripAssignment.objects.create(
         company_id=bin_plan.company_id, project_id=bin_plan.project_id,
-        trip_plan_id=bin_plan, trip_date=date(2026, 8, 3),
+        trip_plan_id=bin_plan.unique_id, trip_date=date(2026, 8, 3),
     )
     return a
 
@@ -219,29 +221,29 @@ def waste_collection_assignment(db, company, project, household_customer):
 @pytest.mark.django_db
 class TestDailyTripAssignmentWasteTypesAndGeo:
     def test_waste_types_copied_from_trip_plan_on_create(self, assignment, waste_type_obj):
-        assert list(assignment.waste_types.all()) == [waste_type_obj]
+        assert assignment.get_waste_type_ids() == [waste_type_obj.unique_id]
 
     def test_wards_copied_from_trip_plan_on_create(self, assignment, ward):
-        assert list(assignment.wards.all()) == [ward]
+        assert list(assignment.wards) == [ward]
 
     def test_staff_and_vehicle_copied_from_plan(self, assignment, staff_template, vehicle):
-        assert assignment.staff_template_id_id == staff_template.pk
-        assert assignment.vehicle_id_id == vehicle.pk
+        assert assignment.staff_template_id == staff_template.pk
+        assert assignment.vehicle_id == vehicle.pk
 
     def test_explicit_waste_types_are_not_overridden(
         self, bin_stop, waste_type_obj_2,
     ):
-        plan = bin_stop.trip_plan_id
+        plan = bin_stop.trip_plan
         a = DailyTripAssignment(
             company_id=plan.company_id, project_id=plan.project_id,
-            trip_plan_id=plan, trip_date=date(2026, 8, 4),
+            trip_plan_id=plan.unique_id, trip_date=date(2026, 8, 4),
         )
         a.save()
         # Simulate an explicit narrower selection made right after create
-        # (as the serializer's create() does for M2M fields).
-        a.waste_types.set([waste_type_obj_2])
-        a.save()  # is_new is False on the second save; must not reset M2M
-        assert list(a.waste_types.all()) == [waste_type_obj_2]
+        # (as the serializer's create() does for the waste-type CSV field).
+        a.waste_type_ids_csv = waste_type_obj_2.unique_id
+        a.save(update_fields=["waste_type_ids_csv"])  # is_new is False on the second save; must not reset it
+        assert a.get_waste_type_ids() == [waste_type_obj_2.unique_id]
 
 
 # ----------------------------------------------------------------------
@@ -261,7 +263,7 @@ class TestMarkCompletedStatusRule:
         self, assignment, collection_point, bin_obj, driver
     ):
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
         )
         stop.mark_collected(Decimal("10.00"), None)
         assignment.refresh_from_db()
@@ -271,7 +273,7 @@ class TestMarkCompletedStatusRule:
         self, assignment, collection_point, bin_obj
     ):
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
         )
         stop.mark_status(DailyTripCollectionPoint.STATUS_MISSED, "Bin inaccessible")
         assignment.refresh_from_db()
@@ -279,7 +281,7 @@ class TestMarkCompletedStatusRule:
 
     def test_skipped_stop_does_not_complete_trip(self, assignment, collection_point, bin_obj):
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
         )
         stop.mark_status(DailyTripCollectionPoint.STATUS_SKIPPED, "Collect later")
         assignment.refresh_from_db()
@@ -293,7 +295,7 @@ class TestMarkCompletedStatusRule:
         TripCompletionNudge (which reads this via `progress.resolved`, not
         this method directly) has an accurate signal to act on."""
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
         )
         stop.mark_collected(Decimal("10.00"), None)
         assignment.refresh_from_db()
@@ -305,7 +307,7 @@ class TestMarkCompletedStatusRule:
         the default auto_end=True and must keep closing the trip immediately
         — there is no "driver confirms" step for a direct admin edit."""
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
             collected_weight_kg=Decimal("10.00"), is_collected=True,
             status=DailyTripCollectionPoint.STATUS_COLLECTED,
         )
@@ -322,7 +324,7 @@ class TestMarkCompletedStatusRule:
 class TestDailyTripCollectionPointMarkStatus:
     def test_mark_status_clears_weight_and_collected_flag(self, assignment, collection_point, bin_obj):
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
             collected_weight_kg=Decimal("5.00"), is_collected=True,
             status=DailyTripCollectionPoint.STATUS_COLLECTED,
         )
@@ -346,7 +348,7 @@ class TestDailyTripHouseholdCollectionStatus:
 
     def test_mark_status_not_available(self, assignment, household_customer):
         row = DailyTripHouseholdCollection.objects.create(
-            trip_assignment_id=assignment, customer_id=household_customer,
+            trip_assignment_id=assignment.id, customer_id=household_customer.unique_id,
         )
         row.mark_status(DailyTripHouseholdCollection.STATUS_MISSED, "Not home", latitude="13.01", longitude="80.02")
         row.refresh_from_db()
@@ -356,11 +358,11 @@ class TestDailyTripHouseholdCollectionStatus:
 
     def test_geo_denormalised_from_customer(self, assignment, household_customer, ward, zone, panchayat):
         row = DailyTripHouseholdCollection.objects.create(
-            trip_assignment_id=assignment, customer_id=household_customer,
+            trip_assignment_id=assignment.id, customer_id=household_customer.unique_id,
         )
-        assert row.ward_id_id == ward.pk
-        assert row.zone_id_id == zone.pk
-        assert row.panchayat_id_id == panchayat.pk
+        assert row.ward_id == ward.pk
+        assert row.zone_id == zone.pk
+        assert row.panchayat_id == panchayat.pk
 
 
 # ----------------------------------------------------------------------
@@ -373,39 +375,39 @@ class TestBinCollectionEventGeoAndStatus:
         self, assignment, collection_point, bin_obj, waste_type_obj, ward, zone, panchayat,
     ):
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
         )
         event = BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("12.50"),
+            trip_assignment_id=assignment.id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("12.50"),
         )
-        assert event.panchayat_id_id == panchayat.pk
-        assert event.ward_id_id == ward.pk
-        assert event.zone_id_id == zone.pk
+        assert event.panchayat_id == panchayat.pk
+        assert event.ward_id == ward.pk
+        assert event.zone_id == zone.pk
 
     def test_default_status_is_collected(self, assignment, collection_point, bin_obj, waste_type_obj):
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
         )
         event = BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("12.50"),
+            trip_assignment_id=assignment.id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("12.50"),
         )
         assert event.status == BinCollectionEvent.STATUS_COLLECTED
 
     def test_not_collected_status_allows_null_weight(self, assignment, collection_point, bin_obj, waste_type_obj):
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
         )
         event = BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj,
+            trip_assignment_id=assignment.id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id,
             status=BinCollectionEvent.STATUS_NOT_COLLECTED,
             status_reason="Bin missing",
         )
@@ -416,20 +418,20 @@ class TestBinCollectionEventGeoAndStatus:
         self, assignment, collection_point, bin_obj, waste_type_obj, panchayat, company, project, state, district, city,
     ):
         other_panchayat = Panchayat.objects.create(
-            panchayat_name="Other Panchayat", company_id=company, project_id=project,
-            state_id=state, district_id=district, city_id=city,
+            panchayat_name="Other Panchayat", company_id=company.unique_id, project_id=project.unique_id,
+            state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id,
         )
         stop = DailyTripCollectionPoint.objects.create(
-            trip_assignment_id=assignment, collection_point_id=collection_point, bin_id=bin_obj,
+            trip_assignment_id=assignment.id, collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
         )
         event = BinCollectionEvent.objects.create(
             company_id=assignment.company_id, project_id=assignment.project_id,
-            trip_assignment_id=assignment, trip_collection_point_id=stop,
-            collection_point_id=collection_point, bin_id=bin_obj,
-            waste_type_id=waste_type_obj, collected_weight_kg=Decimal("1.00"),
-            panchayat_id=other_panchayat,
+            trip_assignment_id=assignment.id, trip_collection_point_id=stop.unique_id,
+            collection_point_id=collection_point.unique_id, bin_id=bin_obj.unique_id,
+            waste_type_id=waste_type_obj.unique_id, collected_weight_kg=Decimal("1.00"),
+            panchayat_id=other_panchayat.unique_id,
         )
-        assert event.panchayat_id_id == other_panchayat.pk
+        assert event.panchayat_id == other_panchayat.pk
 
 
 # ----------------------------------------------------------------------
@@ -440,34 +442,34 @@ class TestBinCollectionEventGeoAndStatus:
 class TestWasteCollectionParity:
     def test_total_quantity_includes_sanitary_waste(self, household_customer):
         wc = WasteCollection.objects.create(
-            customer=household_customer,
+            customer_id=household_customer.unique_id,
             wet_waste=1.5, dry_waste=2.5, mixed_waste=1.0, sanitary_waste=0.5,
         )
         assert wc.total_quantity == 5.5
 
     def test_ward_inherited_from_customer_when_blank(self, household_customer, ward):
-        wc = WasteCollection.objects.create(customer=household_customer, wet_waste=1.0)
+        wc = WasteCollection.objects.create(customer_id=household_customer.unique_id, wet_waste=1.0)
         assert wc.ward_id == ward.pk
 
     def test_explicit_ward_not_overridden(self, household_customer, company, project, state, district, city, zone):
         from app.models.masters.ward import Ward
         other_ward = Ward.objects.create(
-            ward_name="Other Ward", company_id=company, project_id=project,
-            state_id=state, district_id=district, city_id=city, zone_id=zone,
+            ward_name="Other Ward", company_id=company.unique_id, project_id=project.unique_id,
+            state_id=state.unique_id, district_id=district.unique_id, city_id=city.unique_id, zone_id=zone.unique_id,
         )
-        wc = WasteCollection.objects.create(customer=household_customer, wet_waste=1.0, ward=other_ward)
+        wc = WasteCollection.objects.create(customer_id=household_customer.unique_id, wet_waste=1.0, ward_id=other_ward.unique_id)
         assert wc.ward_id == other_ward.pk
 
     def test_default_status_is_pending(self, household_customer):
-        wc = WasteCollection.objects.create(customer=household_customer, wet_waste=1.0)
+        wc = WasteCollection.objects.create(customer_id=household_customer.unique_id, wet_waste=1.0)
         assert wc.status == WasteCollection.STATUS_PENDING
 
     def test_collection_date_defaults_when_omitted(self, household_customer):
-        wc = WasteCollection.objects.create(customer=household_customer, wet_waste=1.0)
+        wc = WasteCollection.objects.create(customer_id=household_customer.unique_id, wet_waste=1.0)
         assert wc.collection_date is not None
 
     def test_collection_date_is_user_editable(self, household_customer):
         wc = WasteCollection.objects.create(
-            customer=household_customer, wet_waste=1.0, collection_date=date(2026, 1, 15),
+            customer_id=household_customer.unique_id, wet_waste=1.0, collection_date=date(2026, 1, 15),
         )
         assert wc.collection_date == date(2026, 1, 15)

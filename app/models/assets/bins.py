@@ -1,15 +1,6 @@
 from django.db import models
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.masters.panchayat import Panchayat
-from app.models.masters.city import City
-from app.models.masters.district import District
-from app.models.masters.ward import Ward
-from app.models.masters.zone import Zone
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.utils.bin_qr import generate_bin_qr_content
 
 
@@ -23,7 +14,11 @@ class BinType(models.TextChoices):
     LARGE = "large", "Large"
    
 
+
 class Bins(BaseMaster):
+
+    CASCADE_SOFT_DELETE = ("trip_plan_cps", "daily_trip_cps", "bin_collection_events")
+    CACHE_SCOPES = ("bin_list", "bin_detail")
 
     unique_id = models.CharField(
         max_length=30,
@@ -32,79 +27,18 @@ class Bins(BaseMaster):
         editable=False
     )
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="bin",
-        db_column="company_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="bin",
-        db_column="project_id",
-    )
+    collection_point_id = models.CharField(max_length=30, null=True, blank=True)
 
+    district_id = models.CharField(max_length=30, null=True, blank=True)
+    city_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
 
-    collection_point_id = models.ForeignKey(
-        Collection_point,
-        on_delete=models.PROTECT,
-        related_name="bin",
-        db_column="collection_point_id"
-    )
-
-    district_id = models.ForeignKey(
-        District,
-        on_delete=models.PROTECT,
-        related_name="bin",
-        db_column="district_id",
-        null=True,
-        blank=True
-    )
-
-    city_id = models.ForeignKey(
-        City,
-        on_delete=models.PROTECT,
-        related_name="bin",
-        db_column="city_id",
-        null=True,
-        blank=True
-    )
-
-    panchayat_id = models.ForeignKey(
-        Panchayat,
-        on_delete=models.PROTECT,
-        related_name="bin",
-        db_column="panchayat_id",
-        null=True,
-        blank=True
-    )
-
-    zone_id = models.ForeignKey(
-        Zone,
-        on_delete=models.PROTECT,
-        related_name="bin",
-        db_column="zone_id",
-        null=True,
-        blank=True
-    )
-
-    ward_id = models.ForeignKey(
-        Ward,
-        on_delete=models.PROTECT,
-        related_name="bin",
-        db_column="ward_id",
-        null=True,
-        blank=True
-    )
-
-    wastetype_id = models.ForeignKey(
-        WasteType,  
-        on_delete=models.PROTECT,
-        related_name="bin",
-        db_column="wastetype_id"
-    )
+    wastetype_id = models.CharField(max_length=30, null=True, blank=True)
 
     bin_name = models.CharField(max_length=100)
     bin_capacity = models.IntegerField()
@@ -127,24 +61,95 @@ class Bins(BaseMaster):
         super().save(update_fields=["bin_qr"])
 
     def save(self, *args, **kwargs):
+        # Auto-populate geo fields from collection_point if set
         if self.collection_point_id:
-            self.district_id = self.collection_point_id.district_id
-            self.city_id = self.collection_point_id.city_id
-            if not self.panchayat_id:
-                self.panchayat_id = self.collection_point_id.panchayat_id
-            if self.latitude is None:
-                self.latitude = self.collection_point_id.latitude
-            if self.longitude is None:
-                self.longitude = self.collection_point_id.longitude
+            from app.models.schedule_masters.collection_point import Collection_point
+            cp = Collection_point.objects.filter(unique_id=self.collection_point_id).first()
+            if cp:
+                self.district_id = cp.district_id
+                self.city_id = cp.city_id
+                if not self.panchayat_id:
+                    self.panchayat_id = cp.panchayat_id
+                if self.latitude is None:
+                    self.latitude = cp.latitude
+                if self.longitude is None:
+                    self.longitude = cp.longitude
 
+        # Auto-populate geo fields from ward if set
         if self.ward_id:
-            if not self.zone_id and self.ward_id.zone_id:
-                self.zone_id = self.ward_id.zone_id
-            if not self.panchayat_id and self.ward_id.panchayat_id:
-                self.panchayat_id = self.ward_id.panchayat_id
+            from app.models.masters.ward import Ward
+            ward = Ward.objects.filter(unique_id=self.ward_id).first()
+            if ward:
+                if not self.zone_id and ward.zone_id:
+                    self.zone_id = ward.zone_id
+                if not self.panchayat_id and ward.panchayat_id:
+                    self.panchayat_id = ward.panchayat_id
 
         is_create = self._state.adding
         super().save(*args, **kwargs)
 
         if is_create or not self.bin_qr:
             self._regenerate_qr_code()
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def collection_point(self):
+        from app.models.schedule_masters.collection_point import Collection_point
+        if self.collection_point_id:
+            return Collection_point.objects.filter(unique_id=self.collection_point_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def city(self):
+        from app.models.masters.city import City
+        if self.city_id:
+            return City.objects.filter(unique_id=self.city_id).first()
+        return None
+
+    @property
+    def panchayat(self):
+        from app.models.masters.panchayat import Panchayat
+        if self.panchayat_id:
+            return Panchayat.objects.filter(unique_id=self.panchayat_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def wastetype(self):
+        from app.models.staff_creations.waste_collection_bluetooth import WasteType
+        if self.wastetype_id:
+            return WasteType.objects.filter(unique_id=self.wastetype_id).first()
+        return None

@@ -40,10 +40,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     allow_null=True,
 )
 
-    staffusertype_name = serializers.CharField(
-    source="staffusertype_id.name",
-    read_only=True
-)
+    staffusertype_name = serializers.SerializerMethodField()
 
     contractorusertype_id = NameOrUniqueIdField(
         name_field="name",
@@ -51,10 +48,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         required=False,
         allow_null=True,
     )
-    contractorusertype_name = serializers.CharField(
-        source="contractorusertype_id.name",
-        read_only=True,
-    )
+    contractorusertype_name = serializers.SerializerMethodField()
     department_id = NameOrUniqueIdField(
         name_field="department_name",
         queryset=Department.objects.filter(is_deleted=False),
@@ -74,22 +68,34 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         required=False,
         allow_null=True,
     )
-    department_name = serializers.CharField(
-        source="department_id.department_name",
-        read_only=True,
-    )
-    department_code = serializers.CharField(
-        source="department_id.department_code",
-        read_only=True,
-    )
-    designation_name = serializers.CharField(
-        source="designation_id.designation_name",
-        read_only=True,
-    )
-    designation_group = serializers.CharField(
-        source="designation_id.designation_group",
-        read_only=True,
-    )
+    department_name = serializers.SerializerMethodField()
+    department_code = serializers.SerializerMethodField()
+    designation_name = serializers.SerializerMethodField()
+    designation_group = serializers.SerializerMethodField()
+
+    def get_staffusertype_name(self, obj):
+        staffusertype = obj.staffusertype
+        return staffusertype.name if staffusertype else None
+
+    def get_contractorusertype_name(self, obj):
+        contractorusertype = obj.contractorusertype
+        return contractorusertype.name if contractorusertype else None
+
+    def get_department_name(self, obj):
+        department = obj.department_obj
+        return department.department_name if department else None
+
+    def get_department_code(self, obj):
+        department = obj.department_obj
+        return department.department_code if department else None
+
+    def get_designation_name(self, obj):
+        designation = obj.designation_obj
+        return designation.designation_name if designation else None
+
+    def get_designation_group(self, obj):
+        designation = obj.designation_obj
+        return designation.designation_group if designation else None
 
     # --------------------------------------------------
     #  Office-level: Driving licence
@@ -208,8 +214,11 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     def validate_permanent_address(self, value):
         return self._validate_address_pincode(value)
 
-    user_type_id = serializers.CharField(
-    source="staffusertype_id.usertype_id.unique_id",read_only=True)
+    user_type_id = serializers.SerializerMethodField()
+
+    def get_user_type_id(self, obj):
+        staffusertype = obj.staffusertype
+        return staffusertype.usertype_id if staffusertype else None
 
     
 
@@ -344,6 +353,19 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             if field in personal_data
         }
 
+    def _sync_user_type_id(self, validated_data):
+        staffusertype_id = validated_data.get("staffusertype_id")
+        if staffusertype_id:
+            staffusertype = StaffUserType.objects.filter(unique_id=staffusertype_id).first()
+            if staffusertype and staffusertype.usertype_id:
+                validated_data["user_type_id"] = staffusertype.usertype_id
+
+        contractorusertype_id = validated_data.get("contractorusertype_id")
+        if contractorusertype_id:
+            contractorusertype = ContractorUserType.objects.filter(unique_id=contractorusertype_id).first()
+            if contractorusertype and contractorusertype.usertype_id:
+                validated_data["user_type_id"] = contractorusertype.usertype_id
+
     # --------------------------------------------------
     # Create
     # --------------------------------------------------
@@ -362,13 +384,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         if validated_data.get("login_enabled"):
             validated_data.setdefault("approval_status", Staffcreation.APPROVAL_APPROVED)
 
-        staffusertype = validated_data.get("staffusertype_id")
-        if staffusertype and staffusertype.usertype_id:
-            validated_data["user_type_id"] = staffusertype.usertype_id
-
-        contractorusertype = validated_data.get("contractorusertype_id")
-        if contractorusertype and contractorusertype.usertype_id:
-            validated_data["user_type_id"] = contractorusertype.usertype_id
+        self._sync_user_type_id(validated_data)
 
         staff = Staffcreation.objects.create(**validated_data)
 
@@ -392,13 +408,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         if password:
             validated_data["password"] = encrypt_password(password)
 
-        staffusertype = validated_data.get("staffusertype_id")
-        if staffusertype and staffusertype.usertype_id:
-            validated_data["user_type_id"] = staffusertype.usertype_id
-
-        contractorusertype = validated_data.get("contractorusertype_id")
-        if contractorusertype and contractorusertype.usertype_id:
-            validated_data["user_type_id"] = contractorusertype.usertype_id
+        self._sync_user_type_id(validated_data)
 
         staff = super().update(instance, validated_data)
 

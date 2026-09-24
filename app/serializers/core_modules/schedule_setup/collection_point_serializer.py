@@ -1,14 +1,26 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.schedule_masters.collection_point import Collection_point
+from app.models.masters.city import City
+from app.models.masters.district import District
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.zone import Zone
+from app.models.common_masters.state import State
 from app.models.masters.ward import Ward
 from app.validators.unique_name_validator import unique_name_validator
 
 
 class WardMinimalSerializer(serializers.ModelSerializer):
-    zone_id = serializers.CharField(source="zone_id.unique_id", read_only=True, default=None)
-    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True, default=None)
-    panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True, default=None)
+    zone_name = serializers.SerializerMethodField()
+    panchayat_name = serializers.SerializerMethodField()
+
+    def get_zone_name(self, obj):
+        zone = Zone.objects.filter(unique_id=obj.zone_id).first()
+        return zone.zone_name if zone else None
+
+    def get_panchayat_name(self, obj):
+        panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
+        return panchayat.panchayat_name if panchayat else None
 
     class Meta:
         model = Ward
@@ -17,10 +29,13 @@ class WardMinimalSerializer(serializers.ModelSerializer):
 
 class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    state_name = serializers.CharField(source="state_id.name", read_only=True)
-    city_name = serializers.CharField(source="city_id.name", read_only=True)
-    district_name = serializers.CharField(source="district_id.name", read_only=True)
-    panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
+    state_name = serializers.SerializerMethodField()
+    city_name = serializers.SerializerMethodField()
+    district_name = serializers.SerializerMethodField()
+    panchayat_name = serializers.SerializerMethodField()
 
     # Collection points only support bin + bulk. Household collection is
     # valid only at the household-stop level, so it is rejected here.
@@ -38,7 +53,7 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     wards = WardMinimalSerializer(many=True, read_only=True)
 
     # zone_id is now a direct FK on the model; expose name as read-only
-    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True, default=None)
+    zone_name = serializers.SerializerMethodField()
 
     # Convenience flat fields derived from wards (backwards compat)
     ward_id = serializers.SerializerMethodField()
@@ -51,6 +66,26 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     def get_ward_name(self, obj):
         w = obj.wards.first()
         return w.ward_name if w else None
+
+    def get_state_name(self, obj):
+        state = State.objects.filter(unique_id=obj.state_id).first()
+        return state.name if state else None
+
+    def get_city_name(self, obj):
+        city = City.objects.filter(unique_id=obj.city_id).first()
+        return city.name if city else None
+
+    def get_district_name(self, obj):
+        district = District.objects.filter(unique_id=obj.district_id).first()
+        return district.name if district else None
+
+    def get_panchayat_name(self, obj):
+        panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
+        return panchayat.panchayat_name if panchayat else None
+
+    def get_zone_name(self, obj):
+        zone = Zone.objects.filter(unique_id=obj.zone_id).first()
+        return zone.zone_name if zone else None
 
     class Meta:
         model = Collection_point
@@ -114,7 +149,7 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
             has_wards = bool(ward_ids)
         else:
             ward_ids = []
-            has_wards = bool(self.instance and self.instance.wards.exists())
+            has_wards = bool(self.instance and self.instance.get_ward_ids())
 
         # ── Rule: CP must belong to at least a panchayat, zone, or ward ───────
         if not panchayat and not zone and not has_wards:
@@ -135,8 +170,8 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
                 )
 
             wards_qs = list(Ward.objects.filter(unique_id__in=ward_ids))
-            zone_parents = set(str(w.zone_id_id) for w in wards_qs if w.zone_id_id)
-            pan_parents = set(str(w.panchayat_id_id) for w in wards_qs if w.panchayat_id_id)
+            zone_parents = set(str(w.zone_id) for w in wards_qs if w.zone_id)
+            pan_parents = set(str(w.panchayat_id) for w in wards_qs if w.panchayat_id)
 
             if len(zone_parents) > 1:
                 raise serializers.ValidationError(
@@ -164,7 +199,7 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
                 from app.models.masters.zone import Zone as ZoneModel
                 zone_unique_id = next(iter(zone_parents))
                 try:
-                    attrs["zone_id"] = ZoneModel.objects.get(unique_id=zone_unique_id)
+                    attrs["zone_id"] = ZoneModel.objects.get(unique_id=zone_unique_id).unique_id
                 except ZoneModel.DoesNotExist:
                     pass
             elif pan_parents:
@@ -188,12 +223,20 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
         ward_ids = validated_data.pop("ward_ids", [])
         instance = super().create(validated_data)
         if ward_ids:
-            instance.wards.set(Ward.objects.filter(unique_id__in=ward_ids))
+            valid_ids = list(
+                Ward.objects.filter(unique_id__in=ward_ids).values_list("unique_id", flat=True)
+            )
+            instance.ward_ids = ",".join(valid_ids)
+            instance.save(update_fields=["ward_ids"])
         return instance
 
     def update(self, instance, validated_data):
         ward_ids = validated_data.pop("ward_ids", None)
         instance = super().update(instance, validated_data)
         if ward_ids is not None:
-            instance.wards.set(Ward.objects.filter(unique_id__in=ward_ids))
+            valid_ids = list(
+                Ward.objects.filter(unique_id__in=ward_ids).values_list("unique_id", flat=True)
+            )
+            instance.ward_ids = ",".join(valid_ids)
+            instance.save(update_fields=["ward_ids"])
         return instance

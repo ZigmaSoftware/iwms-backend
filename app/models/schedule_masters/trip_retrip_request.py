@@ -26,10 +26,6 @@ from django.utils import timezone
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.staff_creations.staffcreation import Staffcreation
 
 
 def generate_retrip_request_id():
@@ -55,35 +51,11 @@ class TripRetripRequest(BaseMaster):
     )
 
     # ── Tenancy (mirrors VehicleBreakdown) ────────────────────────────
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        db_column="company_id",
-        related_name="retrip_requests",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        db_column="project_id",
-        related_name="retrip_requests",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
-    assignment = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.CASCADE,
-        to_field="unique_id",
-        db_column="assignment_id",
-        related_name="retrip_requests",
-    )
-    requested_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        to_field="staff_unique_id",
-        db_column="requested_by",
-        related_name="retrip_requests_raised",
-    )
+    assignment_id = models.CharField(max_length=30)
+    requested_by_id = models.CharField(max_length=30, null=True, blank=True)
 
     # Mandatory — the whole point of the gate is that the requester has to
     # say why the trip is being cut short.
@@ -103,28 +75,12 @@ class TripRetripRequest(BaseMaster):
     pending_household_count = models.IntegerField(default=0)
     pending_snapshot = models.JSONField(default=dict, blank=True)
 
-    reviewed_by = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        to_field="staff_unique_id",
-        db_column="reviewed_by",
-        related_name="retrip_requests_reviewed",
-    )
+    reviewed_by_id = models.CharField(max_length=30, null=True, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     review_remarks = models.TextField(null=True, blank=True)
 
     # The continuation trip created on approval.
-    new_assignment = models.ForeignKey(
-        DailyTripAssignment,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        to_field="unique_id",
-        db_column="new_assignment_id",
-        related_name="retrip_source_requests",
-    )
+    new_assignment_id = models.CharField(max_length=30, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -146,12 +102,54 @@ class TripRetripRequest(BaseMaster):
 
     def mark_reviewed(self, *, status, by=None, remarks=None, new_assignment=None):
         self.status = status
-        self.reviewed_by = by
+        self.reviewed_by_id = by.staff_unique_id if by else None
         self.reviewed_at = timezone.now()
         self.review_remarks = remarks
         if new_assignment is not None:
-            self.new_assignment = new_assignment
+            self.new_assignment_id = new_assignment.unique_id
         self.save(update_fields=[
-            "status", "reviewed_by", "reviewed_at", "review_remarks",
-            "new_assignment", "updated_at",
+            "status", "reviewed_by_id", "reviewed_at", "review_remarks",
+            "new_assignment_id", "updated_at",
         ])
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def assignment(self):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        if self.assignment_id:
+            return DailyTripAssignment.objects.filter(unique_id=self.assignment_id).first()
+        return None
+
+    @property
+    def requested_by(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        if self.requested_by_id:
+            return Staffcreation.objects.filter(staff_unique_id=self.requested_by_id).first()
+        return None
+
+    @property
+    def reviewed_by(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        if self.reviewed_by_id:
+            return Staffcreation.objects.filter(staff_unique_id=self.reviewed_by_id).first()
+        return None
+
+    @property
+    def new_assignment(self):
+        from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+        if self.new_assignment_id:
+            return DailyTripAssignment.objects.filter(unique_id=self.new_assignment_id).first()
+        return None

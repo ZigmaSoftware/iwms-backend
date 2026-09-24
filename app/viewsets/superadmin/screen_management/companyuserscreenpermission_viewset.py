@@ -36,12 +36,12 @@ from app.serializers.superadmin.screen_management.companyuserscreencolumnpermiss
 
 from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
-
+from app.utils.pagination import LimitOffsetWithPage
 
 class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     serializer_class = CompanyUserScreenPermissionSerializer
     lookup_field = "unique_id"
-
+    pagination_class = LimitOffsetWithPage
     AUDIT_MODULE = "screen-managements"
     AUDIT_ENDPOINT = "company-user-screen-permissions"
 
@@ -97,7 +97,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         value = str(raw_value).strip()
         qs = Project.objects.filter(is_deleted=False)
         if company:
-            qs = qs.filter(company_id_id=company.unique_id)
+            qs = qs.filter(company_id=company.unique_id)
         return qs.filter(Q(unique_id__iexact=value) | Q(name__iexact=value)).first()
 
     def _normalize_permission_payloads(self, payload):
@@ -213,13 +213,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     def get_queryset(self):
         company, _ = self._company_from_request(self.request, source="query", required=False)
 
-        qs = CompanyUserScreenPermission.objects.filter(is_deleted=False).select_related(
-            "company_id",
-            "project_id",
-            "mainscreen_id",
-            "userscreen_id",
-            "userscreenaction_id",
-        )
+        qs = CompanyUserScreenPermission.objects.filter(is_deleted=False)
 
         if not company:
             if self._is_platform_super_admin():
@@ -227,13 +221,13 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             else:
                 return qs.none()
         else:
-            qs = qs.filter(company_id_id=company.unique_id)
+            qs = qs.filter(company_id=company.unique_id)
 
         project_id = self.request.query_params.get("project_id") or self.request.query_params.get("projectId")
         if project_id == "none":
             qs = qs.filter(project_id__isnull=True)
         elif project_id:
-            qs = qs.filter(project_id_id=project_id)
+            qs = qs.filter(project_id=project_id)
 
         permission_type = (
             self.request.query_params.get("permission_type")
@@ -263,6 +257,155 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    def _build_project_summary_rows(self, rows):
+        grouped = {}
+
+        for item in rows:
+            project_id = str(item.get("project_id") or "").strip()
+            company_id = str(item.get("company_id") or "").strip()
+            project_name = (
+                str(item.get("project_name") or "Unknown")
+                if project_id
+                else "Company-Wide (All Projects)"
+            )
+            permission_type = str(item.get("permission_type") or "screen")
+            key = (
+                f"{company_id or '__no_company__'}__"
+                f"{project_name.strip().lower() if project_id else '__company_wide__'}"
+            )
+
+            if key not in grouped:
+                grouped[key] = {
+                    "project_id": project_id,
+                    "project_name": project_name,
+                    "company_id": company_id,
+                    "company_name": str(item.get("company_name") or "Unknown"),
+                    "permission_types": set(),
+                    "main_screen_ids": set(),
+                    "user_screen_ids": set(),
+                    "delete_targets": {},
+                    "composite_key": key,
+                }
+
+            group = grouped[key]
+            group["permission_types"].add(permission_type)
+
+            main_screen_id = str(item.get("mainscreen_id") or "").strip()
+            if main_screen_id:
+                group["main_screen_ids"].add(main_screen_id)
+
+            user_screen_id = str(item.get("userscreen_id") or "").strip()
+            if user_screen_id:
+                group["user_screen_ids"].add(user_screen_id)
+
+            target_key = f"{project_id}__{permission_type}__{main_screen_id}"
+            group["delete_targets"].setdefault(
+                target_key,
+                {
+                    "project_id": project_id,
+                    "permission_type": permission_type,
+                    "mainscreen_id": main_screen_id,
+                },
+            )
+
+        permission_type_labels = {
+            "screen": "Screen Permission",
+            "field": "Field Permission",
+        }
+        summaries = []
+
+        for group in grouped.values():
+            permission_types = group["permission_types"]
+            edit_permission_type = (
+                "screen"
+                if "screen" in permission_types
+                else next(iter(permission_types), "screen")
+            )
+            permission_type_label = " + ".join(
+                permission_type_labels.get(permission_type, permission_type)
+                for permission_type in permission_types
+            )
+
+            summaries.append(
+                {
+                    "project_id": group["project_id"],
+                    "project_name": group["project_name"],
+                    "company_id": group["company_id"],
+                    "company_name": group["company_name"],
+                    "main_screen_count": len(group["main_screen_ids"]),
+                    "screen_count": len(group["user_screen_ids"]),
+                    "permission_type_label": permission_type_label,
+                    "edit_permission_type": edit_permission_type,
+                    "delete_targets": list(group["delete_targets"].values()),
+                    "composite_key": group["composite_key"],
+                }
+            )
+
+        return summaries
+
+    def _filter_summary_rows(self, rows, search):
+        if not search:
+            return rows
+
+        needle = str(search).strip().lower()
+        if not needle:
+            return rows
+
+        search_fields = ("project_name", "company_name", "permission_type_label")
+        return [
+            row
+            for row in rows
+            if any(needle in str(row.get(field, "")).lower() for field in search_fields)
+        ]
+
+    def _sort_summary_rows(self, rows, ordering):
+        if not ordering:
+            return rows
+
+        descending = ordering.startswith("-")
+        field = ordering[1:] if descending else ordering
+        allowed_fields = {
+            "project_name",
+            "company_name",
+            "permission_type_label",
+            "main_screen_count",
+            "screen_count",
+        }
+        if field not in allowed_fields:
+            return rows
+
+        return sorted(
+            rows,
+            key=lambda row: (
+                row.get(field) is None,
+                str(row.get(field, "")).lower()
+                if not isinstance(row.get(field), (int, float))
+                else row.get(field),
+            ),
+            reverse=descending,
+        )
+
+    @action(detail=False, methods=["get"], url_path="project-summary")
+    def project_summary(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serialized_rows = self.get_serializer(queryset, many=True).data
+        summary_rows = self._build_project_summary_rows(serialized_rows)
+        summary_rows = self._filter_summary_rows(
+            summary_rows,
+            request.query_params.get("search"),
+        )
+        summary_rows = self._sort_summary_rows(
+            summary_rows,
+            request.query_params.get("ordering"),
+        )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(summary_rows, request, view=self)
+        if page is not None:
+            return paginator.get_paginated_response(page)
+
+        return Response(summary_rows)
 
     @swagger_auto_schema(
         request_body=CompanyUserScreenPermissionMultiScreenSerializer,
@@ -334,26 +477,29 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         # 🔥 OPTIMIZED QUERY (NO MODEL LOAD)
         perms = CompanyUserScreenPermission.objects.filter(
-            company_id_id=company.unique_id,
-            project_id_id=project_id,
-            mainscreen_id_id=mainscreen_id,
+            company_id=company.unique_id,
+            project_id=project_id,
+            mainscreen_id=mainscreen_id,
             permission_type=permission_type,
             is_deleted=False,
         ).values(
             "unique_id",
-            "userscreen_id_id",
-            "userscreenaction_id_id",
+            "userscreen_id",
+            "userscreenaction_id",
             "description",
         )
 
+        mainscreen_userscreen_ids = UserScreen.objects.filter(
+            mainscreen_id=mainscreen_id,
+        ).values("unique_id")
         column_perms = CompanyUserScreenColumnPermission.objects.filter(
-            company_id_id=company.unique_id,
-            project_id_id=project_id,
-            userscreen_id__mainscreen_id_id=mainscreen_id,
+            company_id=company.unique_id,
+            project_id=project_id,
+            userscreen_id__in=mainscreen_userscreen_ids,
             is_deleted=False,
         ).values(
-            "userscreen_id_id",
-            "column_id_id",
+            "userscreen_id",
+            "column_id",
             "can_view",
         )
 
@@ -363,21 +509,21 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         description = ""
 
         for p in perms:
-            screen_map[p["userscreen_id_id"]]["actions"].append(p["userscreenaction_id_id"])
+            screen_map[p["userscreen_id"]]["actions"].append(p["userscreenaction_id"])
 
             if not description:
                 description = p["description"]
 
         # Build column permissions map
         for cp in column_perms:
-            column_map[cp["userscreen_id_id"]].append({
-                "column_id": cp["column_id_id"],
+            column_map[cp["userscreen_id"]].append({
+                "column_id": cp["column_id"],
                 "can_view": cp["can_view"],
             })
 
         # 🔥 LIGHTWEIGHT QUERY
         screens_qs = UserScreen.objects.filter(
-            mainscreen_id_id=mainscreen_id,
+            mainscreen_id=mainscreen_id,
             is_deleted=False,
         ).values(
             "unique_id",
@@ -444,10 +590,10 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         # Get ALL permissions for this company + project (no mainscreen filter)
         qs = CompanyUserScreenPermission.objects.filter(
-            company_id_id=company.unique_id,
-            project_id_id=project_id,
+            company_id=company.unique_id,
+            project_id=project_id,
             is_deleted=False,
-        ).select_related("mainscreen_id")
+        )
 
         if not qs.exists():
             return Response(
@@ -462,10 +608,15 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         # Group by mainscreen
         mainscreen_map = {}
+        mainscreen_names = dict(
+            MainScreen.objects.filter(
+                unique_id__in=qs.exclude(mainscreen_id__isnull=True).values("mainscreen_id")
+            ).values_list("unique_id", "mainscreen_name")
+        )
 
         for perm in qs:
-            mainscreen_id = perm.mainscreen_id_id
-            mainscreen_name = perm.mainscreen_id.mainscreen_name if perm.mainscreen_id else "Unknown"
+            mainscreen_id = perm.mainscreen_id
+            mainscreen_name = mainscreen_names.get(mainscreen_id, "Unknown")
 
             if mainscreen_id not in mainscreen_map:
                 mainscreen_map[mainscreen_id] = {
@@ -474,8 +625,8 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     "screens": {},
                 }
 
-            scr_id = perm.userscreen_id_id
-            act_id = perm.userscreenaction_id_id
+            scr_id = perm.userscreen_id
+            act_id = perm.userscreenaction_id
 
             if scr_id not in mainscreen_map[mainscreen_id]["screens"]:
                 mainscreen_map[mainscreen_id]["screens"][scr_id] = {
@@ -532,9 +683,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             )
 
         qs = CompanyUserScreenPermission.objects.filter(
-            company_id_id=company.unique_id,
-            project_id_id=project_id,
-            mainscreen_id_id=mainscreen_id,
+            company_id=company.unique_id,
+            project_id=project_id,
+            mainscreen_id=mainscreen_id,
             permission_type=permission_type,
             is_deleted=False,
         )
@@ -542,10 +693,13 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         deleted_count = qs.count()
         if deleted_count > 0:
             qs.update(is_deleted=True, is_active=False)
+            mainscreen_userscreen_ids = UserScreen.objects.filter(
+                mainscreen_id=mainscreen_id,
+            ).values("unique_id")
             CompanyUserScreenColumnPermission.objects.filter(
-                company_id_id=company.unique_id,
-                project_id_id=project_id,
-                userscreen_id__mainscreen_id_id=mainscreen_id,
+                company_id=company.unique_id,
+                project_id=project_id,
+                userscreen_id__in=mainscreen_userscreen_ids,
                 is_deleted=False,
             ).update(is_deleted=True, is_active=False)
 
@@ -651,7 +805,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     continue
                 userscreen = UserScreen.objects.filter(
                     is_deleted=False,
-                    mainscreen_id_id=mainscreen.unique_id,
+                    mainscreen_id=mainscreen.unique_id,
                 ).filter(
                     Q(unique_id__iexact=userscreen_value) | Q(userscreen_name__iexact=userscreen_value)
                 ).first()
@@ -731,12 +885,12 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                 project_unique_id = project.unique_id if project else None
 
                 existing = CompanyUserScreenPermission.objects.filter(
-                    company_id_id=company.unique_id,
-                    project_id_id=project_unique_id,
-                    mainscreen_id_id=mainscreen.unique_id,
+                    company_id=company.unique_id,
+                    project_id=project_unique_id,
+                    mainscreen_id=mainscreen.unique_id,
                     permission_type=permission_type,
-                    userscreen_id_id=userscreen.unique_id,
-                    userscreenaction_id_id=userscreenaction.unique_id,
+                    userscreen_id=userscreen.unique_id,
+                    userscreenaction_id=userscreenaction.unique_id,
                     is_deleted=False,
                 ).first()
 
@@ -748,18 +902,18 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                 order_counters[counter_key] = order_counters.get(counter_key, 0) + 1
 
                 CompanyUserScreenPermission.objects.create(
-                    company_id_id=company.unique_id,
-                    project_id_id=project_unique_id,
-                    mainscreen_id_id=mainscreen.unique_id,
+                    company_id=company.unique_id,
+                    project_id=project_unique_id,
+                    mainscreen_id=mainscreen.unique_id,
                     permission_type=permission_type,
-                    userscreen_id_id=userscreen.unique_id,
-                    userscreenaction_id_id=userscreenaction.unique_id,
-                    state_id_id=state.unique_id if state else None,
-                    district_id_id=district.unique_id if district else None,
-                    city_id_id=city.unique_id if city else None,
-                    zone_id_id=zone.unique_id if zone else None,
-                    panchayat_id_id=panchayat.unique_id if panchayat else None,
-                    ward_id_id=ward.unique_id if ward else None,
+                    userscreen_id=userscreen.unique_id,
+                    userscreenaction_id=userscreenaction.unique_id,
+                    state_id=state.unique_id if state else None,
+                    district_id=district.unique_id if district else None,
+                    city_id=city.unique_id if city else None,
+                    zone_id=zone.unique_id if zone else None,
+                    panchayat_id=panchayat.unique_id if panchayat else None,
+                    ward_id=ward.unique_id if ward else None,
                     description=(row.get("description") or "").strip() or None,
                     order_no=order_counters[counter_key],
                     is_active=True,

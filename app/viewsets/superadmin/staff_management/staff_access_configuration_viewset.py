@@ -11,12 +11,16 @@ from app.models.staff_creations.staff_access_configuration import (
     StaffAccessConfiguration,
 )
 from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.role_assigns.staffUserType import StaffUserType
 from app.serializers.superadmin.staff_management.staff_access_configuration_serializer import (
     StaffAccessConfigurationSerializer,
 )
 from app.models.screen_managements.userscreen import UserScreen
 from app.models.screen_managements.userscreenaction import UserScreenAction
+from app.models.screen_managements.mainscreen import MainScreen
+from app.models.screen_managements.mainscreentype import MainScreenType
 from app.models.screen_managements.app_module import AppModule
+from app.models.superadmin_masters.project import Project
 from app.utils.app_feature_grants import (
     CITIZEN_APP_MAINSCREEN,
     ROLE_SCREEN_TEMPLATES,
@@ -42,12 +46,9 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         SerializerOrderingFilter,
     ]
     search_fields = [
-        "staff_id__employee_name",
-        "staff_id__staff_unique_id",
-        "staff_id__department",
-        "staff_id__designation",
+        "staff_id",
     ]
-    ordering_fields = ["staff_id__employee_name", "staff_id__staff_unique_id", "staff_id__doj"]
+    ordering_fields = ["staff_id"]
 
     AUDIT_MODULE = "staff-creations"
     AUDIT_ENDPOINT = "staff-access-configuration"
@@ -55,18 +56,15 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     permission_resource = "staffaccessconfiguration"
 
     def get_queryset(self):
-        qs = StaffAccessConfiguration.objects.filter(is_deleted=False).select_related(
-            "staff_id", "company_id",
-        ).prefetch_related(
-            "projects", "states", "districts", "cities", "zones", "panchayats", "wards",
-        )
+        qs = StaffAccessConfiguration.objects.filter(is_deleted=False)
 
         if self._is_platform_super_admin():
-            # StaffAccessConfiguration scopes to projects via an M2M
-            # ("projects"), not a singular project_id FK, so the generic
-            # superadmin filtering in CompanyScopedViewSet.filter_queryset
-            # (which only special-cases a plain project_id FK) never applies
-            # here — apply the query params explicitly instead.
+            # StaffAccessConfiguration scopes to projects via a
+            # comma-separated `project_ids` TextField, not a singular
+            # project_id FK, so the generic superadmin filtering in
+            # CompanyScopedViewSet.filter_queryset (which only
+            # special-cases a plain project_id FK) never applies here —
+            # apply the query params explicitly instead.
             company_id_param = (
                 self.request.query_params.get("company_id")
                 or self.request.query_params.get("company_unique_id")
@@ -77,31 +75,31 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 or self.request.query_params.get("project")
             )
             if company_id_param:
-                qs = qs.filter(company_id_id=company_id_param)
+                qs = qs.filter(company_id=company_id_param)
             if project_id_param and project_id_param != "none":
-                qs = qs.filter(projects__unique_id=project_id_param)
+                qs = qs.filter(project_ids__contains=project_id_param)
             return qs
 
         company = self._company()
         if not company:
             return qs.none()
 
-        qs = qs.filter(company_id_id=company.unique_id)
+        qs = qs.filter(company_id=company.unique_id)
 
         if not self._is_admin_user():
-            qs = qs.filter(staff_id_id=self.request.user.staff_unique_id)
+            qs = qs.filter(staff_id=self.request.user.staff_unique_id)
         elif self._is_project_scoped_admin_user():
-            own_project_id = getattr(self.request.user, "project_id_id", None)
+            own_project_id = getattr(self.request.user, "project_id", None)
             if not own_project_id:
                 return qs.none()
-            qs = qs.filter(projects__unique_id=own_project_id)
+            qs = qs.filter(project_ids__contains=own_project_id)
 
         return qs
 
 
     def get_object(self):
         staff_unique_id = self.kwargs.get(self.lookup_url_kwarg or self.lookup_field)
-        obj = self.get_queryset().filter(staff_id_id=staff_unique_id).first()
+        obj = self.get_queryset().filter(staff_id=staff_unique_id).first()
         if not obj:
             from django.http import Http404
             raise Http404
@@ -138,21 +136,21 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
 
         queryset = Staffcreation.objects.filter(
-            company_id_id=company.unique_id,
+            company_id=company.unique_id,
             is_deleted=False,
             active_status=True,
-        ).select_related("personal_details", "staffusertype_id", "user_type_id")
+        ).select_related("personal_details")
 
         if project_id:
-            queryset = queryset.filter(project_id_id=project_id)
+            queryset = queryset.filter(project_id=project_id)
 
         queryset = queryset.order_by("employee_name")
 
         configured_staff_ids = set(
             StaffAccessConfiguration.objects.filter(
-                staff_id_id__in=queryset.values_list("staff_unique_id", flat=True),
+                staff_id__in=queryset.values_list("staff_unique_id", flat=True),
                 is_deleted=False,
-            ).values_list("staff_id_id", flat=True)
+            ).values_list("staff_id", flat=True)
         )
 
         def _personal_details(staff):
@@ -161,6 +159,15 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             except Staffcreation.personal_details.RelatedObjectDoesNotExist:
                 return None
 
+        staff_members = list(queryset[:500])
+        staff_user_types = {
+            staff_user_type.unique_id: staff_user_type
+            for staff_user_type in StaffUserType.objects.filter(
+                unique_id__in=[staff.staffusertype_id for staff in staff_members if staff.staffusertype_id],
+                is_deleted=False,
+            )
+        }
+
         data = [
             {
                 "unique_id": staff.staff_unique_id,
@@ -168,15 +175,15 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "mobile_number": getattr(_personal_details(staff), "contact_mobile", None),
                 "office_email": getattr(_personal_details(staff), "contact_email", None),
                 "doj": staff.doj,
-                "user_type_id": getattr(staff.user_type_id, "unique_id", None),
-                "staffusertype_id": getattr(staff.staffusertype_id, "unique_id", None),
-                "staffusertype_name": getattr(staff.staffusertype_id, "name", None),
+                "user_type_id": staff.user_type_id,
+                "staffusertype_id": staff.staffusertype_id,
+                "staffusertype_name": getattr(staff_user_types.get(staff.staffusertype_id), "name", None),
                 "username": staff.username,
                 "password": decrypt_password(staff.password or ""),
                 "active_status": staff.active_status,
                 "has_access_configuration": staff.staff_unique_id in configured_staff_ids,
             }
-            for staff in queryset[:500]
+            for staff in staff_members
         ]
         return Response(data, status=status.HTTP_200_OK)
 
@@ -225,7 +232,14 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         wanted = {screen for screens in template.values() for screen in screens}
         rows = UserScreen.objects.filter(
             userscreen_name__in=wanted, is_deleted=False
-        ).select_related("mainscreen_id")
+        )
+
+        mainscreens = {
+            m.unique_id: m
+            for m in MainScreen.objects.filter(
+                unique_id__in={row.mainscreen_id for row in rows if row.mainscreen_id}
+            )
+        }
 
         actions = {
             (row.variable_name or row.action_name or "").lower(): row
@@ -234,7 +248,8 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         screens = []
         for row in rows:
-            module_name = row.mainscreen_id.mainscreen_name
+            mainscreen = mainscreens.get(row.mainscreen_id)
+            module_name = mainscreen.mainscreen_name if mainscreen else None
             granted = template.get(module_name, {}).get(row.userscreen_name)
             if granted is None:
                 for screen_map in template.values():
@@ -244,7 +259,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             screens.append({
                 "userScreenId": row.unique_id,
                 "userScreenName": row.userscreen_name,
-                "mainScreenId": row.mainscreen_id_id,
+                "mainScreenId": row.mainscreen_id,
                 "mainScreenName": module_name,
                 "actions": [
                     {"actionId": actions[a].unique_id, "actionName": a}
@@ -266,7 +281,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             project_ids = [p.strip() for p in project_ids[0].split(",") if p.strip()]
 
         base_qs = CompanyUserScreenPermission.objects.filter(
-            company_id_id=company.unique_id,
+            company_id=company.unique_id,
             permission_type="screen",
             is_deleted=False,
             is_active=True,
@@ -277,16 +292,56 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if not project_ids:
             rows = base_qs.filter(project_id__isnull=True)
         else:
-            rows = base_qs.filter(project_id_id__in=project_ids)
+            rows = base_qs.filter(project_id__in=project_ids)
 
-        rows = rows.exclude(
-            Q(userscreenaction_id__action_name__iexact="show")
-            | Q(userscreenaction_id__variable_name__iexact="show")
-        ).select_related(
-            "mainscreen_id", "mainscreen_id__mainscreentype_id",
-            "userscreen_id", "userscreenaction_id", "project_id",
-        ).order_by(
-            "project_id__name", "mainscreen_id__order_no", "userscreen_id__order_no", "order_no"
+        show_action_ids = set(
+            UserScreenAction.objects.filter(
+                Q(action_name__iexact="show") | Q(variable_name__iexact="show")
+            ).values_list("unique_id", flat=True)
+        )
+        rows = list(rows.exclude(userscreenaction_id__in=show_action_ids).order_by("order_no"))
+
+        project_lookup = {
+            p.unique_id: p
+            for p in Project.objects.filter(
+                unique_id__in={r.project_id for r in rows if r.project_id}
+            )
+        }
+        mainscreen_lookup = {
+            m.unique_id: m
+            for m in MainScreen.objects.filter(
+                unique_id__in={r.mainscreen_id for r in rows if r.mainscreen_id}
+            )
+        }
+        mainscreentype_lookup = {
+            t.unique_id: t
+            for t in MainScreenType.objects.filter(
+                unique_id__in={
+                    m.mainscreentype_id for m in mainscreen_lookup.values() if m.mainscreentype_id
+                }
+            )
+        }
+        userscreen_lookup = {
+            u.unique_id: u
+            for u in UserScreen.objects.filter(
+                unique_id__in={r.userscreen_id for r in rows if r.userscreen_id}
+            )
+        }
+        userscreenaction_lookup = {
+            a.unique_id: a
+            for a in UserScreenAction.objects.filter(
+                unique_id__in={r.userscreenaction_id for r in rows if r.userscreenaction_id}
+            )
+        }
+
+        rows = sorted(
+            rows,
+            key=lambda r: (
+                (project_lookup.get(r.project_id).name if r.project_id in project_lookup else ""),
+                (mainscreen_lookup.get(r.mainscreen_id).order_no if r.mainscreen_id in mainscreen_lookup else 0),
+                (userscreen_lookup.get(r.userscreen_id).order_no if r.userscreen_id in userscreen_lookup else 0),
+                r.order_no,
+            ),
         )
 
         # Grouped per project (each project's catalog shown as its own
@@ -296,44 +351,51 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         # "company-wide" pseudo-project entry.
         project_map = {}
         for perm in rows:
+            project_obj = project_lookup.get(perm.project_id)
+            mainscreen = mainscreen_lookup.get(perm.mainscreen_id)
+            userscreen = userscreen_lookup.get(perm.userscreen_id)
+            useraction = userscreenaction_lookup.get(perm.userscreenaction_id)
+            mainscreentype = mainscreentype_lookup.get(
+                mainscreen.mainscreentype_id
+            ) if mainscreen else None
+
             project_entry = project_map.setdefault(
-                perm.project_id_id,
+                perm.project_id,
                 {
-                    "projectId": perm.project_id_id,
-                    "projectName": perm.project_id.name if perm.project_id_id else "Company-Wide",
+                    "projectId": perm.project_id,
+                    "projectName": project_obj.name if project_obj else "Company-Wide",
                     "mainscreens": {},
                 },
             )
             mainscreen_entry = project_entry["mainscreens"].setdefault(
-                perm.mainscreen_id_id,
+                perm.mainscreen_id,
                 {
-                    "mainScreenId": perm.mainscreen_id_id,
-                    "mainScreenName": perm.mainscreen_id.mainscreen_name,
+                    "mainScreenId": perm.mainscreen_id,
+                    "mainScreenName": mainscreen.mainscreen_name if mainscreen else None,
                     # The group this module belongs to. "mobile-app" modules
                     # are app features, not web sidebar routes, so the form
                     # renders them in their own "App Access" tab.
-                    "screenType": getattr(
-                        perm.mainscreen_id.mainscreentype_id, "type_name", None
-                    ),
+                    "screenType": getattr(mainscreentype, "type_name", None),
                     # The citizen app screens are the one group that is not a
                     # web sidebar route; they belong on the customer form.
                     "isCitizenApp": (
-                        perm.mainscreen_id.mainscreen_name == CITIZEN_APP_MAINSCREEN
+                        mainscreen.mainscreen_name == CITIZEN_APP_MAINSCREEN
+                        if mainscreen else False
                     ),
                     "screens": {},
                 },
             )
             screen_entry = mainscreen_entry["screens"].setdefault(
-                perm.userscreen_id_id,
+                perm.userscreen_id,
                 {
-                    "userScreenId": perm.userscreen_id_id,
-                    "userScreenName": perm.userscreen_id.userscreen_name,
+                    "userScreenId": perm.userscreen_id,
+                    "userScreenName": userscreen.userscreen_name if userscreen else None,
                     "actions": {},
                 },
             )
-            screen_entry["actions"][perm.userscreenaction_id_id] = {
-                "actionId": perm.userscreenaction_id_id,
-                "actionName": perm.userscreenaction_id.action_name,
+            screen_entry["actions"][perm.userscreenaction_id] = {
+                "actionId": perm.userscreenaction_id,
+                "actionName": useraction.action_name if useraction else None,
             }
 
         projects = []

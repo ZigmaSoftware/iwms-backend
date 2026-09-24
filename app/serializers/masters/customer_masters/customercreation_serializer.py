@@ -48,42 +48,36 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         allow_null=True,
     )
     ward_id = NameOrUniqueIdField(
-        source="ward",
         queryset=Ward.objects.all(),
         name_field="ward_name",
         required=False,
         allow_null=True,
     )
     zone_id = NameOrUniqueIdField(
-        source="zone",
         queryset=Zone.objects.all(),
         name_field="zone_name",
         required=False,
         allow_null=True,
     )
     city_id = NameOrUniqueIdField(
-        source="city",
         queryset=City.objects.all(),
         name_field="name",
         required=False,
         allow_null=True,
     )
     district_id = NameOrUniqueIdField(
-        source="district",
         queryset=District.objects.all(),
         name_field="name",
         required=False,
         allow_null=True,
     )
     state_id = NameOrUniqueIdField(
-        source="state",
         queryset=State.objects.all(),
         name_field="name",
         required=False,
         allow_null=True,
     )
     country_id = NameOrUniqueIdField(
-        source="country",
         queryset=Country.objects.all(),
         name_field="name",
         required=False,
@@ -96,14 +90,12 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         allow_null=True,
     )
     property_id = NameOrUniqueIdField(
-        source="property_ref",
         queryset=Property.objects.all(),
         name_field="property_name",
         required=False,
         allow_null=True,
     )
     sub_property_id = NameOrUniqueIdField(
-        source="sub_property",
         queryset=SubProperty.objects.all(),
         name_field="sub_property_name",
         scope_fields=["property_id"],
@@ -111,25 +103,25 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         allow_null=True,
     )
     waste_type_ids = NameOrUniqueIdField(
-        source="waste_types",
         queryset=WasteType.objects.filter(is_deleted=False),
         name_field="waste_type_name",
         scope_fields=["project_id", "company_id"],
         many=True,
         required=False,
+        write_only=True,
     )
     waste_types = serializers.SerializerMethodField(read_only=True)
     # Local-body emblem for the project, printed on the customer QR sticker.
     project_logo = serializers.SerializerMethodField(read_only=True)
-    panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
-    ward_name = serializers.CharField(source="ward.ward_name", read_only=True)
-    zone_name = serializers.CharField(source="zone.zone_name", read_only=True)
-    city_name = serializers.CharField(source="city.name", read_only=True)
-    district_name = serializers.CharField(source="district.name", read_only=True)
-    state_name = serializers.CharField(source="state.name", read_only=True)
-    country_name = serializers.CharField(source="country.name", read_only=True)
-    property_name = serializers.CharField(source="property_ref.property_name", read_only=True)
-    sub_property_name = serializers.CharField(source="sub_property.sub_property_name", read_only=True)
+    panchayat_name = serializers.CharField(source="panchayat.panchayat_name", read_only=True, default=None)
+    ward_name = serializers.CharField(source="ward.ward_name", read_only=True, default=None)
+    zone_name = serializers.CharField(source="zone.zone_name", read_only=True, default=None)
+    city_name = serializers.CharField(source="city.name", read_only=True, default=None)
+    district_name = serializers.CharField(source="district.name", read_only=True, default=None)
+    state_name = serializers.CharField(source="state.name", read_only=True, default=None)
+    country_name = serializers.CharField(source="country.name", read_only=True, default=None)
+    property_name = serializers.CharField(source="property_obj.property_name", read_only=True, default=None)
+    sub_property_name = serializers.CharField(source="sub_property_obj.sub_property_name", read_only=True, default=None)
 
     apartment_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     block_no = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -241,6 +233,9 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
     # =============================
     def create(self, validated_data):
         password = validated_data.pop("password", None)
+        waste_types = validated_data.pop("waste_type_ids", None)
+        if waste_types is not None:
+            validated_data["waste_type_ids"] = ",".join(w.unique_id for w in waste_types)
 
         instance = super().create(validated_data)
 
@@ -255,6 +250,9 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
     # =============================
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
+        waste_types = validated_data.pop("waste_type_ids", None)
+        if waste_types is not None:
+            validated_data["waste_type_ids"] = ",".join(w.unique_id for w in waste_types)
 
         instance = super().update(instance, validated_data)
 
@@ -265,10 +263,19 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         return instance
 
     def validate(self, attrs):
-        # attrs = unique_name_validator(
-        #     Model=CustomerCreation,
-        #     name_field="user_name",
-        # )(self, attrs)
+        # username has no DB-level unique constraint (MariaDB can't express
+        # "unique among active rows only", and a plain unique=True would
+        # block reusing a soft-deleted customer's username/email) — enforced
+        # here instead, scoped like unique_name_validator's other callers:
+        # only among is_deleted=False rows, within the same company/project.
+        if attrs.get("username") == "":
+            attrs["username"] = None
+        if attrs.get("username"):
+            attrs = unique_name_validator(
+                Model=CustomerCreation,
+                name_field="username",
+                scope_fields=["company_id", "project_id"],
+            )(self, attrs)
 
         instance = getattr(self, "instance", None)
         name = attrs.get("customer_name") or getattr(instance, "customer_name", None)
@@ -295,12 +302,29 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         if sqft is None:
             raise serializers.ValidationError({"sqft": "Sqft is required."})
 
-        sub_property = attrs.get("sub_property") or getattr(instance, "sub_property", None)
+        # property_id/sub_property_id in attrs are plain unique_id strings
+        # (NameOrUniqueIdField resolves to the slug, not the instance, since
+        # the backing model fields are plain CharFields) — resolve the
+        # actual rows before touching anything but the id.
+        sub_property_id = attrs.get("sub_property_id") or getattr(instance, "sub_property_id", None)
+        sub_property = (
+            SubProperty.objects.filter(unique_id=sub_property_id).first()
+            if sub_property_id else None
+        )
         sub_name = (sub_property.sub_property_name or "").lower() if sub_property else ""
 
-        property_ref = attrs.get("property_ref") or getattr(instance, "property_ref", None)
-        waste_types = attrs.get("waste_types")
-        if property_ref and waste_types is not None:
+        property_id = attrs.get("property_id") or getattr(instance, "property_id", None)
+        property_ref = (
+            Property.objects.filter(unique_id=property_id).first()
+            if property_id else None
+        )
+        # waste_type_ids in attrs is a list of plain unique_id strings, same
+        # reason as above — the model's own field is a comma-separated
+        # TextField, not a relation, so NameOrUniqueIdField resolves each
+        # entry to its slug rather than the WasteType instance.
+        waste_type_ids = attrs.get("waste_type_ids")
+        if property_ref and waste_type_ids is not None:
+            waste_types = list(WasteType.objects.filter(unique_id__in=waste_type_ids))
             property_name = (property_ref.property_name or "").lower()
             is_residential_customer = (
                 "industry" not in sub_name
@@ -352,7 +376,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         return value
 
     def get_project_logo(self, obj):
-        logo = getattr(getattr(obj, "project_id", None), "project_logo", None)
+        logo = getattr(getattr(obj, "project", None), "project_logo", None)
         if not logo:
             return None
         request = self.context.get("request")
@@ -364,5 +388,5 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
                 "unique_id": waste_type.unique_id,
                 "waste_type_name": waste_type.waste_type_name,
             }
-            for waste_type in obj.waste_types.all()
+            for waste_type in obj.waste_types_queryset
         ]

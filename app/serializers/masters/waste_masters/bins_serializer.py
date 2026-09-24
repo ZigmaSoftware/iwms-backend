@@ -2,17 +2,24 @@ from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 from app.models.assets.bins import Bins
+from app.models.masters.city import City
+from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
+from app.models.schedule_masters.collection_point import Collection_point
+from app.models.staff_creations.waste_collection_bluetooth import WasteType
 from app.validators.unique_name_validator import unique_name_validator
 
 class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
-    district_name = serializers.CharField(source="district_id.name", read_only=True)
-    city_name = serializers.CharField(source="city_id.name", read_only=True)
-    wastetype_name = serializers.CharField(source="wastetype_id.waste_type_name", read_only=True)
-    collection_point_name = serializers.CharField(source="collection_point_id.cp_name", read_only=True)
+    created_by = serializers.CharField(source="created_by_id", read_only=True)
+    updated_by = serializers.CharField(source="updated_by_id", read_only=True)
+
+    district_name = serializers.SerializerMethodField()
+    city_name = serializers.SerializerMethodField()
+    wastetype_name = serializers.SerializerMethodField()
+    collection_point_name = serializers.SerializerMethodField()
 
     panchayat_id = UniqueIdOrPkField(
         slug_field="unique_id",
@@ -20,7 +27,7 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    panchayat_name = serializers.CharField(source="panchayat_id.panchayat_name", read_only=True)
+    panchayat_name = serializers.SerializerMethodField()
 
     zone_id = UniqueIdOrPkField(
         slug_field="unique_id",
@@ -28,13 +35,15 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    zone_name = serializers.CharField(source="zone_id.zone_name", read_only=True)
+    zone_name = serializers.SerializerMethodField()
 
     ward_id = UniqueIdOrPkField(
         slug_field="unique_id",
         queryset=Ward.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
     )
-    ward_name = serializers.CharField(source="ward_id.ward_name", read_only=True)
+    ward_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Bins
@@ -86,9 +95,37 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "longitude": {"required": False, "allow_null": True},
         }
 
+    def get_district_name(self, obj):
+        district = District.objects.filter(unique_id=obj.district_id).first()
+        return district.name if district else None
+
+    def get_city_name(self, obj):
+        city = City.objects.filter(unique_id=obj.city_id).first()
+        return city.name if city else None
+
+    def get_wastetype_name(self, obj):
+        waste_type = WasteType.objects.filter(unique_id=obj.wastetype_id).first()
+        return waste_type.waste_type_name if waste_type else None
+
+    def get_collection_point_name(self, obj):
+        cp = Collection_point.objects.filter(unique_id=obj.collection_point_id).first()
+        return cp.cp_name if cp else None
+
+    def get_panchayat_name(self, obj):
+        panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
+        return panchayat.panchayat_name if panchayat else None
+
+    def get_zone_name(self, obj):
+        zone = Zone.objects.filter(unique_id=obj.zone_id).first()
+        return zone.zone_name if zone else None
+
+    def get_ward_name(self, obj):
+        ward = Ward.objects.filter(unique_id=obj.ward_id).first()
+        return ward.ward_name if ward else None
+
 
     def validate(self, attrs):
-        collection_point = attrs.get(
+        collection_point_id = attrs.get(
             "collection_point_id",
             getattr(self.instance, "collection_point_id", None),
         )
@@ -101,12 +138,13 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
                 {"zone_id": "A bin cannot belong to both a Zone and a Panchayat."}
             )
 
-        if ward and collection_point and not collection_point.wards.filter(
-            unique_id=ward.unique_id
-        ).exists():
-            raise serializers.ValidationError(
-                {"ward_id": "Selected ward is not one of the selected collection point's wards."}
-            )
+        if ward and collection_point_id:
+            collection_point = Collection_point.objects.filter(unique_id=collection_point_id).first()
+            ward_uid = ward.unique_id if hasattr(ward, "unique_id") else ward
+            if collection_point and ward_uid not in collection_point.get_ward_ids():
+                raise serializers.ValidationError(
+                    {"ward_id": "Selected ward is not one of the selected collection point's wards."}
+                )
 
         if attrs.get("bin_qr") is None:
             attrs["bin_qr"] = ""

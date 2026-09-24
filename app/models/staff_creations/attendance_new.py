@@ -14,9 +14,6 @@ from django.db import models
 
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
 
 
 def generate_attendance_new_unique_id():
@@ -40,20 +37,8 @@ class AttendanceNew(BaseMaster):
         (CAPTURE_METHOD_OFFLINE, "Offline"),
     ]
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="project_id",
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     unique_id = models.CharField(
         max_length=30,
@@ -62,13 +47,7 @@ class AttendanceNew(BaseMaster):
         editable=False,
     )
 
-    staff = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        to_field="staff_unique_id",
-        db_column="staff_id",
-        related_name="attendance_new_records",
-    )
+    staff_id = models.CharField(max_length=30)
 
     log_type = models.CharField(max_length=3, choices=LOG_TYPE_CHOICES, default=LOG_TYPE_IN)
     capture_method = models.CharField(
@@ -100,7 +79,7 @@ class AttendanceNew(BaseMaster):
         verbose_name = "Attendance (New)"
         verbose_name_plural = "Attendance (New)"
         indexes = [
-            models.Index(fields=["staff", "punch_date"]),
+            models.Index(fields=["staff_id", "punch_date"]),
             models.Index(fields=["punch_date"]),
         ]
 
@@ -112,3 +91,24 @@ class AttendanceNew(BaseMaster):
             self.punch_date = self.punch_date or self.punch_at.date()
             self.punch_time = self.punch_time or self.punch_at.time()
         super().save(*args, **kwargs)
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def staff(self):
+        from app.models.staff_creations.staffcreation import Staffcreation
+        if self.staff_id:
+            return Staffcreation.objects.filter(staff_unique_id=self.staff_id).first()
+        return None

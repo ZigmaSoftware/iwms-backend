@@ -28,20 +28,7 @@ class TripDelayReportViewSet(CompanyScopedViewSet):
     """
 
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    queryset = (
-        TripDelayReport.objects.select_related(
-            "company_id",
-            "project_id",
-            "trip_assignment_id",
-            "trip_assignment_id__vehicle_id",
-            "trip_assignment_id__staff_template_id",
-            "trip_assignment_id__staff_template_id__driver_id",
-            "trip_assignment_id__staff_template_id__operator_id",
-            "reported_by",
-            "acknowledged_by",
-        )
-        .filter(is_deleted=False)
-    )
+    queryset = TripDelayReport.objects.filter(is_deleted=False)
     serializer_class = TripDelayReportSerializer
     lookup_field = "unique_id"
     permission_resource = "TripDelayReport"
@@ -64,7 +51,9 @@ class TripDelayReportViewSet(CompanyScopedViewSet):
 
         user = self.request.user
         reporter = user if isinstance(user, Staffcreation) else None
-        instance = serializer.save(reported_by=reporter)
+        instance = serializer.save(
+            reported_by_id=reporter.staff_unique_id if reporter else None
+        )
         self._notify_supervisors(instance)
 
     def _notify_supervisors(self, report):
@@ -73,7 +62,7 @@ class TripDelayReportViewSet(CompanyScopedViewSet):
         Best-effort: a notification failure must never lose the driver's
         report, which is already committed by the time we get here.
         """
-        assignment = report.trip_assignment_id
+        assignment = report.trip_assignment
         recipients = []
         supervisor = getattr(assignment, "supervisor_id", None)
         if supervisor is not None:

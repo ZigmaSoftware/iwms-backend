@@ -35,7 +35,7 @@ class _WardBriefSerializer(serializers.Serializer):
     zone_name = serializers.SerializerMethodField()
 
     def get_zone_name(self, obj):
-        return getattr(obj.zone_id, "zone_name", None)
+        return getattr(obj.zone, "zone_name", None)
 
 
 class _WasteTypeBriefSerializer(serializers.Serializer):
@@ -78,8 +78,8 @@ class TripCollectionPointSerializer(serializers.Serializer):
     collected_weight_kg = serializers.DecimalField(
         max_digits=10, decimal_places=2, allow_null=True
     )
-    collection_point = _CollectionPointBriefSerializer(source="collection_point_id")
-    bin = _BinBriefSerializer(source="bin_id")
+    collection_point = _CollectionPointBriefSerializer(source="collection_point")
+    bin = _BinBriefSerializer(source="bin")
 
 
 class _HouseholdCustomerBriefSerializer(serializers.Serializer):
@@ -139,9 +139,9 @@ class HouseholdCollectionSerializer(serializers.Serializer):
     collection_image_url = serializers.SerializerMethodField()
 
     def get_customer(self, obj):
-        if not obj.customer_id_id:
+        if not obj.customer_id:
             return None
-        return _HouseholdCustomerBriefSerializer(obj.customer_id).data
+        return _HouseholdCustomerBriefSerializer(obj.customer).data
 
     def _latest_waste_collection(self, obj):
         # Both get_waste_breakdown and get_collection_image_url need this
@@ -152,7 +152,7 @@ class HouseholdCollectionSerializer(serializers.Serializer):
             return obj._cached_waste_collection
 
         record = None
-        if obj.is_collected and obj.trip_assignment_id_id and obj.customer_id_id:
+        if obj.is_collected and obj.trip_assignment_id and obj.customer_id:
             from app.models.customers.wastecollection import WasteCollection
 
             # A household can be re-collected (edit + re-finalize from the
@@ -163,8 +163,8 @@ class HouseholdCollectionSerializer(serializers.Serializer):
             record = (
                 WasteCollection.objects
                 .filter(
-                    trip_assignment_id_id=obj.trip_assignment_id_id,
-                    customer_id=obj.customer_id_id,
+                    trip_assignment_id=obj.trip_assignment_id,
+                    customer_id=obj.customer_id,
                     is_deleted=False,
                 )
                 # collection_time is auto_now_add — the closest thing this
@@ -236,7 +236,10 @@ class _CrewMemberSerializer(serializers.Serializer):
         return staff.emp_id
 
     def get_role(self, staff):
-        return getattr(staff.staffusertype_id, "name", None)
+        from app.models.role_assigns.staffUserType import StaffUserType
+
+        staffusertype = StaffUserType.objects.filter(unique_id=staff.staffusertype_id).first()
+        return staffusertype.name if staffusertype else None
 
     def get_phone(self, staff):
         personal = getattr(staff, "personal_details", None)
@@ -250,7 +253,9 @@ class _CrewMemberSerializer(serializers.Serializer):
         # Prefer the face registered for attendance (Employee.image_path),
         # falling back to the admin-uploaded staff photo — same resolution
         # the staff-profile endpoint uses, so the circle matches the header.
-        emp = getattr(staff, "attendance_profile", None)
+        from app.models.staff_creations.attendance import Employee
+
+        emp = Employee.objects.filter(staff_id=staff.staff_unique_id).first()
         image_path = getattr(emp, "image_path", None)
         if image_path and not isinstance(image_path, (bytes, bytearray, memoryview)):
             return request.build_absolute_uri(settings.MEDIA_URL + image_path.lstrip("/"))
@@ -319,31 +324,35 @@ class MyTripTodaySerializer(serializers.Serializer):
         return False
 
     def get_retrip_request(self, obj):
-        pending = obj.retrip_requests.filter(status="Pending").first()
+        from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
+
+        pending = TripRetripRequest.objects.filter(
+            assignment_id=obj.unique_id, status="Pending", is_deleted=False
+        ).first()
         if not pending:
             return None
         return _RetripRequestBriefSerializer(pending).data
 
     def get_collection_type(self, obj):
-        return getattr(obj.trip_plan_id, "collection_type", None)
+        return getattr(obj.trip_plan, "collection_type", None)
 
     def get_panchayat(self, obj):
-        if not obj.panchayat_id_id:
+        if not obj.panchayat_id:
             return None
-        return _PanchayatBriefSerializer(obj.panchayat_id).data
+        return _PanchayatBriefSerializer(obj.panchayat).data
 
     def get_ward(self, obj):
         # An assignment can carry several wards; the trip header only needs
         # a single area label, so the first is authoritative here.
-        ward = obj.wards.select_related("zone_id").first()
+        ward = obj.wards.first()
         if not ward:
             return None
         return _WardBriefSerializer(ward).data
 
     def get_trip_plan(self, obj):
-        if not obj.trip_plan_id_id:
+        if not obj.trip_plan:
             return None
-        return _TripPlanBriefSerializer(obj.trip_plan_id).data
+        return _TripPlanBriefSerializer(obj.trip_plan).data
 
     def get_progress(self, obj):
         bin_children = list(obj.trip_collection_points.filter(is_deleted=False))
@@ -390,7 +399,6 @@ class MyTripTodaySerializer(serializers.Serializer):
         children = (
             obj.trip_collection_points
             .filter(is_deleted=False)
-            .select_related("collection_point_id", "bin_id")
             .order_by("sequence")[:STOPS_PAGE_SIZE]
         )
         return TripCollectionPointSerializer(children, many=True).data
@@ -405,7 +413,6 @@ class MyTripTodaySerializer(serializers.Serializer):
         children = (
             obj.trip_household_collections
             .filter(is_deleted=False)
-            .select_related("customer_id", "customer_id__city")
             .order_by("sequence")[:STOPS_PAGE_SIZE]
         )
         return HouseholdCollectionSerializer(
@@ -413,11 +420,11 @@ class MyTripTodaySerializer(serializers.Serializer):
         ).data
 
     def get_crew(self, obj):
-        template = obj.staff_template_id
+        template = obj.staff_template
         if template is None:
             return None
-        driver = getattr(template, "driver_id", None)
-        operator = getattr(template, "operator_id", None)
+        driver = template.driver
+        operator = template.operator
         extra_ids = getattr(template, "extra_operator_id", None) or []
 
         extra_operators = []
@@ -426,7 +433,7 @@ class MyTripTodaySerializer(serializers.Serializer):
             extra_operators = list(
                 Staffcreation.objects.filter(
                     staff_unique_id__in=extra_ids, is_deleted=False
-                ).select_related("staffusertype_id", "personal_details")
+                ).select_related("personal_details")
             )
 
         context = self.context
@@ -436,7 +443,7 @@ class MyTripTodaySerializer(serializers.Serializer):
             "extra_operators": _CrewMemberSerializer(
                 extra_operators, many=True, context=context
             ).data,
-            "is_alt_active": bool(obj.alt_staff_template_id_id),
+            "is_alt_active": bool(obj.alt_staff_template_id),
             "template_code": getattr(template, "unique_id", None),
-            "alt_template_code": getattr(obj.alt_staff_template_id, "unique_id", None),
+            "alt_template_code": getattr(obj.alt_staff_template, "unique_id", None),
         }

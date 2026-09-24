@@ -2,10 +2,6 @@ from django.db import models
 from django.db.models import Max
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
-
 
 
 # ------------------------------------------------------------------
@@ -29,34 +25,12 @@ class StaffTemplate(BaseMaster):
     )
 
     # ---------------- DRIVER ROLE ----------------
-    driver_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        related_name="driver_templates",
-        db_column="driver_id",
-        to_field="staff_unique_id"
-    )
+    driver_id = models.CharField(max_length=30, null=True, blank=True)
 
     # ---------------- OPERATOR ROLE ----------------
-    operator_id = models.ForeignKey(
-        Staffcreation,
-        on_delete=models.PROTECT,
-        related_name="operator_templates",
-        db_column="operator_id",
-        to_field="staff_unique_id"
-    )
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        related_name="staff_templates",
-        db_column="company_id",
-    )
-    project_id = models.ForeignKey(
-        Project,
-        on_delete=models.PROTECT,
-        related_name="staff_templates",
-        db_column="project_id",
-    )
+    operator_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
 
     extra_operator_id = models.JSONField(
         default=list,
@@ -80,6 +54,9 @@ class StaffTemplate(BaseMaster):
         default=Status.ACTIVE
     )
     
+    CASCADE_SOFT_DELETE = ("trip_plans", "daily_trip_assignments", "daily_trip_logs")
+    CACHE_SCOPES = ("staff_template_list", "staff_template_detail")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -99,10 +76,12 @@ class StaffTemplate(BaseMaster):
         Example: RAVI-KART-01
         """
 
-        def resolve_staff_name(staff, fallback):
-            if not staff:
+        def resolve_staff_name(staff_id, fallback):
+            if not staff_id:
                 return fallback
-            if hasattr(staff, 'employee_name') and staff.employee_name:
+            from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+            staff = StaffcreationOfficeDetails.objects.filter(staff_unique_id=staff_id).first()
+            if staff and staff.employee_name:
                 return staff.employee_name
             return fallback
 
@@ -140,3 +119,31 @@ class StaffTemplate(BaseMaster):
 
     def __str__(self):
         return self.display_code
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def driver(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.driver_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.driver_id).first()
+        return None
+
+    @property
+    def operator(self):
+        from app.models.staff_creations.staffcreation import StaffcreationOfficeDetails
+        if self.operator_id:
+            return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.operator_id).first()
+        return None

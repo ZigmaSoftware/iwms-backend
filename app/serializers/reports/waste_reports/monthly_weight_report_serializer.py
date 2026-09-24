@@ -28,18 +28,22 @@ def _status(actual, agreed):
 
 
 class MonthlyWeightReportSerializer(serializers.ModelSerializer):
-    panchayat_name = serializers.CharField(
-        source="panchayat_id.panchayat_name", read_only=True
-    )
-    waste_type_name = serializers.CharField(
-        source="waste_type_id.waste_type_name", read_only=True
-    )
-    company_name = serializers.CharField(
-        source="company_id.name", read_only=True, default=None
-    )
-    project_name = serializers.CharField(
-        source="project_id.name", read_only=True, default=None
-    )
+    panchayat_name = serializers.SerializerMethodField()
+    waste_type_name = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
+    project_name = serializers.SerializerMethodField()
+
+    def get_panchayat_name(self, obj):
+        return getattr(obj.panchayat, "panchayat_name", None)
+
+    def get_waste_type_name(self, obj):
+        return getattr(obj.waste_type, "waste_type_name", None)
+
+    def get_company_name(self, obj):
+        return getattr(obj.company, "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(obj.project, "name", None)
 
     class Meta:
         model = MonthlyWeightReport

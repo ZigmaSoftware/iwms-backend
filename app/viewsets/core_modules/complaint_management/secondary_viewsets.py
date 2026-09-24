@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import filters, status, viewsets
 from rest_framework.response import Response
 
@@ -18,16 +19,15 @@ from app.utils.pagination import LimitOffsetWithPage
 class _SoftDeleteMixin:
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.is_active = False
-        instance.save(update_fields=["is_deleted", "is_active"])
+        self.perform_destroy(instance)
         return Response({"message": "Deleted successfully"}, status=status.HTTP_200_OK)
 
 
 class ComplaintRoutingRuleViewSet(_SoftDeleteMixin, AuditViewSetMixin, viewsets.ModelViewSet):
-    queryset = ComplaintRoutingRule.objects.filter(is_deleted=False).select_related(
-        "category", "subcategory", "priority", "team", "sla_rule"
-    ).order_by("unique_id")
+    # category/subcategory/priority/sla_rule are resolver @properties over
+    # plain id CharFields now (not real relations), and "team" was never a
+    # field on this model — select_related can no longer be used here.
+    queryset = ComplaintRoutingRule.objects.filter(is_deleted=False).order_by("unique_id")
     serializer_class = ComplaintRoutingRuleSerializer
     lookup_field = "unique_id"
     AUDIT_MODULE = "complaint-ticket"
@@ -37,17 +37,16 @@ class ComplaintRoutingRuleViewSet(_SoftDeleteMixin, AuditViewSetMixin, viewsets.
 class ComplaintFeedbackViewSet(_SoftDeleteMixin, AuditViewSetMixin, viewsets.ModelViewSet):
     serializer_class = ComplaintFeedbackSerializer
     lookup_field = "unique_id"
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [filters.OrderingFilter]
     pagination_class = LimitOffsetWithPage
-    search_fields = ["ticket__ticket_no", "ticket__unique_id", "customer__customer_name"]
     ordering_fields = ["submitted_at", "rating"]
     AUDIT_MODULE = "complaint-ticket"
     AUDIT_ENDPOINT = "feedback"
 
     def get_queryset(self):
-        qs = ComplaintFeedback.objects.filter(is_deleted=False).select_related(
-            "ticket", "customer"
-        ).order_by("-submitted_at")
+        from app.models.complaint_management.ticket import ComplaintTicket
+
+        qs = ComplaintFeedback.objects.filter(is_deleted=False).order_by("-submitted_at")
         ticket = self.request.query_params.get("ticket")
         if ticket:
             qs = qs.filter(ticket_id=ticket)
@@ -56,11 +55,27 @@ class ComplaintFeedbackViewSet(_SoftDeleteMixin, AuditViewSetMixin, viewsets.Mod
         # can offer the same Company/Project pickers as every other
         # company-scoped list.
         company_id = self.request.query_params.get("company_id")
-        if company_id:
-            qs = qs.filter(ticket__company_id=company_id)
         project_id = self.request.query_params.get("project_id")
-        if project_id:
-            qs = qs.filter(ticket__project_id=project_id)
+        if company_id or project_id:
+            ticket_filter = {}
+            if company_id:
+                ticket_filter["company_id"] = company_id
+            if project_id:
+                ticket_filter["project_id"] = project_id
+            matching_ticket_ids = ComplaintTicket.objects.filter(**ticket_filter).values("unique_id")
+            qs = qs.filter(ticket_id__in=matching_ticket_ids)
+        search = self.request.query_params.get("search")
+        if search:
+            matching_ticket_ids = ComplaintTicket.objects.filter(
+                Q(ticket_no__icontains=search) | Q(unique_id__icontains=search)
+            ).values("unique_id")
+            from app.models.customers.customercreation import CustomerCreation
+            matching_customer_ids = CustomerCreation.objects.filter(
+                customer_name__icontains=search,
+            ).values("unique_id")
+            qs = qs.filter(
+                Q(ticket_id__in=matching_ticket_ids) | Q(customer_id__in=matching_customer_ids)
+            )
         return qs
 
 

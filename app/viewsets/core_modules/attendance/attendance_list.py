@@ -49,7 +49,7 @@ class AttendanceListViewSet(ViewSet):
             )
 
         records = Recognized.objects.filter(
-            staff__staff_unique_id=emp_id,
+            staff_id=emp_id,
             recognition_date__month=int(month),
             recognition_date__year=int(year),
         ).order_by("recognition_date", "recognition_time")
@@ -122,7 +122,7 @@ class AttendanceListViewSet(ViewSet):
         today = timezone.localdate()
         records = (
             Recognized.objects
-            .filter(staff__staff_unique_id=emp_id, recognition_date=today)
+            .filter(staff_id=emp_id, recognition_date=today)
             .order_by("records")
         )
 
@@ -170,7 +170,7 @@ class AttendanceListViewSet(ViewSet):
             )
 
         records = Recognized.objects.filter(
-            staff__staff_unique_id=emp_id,
+            staff_id=emp_id,
             recognition_date__month=int(month),
             recognition_date__year=int(year),
         )

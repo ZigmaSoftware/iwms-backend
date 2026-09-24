@@ -15,10 +15,6 @@ authorization beyond being signed in as that customer.
 from django.db import models
 from django.db.models import UniqueConstraint
 
-from app.models.customers.customercreation import CustomerCreation
-from app.models.screen_managements.app_module import AppModule
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.superadmin_masters.company import Company
 from app.utils.base_models import BaseMaster
 from app.utils.comfun import generate_unique_id
 
@@ -36,37 +32,16 @@ class CustomerAccessConfiguration(BaseMaster):
         editable=False,
     )
 
-    customer_id = models.ForeignKey(
-        CustomerCreation,
-        on_delete=models.CASCADE,
-        to_field="unique_id",
-        db_column="customer_id",
-        related_name="access_configuration",
-    )
+    customer_id = models.CharField(max_length=60, null=True, blank=True)
 
-    company_id = models.ForeignKey(
-        Company,
-        on_delete=models.PROTECT,
-        to_field="unique_id",
-        db_column="company_id",
-        related_name="customer_access_configurations",
-        null=True,
-        blank=True,
-    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
 
-    # Apps this customer may sign into. No module ticked = mobile login refused.
-    app_modules = models.ManyToManyField(
-        AppModule,
-        related_name="customer_access_configurations",
-        blank=True,
-    )
+    # Apps this customer may sign into (unique_id list). No module ticked =
+    # mobile login refused.
+    app_modules = models.JSONField(default=list, blank=True)
 
-    # Citizen app screens this customer can see. UI gating only.
-    app_screens = models.ManyToManyField(
-        UserScreen,
-        related_name="customer_access_configurations",
-        blank=True,
-    )
+    # Citizen app screens this customer can see (unique_id list). UI gating only.
+    app_screens = models.JSONField(default=list, blank=True)
 
     description = models.CharField(max_length=255, blank=True, null=True)
 
@@ -84,9 +59,33 @@ class CustomerAccessConfiguration(BaseMaster):
         ]
 
     def __str__(self):
-        return f"{self.customer_id_id}"
+        return f"{self.customer_id}"
 
     def delete(self, *args, **kwargs):
         self.is_active = False
         self.is_deleted = True
         self.save(update_fields=["is_active", "is_deleted"])
+
+    @property
+    def customer(self):
+        from app.models.customers.customercreation import CustomerCreation
+        if self.customer_id:
+            return CustomerCreation.objects.filter(unique_id=self.customer_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def app_modules_resolved(self):
+        from app.models.screen_managements.app_module import AppModule
+        return AppModule.objects.filter(unique_id__in=self.app_modules or [])
+
+    @property
+    def app_screens_resolved(self):
+        from app.models.screen_managements.userscreen import UserScreen
+        return UserScreen.objects.filter(unique_id__in=self.app_screens or [])

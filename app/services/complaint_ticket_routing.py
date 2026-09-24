@@ -101,7 +101,7 @@ def _best_routing_rule(ticket):
         is_deleted=False,
         is_active=True,
         category_id=ticket.category_id,
-    ).select_related("sla_rule")
+    )
 
     matching = [rule for rule in candidates if _routing_matches(rule, ticket)]
     if not matching:
@@ -153,24 +153,26 @@ def _staff_geo_matches(staff, ticket):
     treated as unrestricted, so existing single-zone deployments that never
     configured Data Scope keep working unchanged.
     """
-    access_config = staff.access_configuration.filter(
-        is_active=True, is_deleted=False,
+    from app.models.staff_creations.staff_access_configuration import StaffAccessConfiguration
+
+    access_config = StaffAccessConfiguration.objects.filter(
+        staff_id=staff.staff_unique_id, is_active=True, is_deleted=False,
     ).first()
     if not access_config:
         return True
 
     if ticket.ward_id:
-        wards = access_config.wards.all()
-        if wards.exists():
-            return wards.filter(unique_id=ticket.ward_id).exists()
+        ward_ids = access_config.get_ward_ids()
+        if ward_ids:
+            return ticket.ward_id in ward_ids
     if ticket.panchayat_id:
-        panchayats = access_config.panchayats.all()
-        if panchayats.exists():
-            return panchayats.filter(unique_id=ticket.panchayat_id).exists()
+        panchayat_ids = access_config.get_panchayat_ids()
+        if panchayat_ids:
+            return ticket.panchayat_id in panchayat_ids
     if ticket.zone_id:
-        zones = access_config.zones.all()
-        if zones.exists():
-            return zones.filter(unique_id=ticket.zone_id).exists()
+        zone_ids = access_config.get_zone_ids()
+        if zone_ids:
+            return ticket.zone_id in zone_ids
     return True
 
 
@@ -191,12 +193,11 @@ def _staff_for_hierarchy_level(project_id, level_num, ticket):
     candidates = (
         StaffcreationOfficeDetails.objects.filter(
             project_id=project_id,
-            staffusertype_id=hierarchy_entry.staffusertype_id_id,
+            staffusertype_id=hierarchy_entry.staffusertype_id,
             approval_status=StaffcreationOfficeDetails.APPROVAL_APPROVED,
             is_active=True,
             is_deleted=False,
         )
-        .prefetch_related("access_configuration__zones", "access_configuration__panchayats", "access_configuration__wards")
         .order_by("staff_unique_id")
     )
     for staff in candidates:

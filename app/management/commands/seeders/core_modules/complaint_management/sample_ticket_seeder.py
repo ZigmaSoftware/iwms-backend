@@ -85,13 +85,13 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
     def _resolve(self, category_code, subcategory_code):
         category = ComplaintCategory.objects.filter(
             category_code=category_code, is_deleted=False
-        ).select_related("default_priority").first()
+        ).first()
         if not category:
             return None, None
         subcategory = (
             ComplaintSubcategory.objects.filter(
-                category=category, subcategory_code=subcategory_code, is_deleted=False
-            ).select_related("default_priority").first()
+                category_id=category.unique_id, subcategory_code=subcategory_code, is_deleted=False
+            ).first()
             if subcategory_code
             else None
         )
@@ -112,23 +112,27 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
         lookup would insert a duplicate on every run.
         """
         existing = ComplaintTicket.objects.filter(
-            source=source, title=fields.get("title"), is_deleted=False
+            source_id=source.unique_id, title=fields.get("title"), is_deleted=False
         ).first()
         if existing:
             return existing, False
 
+        customer = fields.pop("customer", None)
+        if customer is not None:
+            fields["customer_id"] = customer.unique_id
+
         ticket = ComplaintTicket.objects.create(
-            category=category,
-            subcategory=subcategory,
-            priority=priority,
-            status=status,
-            source=source,
+            category_id=category.unique_id,
+            subcategory_id=subcategory.unique_id if subcategory else None,
+            priority_id=priority.unique_id if priority else None,
+            status_id=status.unique_id,
+            source_id=source.unique_id,
             **fields,
         )
         ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=None,
-            to_status=status,
+            ticket_id=ticket.unique_id,
+            from_status_id=None,
+            to_status_id=status.unique_id,
             changed_by_system=True,
             remarks="Seeded sample ticket",
         )
@@ -183,8 +187,8 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
                 wa_phone=customer.contact_no,
                 # Internal tickets inherit the customer's tenancy and geo so
                 # they land in the zone/ward the supervisor queues filter on.
-                company_id_id=customer.company_id_id,
-                project_id_id=customer.project_id_id,
+                company_id=customer.company_id,
+                project_id=customer.project_id,
                 zone_id=customer.zone_id,
                 ward_id=customer.ward_id,
                 location_text=getattr(customer, "address", "") or "",
@@ -212,8 +216,8 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
                 # the name/phone the citizen typed.
                 profile_name=person,
                 wa_phone=phone,
-                company_id_id=getattr(fallback, "company_id_id", None),
-                project_id_id=getattr(fallback, "project_id_id", None),
+                company_id=getattr(fallback, "company_id", None),
+                project_id=getattr(fallback, "project_id", None),
                 zone_id=getattr(fallback, "zone_id", None),
                 ward_id=getattr(fallback, "ward_id", None),
                 idempotency_key=f"publicgrievance:seed-{phone}",
@@ -227,7 +231,7 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
                 continue
             ticket = public_tickets[index]
             _, created = ComplaintFeedback.objects.get_or_create(
-                ticket=ticket,
+                ticket_id=ticket.unique_id,
                 defaults={
                     "rating": rating,
                     "feedback_text": (
