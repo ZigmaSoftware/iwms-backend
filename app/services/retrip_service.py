@@ -205,10 +205,10 @@ def create_breakdown_continuation(
 
     DailyTripCollectionPoint.objects.filter(
         unique_id__in=[stop.unique_id for stop in pending_bins]
-    ).update(carried_to_assignment=continuation)
+    ).update(carried_to_assignment=continuation.unique_id)
     DailyTripHouseholdCollection.objects.filter(
         unique_id__in=[stop.unique_id for stop in pending_households]
-    ).update(carried_to_assignment=continuation)
+    ).update(carried_to_assignment=continuation.unique_id)
 
     for staff in _crew_of(source):
         notify_staff(
@@ -286,10 +286,10 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
     # — not `.save()` per instance — so it doesn't touch `status`/`updated_at`.
     DailyTripCollectionPoint.objects.filter(
         unique_id__in=[stop.unique_id for stop in pending_bins]
-    ).update(carried_to_assignment=continuation)
+    ).update(carried_to_assignment=continuation.unique_id)
     DailyTripHouseholdCollection.objects.filter(
         unique_id__in=[stop.unique_id for stop in pending_households]
-    ).update(carried_to_assignment=continuation)
+    ).update(carried_to_assignment=continuation.unique_id)
 
     # The original trip is done. Its stops are deliberately left exactly as
     # they are — most stay Pending, since a carried-over stop was genuinely
