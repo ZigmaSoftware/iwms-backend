@@ -221,7 +221,7 @@ class DriverHouseholdTripSeeder(BaseSeeder):
             return None
         role, _ = StaffUserType.objects.get_or_create(
             name="Company Supervisor",
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id,
             defaults={"is_active": True, "is_deleted": False},
         )
 

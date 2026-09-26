@@ -21,15 +21,20 @@ class PlatformSuperUserSeeder(BaseSeeder):
         if not platform_type:
             platform_type = UserType.objects.create(name="Platform")
 
+        # usertype_id is a plain CharField (not a real FK — see StaffUserType),
+        # so it must be looked up/stored by the string id: passing the
+        # UserType instance here made the filter() lookup never match what a
+        # prior run's create() had actually stored, so every re-run tried to
+        # create() again and crashed on the unique constraint.
         superadmin_role = (
             StaffUserType.objects.filter(
-                usertype_id=platform_type,
+                usertype_id=platform_type.unique_id,
                 name__iexact="superadmin",
             ).first()
         )
         if not superadmin_role:
             superadmin_role = StaffUserType.objects.create(
-                usertype_id=platform_type,
+                usertype_id=platform_type.unique_id,
                 name="superadmin",
                 is_active=True,
                 is_deleted=False,

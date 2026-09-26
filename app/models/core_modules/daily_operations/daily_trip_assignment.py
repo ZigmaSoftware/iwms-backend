@@ -281,6 +281,7 @@ class DailyTripAssignment(BaseMaster):
 
     def pending_bin_stops(self):
         """Bin collection points still awaiting the driver."""
+        from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
         return self.trip_collection_points.filter(is_deleted=False).exclude(
             status__in=(
                 DailyTripCollectionPoint.STATUS_COLLECTED,

@@ -55,7 +55,7 @@ class GnoNamedStaffSeeder(BaseSeeder):
     def _get_role(self, staff_type, role_name):
         role, _ = StaffUserType.objects.get_or_create(
             name=role_name,
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id,
             defaults={"is_active": True, "is_deleted": False},
         )
         return role

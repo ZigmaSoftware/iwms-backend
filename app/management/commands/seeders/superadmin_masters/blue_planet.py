@@ -227,9 +227,15 @@ class BluePlanetSeeder(BaseSeeder):
             name="Staff",
             defaults={"is_active": True, "is_deleted": False},
         )
+        # usertype_id is a plain CharField (not a real FK — see StaffUserType),
+        # so it must be looked up by the string id: passing the UserType
+        # instance here made get_or_create's get() and create() paths coerce
+        # it inconsistently, so a second call for the same role name never
+        # found the row create() had just written and crashed on the unique
+        # constraint instead.
         role, _ = StaffUserType.objects.get_or_create(
             name=name,
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id,
             defaults={"is_active": True, "is_deleted": False},
         )
         return staff_type, role
