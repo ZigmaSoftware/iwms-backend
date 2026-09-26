@@ -17,7 +17,7 @@ Resources are "<url-module>/<route>", exactly as the frontend's
   read of them, never a write — writes still need the resource's own screen.
 
 Only protected modules matter here (see MODULE_RESOURCE_ALLOWLIST in
-module_permission_middleware.py); `superadmin/*`, `reports/*` and the other
+module_permission_middleware.py); `superadmin/*` and the other
 unprotected groups are reachable by any authenticated user already.
 """
 
@@ -187,10 +187,10 @@ SCREEN_DEPENDENCIES = {
     ("complaint-masters", "sla-rules"): {"lookups": _COMPLAINT_MASTER_LOOKUPS},
 
     # ---------------- reports ----------------
-    ("schedule-masters", "daily-waste-comparisons"): {
+    ("reports", "daily-waste-comparisons"): {
         "lookups": ("masters/panchayat", "masters/zones"),
     },
-    ("schedule-masters", "monthly-waste-comparison"): {
+    ("reports", "monthly-waste-comparison"): {
         "lookups": ("masters/panchayat", "masters/zones"),
     },
 }

@@ -441,12 +441,6 @@ class PermissionSeeder(BaseSeeder):
                 # granted from web at all.
                 "staff-notifications",
             ],
-            "schedule-masters": [
-                # legacy name — kept alive only for the reporting
-                # sub-resources still registered under it (see base_urls.py)
-                "daily-waste-comparisons",
-                "monthly-waste-comparison",
-            ],
             "audits": [
                 # "stafftemplate-audit-log",
                 # "supervisor-zone-access-audit",
@@ -471,7 +465,11 @@ class PermissionSeeder(BaseSeeder):
                 "workforce-management",
                 "date-report",
                 "day-report",
-                # "monthly-waste-comparison",
+                # Moved here from the legacy "schedule-masters" main screen;
+                # get_or_create below re-homes the existing rows, so their
+                # grants carry over.
+                "daily-waste-comparisons",
+                "monthly-waste-comparison",
             ],
         }
 
@@ -501,7 +499,6 @@ class PermissionSeeder(BaseSeeder):
                 "attendance",
             ),
             "reports": (
-                "schedule-masters",
                 "reports",
             ),
             "mobile-app": (CITIZEN_APP_MAINSCREEN,),
@@ -641,6 +638,19 @@ class PermissionSeeder(BaseSeeder):
                         screen.model_app_label = app_label
                         screen.model_name = model_name
                         screen.save(update_fields=["model_app_label", "model_name", "updated_at"])
+
+        # "schedule-masters" lost its last screens to "reports"; retire the
+        # emptied main screen so it stops showing as a blank permission group.
+        legacy_schedule_masters = MainScreen.objects.filter(
+            mainscreen_name="schedule-masters", is_deleted=False,
+        ).first()
+        if legacy_schedule_masters and not UserScreen.objects.filter(
+            mainscreen_id=legacy_schedule_masters.unique_id,
+            is_deleted=False,
+        ).exists():
+            legacy_schedule_masters.is_active = False
+            legacy_schedule_masters.is_deleted = True
+            legacy_schedule_masters.save(update_fields=["is_active", "is_deleted"])
 
         legacy_megamenu = MainScreenType.objects.filter(type_name="megamenu").first()
         if legacy_megamenu and not MainScreen.objects.filter(

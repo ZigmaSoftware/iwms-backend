@@ -360,19 +360,11 @@ router.register_group("schedule-operations", "trip-delay-reports", TripDelayRepo
 router.register_group("schedule-operations", "retrip-requests", TripRetripRequestViewSet)
 
 # ============================================================
-# GROUP: SCHEDULE MASTERS (legacy name — kept alive only for the
-# reporting sub-resources, matching the government reference app's
-# equivalent split; setup/operations resources above are no longer
-# registered under this group)
+# GROUP: REPORTS (moved out of the legacy "schedule-masters" group,
+# which no longer registers any routes)
 # ============================================================
-router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
-router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
-
-# ============================================================
-# GROUP: REPORTS (aliases used by the admin frontend)
-# ============================================================
-router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="reports-monthly-waste-comparison")
-router.register_group("reports", "daily-waste-comparisons", DailyWasteComparisonViewSet, basename="reports-daily-waste-comparisons")
+router.register_group("reports", "daily-waste-comparisons", DailyWasteComparisonViewSet, basename="daily-waste-comparisons")
+router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
 
 # ============================================================
 # GROUP: AUDIT

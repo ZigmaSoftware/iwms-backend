@@ -108,7 +108,7 @@ def test_staff_template_creation_permission_matches_staff_templates_route():
     }
 
     assert _resource_is_allowed(
-        "schedule-masters",
+        "schedule-setup",
         "StaffTemplateCreation",
         "staff-templates",
     )
@@ -328,6 +328,22 @@ def test_owner_grant_under_legacy_module_name_still_counts(monkeypatch):
         _view("CustomerCreation"),
     )
     assert status == 200
+
+
+def test_reports_are_gated_by_the_reports_module(monkeypatch):
+    for route, resource in (
+        ("daily-waste-comparisons", "DailyWasteComparison"),
+        ("monthly-waste-comparison", "MonthlyWasteComparisonReport"),
+    ):
+        path = f"/api/v1/reports/{route}/"
+        granted, _ = _run_as(
+            monkeypatch, {"reports": {route: ["view"]}}, "get", path, _view(resource)
+        )
+        legacy, _ = _run_as(
+            monkeypatch, {"schedule-masters": {route: ["view"]}}, "get", path, _view(resource)
+        )
+        denied, _ = _run_as(monkeypatch, {}, "get", path, _view(resource))
+        assert (granted, legacy, denied) == (200, 200, 403)
 
 
 def test_ward_form_dropdowns_come_with_the_ward_screen(monkeypatch):
