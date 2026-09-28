@@ -245,6 +245,7 @@ MODULE_RESOURCE_ALLOWLIST = {
     "reports": {
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
+        "ComplaintsReport",
     },
     "audits": {
         "StaffTemplateAuditLog",

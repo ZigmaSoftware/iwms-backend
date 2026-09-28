@@ -10,7 +10,7 @@ shape as `CustomerCreation`: state -> district -> panchayat, plus zone/ward
 and the company/project tenancy pair.
 """
 
-from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import Max
 
@@ -239,9 +239,9 @@ class ComplaintTicket(BaseMaster):
 
     @property
     def assigned_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.assigned_user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.assigned_user_id).first()
+            return get_user_model().objects.filter(unique_id=self.assigned_user_id).first()
         return None
 
     @property
@@ -257,6 +257,49 @@ class ComplaintTicket(BaseMaster):
         if self.escalated_to_staff_id:
             return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.escalated_to_staff_id).first()
         return None
+
+    # Stand-ins for the reverse accessors Django generated while the child
+    # tables held a real ForeignKey to the ticket. Their `ticket_id` is now a
+    # plain CharField, so these return the same querysets by hand for the
+    # serializers that still read `ticket.status_history.all()` etc.
+    @property
+    def extra_details(self):
+        from app.models.core_modules.complaint_management.transactions import ComplaintTicketExtraDetail
+        return ComplaintTicketExtraDetail.objects.filter(ticket_id=self.unique_id)
+
+    @property
+    def attachments(self):
+        from app.models.core_modules.complaint_management.transactions import ComplaintAttachment
+        return ComplaintAttachment.objects.filter(ticket_id=self.unique_id)
+
+    @property
+    def status_history(self):
+        from app.models.core_modules.complaint_management.transactions import ComplaintStatusHistory
+        return ComplaintStatusHistory.objects.filter(ticket_id=self.unique_id)
+
+    @property
+    def assignment_history(self):
+        from app.models.core_modules.complaint_management.transactions import ComplaintAssignmentHistory
+        return ComplaintAssignmentHistory.objects.filter(ticket_id=self.unique_id)
+
+    @property
+    def escalation_history(self):
+        from app.models.core_modules.complaint_management.transactions import ComplaintEscalationHistory
+        return ComplaintEscalationHistory.objects.filter(ticket_id=self.unique_id)
+
+    @property
+    def reopen_history(self):
+        from app.models.core_modules.complaint_management.transactions import ComplaintReopenHistory
+        return ComplaintReopenHistory.objects.filter(ticket_id=self.unique_id)
+
+    @property
+    def comments(self):
+        from app.models.core_modules.complaint_management.transactions import ComplaintComment
+        return ComplaintComment.objects.filter(ticket_id=self.unique_id)
+
+    @property
+    def child_tickets(self):
+        return ComplaintTicket.objects.filter(parent_ticket_id=self.unique_id)
 
     @property
     def parent_ticket(self):

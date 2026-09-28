@@ -20,6 +20,7 @@ from app.models.core_modules.complaint_management import (
     ComplaintComment,
     ComplaintFeedback,
     ComplaintReopenHistory,
+    ComplaintSource,
     ComplaintStatus,
     ComplaintStatusHistory,
     ComplaintTicket,
@@ -58,22 +59,66 @@ def _actor_user(request):
     return user if isinstance(user, User) else None
 
 
+def _actor_user_id(request):
+    """`_actor_user`'s unique_id, for the history models' `*_by_user_id`
+    CharFields (they hold the id, not an FK)."""
+    return getattr(_actor_user(request), "unique_id", None)
+
+
 def _resolve_status(status_code):
     return ComplaintStatus.objects.filter(status_code=status_code, is_deleted=False).first()
 
 
+# The ticket's master references (status_id, source_id, customer_id, ...) are
+# plain CharFields holding the master's unique_id, not ForeignKeys, so they
+# can't be traversed with `status__status_code`-style lookups. These helpers
+# resolve codes to ids first and filter on the id column instead.
+def _status_q(*codes):
+    ids = ComplaintStatus.objects.filter(status_code__in=codes).values("unique_id")
+    return models.Q(status_id__in=ids)
+
+
+def _public_source_q():
+    ids = ComplaintSource.objects.filter(source_code=PUBLIC_SOURCE_CODE).values("unique_id")
+    return models.Q(source_id__in=ids)
+
+
 def _status_bucket_q(bucket):
     if bucket == "pending":
-        return models.Q(status__status_code__in=["SUBMITTED", "ASSIGNED"])
+        return _status_q("SUBMITTED", "ASSIGNED")
     if bucket == "started":
-        return models.Q(status__status_code="IN_PROGRESS")
+        return _status_q("IN_PROGRESS")
     if bucket == "escalated":
-        return models.Q(status__status_code="ESCALATED")
+        return _status_q("ESCALATED")
     if bucket == "resolved":
-        return models.Q(status__status_code__in=CLOSED_STATUS_CODES)
+        return _status_q(*CLOSED_STATUS_CODES)
     if bucket == "open":
-        return ~models.Q(status__status_code__in=CLOSED_STATUS_CODES)
+        return ~_status_q(*CLOSED_STATUS_CODES)
     return models.Q()
+
+
+class _TicketSearchFilter(filters.SearchFilter):
+    """SearchFilter that also matches the customer's name. `customer_id` is
+    not a ForeignKey, so `customer__customer_name` can't be listed in
+    search_fields; matching customers are resolved to ids per term instead.
+    Same semantics as SearchFilter: every term must match some field."""
+
+    def filter_queryset(self, request, queryset, view):
+        from app.models.masters.customer_masters.customercreation import CustomerCreation
+
+        terms = self.get_search_terms(request)
+        if not terms:
+            return queryset
+        for term in terms:
+            q = models.Q(
+                customer_id__in=CustomerCreation.objects.filter(
+                    customer_name__icontains=term
+                ).values("unique_id")
+            )
+            for field in getattr(view, "search_fields", ()):
+                q |= models.Q(**{f"{field}__icontains": term})
+            queryset = queryset.filter(q)
+        return queryset
 
 
 def _is_platform_superuser(user):
@@ -106,15 +151,15 @@ def _is_entry_level_staff(user):
     from app.models.core_modules.complaint_management.masters import ComplaintSlaEscalationLevel, ComplaintSlaRule
     from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
 
-    staffusertype_id = getattr(user, "staffusertype_id_id", None)
-    project_id = getattr(user, "project_id_id", None)
+    staffusertype_id = getattr(user, "staffusertype_id", None)
+    project_id = getattr(user, "project_id", None)
     if not staffusertype_id or not project_id:
         return True
 
     hierarchy_levels = dict(
         ProjectStaffHierarchy.objects.filter(
             project_id=project_id, is_deleted=False,
-        ).values_list("staffusertype_id_id", "level")
+        ).values_list("staffusertype_id", "level")
     )
     if not hierarchy_levels:
         return True
@@ -152,19 +197,23 @@ def _entry_level_ticket_scope(user):
     access configuration, or none of the three grants populated, is
     unrestricted — they see every ticket in their company/project.
     """
-    access_config = user.access_configuration.filter(is_active=True, is_deleted=False).first()
+    from app.models.superadmin.staff_management.staff_access_configuration import StaffAccessConfiguration
+
+    access_config = StaffAccessConfiguration.objects.filter(
+        staff_id=user.staff_unique_id, is_active=True, is_deleted=False,
+    ).first()
     if not access_config:
         return models.Q()
 
-    wards = list(access_config.wards.values_list("unique_id", flat=True))
+    wards = access_config.get_ward_ids()
     if wards:
         return models.Q(ward_id__in=wards)
 
-    panchayats = list(access_config.panchayats.values_list("unique_id", flat=True))
+    panchayats = access_config.get_panchayat_ids()
     if panchayats:
         return models.Q(panchayat_id__in=panchayats)
 
-    zones = list(access_config.zones.values_list("unique_id", flat=True))
+    zones = access_config.get_zone_ids()
     if zones:
         return models.Q(zone_id__in=zones)
 
@@ -174,9 +223,9 @@ def _entry_level_ticket_scope(user):
 class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = ComplaintTicketSerializer
     lookup_field = "unique_id"
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [_TicketSearchFilter, filters.OrderingFilter]
     pagination_class = LimitOffsetWithPage
-    search_fields = ["ticket_no", "wa_phone", "profile_name", "title", "description", "customer__customer_name"]
+    search_fields = ["ticket_no", "wa_phone", "profile_name", "title", "description"]
     ordering_fields = ["created", "updated", "next_escalation_due_at", "ticket_no"]
     AUDIT_MODULE = "complaint-ticket"
     AUDIT_ENDPOINT = "tickets"
@@ -227,9 +276,9 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             # several internal sources and the tab means "not public".
             source = (params.get("source") or "").strip().lower()
             if source == "public":
-                qs = qs.filter(source__source_code=PUBLIC_SOURCE_CODE)
+                qs = qs.filter(_public_source_q())
             elif source == "internal":
-                qs = qs.exclude(source__source_code=PUBLIC_SOURCE_CODE)
+                qs = qs.exclude(_public_source_q())
             elif source:
                 # Any other value is treated as a ComplaintSource id, so the
                 # API can still filter to one specific source.
@@ -248,7 +297,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 if q:
                     qs = qs.filter(q)
                 else:
-                    qs = qs.filter(status__status_code=status_code)
+                    qs = qs.filter(_status_q(status_code))
 
         # Per-staff scoping, by hierarchy level rather than role name:
         #   - A platform superuser sees everything.
@@ -266,14 +315,14 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             if _is_entry_level_staff(user):
                 qs = qs.filter(_entry_level_ticket_scope(user))
             else:
-                qs = qs.filter(escalated_to_staff=user)
+                qs = qs.filter(escalated_to_staff_id=user.staff_unique_id)
         return qs
 
     @action(detail=False, methods=["get"], url_path="counts")
     def counts(self, request):
         qs = self.filter_queryset(self.get_queryset())
         total = qs.count()
-        public = qs.filter(source__source_code=PUBLIC_SOURCE_CODE).count()
+        public = qs.filter(_public_source_q()).count()
         return Response({
             "all": total,
             "public": public,
@@ -285,9 +334,9 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         ticket = serializer.instance
         apply_routing_and_sla(ticket, save=True)
         ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=None,
-            to_status=ticket.status,
+            ticket_id=ticket.unique_id,
+            from_status_id=None,
+            to_status_id=ticket.status_id,
             changed_by_system=True,
             remarks="Ticket created",
         )
@@ -305,8 +354,8 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         """
         if ticket.is_escalated:
             ticket.is_escalated = False
-            ticket.escalated_to_staff = None
-            ticket.save(update_fields=["is_escalated", "escalated_to_staff"])
+            ticket.escalated_to_staff_id = None
+            ticket.save(update_fields=["is_escalated", "escalated_to_staff_id"])
 
     # ---- PATCH/POST /tickets/{id}/status/ ----
     @action(detail=True, methods=["patch", "post"], url_path="status")
@@ -321,19 +370,19 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if not new_status:
             return Response({"status_code": f"Unknown status '{status_code}'."}, status=http_status.HTTP_400_BAD_REQUEST)
 
-        old_status = ticket.status
-        ticket.status = new_status
+        old_status_id = ticket.status_id
+        ticket.status_id = new_status.unique_id
         if new_status.status_code == "RESOLVED" and not ticket.resolved_at:
             ticket.resolved_at = timezone.now()
         if new_status.status_code == "CLOSED" and not ticket.closed_at:
             ticket.closed_at = timezone.now()
-        ticket.save(update_fields=["status", "resolved_at", "closed_at"])
+        ticket.save(update_fields=["status_id", "resolved_at", "closed_at"])
 
         ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=old_status,
-            to_status=new_status,
-            changed_by_user=_actor_user(request),
+            ticket_id=ticket.unique_id,
+            from_status_id=old_status_id,
+            to_status_id=new_status.unique_id,
+            changed_by_user_id=_actor_user_id(request),
             remarks=request.data.get("remarks"),
         )
         if new_status.status_code in CLOSED_STATUS_CODES:
@@ -350,24 +399,24 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             return Response({"detail": "RESOLVED status not configured."}, status=http_status.HTTP_400_BAD_REQUEST)
 
         note = request.data.get("resolution_note") or request.data.get("remarks")
-        old_status = ticket.status
-        ticket.status = resolved_status
+        old_status_id = ticket.status_id
+        ticket.status_id = resolved_status.unique_id
         if not ticket.resolved_at:
             ticket.resolved_at = timezone.now()
-        ticket.save(update_fields=["status", "resolved_at"])
+        ticket.save(update_fields=["status_id", "resolved_at"])
 
         ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=old_status,
-            to_status=resolved_status,
-            changed_by_user=_actor_user(request),
+            ticket_id=ticket.unique_id,
+            from_status_id=old_status_id,
+            to_status_id=resolved_status.unique_id,
+            changed_by_user_id=_actor_user_id(request),
             remarks=note or "Marked as resolved",
             visible_to_citizen=True,
         )
         if note:
             ComplaintComment.objects.create(
-                ticket=ticket,
-                comment_by_user=_actor_user(request),
+                ticket_id=ticket.unique_id,
+                comment_by_user_id=_actor_user_id(request),
                 comment_text=note,
                 is_internal=False,
             )
@@ -396,8 +445,8 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def add_comment(self, request, unique_id=None):
         ticket = self.get_object()
         comment = ComplaintComment.objects.create(
-            ticket=ticket,
-            comment_by_user=_actor_user(request),
+            ticket_id=ticket.unique_id,
+            comment_by_user_id=_actor_user_id(request),
             comment_text=request.data.get("comment_text", ""),
             is_internal=bool(request.data.get("is_internal", False)),
             is_sensitive=bool(request.data.get("is_sensitive", False)),
@@ -409,8 +458,8 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def add_attachment(self, request, unique_id=None):
         ticket = self.get_object()
         attachment = ComplaintAttachment.objects.create(
-            ticket=ticket,
-            uploaded_by_user=_actor_user(request),
+            ticket_id=ticket.unique_id,
+            uploaded_by_user_id=_actor_user_id(request),
             file=request.data.get("file"),
             file_name=request.data.get("file_name"),
             file_type=request.data.get("file_type"),
@@ -426,7 +475,8 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     @transaction.atomic
     def reopen(self, request, unique_id=None):
         ticket = self.get_object()
-        if not ticket.status.allow_reopen:
+        current_status = ticket.status
+        if not current_status or not current_status.allow_reopen:
             return Response(
                 {"detail": "Current status does not allow reopen."},
                 status=http_status.HTTP_400_BAD_REQUEST,
@@ -436,24 +486,24 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             return Response({"detail": "REOPENED status not configured."}, status=http_status.HTTP_400_BAD_REQUEST)
 
         reopen_reason = request.data.get("reopen_reason")
-        previous_status = ticket.status
-        ticket.status = reopened_status
+        previous_status_id = ticket.status_id
+        ticket.status_id = reopened_status.unique_id
         ticket.reopened_count = (ticket.reopened_count or 0) + 1
         ticket.resolved_at = None
         ticket.closed_at = None
-        ticket.save(update_fields=["status", "reopened_count", "resolved_at", "closed_at"])
+        ticket.save(update_fields=["status_id", "reopened_count", "resolved_at", "closed_at"])
 
         ComplaintReopenHistory.objects.create(
-            ticket=ticket,
-            reopened_by_user=_actor_user(request),
+            ticket_id=ticket.unique_id,
+            reopened_by_user_id=_actor_user_id(request),
             reopen_reason=reopen_reason,
-            previous_status=previous_status,
+            previous_status_id=previous_status_id,
         )
         ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=previous_status,
-            to_status=reopened_status,
-            changed_by_user=_actor_user(request),
+            ticket_id=ticket.unique_id,
+            from_status_id=previous_status_id,
+            to_status_id=reopened_status.unique_id,
+            changed_by_user_id=_actor_user_id(request),
             remarks=reopen_reason or "Reopened",
         )
         return Response(self.get_serializer(ticket).data)
@@ -463,9 +513,9 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def submit_feedback(self, request, unique_id=None):
         ticket = self.get_object()
         feedback, _ = ComplaintFeedback.objects.update_or_create(
-            ticket=ticket,
+            ticket_id=ticket.unique_id,
             defaults={
-                "customer": ticket.customer,
+                "customer_id": ticket.customer_id,
                 "rating": request.data.get("rating"),
                 "feedback_text": request.data.get("feedback_text"),
                 "is_issue_solved": bool(request.data.get("is_issue_solved", False)),

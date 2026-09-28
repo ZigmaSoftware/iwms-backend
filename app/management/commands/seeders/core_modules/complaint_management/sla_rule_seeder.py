@@ -87,11 +87,11 @@ class ComplaintSlaRuleSeeder(BaseSeeder):
             return []
         occupied_levels = set(
             ProjectStaffHierarchy.objects.filter(
-                project_id=project, is_deleted=False,
+                project_id=project.unique_id, is_deleted=False,
             )
             .filter(
                 staffusertype_id__in=StaffcreationOfficeDetails.objects.filter(
-                    project_id=project,
+                    project_id=project.unique_id,
                     approval_status=StaffcreationOfficeDetails.APPROVAL_APPROVED,
                     is_active=True,
                     is_deleted=False,

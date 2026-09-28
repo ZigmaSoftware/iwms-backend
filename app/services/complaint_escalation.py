@@ -112,7 +112,7 @@ def escalate_ticket(ticket, reason=None, escalated_by=None, by_system=True):
 
     ticket.escalation_level = to_level
     ticket.is_escalated = True
-    ticket.escalated_to_staff = next_staff
+    ticket.escalated_to_staff_id = next_staff.staff_unique_id
 
     minutes, sla_rule = _resolve_window_minutes(ticket, to_level)
     working_hours_only = sla_rule.working_hours_only if sla_rule else False
@@ -121,22 +121,22 @@ def escalate_ticket(ticket, reason=None, escalated_by=None, by_system=True):
     update_fields = [
         "escalation_level",
         "is_escalated",
-        "escalated_to_staff",
+        "escalated_to_staff_id",
         "next_escalation_due_at",
     ]
 
-    old_status = ticket.status
+    old_status_id = ticket.status_id
     escalated_status = ComplaintStatus.objects.filter(status_code="ESCALATED", is_deleted=False).first()
     if escalated_status:
-        ticket.status = escalated_status
-        update_fields.append("status")
+        ticket.status_id = escalated_status.unique_id
+        update_fields.append("status_id")
 
     ticket.save(update_fields=update_fields)
 
     ComplaintEscalationHistory.objects.create(
-        ticket=ticket,
+        ticket_id=ticket.unique_id,
         escalation_level=to_level,
-        escalated_to_staff=next_staff,
+        escalated_to_staff_id=next_staff.staff_unique_id,
         reason=reason,
         escalated_by_system=by_system,
     )
@@ -145,10 +145,10 @@ def escalate_ticket(ticket, reason=None, escalated_by=None, by_system=True):
         from_label = f"L{from_level}" + (f" - {from_staff.employee_name}" if from_staff else "")
         to_label = f"L{to_level} - {next_staff.employee_name}"
         ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=old_status,
-            to_status=escalated_status,
-            changed_by_user=escalated_by,
+            ticket_id=ticket.unique_id,
+            from_status_id=old_status_id,
+            to_status_id=escalated_status.unique_id,
+            changed_by_user_id=getattr(escalated_by, "unique_id", None),
             changed_by_system=by_system,
             remarks=f"Auto-escalated {from_label} -> {to_label}"
             + (f": {reason}" if reason else ""),
@@ -180,15 +180,19 @@ def check_and_escalate_overdue_tickets():
     """Sweep overdue tickets and escalate each one hop. Called by the
     `escalate_overdue_complaint_tickets` management command (run on a
     schedule via cron)."""
+    from app.models.core_modules.complaint_management.masters import ComplaintStatus
     from app.models.core_modules.complaint_management.ticket import ComplaintTicket
 
     now = timezone.now()
 
+    # status_id is a plain CharField (no FK to join through), so resolve the
+    # non-final statuses to ids first.
+    open_status_ids = ComplaintStatus.objects.filter(is_final=False).values("unique_id")
     overdue = ComplaintTicket.objects.filter(
         next_escalation_due_at__lt=now,
-        status__is_final=False,
+        status_id__in=open_status_ids,
         is_deleted=False,
-    ).select_related("category", "priority", "project_id", "company_id", "assigned_staff", "escalated_to_staff")
+    )
 
     count = 0
     for ticket in overdue:

@@ -40,7 +40,7 @@ class ComplaintCategorySeeder(BaseSeeder):
         company = Company.objects.filter(name=self.COMPANY_NAME, is_deleted=False).first()
         project = (
             Project.objects.filter(
-                name=self.PROJECT_NAME, company_id=company, is_deleted=False,
+                name=self.PROJECT_NAME, company_id=company.unique_id, is_deleted=False,
             ).first()
             if company
             else None
@@ -70,8 +70,9 @@ class ComplaintCategorySeeder(BaseSeeder):
                 },
             )
             # Backfill tenancy on a category seeded before this fix, so
-            # existing rows aren't left permanently untenanted.
-            if not created and company and project and not category.company_id:
+            # existing rows aren't left permanently untenanted (or stamped
+            # with the company but no project, as the earlier lookup did).
+            if not created and company and project and not (category.company_id and category.project_id):
                 category.company_id = company.unique_id
                 category.project_id = project.unique_id
                 category.save(update_fields=["company_id", "project_id"])

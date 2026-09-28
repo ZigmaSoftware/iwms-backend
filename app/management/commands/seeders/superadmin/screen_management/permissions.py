@@ -470,6 +470,7 @@ class PermissionSeeder(BaseSeeder):
                 # grants carry over.
                 "daily-waste-comparisons",
                 "monthly-waste-comparison",
+                "complaints-report",
             ],
         }
 

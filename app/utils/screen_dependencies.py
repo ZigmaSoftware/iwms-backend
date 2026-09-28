@@ -193,6 +193,9 @@ SCREEN_DEPENDENCIES = {
     ("reports", "monthly-waste-comparison"): {
         "lookups": ("masters/panchayat", "masters/zones"),
     },
+    ("reports", "complaints-report"): {
+        "lookups": ("masters/zones", "masters/wards"),
+    },
 }
 
 
