@@ -405,7 +405,12 @@ class ComplaintSlaRule(BaseMaster):
 
     @property
     def escalation_levels(self):
-        return ComplaintSlaEscalationLevel.objects.filter(sla_rule_id=self.unique_id)
+        # Live rows only: saves soft-delete the previous set and write a new
+        # one (ComplaintSlaRuleSerializer._save_escalation_levels), so without
+        # this every past save's levels are listed again alongside the current.
+        return ComplaintSlaEscalationLevel.objects.filter(
+            sla_rule_id=self.unique_id, is_deleted=False
+        ).order_by("level")
 
 
 def generate_sla_escalation_level_id():

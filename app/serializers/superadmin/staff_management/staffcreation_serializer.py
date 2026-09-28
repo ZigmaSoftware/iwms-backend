@@ -180,25 +180,71 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
     def to_internal_value(self, data):
         # For multipart/form-data, empty string for nullable FK means "clear to null".
-        # QueryDict is immutable so we copy it first.
+        # QueryDict is immutable so we work on a copy. Note: QueryDict.copy()
+        # deep-copies values, which crashes on uploaded files (BufferedRandom
+        # is not picklable) — so build a shallow clone that reuses the same
+        # file objects instead. request.data itself is left untouched.
         nullable_fk_fields = ('project_id',)
         if hasattr(data, '_mutable'):
-            data = data.copy()
-            for field in nullable_fk_fields:
-                raw = data.get(field)
-                if raw == '':
-                    data[field] = None
+            if any(data.get(field) == '' for field in nullable_fk_fields):
+                from django.http import QueryDict
+                clone = QueryDict(mutable=True)
+                for key, values in data.lists():
+                    clone.setlist(key, list(values))
+                for field in nullable_fk_fields:
+                    if clone.get(field) == '':
+                        clone[field] = None
+                data = clone
         return super().to_internal_value(data)
 
     def validate_username(self, value):
         if not value:
             return value
-        qs = Staffcreation.objects.filter(username=value, is_deleted=False)
+        username_clean = value.strip()
+        if not username_clean:
+            return value
+        qs = Staffcreation.objects.filter(username__iexact=username_clean, is_deleted=False)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
             raise serializers.ValidationError("A staff member with this username already exists.")
-        return value
+        return username_clean
+
+    def validate_contact_email(self, value):
+        # Soft-delete aware: allow reuse of email from deleted staff.
+        # StaffPersonalDetails has no is_deleted flag itself, so scope
+        # through the parent staff row (staff__is_deleted=False).
+        if not value:
+            return value
+        email_clean = value.strip()
+        if not email_clean:
+            return value
+        qs = StaffPersonalDetails.objects.filter(
+            contact_email__iexact=email_clean,
+            staff__is_deleted=False,
+        )
+        if self.instance:
+            qs = qs.exclude(staff__pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A staff member with this email already exists.")
+        return email_clean
+
+    def validate_contact_mobile(self, value):
+        # Soft-delete aware: allow reuse of mobile number from deleted staff.
+        if not value:
+            return value
+        mobile_clean = value.strip()
+        if not mobile_clean:
+            return value
+        qs = StaffPersonalDetails.objects.filter(
+            contact_mobile=mobile_clean,
+            staff__is_deleted=False,
+        )
+        if self.instance:
+            qs = qs.exclude(staff__pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A staff member with this mobile number already exists.")
+        return mobile_clean
 
     def _validate_address_pincode(self, value):
         if not value:
@@ -407,6 +453,18 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         password = validated_data.get("password")
         if password:
             validated_data["password"] = encrypt_password(password)
+
+        # Same rule as create(): turning login on for a still-PENDING staff
+        # member auto-approves them — the editor is the implicit approver.
+        # Without this, staff created with login off and enabled later stayed
+        # PENDING forever, and PENDING staff are skipped by complaint
+        # routing/escalation. Rejected/suspended staff are left as they are.
+        if (
+            validated_data.get("login_enabled")
+            and instance.approval_status == Staffcreation.APPROVAL_PENDING
+            and "approval_status" not in validated_data
+        ):
+            validated_data["approval_status"] = Staffcreation.APPROVAL_APPROVED
 
         self._sync_user_type_id(validated_data)
 

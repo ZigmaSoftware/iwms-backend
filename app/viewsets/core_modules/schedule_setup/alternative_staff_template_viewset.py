@@ -187,7 +187,7 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         return super().update(request, *args, **kwargs)
 
     def _resolve_performed_role(self, user):
-        role = getattr(getattr(user, "staffusertype_id", None), "name", "") or ""
+        role = getattr(getattr(user, "staffusertype", None), "name", "") or ""
         role = role.lower()
         if role == "admin":
             return StaffTemplateAuditLog.PerformedRole.ADMIN
@@ -199,7 +199,7 @@ class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         if not user:
             return
         StaffTemplateAuditLog.objects.create(
-            entity_type=StaffTemplateAuditLog.EntityType.ALTERNATIVE_TEMPLATE,
+            entity_type=StaffTemplateAuditLog.EntityType.ALT_STAFF_TEMPLATE,
             entity_id=str(entity_id),
             action=action,
             performed_by=getattr(user, "staff_unique_id", None),

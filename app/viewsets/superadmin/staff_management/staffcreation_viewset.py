@@ -266,13 +266,30 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
             ).first()
 
             if hierarchy_entry and hierarchy_entry.reports_to_staffusertype_id:
+                # Heads are staff of the reports-to role in the same project.
+                # Company-level staff of that role (project "All Projects" /
+                # null) are included too — e.g. a Company Admin overseeing
+                # every project can head project-level staff.
                 queryset = queryset.filter(
-                    project_id=project_id,
                     staffusertype_id=hierarchy_entry.reports_to_staffusertype_id,
+                ).filter(
+                    Q(project_id=project_id) | Q(project_id__isnull=True)
                 )
             elif hierarchy_entry:
                 # Top of the configured chain (e.g. Company Admin) — no head.
                 queryset = queryset.none()
+            else:
+                # Role has no hierarchy row in this project. If the project
+                # has any hierarchy configured at all, enforce it strictly
+                # (empty list) instead of falling back to every staff member.
+                # Projects with no hierarchy configured keep the legacy
+                # show-all fallback.
+                project_has_hierarchy = ProjectStaffHierarchy.objects.filter(
+                    project_id=project_id,
+                    is_deleted=False,
+                ).exists()
+                if project_has_hierarchy:
+                    queryset = queryset.none()
 
         staff_members = list(queryset[:200])
         department_names = {
@@ -363,9 +380,22 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
                 #     company_id=company,
                 #     project_id=project,
                 # )
+                # company/project may be model instances (platform-superadmin
+                # branch) or plain unique_id strings (company-user branch via
+                # _company()/_project()) — normalize to uid strings.
+                company_uid = (
+                    company
+                    if isinstance(company, str)
+                    else getattr(company, "unique_id", None)
+                )
+                project_uid = (
+                    project
+                    if isinstance(project, str)
+                    else getattr(project, "unique_id", None)
+                )
                 instance = serializer.save(
-                    company_id=company.unique_id,
-                    project_id=project.unique_id if project else None,
+                    company_id=company_uid,
+                    project_id=project_uid,
                 )
 
             new_data = self._serialize_instance(instance)
@@ -407,9 +437,20 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
                     )
                 previous_data = self._serialize_instance(instance)
 
+            # Normalize: each may be a model instance or a plain uid string.
+            company_uid = (
+                company
+                if company is None or isinstance(company, str)
+                else getattr(company, "unique_id", company)
+            )
+            project_uid = (
+                project
+                if project is None or isinstance(project, str)
+                else getattr(project, "unique_id", project)
+            )
             updated_instance = serializer.save(
-                company_id=company,
-                project_id=project,
+                company_id=company_uid,
+                project_id=project_uid,
             )
 
             new_data = self._serialize_instance(updated_instance)

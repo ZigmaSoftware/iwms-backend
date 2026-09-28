@@ -42,12 +42,14 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     )
     replacement_driver_id = NameOrUniqueIdField(
         name_field="employee_name",
+        slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
     replacement_operator_id = NameOrUniqueIdField(
         name_field="employee_name",
+        slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
@@ -131,7 +133,14 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
         attrs.pop("company_id_input", None)
         attrs.pop("project_id_input", None)
 
-        assignment = attrs.get("trip_assignment_id")
+        # The id fields resolve to unique_id strings (backing columns are
+        # CharFields), so load the assignment row for the checks below.
+        assignment_id = attrs.get("trip_assignment_id")
+        assignment = (
+            DailyTripAssignment.objects.filter(unique_id=assignment_id).first()
+            if assignment_id
+            else None
+        )
         if assignment:
             if assignment.status in [
                 DailyTripAssignment.STATUS_COMPLETED,
@@ -143,7 +152,7 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
 
         repl = attrs.get("replacement_vehicle_id")
         orig = attrs.get("breakdown_vehicle_id")
-        if repl and orig and repl.unique_id == orig.unique_id:
+        if repl and orig and repl == orig:
             raise serializers.ValidationError(
                 {"replacement_vehicle_id": "Replacement vehicle must be different from the broken vehicle."}
             )
@@ -195,19 +204,36 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
             "unique_id": template.unique_id,
             "display_code": template.display_code,
             "base_staff_template_id": getattr(template, "staff_template_id", None),
-            "driver": self._staff_dict(getattr(template, "driver_id", None)),
-            "operator": self._staff_dict(getattr(template, "operator_id", None)),
+            "driver": self._staff_dict(template.driver),
+            "operator": self._staff_dict(template.operator),
             "change_reason": template.change_reason,
             "change_remarks": template.change_remarks,
             "approval_status": template.approval_status,
         }
 
+    # All relation columns on VehicleBreakdown / DailyTripAssignment /
+    # TripPlan are plain id strings — the model properties resolve the rows.
+
+    def _crew_template(self, obj):
+        """The crew actually on the trip at breakdown time: the assignment's
+        own alternative staff template (if one was already substituted in)
+        takes precedence over the trip plan's / assignment's base template."""
+        assignment = obj.trip_assignment
+        if not assignment:
+            return None
+        trip_plan = assignment.trip_plan
+        return (
+            assignment.alt_staff_template
+            or (trip_plan.staff_template if trip_plan else None)
+            or assignment.staff_template
+        )
+
     def get_trip_assignment_detail(self, obj):
-        a = obj.trip_assignment_id
+        a = obj.trip_assignment
         if not a:
             return None
-        panchayat = getattr(a, "panchayat_id", None)
-        trip_plan = getattr(a, "trip_plan_id", None)
+        panchayat = a.panchayat
+        trip_plan = a.trip_plan
         return {
             "unique_id": a.unique_id,
             "trip_date": str(a.trip_date),
@@ -218,69 +244,41 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
         }
 
     def get_breakdown_vehicle_detail(self, obj):
-        return self._vehicle_dict(obj.breakdown_vehicle_id)
+        return self._vehicle_dict(obj.breakdown_vehicle)
 
     def get_replacement_vehicle_detail(self, obj):
-        return self._vehicle_dict(obj.replacement_vehicle_id)
+        return self._vehicle_dict(obj.replacement_vehicle)
 
     def get_replacement_driver_detail(self, obj):
-        return self._staff_dict(obj.replacement_driver_id)
+        return self._staff_dict(obj.replacement_driver)
 
     def get_replacement_operator_detail(self, obj):
-        return self._staff_dict(obj.replacement_operator_id)
+        return self._staff_dict(obj.replacement_operator)
 
     def get_original_driver_detail(self, obj):
-        try:
-            assignment = obj.trip_assignment_id
-            # The crew actually on the trip at breakdown time is whatever the
-            # assignment was running on: its own alternative staff template
-            # (if one was already substituted in) takes precedence over the
-            # assignment's/trip plan's base staff template.
-            active_alt = getattr(assignment, "alt_staff_template_id", None)
-            trip_plan = getattr(assignment, "trip_plan_id", None)
-            template = (
-                active_alt
-                or getattr(trip_plan, "staff_template_id", None)
-                or assignment.staff_template_id
-            )
-            if template:
-                return self._staff_dict(template.driver_id)
-        except Exception:
-            pass
-        return None
+        template = self._crew_template(obj)
+        return self._staff_dict(template.driver) if template else None
 
     def get_original_operator_detail(self, obj):
-        try:
-            assignment = obj.trip_assignment_id
-            active_alt = getattr(assignment, "alt_staff_template_id", None)
-            trip_plan = getattr(assignment, "trip_plan_id", None)
-            template = (
-                active_alt
-                or getattr(trip_plan, "staff_template_id", None)
-                or assignment.staff_template_id
-            )
-            if template:
-                return self._staff_dict(template.operator_id)
-        except Exception:
-            pass
-        return None
+        template = self._crew_template(obj)
+        return self._staff_dict(template.operator) if template else None
 
     def get_alt_staff_template_detail(self, obj):
-        return self._alt_staff_template_dict(obj.alt_staff_template_id)
+        return self._alt_staff_template_dict(obj.alt_staff_template)
 
     def get_approved_by_detail(self, obj):
-        return self._staff_dict(obj.approved_by)
+        return self._staff_dict(obj.approved_by_user)
 
     def get_new_assignment_id(self, obj):
-        return getattr(obj.new_assignment, "unique_id", None)
+        return obj.new_assignment or None
 
     def get_pending_stops(self, obj):
         """What's still outstanding on the trip being broken down — bin
         collection points for a bin trip (supervisor picks which carry over
         at /verify/), or un-collected houses for a household trip (all of
         them auto-carry). Not shown once a replacement trip already exists."""
-        assignment = obj.trip_assignment_id
-        if not assignment or obj.new_assignment_id:
+        assignment = obj.trip_assignment
+        if not assignment or obj.new_assignment:
             return None
         from app.services.retrip_service import build_pending_snapshot
 
@@ -289,7 +287,9 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     def get_photos(self, obj):
         request = self.context.get("request")
         photos = []
-        for photo in obj.photos.all():
+        from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdownPhoto
+
+        for photo in VehicleBreakdownPhoto.objects.filter(breakdown_id=obj.unique_id):
             url = photo.photo.url if photo.photo else None
             if url and request is not None:
                 url = request.build_absolute_uri(url)
@@ -310,12 +310,14 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
     )
     replacement_driver_id = NameOrUniqueIdField(
         name_field="employee_name",
+        slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )
     replacement_operator_id = NameOrUniqueIdField(
         name_field="employee_name",
+        slug_field="staff_unique_id",
         queryset=Staffcreation.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
@@ -338,11 +340,28 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
         if instance.approval_status == VehicleBreakdown.APPROVAL_REJECTED:
             raise serializers.ValidationError("Rejected breakdowns cannot be approved.")
 
+        # This plain Serializer has no Meta.model, so NameOrUniqueIdField
+        # hands back model instances; the VehicleBreakdown columns are id
+        # strings. Normalise both to the id string.
+        def _ref(value, id_attr):
+            if value is None or isinstance(value, str):
+                return value or None
+            return getattr(value, id_attr, None)
+
         # Only fill in what the driver didn't already set at creation —
         # never overwrite an explicit earlier choice.
-        replacement_vehicle = self.validated_data.get("replacement_vehicle_id") or instance.replacement_vehicle_id
-        replacement_driver = self.validated_data.get("replacement_driver_id") or instance.replacement_driver_id
-        replacement_operator = self.validated_data.get("replacement_operator_id") or instance.replacement_operator_id
+        replacement_vehicle = (
+            _ref(self.validated_data.get("replacement_vehicle_id"), "unique_id")
+            or instance.replacement_vehicle_id
+        )
+        replacement_driver = (
+            _ref(self.validated_data.get("replacement_driver_id"), "staff_unique_id")
+            or instance.replacement_driver_id
+        )
+        replacement_operator = (
+            _ref(self.validated_data.get("replacement_operator_id"), "staff_unique_id")
+            or instance.replacement_operator_id
+        )
         if not (replacement_vehicle and replacement_driver and replacement_operator):
             raise serializers.ValidationError(
                 "Select a replacement vehicle, driver, and operator before approving this breakdown."
@@ -352,7 +371,9 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
         from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
         from app.services import retrip_service
 
-        assignment = instance.trip_assignment_id
+        assignment = instance.trip_assignment
+        if assignment is None:
+            raise serializers.ValidationError("The trip for this breakdown no longer exists.")
         pending_bins = list(assignment.pending_bin_stops())
         pending_households = list(assignment.pending_household_stops())
         is_bin_trip = assignment.trip_collection_points.exists()
@@ -378,7 +399,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             # a prior breakdown's row here would silently overwrite its
             # driver/operator, corrupting that earlier breakdown's history.
             alt_template = AlternativeStaffTemplate.objects.create(
-                staff_template=assignment.staff_template_id,
+                staff_template_id=assignment.staff_template_id,
                 driver_id=replacement_driver,
                 operator_id=replacement_operator,
                 company_id=instance.company_id,
@@ -395,7 +416,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
                 continuation = retrip_service.create_breakdown_continuation(
                     assignment,
                     vehicle_id=replacement_vehicle,
-                    alt_staff_template_id=alt_template,
+                    alt_staff_template_id=alt_template.unique_id,
                     collection_point_ids=collection_point_ids,
                 )
             except ValueError as exc:
@@ -416,11 +437,11 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
                 replacement_vehicle_id=replacement_vehicle,
                 replacement_driver_id=replacement_driver,
                 replacement_operator_id=replacement_operator,
-                alt_staff_template_id=alt_template,
-                new_assignment=continuation,
+                alt_staff_template_id=alt_template.unique_id,
+                new_assignment=continuation.unique_id,
                 status=VehicleBreakdown.STATUS_REPLACEMENT_ARRANGED,
                 approval_status=VehicleBreakdown.APPROVAL_APPROVED,
-                approved_by=approved_by_staff,
+                approved_by=getattr(approved_by_staff, "staff_unique_id", None),
                 approved_at=now,
                 updated_at=now,
             )
@@ -429,31 +450,32 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
 
             BinCollectionEvent.objects.filter(
-                trip_assignment_id=assignment,
+                trip_assignment_id=assignment.unique_id,
                 is_deleted=False,
             ).update(
-                vehicle_breakdown_id=instance,
+                vehicle_breakdown_id=instance.unique_id,
                 updated_at=now,
             )
 
         from app.models.core_modules.notifications.staff_notification import StaffNotification
         from app.services.staff_notification_service import notify_staff
 
-        driver = instance.replacement_driver_id
+        driver = instance.replacement_driver
         if driver is not None:
+            vehicle_no = getattr(instance.replacement_vehicle, "vehicle_no", None) or "a new vehicle"
             notify_staff(
                 driver,
                 StaffNotification.TYPE_VEHICLE_REPLACEMENT_APPROVED,
                 title="Vehicle replaced",
                 body=(
-                    f"Trip {instance.trip_assignment_id.unique_id} has a breakdown replacement. "
-                    f"Your assigned trip {getattr(instance.new_assignment, 'unique_id', '')} uses "
-                    f"{getattr(instance.replacement_vehicle_id, 'vehicle_no', 'a new vehicle')}."
+                    f"Trip {instance.trip_assignment_id} has a breakdown replacement. "
+                    f"Your assigned trip {instance.new_assignment or ''} uses "
+                    f"{vehicle_no}."
                 ),
                 data={
                     "vehicle_breakdown_id": instance.unique_id,
-                    "trip_assignment_id": instance.trip_assignment_id.unique_id,
-                    "new_assignment_id": getattr(instance.new_assignment, "unique_id", None),
+                    "trip_assignment_id": instance.trip_assignment_id,
+                    "new_assignment_id": instance.new_assignment,
                 },
             )
 
@@ -486,9 +508,13 @@ class VehicleBreakdownRejectSerializer(serializers.Serializer):
 
         # Notify the assignment's current driver — the replacement request
         # never went through, so the original vehicle/crew stands.
-        assignment = instance.trip_assignment_id
-        template = assignment.alt_staff_template_id or assignment.staff_template_id
-        driver = getattr(template, "driver_id", None)
+        assignment = instance.trip_assignment
+        template = (
+            (assignment.alt_staff_template or assignment.staff_template)
+            if assignment
+            else None
+        )
+        driver = template.driver if template else None
         if driver is not None:
             notify_staff(
                 driver,

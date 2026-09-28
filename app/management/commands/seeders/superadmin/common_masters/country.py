@@ -31,9 +31,21 @@ class CountrySeeder(BaseSeeder):
         for country_name, continent_name in self.COUNTRIES:
             if continent_name not in continent_cache:
                 continent_cache[continent_name] = Continent.objects.get(name=continent_name)
-            Country.objects.get_or_create(
+            uid = continent_cache[continent_name].unique_id
+            # Look up by name only: legacy rows may hold the continent *name*
+            # in continent_id (pre-fix seeder stored str(obj)); heal them to
+            # the uid instead of creating a duplicate row.
+            country, created = Country.objects.get_or_create(
                 name=country_name,
-                continent_id=continent_cache[continent_name],
+                defaults={
+                    # CharField — must store the uid string, not the object
+                    # (str(obj) would store the continent *name*, breaking
+                    # uid-based lookups).
+                    "continent_id": uid,
+                },
             )
+            if not created and country.continent_id != uid:
+                country.continent_id = uid
+                country.save(update_fields=["continent_id"])
 
         self.log(f"---Countries seeded ({len(self.COUNTRIES)} records)---")

@@ -22,7 +22,10 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import (
+    CompanyScopedViewSet,
+    _tenant_value,
+)
 
 
 class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -53,13 +56,15 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 qs = qs.filter(project_id=project_param)
             return qs
 
+        # _project() returns a Project instance; _tenant_value converts it to
+        # the unique_id string for CharField project_id columns.
         company = self._company()
         if company and hasattr(qs.model, "company_id"):
-            qs = qs.filter(company_id=company)
+            qs = qs.filter(company_id=_tenant_value(qs.model, "company_id", company))
 
         project = self._project()
         if project and hasattr(qs.model, "project_id"):
-            qs = qs.filter(project_id=project)
+            qs = qs.filter(project_id=_tenant_value(qs.model, "project_id", project))
 
         return qs
 
@@ -343,9 +348,9 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 "unique_id": template.unique_id,
                 "display_code": template.display_code,
                 "driver_id": template.driver_id,
-                "driver_name": template.driver_id.employee_name if template.driver_id else None,
+                "driver_name": getattr(template.driver, "employee_name", None),
                 "operator_id": template.operator_id,
-                "operator_name": template.operator_id.employee_name if template.operator_id else None,
+                "operator_name": getattr(template.operator, "employee_name", None),
             }
             for template in qs.order_by("display_code")
         ]
@@ -375,8 +380,11 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         # When editing an existing breakdown, exclude it from the pending filter
         # so its own replacement vehicle is still shown as available.
         current_breakdown_id = request.query_params.get("exclude_id")
+        matching_assignment_ids = DailyTripAssignment.objects.filter(
+            trip_date=trip_date,
+        ).values("unique_id")
         pending_qs = self._scope_company_project(VehicleBreakdown.objects.filter(
-            trip_assignment_id__trip_date=trip_date,
+            trip_assignment_id__in=matching_assignment_ids,
             approval_status=VehicleBreakdown.APPROVAL_PENDING,
             replacement_vehicle_id__isnull=False,
             is_deleted=False,
@@ -410,7 +418,7 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
         photos = self.request.FILES.getlist("photos")
         for photo in photos:
-            VehicleBreakdownPhoto.objects.create(breakdown=instance, photo=photo)
+            VehicleBreakdownPhoto.objects.create(breakdown_id=instance.unique_id, photo=photo)
 
         self.log_audit(
             self.request,
@@ -422,11 +430,13 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         from app.models.core_modules.notifications.staff_notification import StaffNotification
         from app.services.staff_notification_service import notify_staff
 
-        assignment = instance.trip_assignment_id
-        trip_plan = getattr(assignment, "trip_plan_id", None)
-        supervisor = getattr(trip_plan, "supervisor_id", None)
+        # The *_id fields are plain id strings — resolve the related rows via
+        # the model properties so the supervisor is actually found.
+        assignment = instance.trip_assignment
+        trip_plan = assignment.trip_plan if assignment else None
+        supervisor = trip_plan.supervisor if trip_plan else None
         if supervisor is not None:
-            vehicle_no = getattr(instance.breakdown_vehicle_id, "vehicle_no", "A vehicle")
+            vehicle_no = getattr(instance.breakdown_vehicle, "vehicle_no", None) or "A vehicle"
             notify_staff(
                 supervisor,
                 StaffNotification.TYPE_VEHICLE_BREAKDOWN_REPORTED,

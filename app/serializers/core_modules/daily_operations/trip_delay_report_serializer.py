@@ -29,11 +29,12 @@ class TripDelayReportSerializer(serializers.ModelSerializer):
     acknowledged_by = serializers.CharField(
         source="acknowledged_by_id", read_only=True, default=None
     )
-    reported_by_name = serializers.CharField(
-        source="reported_by.employee_name", read_only=True, default=None
-    )
+    # reported_by_id / vehicle_id are plain id strings, so resolve the names
+    # explicitly rather than via a dotted `source` (which would silently hit
+    # the default every time).
+    reported_by_name = serializers.SerializerMethodField()
     vehicle_no = serializers.CharField(
-        source="trip_assignment.vehicle_id.vehicle_no",
+        source="trip_assignment.vehicle.vehicle_no",
         read_only=True,
         default=None,
     )
@@ -83,6 +84,29 @@ class TripDelayReportSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def get_reported_by_name(self, obj):
+        if not obj.reported_by_id:
+            return None
+        from app.models.superadmin.staff_management.staffcreation import Staffcreation
+
+        return (
+            Staffcreation.objects.filter(staff_unique_id=obj.reported_by_id)
+            .values_list("employee_name", flat=True)
+            .first()
+        )
+
+    def validate_trip_assignment_id(self, value):
+        # Admin web form can pick any trip; a delay on a closed trip is noise.
+        assignment = DailyTripAssignment.objects.filter(unique_id=value).first()
+        if assignment and assignment.status in (
+            DailyTripAssignment.STATUS_COMPLETED,
+            DailyTripAssignment.STATUS_CANCELLED,
+        ):
+            raise serializers.ValidationError(
+                "Cannot report a delay for a completed or cancelled trip."
+            )
+        return value
 
     def validate_delay_remarks(self, value):
         # The remarks ARE the feature — a delay with no explanation tells the

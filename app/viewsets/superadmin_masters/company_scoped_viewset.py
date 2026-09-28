@@ -47,7 +47,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         if not user or not isinstance(user, Staffcreation):
             return False
 
-        role_obj = getattr(user, "staffusertype_id", None)
+        role_obj = getattr(user, "staffusertype", None)
         role_name = (getattr(role_obj, "name", "") or "").lower()
 
         return "supervisor" in role_name
@@ -64,7 +64,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         if not user or not isinstance(user, Staffcreation):
             return False
 
-        role_obj = getattr(user, "staffusertype_id", None)
+        role_obj = getattr(user, "staffusertype", None)
         role_name = (getattr(role_obj, "name", "") or "").lower()
 
         return "admin" in role_name
@@ -80,7 +80,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         if not user or not isinstance(user, Staffcreation):
             return False
 
-        role_obj = getattr(user, "staffusertype_id", None)
+        role_obj = getattr(user, "staffusertype", None)
         role_name = (getattr(role_obj, "name", "") or "").lower()
 
         return "admin" in role_name and "project" in role_name
@@ -182,6 +182,49 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
             return None
 
         return getattr(user, "company_id", None)
+
+    @staticmethod
+    def _company_uid(value):
+        """Normalize a company reference to its unique_id string.
+
+        `company_id` is a CharField uid string on Staffcreation/auth User
+        but a model instance on other user types — accept either.
+        """
+        if value is None or isinstance(value, str):
+            return value
+        return getattr(value, "unique_id", value)
+
+    def _company_from_query(self, request):
+        """Resolve company uid for option-list actions.
+
+        Prefers the caller's tenant scope; falls back to an explicit
+        ?company_id=/companyId=/company_unique_id= lookup. Returns
+        (uid_string_or_None, error_response_or_None).
+        """
+        scoped_company = self._company()
+        if scoped_company:
+            return self._company_uid(scoped_company), None
+
+        company_id = (
+            request.query_params.get("company_id")
+            or request.query_params.get("companyId")
+            or request.query_params.get("company_unique_id")
+        )
+        if not company_id:
+            from rest_framework.response import Response
+            from rest_framework import status as drf_status
+            return None, Response(
+                {"error": "company_id is required"}, status=drf_status.HTTP_400_BAD_REQUEST
+            )
+
+        company = Company.objects.filter(unique_id=company_id).first()
+        if not company:
+            from rest_framework.response import Response
+            from rest_framework import status as drf_status
+            return None, Response(
+                {"error": "Invalid company"}, status=drf_status.HTTP_400_BAD_REQUEST
+            )
+        return company.unique_id, None
 
     # ==========================================================
     # PROJECT RESOLUTION

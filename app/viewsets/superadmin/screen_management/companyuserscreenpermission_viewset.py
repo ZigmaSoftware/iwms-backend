@@ -1,5 +1,6 @@
 import csv
 import io
+import zlib
 
 from django.core.cache import cache
 from drf_yasg import openapi
@@ -64,11 +65,11 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         """
         Resolves company from middleware scope first, then from request.
         Supports both company_id and company_unique_id.
-        Returns: (company_obj_or_none, error_response_or_none)
+        Returns: (company_uid_string_or_none, error_response_or_none)
         """
         scoped_company = self._company()
         if scoped_company:
-            return scoped_company, None
+            return self._company_uid(scoped_company), None
 
         payload = request.query_params if source == "query" else request.data
         company_id = (
@@ -89,7 +90,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         if not company:
             return None, Response({"error": "Invalid company"}, status=status.HTTP_400_BAD_REQUEST)
 
-        return company, None
+        return company.unique_id, None
 
     def _find_project_by_value(self, company, raw_value):
         if not raw_value:
@@ -97,7 +98,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         value = str(raw_value).strip()
         qs = Project.objects.filter(is_deleted=False)
         if company:
-            qs = qs.filter(company_id=company.unique_id)
+            qs = qs.filter(company_id=self._company_uid(company))
         return qs.filter(Q(unique_id__iexact=value) | Q(name__iexact=value)).first()
 
     def _normalize_permission_payloads(self, payload):
@@ -177,7 +178,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             )
 
         payload = request.data.copy()
-        payload["company_id"] = company.unique_id
+        payload["company_id"] = company
         payload["project_id"] = project_id
         payload["permissionType"] = (
             request.data.get("permissionType")
@@ -221,7 +222,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             else:
                 return qs.none()
         else:
-            qs = qs.filter(company_id=company.unique_id)
+            qs = qs.filter(company_id=company)
 
         project_id = self.request.query_params.get("project_id") or self.request.query_params.get("projectId")
         if project_id == "none":
@@ -470,14 +471,28 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             )
 
         # 🔥 CACHE KEY
-        cache_key = f"perm_{company.unique_id}_{project_id or 'none'}_{mainscreen_id}_{permission_type}"
+        # Includes a fingerprint of the screens currently under this
+        # mainscreen: saves clear the cache, but a migration/seeder moving
+        # screens between mainscreens doesn't, and a stale entry would keep
+        # serving the old screen set (and its grants) for up to 5 minutes.
+        screen_fingerprint = zlib.crc32(
+            ",".join(
+                UserScreen.objects.filter(mainscreen_id=mainscreen_id, is_deleted=False)
+                .order_by("unique_id")
+                .values_list("unique_id", flat=True)
+            ).encode()
+        )
+        cache_key = (
+            f"perm_{company}_{project_id or 'none'}_{mainscreen_id}_{permission_type}"
+            f"_{screen_fingerprint}"
+        )
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
 
         # 🔥 OPTIMIZED QUERY (NO MODEL LOAD)
         perms = CompanyUserScreenPermission.objects.filter(
-            company_id=company.unique_id,
+            company_id=company,
             project_id=project_id,
             mainscreen_id=mainscreen_id,
             permission_type=permission_type,
@@ -493,7 +508,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             mainscreen_id=mainscreen_id,
         ).values("unique_id")
         column_perms = CompanyUserScreenColumnPermission.objects.filter(
-            company_id=company.unique_id,
+            company_id=company,
             project_id=project_id,
             userscreen_id__in=mainscreen_userscreen_ids,
             is_deleted=False,
@@ -548,7 +563,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         ]
 
         response_data = {
-            "company_id": company.unique_id,
+            "company_id": company,
             "project_id": project_id,
             "mainscreen_id": mainscreen_id,
             "permission_type": permission_type,
@@ -590,7 +605,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         # Get ALL permissions for this company + project (no mainscreen filter)
         qs = CompanyUserScreenPermission.objects.filter(
-            company_id=company.unique_id,
+            company_id=company,
             project_id=project_id,
             is_deleted=False,
         )
@@ -598,7 +613,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
         if not qs.exists():
             return Response(
                 {
-                    "company_id": company.unique_id,
+                    "company_id": company,
                     "project_id": project_id,
                     "mainscreens": [],
                     "total_screens": 0,
@@ -647,7 +662,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
 
         return Response(
             {
-                "company_id": company.unique_id,
+                "company_id": company,
                 "project_id": project_id,
                 "mainscreens": mainscreens,
                 "total_screens": total_screens,
@@ -683,7 +698,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
             )
 
         qs = CompanyUserScreenPermission.objects.filter(
-            company_id=company.unique_id,
+            company_id=company,
             project_id=project_id,
             mainscreen_id=mainscreen_id,
             permission_type=permission_type,
@@ -697,7 +712,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                 mainscreen_id=mainscreen_id,
             ).values("unique_id")
             CompanyUserScreenColumnPermission.objects.filter(
-                company_id=company.unique_id,
+                company_id=company,
                 project_id=project_id,
                 userscreen_id__in=mainscreen_userscreen_ids,
                 is_deleted=False,
@@ -710,7 +725,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                 "project_id": project_id,
                 "mainscreen_id": mainscreen_id,
                 "permission_type": permission_type,
-                "company_id": company.unique_id,
+                "company_id": company,
             },
             status=status.HTTP_200_OK,
         )
@@ -769,6 +784,9 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     if not company:
                         errors.append({"row": index, "error": "Failed to resolve company context"})
                         continue
+                # company may be a model instance (superadmin branch) or a
+                # plain uid string (company-user branch) — normalize once.
+                company = self._company_uid(company)
 
                 project_id_value = (
                     row.get("project_name") or row.get("project_id") or project_override or ""
@@ -885,7 +903,7 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                 project_unique_id = project.unique_id if project else None
 
                 existing = CompanyUserScreenPermission.objects.filter(
-                    company_id=company.unique_id,
+                    company_id=company,
                     project_id=project_unique_id,
                     mainscreen_id=mainscreen.unique_id,
                     permission_type=permission_type,
@@ -898,11 +916,11 @@ class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet)
                     success_count += 1
                     continue
 
-                counter_key = (company.unique_id, project_unique_id, mainscreen.unique_id)
+                counter_key = (company, project_unique_id, mainscreen.unique_id)
                 order_counters[counter_key] = order_counters.get(counter_key, 0) + 1
 
                 CompanyUserScreenPermission.objects.create(
-                    company_id=company.unique_id,
+                    company_id=company,
                     project_id=project_unique_id,
                     mainscreen_id=mainscreen.unique_id,
                     permission_type=permission_type,

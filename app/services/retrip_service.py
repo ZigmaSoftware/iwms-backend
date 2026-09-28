@@ -54,23 +54,21 @@ def build_pending_snapshot(assignment):
 
 def _crew_of(assignment):
     """Driver + operator on the effective (possibly substituted) template."""
-    template = assignment.alt_staff_template_id or assignment.staff_template_id
+    # *_id columns are plain id strings — resolve rows via the properties.
+    template = assignment.alt_staff_template or assignment.staff_template
     if template is None:
         return []
     return [
         staff
-        for staff in (
-            getattr(template, "driver_id", None),
-            getattr(template, "operator_id", None),
-        )
+        for staff in (template.driver, template.operator)
         if staff is not None
     ]
 
 
 def _supervisors_for(assignment):
     """Who should be asked to approve — the trip plan's assigned supervisor."""
-    plan = assignment.trip_plan_id
-    supervisor = getattr(plan, "supervisor_id", None) if plan else None
+    plan = assignment.trip_plan
+    supervisor = plan.supervisor if plan else None
     return [supervisor] if supervisor is not None else []
 
 

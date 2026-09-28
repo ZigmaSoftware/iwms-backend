@@ -456,15 +456,25 @@ class PermissionSeeder(BaseSeeder):
             # these rows are ticked on a CustomerAccessConfiguration and gate
             # the app's UI only.
             CITIZEN_APP_MAINSCREEN: CITIZEN_APP_SCREENS,
-            "reports": [
+            # The sidebar's "Fleet & Reports" group, split out of "reports"
+            # by migration 0011_split_fleet_reports_mainscreen (which also
+            # re-points the existing grants). Frontend-only GPS pages — no
+            # backend routes, so no middleware module key depends on this.
+            "fleet-reports": [
+                "vehicle-track",
+                "vehicle-history",
                 "trip-summary",
                 "monthly-distance",
                 "waste-collected-summary",
-                "vehicle-track",
-                "vehicle-history",
-                "workforce-management",
+                # Weighbridge Management and its two reports — one permission
+                # row via SCREEN_GROUPS (app/utils/screen_dependencies.py);
+                # renamed from "workforce-management" and moved out of
+                # "reports" by migration 0012_weighbridge_management_screens.
+                "weighbridge-management",
                 "date-report",
                 "day-report",
+            ],
+            "reports": [
                 # Moved here from the legacy "schedule-masters" main screen;
                 # get_or_create below re-homes the existing rows, so their
                 # grants carry over.
@@ -501,6 +511,7 @@ class PermissionSeeder(BaseSeeder):
             ),
             "reports": (
                 "reports",
+                "fleet-reports",
             ),
             "mobile-app": (CITIZEN_APP_MAINSCREEN,),
         }
@@ -555,6 +566,18 @@ class PermissionSeeder(BaseSeeder):
             for idx, screen_name in enumerate(screens, start=1):
                 # Preserve existing permission rows when adopting the router's
                 # canonical screen name instead of creating a duplicate screen.
+                if screen_name == "weighbridge-management":
+                    # Renamed from "workforce-management"; keep the row (and
+                    # every grant on it) rather than seeding a duplicate.
+                    if not UserScreen.objects.filter(userscreen_name=screen_name).exists():
+                        UserScreen.objects.filter(
+                            userscreen_name="workforce-management"
+                        ).update(
+                            userscreen_name=screen_name,
+                            folder_name=screen_name,
+                            icon_name=screen_name,
+                        )
+
                 if screen_name == "companywisescreenpermissions":
                     legacy_screen = UserScreen.objects.filter(
                         userscreen_name="CompanyUserScreenPermission",
@@ -601,6 +624,15 @@ class PermissionSeeder(BaseSeeder):
                     screen.mainscreen_id = main_id
                     screen.order_no = self._parked_order_no(main)
                     screen.save(update_fields=["mainscreen_id", "order_no"])
+                    # Grant rows carry their own mainscreen_id and the
+                    # permission payload is keyed by it — re-point them or
+                    # every existing grant on the moved screen goes inert.
+                    CompanyUserScreenPermission.objects.filter(
+                        userscreen_id=screen.unique_id
+                    ).exclude(mainscreen_id=main_id).update(mainscreen_id=main_id)
+                    StaffAccessConfigurationPermission.objects.filter(
+                        userscreen_id=screen.unique_id
+                    ).exclude(mainscreen_id=main_id).update(mainscreen_id=main_id)
                 ordered_screens.append(screen)
 
             # Retire screens this main screen no longer defines. Without this

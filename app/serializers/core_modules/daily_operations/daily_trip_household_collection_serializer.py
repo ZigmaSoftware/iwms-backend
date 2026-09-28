@@ -74,21 +74,21 @@ class DailyTripHouseholdCollectionSerializer(
         ]
 
     def get_trip_assignment(self, obj):
-        assignment = obj.trip_assignment_id
+        assignment = obj.trip_assignment
         if not assignment:
             return None
-        trip_plan = getattr(assignment, "trip_plan_id", None)
+        trip_plan = assignment.trip_plan
         return {
             "unique_id": assignment.unique_id,
             "trip_date": str(assignment.trip_date),
             "scheduled_time": str(assignment.scheduled_time),
             "status": assignment.status,
-            "trip_plan_id": getattr(trip_plan, "unique_id", None),
+            "trip_plan_id": assignment.trip_plan_id,
             "trip_plan_display_code": getattr(trip_plan, "display_code", None),
         }
 
     def get_customer(self, obj):
-        customer = obj.customer_id
+        customer = obj.customer
         if not customer:
             return None
         return {
@@ -99,15 +99,15 @@ class DailyTripHouseholdCollectionSerializer(
         }
 
     def get_panchayat(self, obj):
-        p = obj.panchayat_id
+        p = obj.panchayat
         return None if not p else {"unique_id": p.unique_id, "panchayat_name": p.panchayat_name}
 
     def get_ward(self, obj):
-        w = obj.ward_id
+        w = obj.ward
         return None if not w else {"unique_id": w.unique_id, "ward_name": w.ward_name}
 
     def get_waste_breakdown(self, obj):
-        wc = obj.waste_collection_id
+        wc = obj.waste_collection
         if not wc:
             return None
         return {

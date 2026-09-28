@@ -1,13 +1,18 @@
 import hashlib
 import json
 import re
+from types import SimpleNamespace
 
+from django.db.models import Q
 from django.utils import timezone
 
 from app.models.superadmin.screen_management.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
 from app.models.superadmin.screen_management.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.models.superadmin.screen_management.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
 from app.models.superadmin.screen_management.userscreencolumn import UserScreenColumn
 from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
@@ -38,9 +43,89 @@ def normalize_permission_key(value):
     return re.sub(r"[^a-z0-9]+", "-", text).strip("-")
 
 
+def _ordered(rows):
+    """Rows sorted by order_no — a queryset is ordered in SQL, while a list
+    from preload_permission_rows() is already in order_no order."""
+    if hasattr(rows, "order_by"):
+        return rows.order_by("order_no")
+    return rows
+
+
+def _by_unique_id(model, ids):
+    ids = {i for i in ids if i}
+    if not ids:
+        return {}
+    return {obj.unique_id: obj for obj in model.objects.filter(unique_id__in=ids)}
+
+
+def preload_permission_rows(action_queryset, column_queryset):
+    """Materialize both permission querysets once, with their related
+    screens/actions/columns bulk-loaded.
+
+    The permission models store plain *_id CharFields and expose each
+    relation as a @property that runs its own query, so walking them in the
+    build_* functions below cost several queries per row — ~7,800 queries
+    (over a minute) for a platform superadmin's full catalog. This resolves
+    every relation from a handful of IN-queries and hands back lightweight
+    rows with the same attribute names the builders read.
+    """
+    actions = list(action_queryset.order_by("order_no"))
+    columns = list(column_queryset.order_by("order_no"))
+
+    userscreens = _by_unique_id(
+        UserScreen,
+        [a.userscreen_id for a in actions] + [c.userscreen_id for c in columns],
+    )
+    mainscreens = _by_unique_id(
+        MainScreen,
+        [a.mainscreen_id for a in actions] + [s.mainscreen_id for s in userscreens.values()],
+    )
+    screen_actions = _by_unique_id(UserScreenAction, [a.userscreenaction_id for a in actions])
+    screen_columns = _by_unique_id(UserScreenColumn, [c.column_id for c in columns])
+
+    screen_views = {
+        uid: SimpleNamespace(
+            unique_id=screen.unique_id,
+            userscreen_name=screen.userscreen_name,
+            folder_name=screen.folder_name,
+            order_no=screen.order_no,
+            mainscreen_id=screen.mainscreen_id,
+            mainscreen=mainscreens.get(screen.mainscreen_id),
+        )
+        for uid, screen in userscreens.items()
+    }
+
+    action_rows = [
+        SimpleNamespace(
+            mainscreen_id=a.mainscreen_id,
+            userscreen_id=a.userscreen_id,
+            order_no=a.order_no,
+            mainscreen=mainscreens.get(a.mainscreen_id),
+            userscreen=screen_views.get(a.userscreen_id),
+            userscreenaction=screen_actions.get(a.userscreenaction_id),
+        )
+        for a in actions
+    ]
+    column_rows = [
+        SimpleNamespace(
+            unique_id=c.unique_id,
+            company_id=c.company_id,
+            project_id=c.project_id,
+            userscreen_id=c.userscreen_id,
+            column_id=c.column_id,
+            can_view=c.can_view,
+            order_no=c.order_no,
+            userscreen=screen_views.get(c.userscreen_id),
+            column=screen_columns.get(c.column_id),
+        )
+        for c in columns
+    ]
+    return action_rows, column_rows
+
+
 def build_action_permissions(queryset):
     permissions = {}
-    for perm in queryset.order_by("order_no"):
+    for perm in _ordered(queryset):
         main_name = perm.mainscreen.mainscreen_name if perm.mainscreen else ""
         screen_name = perm.userscreen.userscreen_name if perm.userscreen else ""
         action_name = (
@@ -61,7 +146,7 @@ def build_permission_details(action_queryset, column_queryset=None):
     details = {}
     screen_meta = {}
 
-    for perm in action_queryset.order_by("order_no"):
+    for perm in _ordered(action_queryset):
         main_name = perm.mainscreen.mainscreen_name if perm.mainscreen else ""
         screen_name = perm.userscreen.userscreen_name if perm.userscreen else ""
         action_name = (
@@ -94,7 +179,7 @@ def build_permission_details(action_queryset, column_queryset=None):
         from app.models.superadmin.screen_management.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
         column_queryset = CompanyUserScreenColumnPermission.objects.none()
 
-    for column_permission in column_queryset.order_by("order_no"):
+    for column_permission in _ordered(column_queryset):
         screen_id = column_permission.userscreen_id
         if screen_id not in screen_meta:
             main_name = column_permission.userscreen.mainscreen.mainscreen_name if column_permission.userscreen and column_permission.userscreen.mainscreen else ""
@@ -139,7 +224,7 @@ def build_column_permissions(column_queryset):
     grouped = {}
     flat = []
 
-    for column_permission in column_queryset.order_by("order_no"):
+    for column_permission in _ordered(column_queryset):
         userscreen = column_permission.userscreen
         mainscreen = userscreen.mainscreen if userscreen else None
         column = column_permission.column
@@ -182,7 +267,7 @@ def build_module_access(action_queryset, column_queryset=None):
     modules = {}
     screen_lookup = {}
 
-    for perm in action_queryset.order_by("order_no"):
+    for perm in _ordered(action_queryset):
         mainscreen = perm.mainscreen
         userscreen = perm.userscreen
         action_name = (
@@ -225,7 +310,7 @@ def build_module_access(action_queryset, column_queryset=None):
         from app.models.superadmin.screen_management.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
         column_queryset = CompanyUserScreenColumnPermission.objects.none()
 
-    for column_permission in column_queryset.order_by("order_no"):
+    for column_permission in _ordered(column_queryset):
         userscreen = column_permission.userscreen
         mainscreen = userscreen.mainscreen if userscreen else None
         module_entry = modules.setdefault(
@@ -255,7 +340,9 @@ def build_module_access(action_queryset, column_queryset=None):
         
         screen_lookup[userscreen.unique_id] = screen_entry
 
-        column = UserScreenColumn.objects.get(unique_id=column_permission.column_id)
+        column = column_permission.column
+        if column is None:
+            continue
         screen_entry["columns"].append(
             {
                 "columnId": column.unique_id,
@@ -535,10 +622,15 @@ def permission_querysets(
         is_deleted=False,
     )
     # No projects configured => unrestricted access to every project under
-    # the company, so don't narrow by project at all.
+    # the company, so don't narrow by project at all. Otherwise include both
+    # the project-scoped rows AND the company-wide rows (project null) —
+    # a grant made at company level covers every project; without the null
+    # branch those columns silently vanish for project-scoped staff.
     project_ids = config.get_project_ids()
     if project_ids:
-        column_queryset = column_queryset.filter(project_id__in=project_ids)
+        column_queryset = column_queryset.filter(
+            Q(project_id__in=project_ids) | Q(project_id__isnull=True)
+        )
 
     return action_queryset, column_queryset
 
@@ -587,6 +679,7 @@ def staff_app_modules(config):
 
 def resolve_permission_payload(**filters):
     action_queryset, column_queryset = permission_querysets(**filters)
+    action_queryset, column_queryset = preload_permission_rows(action_queryset, column_queryset)
     config = staff_access_config(filters.get("staff_unique_id"))
 
     # ONE permission list, with no role-based defaults: the explicitly granted

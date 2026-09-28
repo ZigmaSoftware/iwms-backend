@@ -56,6 +56,14 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     permission_resource = "staffaccessconfiguration"
 
+    @staticmethod
+    def _company_uid(company):
+        # company_id is a CharField uid string on Staffcreation/auth User,
+        # but a model instance on other user types — normalize to the string.
+        if company is None or isinstance(company, str):
+            return company
+        return getattr(company, "unique_id", company)
+
     def get_queryset(self):
         qs = StaffAccessConfiguration.objects.filter(is_deleted=False)
 
@@ -85,7 +93,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if not company:
             return qs.none()
 
-        qs = qs.filter(company_id=company.unique_id)
+        qs = qs.filter(company_id=self._company_uid(company))
 
         if not self._is_admin_user():
             qs = qs.filter(staff_id=self.request.user.staff_unique_id)
@@ -137,7 +145,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
 
         queryset = Staffcreation.objects.filter(
-            company_id=company.unique_id,
+            company_id=company,
             is_deleted=False,
             active_status=True,
         ).select_related("personal_details")
@@ -282,7 +290,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             project_ids = [p.strip() for p in project_ids[0].split(",") if p.strip()]
 
         base_qs = CompanyUserScreenPermission.objects.filter(
-            company_id=company.unique_id,
+            company_id=company,
             permission_type="screen",
             is_deleted=False,
             is_active=True,
@@ -419,7 +427,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             projects.append(project_entry)
 
         return Response({
-            "company_id": company.unique_id,
+            "company_id": company,
             "project_ids": project_ids,
             "projects": projects,
         })
@@ -427,7 +435,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def _company_from_query(self, request):
         scoped_company = self._company()
         if scoped_company:
-            return scoped_company, None
+            return self._company_uid(scoped_company), None
 
         company_id = (
             request.query_params.get("company_id")
@@ -442,4 +450,4 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         company = Company.objects.filter(unique_id=company_id).first()
         if not company:
             return None, Response({"error": "Invalid company"}, status=status.HTTP_400_BAD_REQUEST)
-        return company, None
+        return company.unique_id, None
