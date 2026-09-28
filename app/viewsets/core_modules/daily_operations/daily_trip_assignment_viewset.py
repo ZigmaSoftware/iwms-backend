@@ -646,9 +646,12 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if getattr(user, "is_superuser", False) and getattr(user, "company_id", None) is None:
             return True
 
-        role_obj = getattr(user, "staffusertype_id", None)
-        role_name = getattr(role_obj, "name", "") or ""
-        return role_name.lower() in ("supervisor", "admin", "company_admin")
+        # staffusertype_id is a plain id string, not a relation — resolve
+        # the StaffUserType name via _role_name instead of reading .name.
+        from app.permissions.platform import _role_name
+
+        role_name = (_role_name(user) or "").strip()
+        return role_name.lower() in ("supervisor", "admin", "company_admin", "super admin", "company project admin", "company_project_admin","company admin")
 
     def perform_create(self, serializer):
         previous_data = None

@@ -63,15 +63,13 @@ class TripDelayReportViewSet(CompanyScopedViewSet):
         report, which is already committed by the time we get here.
         """
         assignment = report.trip_assignment
-        recipients = []
-        supervisor = getattr(assignment, "supervisor_id", None)
-        if supervisor is not None:
-            recipients.append(supervisor)
-        plan_supervisor = getattr(
-            getattr(assignment, "trip_plan_id", None), "supervisor_id", None
-        )
-        if plan_supervisor is not None and plan_supervisor not in recipients:
-            recipients.append(plan_supervisor)
+        if assignment is None:
+            return
+        # trip_plan_id / supervisor_id are plain id strings — resolve the
+        # rows via the model properties.
+        trip_plan = assignment.trip_plan
+        plan_supervisor = trip_plan.supervisor if trip_plan else None
+        recipients = [plan_supervisor] if plan_supervisor is not None else []
 
         minutes = report.estimated_delay_minutes
         suffix = f" (~{minutes} min)" if minutes else ""

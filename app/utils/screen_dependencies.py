@@ -33,6 +33,7 @@ _LOCATION_LOOKUPS = (
 )
 
 _COMPLAINT_MASTER_LOOKUPS = (
+    "complaint-ticket/modules",
     "complaint-ticket/categories",
     "complaint-ticket/subcategories",
     "complaint-ticket/priorities",
@@ -217,6 +218,16 @@ SCREEN_GROUPS = {
         "screens": (
             "staffusertypes",
             "contractorusertypes",
+        ),
+    },
+    # Sidebar "Weighbridge Management" menu and its two reports: granting the
+    # parent grants the Day and Date reports with it.
+    "weighbridge-management": {
+        "label": "Weighbridge Management",
+        "screens": (
+            "weighbridge-management",
+            "date-report",
+            "day-report",
         ),
     },
 }

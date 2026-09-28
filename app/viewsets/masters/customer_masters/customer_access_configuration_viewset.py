@@ -43,7 +43,7 @@ class CustomerAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet
         company = self._company()
         if not company:
             return qs.none()
-        return qs.filter(company_id=company.unique_id)
+        return qs.filter(company_id=self._company_uid(company))
 
     def get_object(self):
         customer_id = self.kwargs.get(self.lookup_url_kwarg or self.lookup_field)
@@ -103,7 +103,7 @@ class CustomerAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet
             return error
 
         queryset = CustomerCreation.objects.filter(
-            company_id=company.unique_id, is_deleted=False, is_active=True
+            company_id=company, is_deleted=False, is_active=True
         ).order_by("customer_name")
 
         configured = set(

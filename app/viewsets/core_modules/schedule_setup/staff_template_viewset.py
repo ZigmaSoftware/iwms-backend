@@ -203,7 +203,7 @@ class StaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
     # ================= AUDIT =================
 
     def _resolve_performed_role(self, user):
-        role = getattr(getattr(user, "staffusertype_id", None), "name", "") or ""
+        role = getattr(getattr(user, "staffusertype", None), "name", "") or ""
         role = role.lower()
 
         if role == "admin":

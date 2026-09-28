@@ -29,21 +29,29 @@ class PlatformCompanyCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
             return Company.objects.filter(is_deleted=False).order_by("name")
 
         # Company admin — full read access to their company
-        role = getattr(getattr(user, "staffusertype_id", None), "name", "")
+        from app.permissions.platform import _role_name
+        role = _role_name(user)
         user_company = getattr(user, "company_id", None)
+        # company_id is a CharField unique_id string on Staffcreation/auth
+        # User, but may be an object on other user types — normalize.
+        user_company_uid = (
+            user_company
+            if isinstance(user_company, str)
+            else getattr(user_company, "unique_id", None)
+        )
 
-        if user_company is not None and (role or "").lower() in ("admin", "company admin"):
+        if user_company_uid is not None and (role or "").lower() in ("admin", "company admin", "company_admin", "company project admin", "company_project_admin"):
             return Company.objects.filter(
-                unique_id=user_company.unique_id,
+                unique_id=user_company_uid,
                 is_deleted=False,
             )
 
         # Any other authenticated user that belongs to a company:
         # allow read-only retrieval of their own company so the frontend
         # can resolve the company label (lookup by unique_id in the URL).
-        if user_company is not None:
+        if user_company_uid is not None:
             return Company.objects.filter(
-                unique_id=user_company.unique_id,
+                unique_id=user_company_uid,
                 is_deleted=False,
             )
 

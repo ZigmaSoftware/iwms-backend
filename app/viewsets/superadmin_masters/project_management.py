@@ -40,14 +40,26 @@ class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
         if not company:
             return Project.objects.none()
 
-        queryset = queryset.filter(company_id=company.unique_id)
+        # company_id is a CharField unique_id string on Staffcreation/auth
+        # User — normalize in case a user type carries an object instead.
+        company_uid = company if isinstance(company, str) else getattr(company, "unique_id", None)
+        if not company_uid:
+            return Project.objects.none()
+
+        queryset = queryset.filter(company_id=company_uid)
 
         # Staff members (Staffcreation instances) are scoped to their assigned project.
         # hasattr check distinguishes them from Django platform users who also have company_id.
         if hasattr(user, "staff_unique_id"):
             user_project = getattr(user, "project_id", None)
-            if user_project:
-                queryset = queryset.filter(unique_id=user_project.unique_id)
+            # project_id is likewise a CharField unique_id string.
+            user_project_uid = (
+                user_project
+                if isinstance(user_project, str)
+                else getattr(user_project, "unique_id", None)
+            )
+            if user_project_uid:
+                queryset = queryset.filter(unique_id=user_project_uid)
 
         return queryset
 

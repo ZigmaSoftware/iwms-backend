@@ -149,6 +149,46 @@ class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["unique_id"]
 
+    def validate(self, attrs):
+        # A rule only ever matches tickets of its own project, so its
+        # category/subcategory must be that project's rows too — otherwise
+        # it saves fine and then silently never applies.
+        instance = getattr(self, "instance", None)
+
+        def current(field):
+            if field in attrs:
+                return attrs[field]
+            return getattr(instance, field, None)
+
+        company_id = current("company_id")
+        project_id = current("project_id")
+        category_id = current("category_id")
+        subcategory_id = current("subcategory_id")
+
+        def out_of_scope(row):
+            return row is not None and (
+                (company_id and row.company_id != company_id)
+                or (project_id and row.project_id != project_id)
+            )
+
+        if category_id:
+            category = ComplaintCategory.objects.filter(unique_id=category_id).first()
+            if out_of_scope(category):
+                raise serializers.ValidationError(
+                    {"category_id": "This category belongs to a different company/project."}
+                )
+        if subcategory_id:
+            subcategory = ComplaintSubcategory.objects.filter(unique_id=subcategory_id).first()
+            if out_of_scope(subcategory):
+                raise serializers.ValidationError(
+                    {"subcategory_id": "This sub-category belongs to a different company/project."}
+                )
+            if subcategory and category_id and subcategory.category_id != category_id:
+                raise serializers.ValidationError(
+                    {"subcategory_id": "This sub-category does not belong to the selected category."}
+                )
+        return attrs
+
     def create(self, validated_data):
         levels = validated_data.pop("escalation_levels", None)
         rule = super().create(validated_data)
