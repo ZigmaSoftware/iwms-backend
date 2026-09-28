@@ -5,7 +5,7 @@ project's model (state/district/panchayat/zone/ward) instead of government's
 AreaType + local-body hierarchy, which does not exist here.
 """
 
-from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 
 from app.utils.base_models import BaseMaster
@@ -172,14 +172,14 @@ class ComplaintAddressChangeRequest(BaseMaster):
 
     @property
     def verified_by_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.verified_by:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.verified_by).first()
+            return get_user_model().objects.filter(unique_id=self.verified_by).first()
         return None
 
     @property
     def approved_by_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.approved_by:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.approved_by).first()
+            return get_user_model().objects.filter(unique_id=self.approved_by).first()
         return None

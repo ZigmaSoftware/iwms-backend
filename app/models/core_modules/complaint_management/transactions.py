@@ -16,7 +16,7 @@ over unchanged apart from import paths and the routing rule, whose optional
 geo scope follows this project's Zone/Ward model (see `ticket.py`).
 """
 
-from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 
 from app.utils.base_models import BaseMaster
@@ -154,9 +154,9 @@ class ComplaintAttachment(BaseMaster):
 
     @property
     def uploaded_by_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.uploaded_by_user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.uploaded_by_user_id).first()
+            return get_user_model().objects.filter(unique_id=self.uploaded_by_user_id).first()
         return None
 
 
@@ -215,9 +215,9 @@ class ComplaintStatusHistory(BaseMaster):
 
     @property
     def changed_by_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.changed_by_user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.changed_by_user_id).first()
+            return get_user_model().objects.filter(unique_id=self.changed_by_user_id).first()
         return None
 
     @property
@@ -268,16 +268,16 @@ class ComplaintAssignmentHistory(BaseMaster):
 
     @property
     def from_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.from_user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.from_user_id).first()
+            return get_user_model().objects.filter(unique_id=self.from_user_id).first()
         return None
 
     @property
     def to_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.to_user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.to_user_id).first()
+            return get_user_model().objects.filter(unique_id=self.to_user_id).first()
         return None
 
     @property
@@ -296,9 +296,9 @@ class ComplaintAssignmentHistory(BaseMaster):
 
     @property
     def assigned_by(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.assigned_by_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.assigned_by_id).first()
+            return get_user_model().objects.filter(unique_id=self.assigned_by_id).first()
         return None
 
 
@@ -341,9 +341,9 @@ class ComplaintComment(BaseMaster):
 
     @property
     def comment_by_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.comment_by_user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.comment_by_user_id).first()
+            return get_user_model().objects.filter(unique_id=self.comment_by_user_id).first()
         return None
 
     @property
@@ -476,9 +476,9 @@ class ComplaintRoutingRule(BaseMaster):
 
     @property
     def user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.user_id).first()
+            return get_user_model().objects.filter(unique_id=self.user_id).first()
         return None
 
     @property
@@ -528,9 +528,9 @@ class ComplaintEscalationHistory(BaseMaster):
 
     @property
     def escalated_to_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.escalated_to_user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.escalated_to_user_id).first()
+            return get_user_model().objects.filter(unique_id=self.escalated_to_user_id).first()
         return None
 
     @property
@@ -630,9 +630,9 @@ class ComplaintReopenHistory(BaseMaster):
 
     @property
     def reopened_by_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.reopened_by_user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.reopened_by_user_id).first()
+            return get_user_model().objects.filter(unique_id=self.reopened_by_user_id).first()
         return None
 
     @property
@@ -711,7 +711,7 @@ class ComplaintNotification(BaseMaster):
 
     @property
     def recipient_user(self):
-        from django.conf import settings
+        from django.contrib.auth import get_user_model
         if self.recipient_user_id:
-            return settings.AUTH_USER_MODEL.objects.filter(unique_id=self.recipient_user_id).first()
+            return get_user_model().objects.filter(unique_id=self.recipient_user_id).first()
         return None

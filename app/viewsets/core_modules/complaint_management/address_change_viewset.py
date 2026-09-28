@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status as http_status, viewsets
 from rest_framework.decorators import action
@@ -21,10 +22,41 @@ User = get_user_model()
 GEO_FIELD_MAP = (
     ("state", "new_state"),
     ("district", "new_district"),
-    ("panchayat_id", "new_panchayat"),
+    ("panchayat", "new_panchayat"),
     ("zone", "new_zone"),
     ("ward", "new_ward"),
 )
+
+
+def _ward_ids_contains(ward_id):
+    """TripPlan.ward_ids is a comma-separated list of ward unique_ids."""
+    return (
+        Q(ward_ids=ward_id)
+        | Q(ward_ids__startswith=f"{ward_id},")
+        | Q(ward_ids__endswith=f",{ward_id}")
+        | Q(ward_ids__contains=f",{ward_id},")
+    )
+
+
+def _move_ticket_status(ticket, new_status, request, remarks):
+    """Set `ticket`'s status and record the transition. `ticket` can be None
+    (the request's ticket_id may be blank)."""
+    if not ticket or not new_status:
+        return
+    old_status_id = ticket.status_id
+    ticket.status_id = new_status.unique_id
+    update_fields = ["status_id"]
+    if new_status.status_code == "RESOLVED":
+        ticket.resolved_at = timezone.now()
+        update_fields.append("resolved_at")
+    ticket.save(update_fields=update_fields)
+    ComplaintStatusHistory.objects.create(
+        ticket_id=ticket.unique_id,
+        from_status_id=old_status_id,
+        to_status_id=new_status.unique_id,
+        changed_by_user_id=getattr(_actor_user(request), "unique_id", None),
+        remarks=remarks,
+    )
 
 
 def _actor_user(request):
@@ -82,7 +114,7 @@ class ComplaintAddressChangeViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
     def verify(self, request, unique_id=None):
         req = self.get_object()
         req.verification_status = ComplaintAddressChangeRequest.VerificationStatus.VERIFIED
-        req.verified_by = _actor_user(request)
+        req.verified_by = getattr(_actor_user(request), "unique_id", None)
         req.verified_at = timezone.now()
         req.verification_remarks = request.data.get("verification_remarks")
         req.save(update_fields=["verification_status", "verified_by", "verified_at", "verification_remarks"])
@@ -120,32 +152,19 @@ class ComplaintAddressChangeViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
                 setattr(customer, f"{customer_field}_id", value)
         customer.save()
 
-        req.approved_by = _actor_user(request)
+        req.approved_by = getattr(_actor_user(request), "unique_id", None)
         req.approved_at = timezone.now()
         req.save()
 
-        ticket = req.ticket
-        resolved = _resolve_status("RESOLVED")
         route_warning = None
-        if resolved:
-            old_status = ticket.status
-            ticket.status = resolved
-            ticket.resolved_at = timezone.now()
-            ticket.save(update_fields=["status", "resolved_at"])
-            ComplaintStatusHistory.objects.create(
-                ticket=ticket,
-                from_status=old_status,
-                to_status=resolved,
-                changed_by_user=_actor_user(request),
-                remarks="Address change approved",
-            )
+        _move_ticket_status(req.ticket, _resolve_status("RESOLVED"), request, "Address change approved")
 
         if any(new_geo_fields.values()):
             covered = False
             coverage_checks = (
-                ("ward", new_geo_fields.get("ward"), lambda value: TripPlan.objects.filter(wards__unique_id=value)),
+                ("ward", new_geo_fields.get("ward"), lambda value: TripPlan.objects.filter(_ward_ids_contains(value))),
                 ("zone", new_geo_fields.get("zone"), lambda value: TripPlan.objects.filter(zone_id=value)),
-                ("panchayat", new_geo_fields.get("panchayat_id"), lambda value: TripPlan.objects.filter(panchayat_id=value)),
+                ("panchayat", new_geo_fields.get("panchayat"), lambda value: TripPlan.objects.filter(panchayat_id=value)),
                 ("district", new_geo_fields.get("district"), lambda value: TripPlan.objects.filter(district_id=value)),
             )
             for _field, value, build_qs in coverage_checks:
@@ -168,17 +187,10 @@ class ComplaintAddressChangeViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
         req.rejection_reason = request.data.get("rejection_reason")
         req.save(update_fields=["verification_status", "rejection_reason"])
 
-        ticket = req.ticket
-        rejected = _resolve_status("REJECTED")
-        if rejected:
-            old_status = ticket.status
-            ticket.status = rejected
-            ticket.save(update_fields=["status"])
-            ComplaintStatusHistory.objects.create(
-                ticket=ticket,
-                from_status=old_status,
-                to_status=rejected,
-                changed_by_user=_actor_user(request),
-                remarks=f"Address change rejected: {req.rejection_reason or ''}",
-            )
+        _move_ticket_status(
+            req.ticket,
+            _resolve_status("REJECTED"),
+            request,
+            f"Address change rejected: {req.rejection_reason or ''}",
+        )
         return Response(self.get_serializer(req).data)

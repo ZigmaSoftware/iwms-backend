@@ -257,8 +257,8 @@ def apply_routing_and_sla(ticket, save=True):
     if not ticket.assigned_staff_id:
         staff = get_entry_level_staff(ticket)
         if staff:
-            ticket.assigned_staff = staff
-            updated_fields.append("assigned_staff")
+            ticket.assigned_staff_id = staff.staff_unique_id
+            updated_fields.append("assigned_staff_id")
 
     # Prefer the most specific SLA rule that actually matches this ticket over
     # the one pinned on the routing rule.

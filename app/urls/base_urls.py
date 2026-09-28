@@ -127,6 +127,7 @@ from ..viewsets.core_modules.daily_operations.bin_collection_event_viewset impor
 from ..viewsets.core_modules.daily_operations.daily_trip_log_viewset import DailyTripLogViewSet
 from ..viewsets.reports.waste_reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
 from ..viewsets.reports.waste_reports.daily_waste_comparison_viewset import DailyWasteComparisonViewSet
+from ..viewsets.reports.complaint_reports.complaints_report_viewset import ComplaintsReportViewSet
 from ..viewsets.core_modules.daily_operations.vehicle_breakdown_viewset import VehicleBreakdownViewSet
 from ..viewsets.core_modules.daily_operations.trip_delay_report_viewset import TripDelayReportViewSet
 from ..viewsets.core_modules.daily_operations.trip_retrip_viewset import TripRetripRequestViewSet
@@ -360,19 +361,12 @@ router.register_group("schedule-operations", "trip-delay-reports", TripDelayRepo
 router.register_group("schedule-operations", "retrip-requests", TripRetripRequestViewSet)
 
 # ============================================================
-# GROUP: SCHEDULE MASTERS (legacy name — kept alive only for the
-# reporting sub-resources, matching the government reference app's
-# equivalent split; setup/operations resources above are no longer
-# registered under this group)
+# GROUP: REPORTS (moved out of the legacy "schedule-masters" group,
+# which no longer registers any routes)
 # ============================================================
-router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
-router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
-
-# ============================================================
-# GROUP: REPORTS (aliases used by the admin frontend)
-# ============================================================
-router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="reports-monthly-waste-comparison")
-router.register_group("reports", "daily-waste-comparisons", DailyWasteComparisonViewSet, basename="reports-daily-waste-comparisons")
+router.register_group("reports", "daily-waste-comparisons", DailyWasteComparisonViewSet, basename="daily-waste-comparisons")
+router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
+router.register_group("reports", "complaints-report", ComplaintsReportViewSet, basename="complaints-report")
 
 # ============================================================
 # GROUP: AUDIT

@@ -70,8 +70,8 @@ def _resolve_company_project(*, panchayat, zone, ward, state, district):
     for node in (ward, zone, panchayat):
         if node is None:
             continue
-        company_id = getattr(node, "company_id_id", None)
-        project_id = getattr(node, "project_id_id", None)
+        company_id = getattr(node, "company_id", None)
+        project_id = getattr(node, "project_id", None)
         if company_id and project_id:
             return company_id, project_id
 
@@ -80,7 +80,7 @@ def _resolve_company_project(*, panchayat, zone, ward, state, district):
         company = companies[0]
         projects = list(
             Project.objects.filter(
-                company_id=company, is_deleted=False, is_active=True
+                company_id=company.unique_id, is_deleted=False, is_active=True
             )[:2]
         )
         if len(projects) == 1:
@@ -212,11 +212,13 @@ class PublicGrievanceViewSet(viewsets.ViewSet):
         district = District.objects.filter(unique_id=data.get("district"), is_deleted=False).first()
         panchayat = Panchayat.objects.filter(unique_id=data.get("panchayat"), is_deleted=False).first()
         ward = Ward.objects.filter(unique_id=data.get("ward"), is_deleted=False).first()
-        zone = ward.zone_id if ward else None
-        if panchayat and not district:
-            district = panchayat.district_id
-        if district and not state:
-            state = district.state_id
+        # Geo parents are `<name>_id` CharFields on each node, so resolve them
+        # back to rows (the company/project lookup below reads them).
+        zone = Zone.objects.filter(unique_id=ward.zone_id).first() if ward and ward.zone_id else None
+        if panchayat and not district and panchayat.district_id:
+            district = District.objects.filter(unique_id=panchayat.district_id).first()
+        if district and not state and district.state_id:
+            state = State.objects.filter(unique_id=district.state_id).first()
 
         category = selected_category or ComplaintCategory.objects.filter(
             category_code="OTHER", is_deleted=False, is_active=True
@@ -256,13 +258,13 @@ class PublicGrievanceViewSet(viewsets.ViewSet):
             defaults={"source_name": "Public Grievance", "is_active": True, "is_deleted": False},
         )
         ticket = ComplaintTicket.objects.create(
-            company_id_id=company_id,
-            project_id_id=project_id,
-            source=source,
-            category=category,
-            subcategory=subcategory,
-            priority=priority,
-            status=status_obj,
+            company_id=company_id,
+            project_id=project_id,
+            source_id=source.unique_id,
+            category_id=category.unique_id,
+            subcategory_id=getattr(subcategory, "unique_id", None),
+            priority_id=priority.unique_id,
+            status_id=status_obj.unique_id,
             profile_name=person_name,
             wa_phone=phone or None,
             email=email or None,
@@ -272,17 +274,17 @@ class PublicGrievanceViewSet(viewsets.ViewSet):
             location_text=location_text,
             latitude=latitude,
             longitude=longitude,
-            state=state,
-            district=district,
-            panchayat=panchayat,
-            zone=zone,
-            ward=ward,
+            state_id=getattr(state, "unique_id", None),
+            district_id=getattr(district, "unique_id", None),
+            panchayat_id=getattr(panchayat, "unique_id", None),
+            zone_id=getattr(zone, "unique_id", None),
+            ward_id=getattr(ward, "unique_id", None),
             idempotency_key=idempotency_key,
         )
         ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=None,
-            to_status=status_obj,
+            ticket_id=ticket.unique_id,
+            from_status_id=None,
+            to_status_id=status_obj.unique_id,
             changed_by_system=True,
             remarks="Raised via public grievance form",
             visible_to_citizen=True,
@@ -291,7 +293,7 @@ class PublicGrievanceViewSet(viewsets.ViewSet):
         photo = request.FILES.get("photo") or request.FILES.get("file")
         if photo:
             ComplaintAttachment.objects.create(
-                ticket=ticket,
+                ticket_id=ticket.unique_id,
                 file=photo,
                 file_name=getattr(photo, "name", None),
                 file_type="photo",

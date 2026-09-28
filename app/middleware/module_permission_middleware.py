@@ -238,24 +238,14 @@ MODULE_RESOURCE_ALLOWLIST = {
         # un-seeded resource is always empty, so every request would still
         # 403 regardless of this set.
     },
-    "schedule-masters": {
-        # Legacy permission bucket retained for grants created before Schedule
-        # Setup and Daily Operations became separate sidebar/router groups.
-        "StaffTemplateCreation",
-        "AlternativeStaffTemplate",
-        "CollectionPoint",
-        "TripPlan",
-        "DailyTripAssignment",
-        "DailyTripCollectionPoint",
-        "DailyTripHouseholdCollection",
-        "BinCollectionEvent",
-        "DailyTripLog",
-        "WasteCollection",
-        "VehicleBreakdown",
-        "TripDelayReport",
-        "TripRetripRequest",
+    # No "schedule-masters" entry: that URL group no longer registers any
+    # routes. Its setup/operations resources live under "schedule-setup" /
+    # "schedule-operations" and its reports under "reports"; grants still
+    # stored under the old module name resolve via RESOURCE_MODULE_FALLBACKS.
+    "reports": {
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
+        "ComplaintsReport",
     },
     "audits": {
         "StaffTemplateAuditLog",
@@ -336,6 +326,11 @@ RESOURCE_MODULE_FALLBACKS = {
     "VehicleBreakdown": "schedule-masters",
     "TripDelayReport": "schedule-masters",
     "TripRetripRequest": "schedule-masters",
+    # Reports were registered under "schedule-masters" until they moved to
+    # the "reports" group; covers grants made before the permission seeder
+    # re-homes their screens.
+    "DailyWasteComparison": "schedule-masters",
+    "MonthlyWasteComparisonReport": "schedule-masters",
 }
 
 # Pre-split module names a screen's grants may still be stored under, used when
