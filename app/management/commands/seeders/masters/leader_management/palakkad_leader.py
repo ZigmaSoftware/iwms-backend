@@ -26,7 +26,7 @@ from datetime import timedelta
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.ward import Ward
@@ -193,7 +193,7 @@ class PalakkadLeaderSeeder(BaseSeeder):
                 username=username,
                 defaults={
                     "panchayat_id": panchayat.unique_id if hasattr(panchayat, 'unique_id') else panchayat,
-                    "company_id": company,
+                    "company_id": uid(company),
                     "project_id": project_id,
                     "password": make_password(self.PASSWORD),
                     "leader_name": leader_name,
@@ -204,7 +204,7 @@ class PalakkadLeaderSeeder(BaseSeeder):
             )
             if not created:
                 leader.panchayat_id = panchayat.unique_id if hasattr(panchayat, 'unique_id') else panchayat
-                leader.company_id = company
+                leader.company_id = uid(company)
                 leader.project_id = project_id
                 leader.password = make_password(self.PASSWORD)
                 leader.leader_name = leader_name
@@ -232,7 +232,7 @@ class PalakkadLeaderSeeder(BaseSeeder):
             plan, _ = TripPlan.objects.update_or_create(
                 display_code=f"PAL-PLB-{panchayat.panchayat_name.split()[-1]}-LEADER",
                 defaults={
-                    "company_id": company,
+                    "company_id": uid(company),
                     "project_id": project_id,
                     "district_id": template_source.district_id,
                     "city_id": template_source.city_id,
@@ -283,7 +283,7 @@ class PalakkadLeaderSeeder(BaseSeeder):
                     assignment = DailyTripAssignment.objects.create(
                         trip_plan_id=plan.unique_id,
                         trip_date=day,
-                        company_id=company,
+                        company_id=uid(company),
                         project_id=project_id,
                         panchayat_id=panchayat.unique_id,
                         staff_template_id=plan.staff_template_id,
@@ -300,7 +300,7 @@ class PalakkadLeaderSeeder(BaseSeeder):
                     )
                 else:
                     DailyTripAssignment.objects.filter(pk=assignment.pk).update(
-                        company_id=company,
+                        company_id=uid(company),
                         project_id=project_id,
                         panchayat_id=panchayat.unique_id,
                         staff_template_id=plan.staff_template_id,

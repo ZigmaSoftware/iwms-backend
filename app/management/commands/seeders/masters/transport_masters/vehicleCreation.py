@@ -1,7 +1,7 @@
 # core/management/commands/seeders/vehicles/vehicle_creation.py
 from datetime import date
 
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 from app.models.masters.transport_masters.fuel import Fuel
 from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
@@ -53,7 +53,7 @@ class VehicleCreationSeeder(BaseSeeder):
         )
         project, _ = Project.objects.get_or_create(
             name=f"{company.name} Main Project",
-            company_id=company,
+            company_id=uid(company),
             defaults={
                 "description": f"Default project for {company.name}",
                 "is_active": True,
@@ -97,8 +97,8 @@ class VehicleCreationSeeder(BaseSeeder):
                 defaults={
                     "vehicle_type": vt[vtype],
                     "fuel_type": ft[fuel],
-                    "company_id": company,
-                    "project_id": project,
+                    "company_id": uid(company),
+                    "project_id": uid(project),
                     "capacity": cap,
                     "mileage_per_liter": mil,
                     "service_record": svc,

@@ -1,4 +1,4 @@
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 
 from app.models.superadmin.common_masters.state import State
 from app.models.masters.district import District
@@ -41,8 +41,8 @@ class PanchayatSeeder(BaseSeeder):
         for entry in PANCHAYAT_DATA:
             panchayat, created = Panchayat.objects.update_or_create(
                 panchayat_name=entry["name"],
-                company_id=company,
-                project_id=project,
+                company_id=uid(company),
+                project_id=uid(project),
                 defaults={
                     "state_id": tamil_nadu,
                     "district_id": chennai_dist,

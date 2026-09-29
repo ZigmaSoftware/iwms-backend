@@ -1,4 +1,4 @@
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
@@ -72,7 +72,7 @@ class StaffTemplateSeeder(BaseSeeder):
         )
         project, _ = Project.objects.get_or_create(
             name=f"{company.name} Main Project",
-            company_id=company,
+            company_id=uid(company),
             defaults={"description": f"Default project for {company.name}", "is_active": True, "is_deleted": False},
         )
         return company, project
@@ -99,8 +99,8 @@ class StaffTemplateSeeder(BaseSeeder):
         StaffTemplate.objects.create(
             driver_id=driver,
             operator_id=operator,
-            company_id=company,
-            project_id=project,
+            company_id=uid(company),
+            project_id=uid(project),
             extra_operator_id=[],
             created_by_id=getattr(account, "account_id", None),
             updated_by_id=getattr(account, "account_id", None),
