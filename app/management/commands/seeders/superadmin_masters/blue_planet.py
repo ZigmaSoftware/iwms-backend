@@ -1185,8 +1185,10 @@ class BluePlanetSeeder(BaseSeeder):
                 else:
                     self.log(f"Logo '{logo_path}' not found in media — leaving {name} without one.")
 
+            # company_id is a CharField: passing the instance would store
+            # str(company), i.e. the company NAME, not its unique_id.
             project, was_created = Project.objects.update_or_create(
-                company_id=company,
+                company_id=company.unique_id,
                 name=name,
                 defaults=defaults,
             )

@@ -16,7 +16,7 @@ username.
 
 from django.utils import timezone
 
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.ward import Ward
@@ -137,13 +137,13 @@ class GnoNamedStaffSeeder(BaseSeeder):
 
         def _dept(code):
             return Department.objects.filter(
-                company_id=company, project_id=project,
+                company_id=uid(company), project_id=uid(project),
                 department_code=code, is_deleted=False,
             ).first()
 
         def _desg(name, department):
             return Designation.objects.filter(
-                company_id=company, project_id=project,
+                company_id=uid(company), project_id=uid(project),
                 designation_name=name, department_id=department,
                 is_deleted=False,
             ).first()
@@ -167,8 +167,8 @@ class GnoNamedStaffSeeder(BaseSeeder):
 
         base = {
             "user_type_id": staff_type,
-            "company_id": company,
-            "project_id": project,
+            "company_id": uid(company),
+            "project_id": uid(project),
             "district_id": District.objects.filter(is_deleted=False).first(),
             "city_id": City.objects.filter(is_deleted=False).first(),
             "zone_id": Zone.objects.filter(is_deleted=False).first(),
@@ -265,8 +265,8 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
 
         catalog = list(
             CompanyUserScreenPermission.objects.filter(
-                company_id=company,
-                project_id=project,
+                company_id=uid(company),
+                project_id=uid(project),
                 is_active=True,
                 is_deleted=False,
             )
@@ -283,7 +283,7 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
         config, created = StaffAccessConfiguration.objects.update_or_create(
             staff_id=staff.staff_unique_id,
             defaults={
-                "company_id": company,
+                "company_id": uid(company),
                 "is_active": True,
                 "is_deleted": False,
             },

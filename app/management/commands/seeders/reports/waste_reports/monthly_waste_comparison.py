@@ -2,7 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.utils import timezone
 
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 from app.models.masters.panchayat import Panchayat
 from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 from app.models.reports.waste_reports.monthly_weight_report import MonthlyWeightReport
@@ -41,11 +41,11 @@ class MonthlyWasteComparisonSeeder(BaseSeeder):
 
     def run(self):
         company = Company.objects.get(name="IWMS")
-        project = Project.objects.get(name=f"{company.name} Main Project", company_id=company)
+        project = Project.objects.get(name=f"{company.name} Main Project", company_id=uid(company))
 
         panchayats = list(Panchayat.objects.filter(
-                company_id=company,
-                project_id=project,
+                company_id=uid(company),
+                project_id=uid(project),
                 is_deleted=False,
             ).order_by("panchayat_name")[:15])
         waste_types = list(WasteType.objects.filter(

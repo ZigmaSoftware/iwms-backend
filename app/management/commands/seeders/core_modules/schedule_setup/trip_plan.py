@@ -1,6 +1,6 @@
 from datetime import time
 
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
@@ -101,7 +101,7 @@ class TripPlanSeeder(BaseSeeder):
 
         # Approve any already-active plans
         TripPlan.objects.filter(
-            company_id=company, project_id=project, status=TripPlan.Status.ACTIVE,
+            company_id=uid(company), project_id=uid(project), status=TripPlan.Status.ACTIVE,
         ).update(approval_status=TripPlan.ApprovalStatus.APPROVED)
 
         # ------------------------------------------------------------------

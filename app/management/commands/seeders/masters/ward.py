@@ -1,4 +1,4 @@
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 
 from app.models.superadmin.common_masters.continent import Continent
 from app.models.superadmin.common_masters.country import Country
@@ -47,7 +47,7 @@ class WardSeeder(BaseSeeder):
         )
         project, _ = Project.objects.get_or_create(
             name=f"{company.name} Main Project",
-            company_id=company,
+            company_id=uid(company),
             defaults={
                 "description": f"Default project for {company.name}",
                 "is_active": True,
@@ -80,22 +80,22 @@ class WardSeeder(BaseSeeder):
                     name=city_name,
                     district_id=district_cache[district_key],
                     state_id=state_cache[state_name],
-                    company_id=company,
-                    project_id=project,
+                    company_id=uid(company),
+                    project_id=uid(project),
                 )
             zone_key = (zone_name, city_name, district_name, state_name)
             if zone_key not in zone_cache:
                 zone_cache[zone_key] = Zone.objects.get(
                     zone_name=zone_name,
                     city_id=city_cache[city_key],
-                    company_id=company,
-                    project_id=project,
+                    company_id=uid(company),
+                    project_id=uid(project),
                 )
             _, created = Ward.objects.update_or_create(
                 ward_name=ward_name,
                 zone_id=zone_cache[zone_key],
-                company_id=company,
-                project_id=project,
+                company_id=uid(company),
+                project_id=uid(project),
                 defaults={
                     "state_id": state_cache[state_name],
                     "district_id": district_cache[district_key],

@@ -30,7 +30,7 @@ Idempotent: get_or_create / update_or_create throughout, safe to re-run.
 
 from django.utils import timezone
 
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 
 from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.city import City
@@ -106,13 +106,13 @@ class DriverHouseholdTripSeeder(BaseSeeder):
             return None
 
         project = Project.objects.filter(
-            name=PROJECT_NAME, company_id=company, is_deleted=False
+            name=PROJECT_NAME, company_id=uid(company), is_deleted=False
         ).first()
         if not project:
             self.log(f"Project '{PROJECT_NAME}' not found under {COMPANY_NAME}.")
             return None
 
-        scope = {"company_id": company, "project_id": project, "is_deleted": False}
+        scope = {"company_id": uid(company), "project_id": uid(project), "is_deleted": False}
         district = District.objects.filter(**scope).first()
         city = City.objects.filter(**scope).first()
         zone = Zone.objects.filter(**scope).first()
@@ -183,7 +183,7 @@ class DriverHouseholdTripSeeder(BaseSeeder):
         # driver_wet_dry_bin_trips.py creates/repins this same StaffTemplate;
         # get_or_create here so this seeder also works standalone.
         template, created = StaffTemplate.objects.get_or_create(
-            company_id=company, project_id=project,
+            company_id=uid(company), project_id=uid(project),
             driver_id=driver, operator_id=operator,
             is_deleted=False,
             defaults={"is_active": True},
@@ -232,8 +232,8 @@ class DriverHouseholdTripSeeder(BaseSeeder):
                 "password": "Supervisor123",
                 "user_type_id": staff_type,
                 "staffusertype_id": role,
-                "company_id": company,
-                "project_id": project,
+                "company_id": uid(company),
+                "project_id": uid(project),
                 "is_active": True,
                 "is_deleted": False,
                 "is_superuser": False,
