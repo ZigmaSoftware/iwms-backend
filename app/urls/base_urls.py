@@ -135,6 +135,7 @@ from ..viewsets.core_modules.daily_operations.trip_retrip_viewset import TripRet
 # Audits
 from ..viewsets.superadmin.audits.login_audit_viewset import LoginAuditViewSet
 from ..viewsets.superadmin.audits.common_audit_viewset import CommonAuditViewSet
+from ..viewsets.superadmin.audits.permission_audit_viewset import PermissionAuditLogViewSet
 
 # Palakad district admin portal
 from ..viewsets.palakad.palakad_login_viewset import PalakadLoginViewSet
@@ -373,6 +374,7 @@ router.register_group("reports", "complaints-report", ComplaintsReportViewSet, b
 # ============================================================
 router.register_group("audits", "login-audit", LoginAuditViewSet)
 router.register_group("audits", "common-audit", CommonAuditViewSet)
+router.register_group("audits", "permission-audit", PermissionAuditLogViewSet, basename="permission-audit")
 
 # ============================================================
 # GROUP: EXTERNAL ATTENDANCE

@@ -29,6 +29,10 @@ class CommonAuditSerializer(serializers.ModelSerializer):
             "company_name",
             "project_unique_id",
             "project_name",
+            "ip_address",
+            "user_agent",
+            "success",
+            "reason",
         )
 
     def get_company_name(self, obj):

@@ -7,6 +7,11 @@ class ApiConfig(AppConfig):
     name = 'app'
     
     def ready(self):
+        # Registers the CompanyUserScreenPermission receivers that write
+        # PermissionAuditLog. Nothing else imports this module, so without it
+        # the permission audit trail is never written.
+        import app.signals.permission_signals  # noqa: F401
+
         from app.services.daily_trip_scheduler import start_daily_trip_scheduler
 
         start_daily_trip_scheduler()

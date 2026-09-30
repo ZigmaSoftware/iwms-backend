@@ -25,6 +25,7 @@ from app.utils.app_feature_grants import (
     CITIZEN_APP_MAINSCREEN,
     ROLE_SCREEN_TEMPLATES,
 )
+from app.utils.audit_context import permission_audit_actor
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.password_encryption import decrypt_password
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
@@ -116,15 +117,18 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         return obj
 
     def perform_create(self, serializer):
-        serializer.save()
+        with permission_audit_actor(self.request.user):
+            serializer.save()
         cache.clear()
 
     def perform_update(self, serializer):
-        serializer.save()
+        with permission_audit_actor(self.request.user):
+            serializer.save()
         cache.clear()
 
     def perform_destroy(self, instance):
-        instance.delete()
+        with permission_audit_actor(self.request.user):
+            instance.delete()
         cache.clear()
 
     @action(detail=False, methods=["get"], url_path="employee-options")

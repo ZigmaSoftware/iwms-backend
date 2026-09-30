@@ -6,6 +6,9 @@ Kept separate from AuditViewSetMixin so the same rules can be reused by any
 non-viewset code that needs to write an audit entry.
 """
 
+import contextvars
+from contextlib import contextmanager
+
 
 def _as_id(value):
     """FK attribute → its unique_id string, passing through plain values."""
@@ -135,3 +138,27 @@ def resolve_tenancy(user, instance=None):
         project_uid,
         _project_name(project_uid),
     )
+
+
+# ------------------------------------------------------------------
+# Permission-audit actor
+# ------------------------------------------------------------------
+# The permission audit signals only see the saved row. Screens that save
+# grants without stamping updated_by_id (Staff/Customer Access Configuration)
+# set the acting user here for the duration of the save, so the signal can
+# still record who made the change.
+
+_permission_actor = contextvars.ContextVar("permission_audit_actor", default=None)
+
+
+@contextmanager
+def permission_audit_actor(user):
+    token = _permission_actor.set(resolve_actor(user)[0])
+    try:
+        yield
+    finally:
+        _permission_actor.reset(token)
+
+
+def current_permission_actor():
+    return _permission_actor.get()

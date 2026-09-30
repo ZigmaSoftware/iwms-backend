@@ -251,6 +251,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "StaffTemplateAuditLog",
         "LoginAudit",
         "CommonAudit",
+        "PermissionAudit",
     },
 }
 
