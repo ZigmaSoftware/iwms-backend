@@ -13,8 +13,12 @@ from app.serializers.masters.customer_masters.customer_access_configuration_seri
     CustomerAccessConfigurationSerializer,
 )
 from app.utils.app_feature_grants import CITIZEN_APP_SCREENS
-from app.utils.audit_context import permission_audit_actor
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.permission_snapshot import (
+    EMPTY_SNAPSHOT,
+    customer_access_snapshot,
+    write_access_audit,
+)
 from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
@@ -56,19 +60,55 @@ class CustomerAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet
         self.check_object_permissions(self.request, obj)
         return obj
 
+    # Each save writes ONE User Access Audit row holding the customer's
+    # whole access before and after it (app/utils/permission_snapshot.py).
+
+    def _audit_access(self, config, before, after, action_type):
+        project_id = (
+            CustomerCreation.objects.filter(unique_id=config.customer_id)
+            .values_list("project_id", flat=True)
+            .first()
+        )
+        write_access_audit(
+            source="CUSTOMER_ACCESS",
+            request=self.request,
+            target_id=config.customer_id,
+            company_id=config.company_id,
+            project_id=project_id,
+            before=before,
+            after=after,
+            action_type=action_type,
+        )
+
     def perform_create(self, serializer):
-        with permission_audit_actor(self.request.user):
-            serializer.save()
+        # Create re-uses a customer's existing configuration, so the save may
+        # be an update of access they already had.
+        customer = serializer.validated_data.get("resolved_customer")
+        existing = (
+            CustomerAccessConfiguration.objects.filter(
+                customer_id=customer.unique_id, is_deleted=False
+            ).first()
+            if customer
+            else None
+        )
+        before = customer_access_snapshot(existing)
+        instance = serializer.save()
+        self._audit_access(
+            instance, before, customer_access_snapshot(instance),
+            "UPDATED" if existing else "CREATED",
+        )
         cache.clear()
 
     def perform_update(self, serializer):
-        with permission_audit_actor(self.request.user):
-            serializer.save()
+        before = customer_access_snapshot(serializer.instance)
+        instance = serializer.save()
+        self._audit_access(instance, before, customer_access_snapshot(instance), "UPDATED")
         cache.clear()
 
     def perform_destroy(self, instance):
-        with permission_audit_actor(self.request.user):
-            instance.delete()
+        before = customer_access_snapshot(instance)
+        instance.delete()
+        self._audit_access(instance, before, EMPTY_SNAPSHOT, "DELETED")
         cache.clear()
 
     @action(detail=False, methods=["get"], url_path="available-screens")

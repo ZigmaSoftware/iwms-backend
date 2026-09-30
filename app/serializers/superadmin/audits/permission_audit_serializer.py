@@ -11,6 +11,7 @@ from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.superadmin_masters.auth_user import User
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+from app.utils.permission_snapshot import snapshot_keys
 
 
 class PermissionAuditLogSerializer(serializers.ModelSerializer):
@@ -28,6 +29,9 @@ class PermissionAuditLogSerializer(serializers.ModelSerializer):
     userscreen_name = serializers.SerializerMethodField()
     userscreenaction_name = serializers.SerializerMethodField()
     updated_by_name = serializers.SerializerMethodField()
+    granted_count = serializers.SerializerMethodField()
+    revoked_count = serializers.SerializerMethodField()
+    changed_modules = serializers.SerializerMethodField()
 
     class Meta:
         model = PermissionAuditLog
@@ -58,6 +62,12 @@ class PermissionAuditLogSerializer(serializers.ModelSerializer):
             "previous_is_active",
             "previous_is_deleted",
             "action_type",
+            "http_method",
+            "old_permissions",
+            "new_permissions",
+            "granted_count",
+            "revoked_count",
+            "changed_modules",
             "timestamp",
         ]
         read_only_fields = fields
@@ -91,6 +101,45 @@ class PermissionAuditLogSerializer(serializers.ModelSerializer):
         return self._lookup(
             UserScreenAction, obj.userscreenaction_id, "unique_id", "action_name"
         )
+
+    # Access-save rows (old/new snapshots) summarise what the save changed;
+    # per-change rows leave these blank.
+
+    def _diff(self, obj):
+        if obj.old_permissions is None and obj.new_permissions is None:
+            return None
+        cache = self.__dict__.setdefault("_diff_cache", {})
+        if obj.pk not in cache:
+            old, new = snapshot_keys(obj.old_permissions), snapshot_keys(obj.new_permissions)
+            cache[obj.pk] = (new - old, old - new)
+        return cache[obj.pk]
+
+    def get_granted_count(self, obj):
+        diff = self._diff(obj)
+        return len(diff[0]) if diff else None
+
+    def get_revoked_count(self, obj):
+        diff = self._diff(obj)
+        return len(diff[1]) if diff else None
+
+    def get_changed_modules(self, obj):
+        """Names of the modules the save changed ("App Access" for the app)."""
+        diff = self._diff(obj)
+        if not diff:
+            return None
+        changed = diff[0] | diff[1]
+        names = []
+        if any(key[0] == "app" for key in changed):
+            names.append("App Access")
+        seen = set()
+        for snapshot in (obj.new_permissions, obj.old_permissions):
+            for module in (snapshot or {}).get("modules", []):
+                if module["name"] in seen:
+                    continue
+                if snapshot_keys({"modules": [module]}) & changed:
+                    seen.add(module["name"])
+                    names.append(module["name"])
+        return names
 
     def get_target_name(self, obj):
         if obj.source.startswith("STAFF_"):

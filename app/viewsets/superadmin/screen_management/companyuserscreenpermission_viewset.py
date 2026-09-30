@@ -37,9 +37,10 @@ from app.serializers.superadmin.screen_management.companyuserscreencolumnpermiss
 
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.permission_snapshot import CompanyPermissionAuditMixin
 from app.utils.pagination import LimitOffsetWithPage
 
-class CompanyUserScreenPermissionViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class CompanyUserScreenPermissionViewSet(CompanyPermissionAuditMixin, AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = CompanyUserScreenPermissionSerializer
     lookup_field = "unique_id"
     pagination_class = LimitOffsetWithPage

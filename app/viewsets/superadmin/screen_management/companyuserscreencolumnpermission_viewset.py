@@ -16,10 +16,11 @@ from app.serializers.superadmin.screen_management.companyuserscreencolumnpermiss
     UserScreenColumnPermissionWriteSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.permission_snapshot import CompanyPermissionAuditMixin
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
-class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class CompanyUserScreenColumnPermissionViewSet(CompanyPermissionAuditMixin, AuditViewSetMixin, CompanyScopedViewSet):
     """
     Dedicated CRUD API for CompanyUserScreenColumnPermission.
 

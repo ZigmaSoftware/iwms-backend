@@ -19,10 +19,9 @@ from app.utils.pagination import LimitOffsetWithPage
 class PermissionAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Read-only trail of screen/action permission grant changes (User Access
-    Audit). Rows are written only by the post_save signals in
-    app/signals/permission_signals.py, one per grant source (company screen
-    and column permissions, Staff and Customer Access Configuration); this
-    viewset never creates or edits them.
+    Audit). Every screen that grants permissions writes one row per save,
+    holding the access before and after it (app/utils/permission_snapshot.py);
+    this viewset never creates or edits them.
     """
 
     permission_classes = [IsAuthenticated]
@@ -44,6 +43,7 @@ class PermissionAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         "userscreenaction_id",
         "updated_by",
         "action_type",
+        "http_method",
     ]
     ordering_fields = ["timestamp", "action_type"]
 
@@ -90,7 +90,14 @@ class PermissionAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
         source = params.get("source")
         if source:
-            queryset = queryset.filter(source__in=source.upper().split(","))
+            sources = set(source.upper().split(","))
+            # Rows from before access saves were snapshotted carry the old
+            # per-change sources; keep them under the screen they came from.
+            if "STAFF_ACCESS" in sources:
+                sources |= {"STAFF_SCREEN", "STAFF_APP"}
+            if "CUSTOMER_ACCESS" in sources:
+                sources |= {"CUSTOMER_APP", "CUSTOMER_SCREEN"}
+            queryset = queryset.filter(source__in=sources)
 
         target_id = params.get("target_id")
         if target_id:
@@ -148,5 +155,6 @@ class PermissionAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             "sources": [
                 {"unique_id": value, "name": label}
                 for value, label in PermissionAuditLog.SOURCE_CHOICES
+                if value in PermissionAuditLog.CURRENT_SOURCES
             ],
         })

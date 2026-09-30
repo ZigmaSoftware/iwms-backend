@@ -12,17 +12,21 @@ class PermissionAuditLog(models.Model):
 
 
 
-    # Where the grant was made. Each source is a separate table written by a
-    # separate screen, and each has its own signal in
-    # app/signals/permission_signals.py.
+    # Where the grant was made. Every current source stores one row per save
+    # with the access before and after it (app/utils/permission_snapshot.py):
+    # per company/project for COMPANY_*, per person for STAFF/CUSTOMER_ACCESS.
     SOURCE_CHOICES = [
         ("COMPANY_SCREEN", "Company Screen Permission"),
         ("COMPANY_COLUMN", "Company Column Permission"),
+        ("STAFF_ACCESS", "Staff Access Configuration"),
+        ("CUSTOMER_ACCESS", "Customer Access Configuration"),
+        # Per-change rows written before saves were snapshotted.
         ("STAFF_SCREEN", "Staff Access Configuration"),
         ("STAFF_APP", "Staff App Access"),
         ("CUSTOMER_APP", "Customer App Access"),
         ("CUSTOMER_SCREEN", "Customer App Screen"),
     ]
+    CURRENT_SOURCES = ("COMPANY_SCREEN", "COMPANY_COLUMN", "STAFF_ACCESS", "CUSTOMER_ACCESS")
 
     source = models.CharField(
         max_length=20, choices=SOURCE_CHOICES, default="COMPANY_SCREEN", db_index=True
@@ -33,6 +37,13 @@ class PermissionAuditLog(models.Model):
     target_id = models.CharField(max_length=60, null=True, blank=True, db_index=True)
     app_module_id = models.CharField(max_length=30, null=True, blank=True)
     column_id = models.CharField(max_length=40, null=True, blank=True)
+    # HTTP method of the request that made the change (POST/PUT/PATCH/DELETE).
+    http_method = models.CharField(max_length=10, null=True, blank=True)
+    # The whole access before and after the save (company/project grants, or
+    # one person's); see app/utils/permission_snapshot.py for the shape.
+    # Per-change rows from before saves were snapshotted leave both blank.
+    old_permissions = models.JSONField(null=True, blank=True)
+    new_permissions = models.JSONField(null=True, blank=True)
 
     company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)

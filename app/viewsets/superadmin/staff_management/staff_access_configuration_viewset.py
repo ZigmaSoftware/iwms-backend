@@ -25,8 +25,12 @@ from app.utils.app_feature_grants import (
     CITIZEN_APP_MAINSCREEN,
     ROLE_SCREEN_TEMPLATES,
 )
-from app.utils.audit_context import permission_audit_actor
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.permission_snapshot import (
+    EMPTY_SNAPSHOT,
+    staff_access_snapshot,
+    write_access_audit,
+)
 from app.utils.password_encryption import decrypt_password
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.filters import (
@@ -116,19 +120,51 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         self.check_object_permissions(self.request, obj)
         return obj
 
+    # Each save writes ONE User Access Audit row holding the staff member's
+    # whole access before and after it (app/utils/permission_snapshot.py).
+
+    def _audit_access(self, config, before, after, action_type):
+        projects = config.get_project_ids()
+        write_access_audit(
+            source="STAFF_ACCESS",
+            request=self.request,
+            target_id=config.staff_id,
+            company_id=config.company_id,
+            project_id=projects[0] if len(projects) == 1 else None,
+            before=before,
+            after=after,
+            action_type=action_type,
+        )
+
     def perform_create(self, serializer):
-        with permission_audit_actor(self.request.user):
-            serializer.save()
+        # Create re-uses a staff member's existing configuration, so the save
+        # may be an update of access they already had.
+        staff = serializer.validated_data.get("resolved_staff")
+        existing = (
+            StaffAccessConfiguration.objects.filter(
+                staff_id=staff.staff_unique_id, is_deleted=False
+            ).first()
+            if staff
+            else None
+        )
+        before = staff_access_snapshot(existing)
+        instance = serializer.save()
+        self._audit_access(
+            instance, before, staff_access_snapshot(instance),
+            "UPDATED" if existing else "CREATED",
+        )
         cache.clear()
 
     def perform_update(self, serializer):
-        with permission_audit_actor(self.request.user):
-            serializer.save()
+        before = staff_access_snapshot(serializer.instance)
+        instance = serializer.save()
+        self._audit_access(instance, before, staff_access_snapshot(instance), "UPDATED")
         cache.clear()
 
     def perform_destroy(self, instance):
-        with permission_audit_actor(self.request.user):
-            instance.delete()
+        before = staff_access_snapshot(instance)
+        instance.delete()
+        self._audit_access(instance, before, EMPTY_SNAPSHOT, "DELETED")
         cache.clear()
 
     @action(detail=False, methods=["get"], url_path="employee-options")
