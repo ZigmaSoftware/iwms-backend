@@ -16,7 +16,7 @@ from app.utils.userscreen_column_sync import (
     sync_screen_columns
 )
 from app.utils.model_mapper import resolve_userscreen_model
-from app.utils.screen_dependencies import screen_group
+from app.utils.screen_dependencies import screen_group, screen_label
 
 
 class UserScreenSerializer(
@@ -53,6 +53,12 @@ class UserScreenSerializer(
 
     def get_screen_group_label(self, obj):
         return screen_group(obj.userscreen_name)[1]
+
+    # What the admin sidebar calls this screen (SCREEN_LABELS).
+    screen_label = serializers.SerializerMethodField()
+
+    def get_screen_label(self, obj):
+        return screen_label(obj.userscreen_name)
 
     # =====================================================
     # OPTIONAL FIELDS
