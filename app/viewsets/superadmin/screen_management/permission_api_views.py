@@ -18,6 +18,7 @@ from app.serializers.superadmin.screen_management.userscreencolumn_serializer im
     UserScreenColumnSerializer,
 )
 from app.services.schema_sync_service import sync_userscreen_schema
+from app.utils.permission_snapshot import CompanyPermissionAuditMixin
 
 
 class UserScreenColumnsAPIView(APIView):
@@ -38,7 +39,7 @@ class UserScreenColumnsAPIView(APIView):
         return Response(UserScreenColumnSerializer(columns, many=True).data)
 
 
-class PermissionAssignAPIView(APIView):
+class PermissionAssignAPIView(CompanyPermissionAuditMixin, APIView):
     @transaction.atomic
     def post(self, request):
         payload = request.data

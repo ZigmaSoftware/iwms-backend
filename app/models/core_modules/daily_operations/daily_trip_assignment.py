@@ -182,6 +182,7 @@ class DailyTripAssignment(BaseMaster):
         "waste_collections",
         "vehicle_breakdown",
         "route_detour_waypoints",
+        "static_route",
     )
     CACHE_SCOPES = ("daily_trip_assignment_list", "daily_trip_assignment_detail")
 

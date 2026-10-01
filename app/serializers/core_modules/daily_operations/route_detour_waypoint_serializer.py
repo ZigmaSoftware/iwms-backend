@@ -11,6 +11,7 @@ class RouteDetourWaypointSerializer(serializers.ModelSerializer):
         model = RouteDetourWaypoint
         fields = [
             "unique_id",
+            "trip_plan_id",
             "trip_assignment_id",
             "after_stop_id",
             "sequence",
@@ -28,3 +29,15 @@ class RouteDetourWaypointSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def validate(self, attrs):
+        # Routes are edited on the trip plan only; daily trips follow it.
+        if attrs.get("trip_assignment_id"):
+            raise serializers.ValidationError(
+                {"trip_assignment_id": "Detours are drawn on the trip plan, not on a daily trip."}
+            )
+        # A partial update (moving a detour) keeps the detour's plan.
+        if not (attrs.get("trip_plan_id") or getattr(self.instance, "trip_plan_id", None)):
+            raise serializers.ValidationError({"trip_plan_id": "This field is required."})
+        attrs["trip_assignment_id"] = None
+        return attrs

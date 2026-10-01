@@ -91,6 +91,7 @@ from .superadmin.audits.loginAudit import LoginAudit
 from .superadmin.audits.auditlog import AuditLog
 from app.utils.common_audit import CommonAudit
 from .superadmin.audits.permission_audit import PermissionAuditLog
+from .superadmin.audits.static_route_audit import StaticRouteAuditLog
 
 
 # ============================================================
@@ -177,6 +178,8 @@ from .core_modules.daily_operations.trip_delay_report import TripDelayReport
 from .core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 from .core_modules.schedule_setup.collection_point import Collection_point
 from .core_modules.daily_operations.route_detour_waypoint import RouteDetourWaypoint
+from .core_modules.daily_operations.daily_trip_static_route import DailyTripStaticRoute
+from .core_modules.schedule_setup.trip_plan_static_route import TripPlanStaticRoute
 from .core_modules.daily_operations.scheduler_config import SchedulerConfig
 from .reports.waste_reports.daily_waste_comparison import DailyWasteComparison
 from .reports.waste_reports.monthly_weight_report import MonthlyWeightReport
@@ -295,6 +298,7 @@ __all__ = [
 
     # Audits
     "PermissionAuditLog",
+    "StaticRouteAuditLog",
 
     # Daily Trip Assignment
     "DailyTripAssignment",
@@ -306,6 +310,8 @@ __all__ = [
     "TripRetripRequest",
     "Collection_point",
     "RouteDetourWaypoint",
+    "DailyTripStaticRoute",
+    "TripPlanStaticRoute",
     "DailyWasteComparison",
     "SchedulerConfig",
     "MonthlyWeightReport",

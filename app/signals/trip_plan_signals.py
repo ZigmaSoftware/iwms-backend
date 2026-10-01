@@ -202,6 +202,11 @@ def copy_trip_plan_stops_to_daily_assignment(sender, instance, created, **kwargs
     if not created:
         return
     sync_daily_assignment_stops_from_plan(instance)
+    if instance.trip_plan_id:
+        # The trip keeps this copy of the plan's saved static route even if
+        # the plan's route is changed after the trip starts.
+        from app.services.static_route import copy_plan_route_to_assignment
+        copy_plan_route_to_assignment(instance)
 
 
 def _describe_waste_collection(instance):

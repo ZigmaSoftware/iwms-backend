@@ -213,6 +213,8 @@ MODULE_RESOURCE_ALLOWLIST = {
         # No screen of its own: granted through the static route map (writes)
         # and Daily Trip Tracking (reads) — see app/utils/screen_dependencies.py.
         "RouteDetourWaypoint",
+        # Same: saved from the static route map ("Save Route").
+        "TripPlanStaticRoute",
     },
     "operator-mobile": {
         # Driver/operator app endpoints. These are mobile-shaped URLs, but
@@ -251,6 +253,8 @@ MODULE_RESOURCE_ALLOWLIST = {
         "StaffTemplateAuditLog",
         "LoginAudit",
         "CommonAudit",
+        "PermissionAudit",
+        "StaticRouteAudit",
     },
 }
 

@@ -135,3 +135,4 @@ def resolve_tenancy(user, instance=None):
         project_uid,
         _project_name(project_uid),
     )
+

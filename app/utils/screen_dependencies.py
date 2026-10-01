@@ -136,10 +136,15 @@ SCREEN_DEPENDENCIES = {
             "masters/panchayat",
         ),
     },
-    # Detours are drawn and saved from the static route map itself.
+    # Detours are drawn and saved from the static route map itself, on a
+    # trip plan's route or as day-only detours on one daily trip.
     ("schedule-operations", "static-route-map"): {
-        "includes": ("schedule-operations/route-detour-waypoints",),
+        "includes": (
+            "schedule-operations/route-detour-waypoints",
+            "schedule-operations/trip-plan-static-routes",
+        ),
         "lookups": (
+            "schedule-setup/trip-plans",
             "schedule-operations/daily-trip-assignments",
             "schedule-operations/daily-trip-collection-points",
         ),

@@ -62,6 +62,16 @@ class CommonAudit(models.Model):
 
     createdAt = models.DateTimeField(default=timezone.now)
 
+    # ── Request context + outcome ────────────────────────────────────────
+    # Mirrors LoginAudit's ip_address/user_agent/success/reason so every
+    # audited create/update/delete carries the same "from where, did it
+    # work, why not" trail. A failed write is logged with success=False and
+    # the validation error in `reason` before the exception is re-raised.
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    success = models.BooleanField(default=True, db_index=True)
+    reason = models.CharField(max_length=255, null=True, blank=True)
+
     class Meta:
         db_table = "common_audit"
         ordering = ["-createdAt"]

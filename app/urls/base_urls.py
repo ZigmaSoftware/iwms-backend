@@ -122,6 +122,7 @@ from ..viewsets.core_modules.schedule_setup.trip_plan_viewset import TripPlanVie
 from ..viewsets.core_modules.daily_operations.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
 from ..viewsets.core_modules.daily_operations.route_detour_waypoint_viewset import RouteDetourWaypointViewSet
+from ..viewsets.core_modules.schedule_setup.trip_plan_static_route_viewset import TripPlanStaticRouteViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_household_collection_viewset import DailyTripHouseholdCollectionViewSet
 from ..viewsets.core_modules.daily_operations.bin_collection_event_viewset import BinCollectionEventViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_log_viewset import DailyTripLogViewSet
@@ -135,6 +136,8 @@ from ..viewsets.core_modules.daily_operations.trip_retrip_viewset import TripRet
 # Audits
 from ..viewsets.superadmin.audits.login_audit_viewset import LoginAuditViewSet
 from ..viewsets.superadmin.audits.common_audit_viewset import CommonAuditViewSet
+from ..viewsets.superadmin.audits.permission_audit_viewset import PermissionAuditLogViewSet
+from ..viewsets.superadmin.audits.static_route_audit_viewset import StaticRouteAuditLogViewSet
 
 # Palakad district admin portal
 from ..viewsets.palakad.palakad_login_viewset import PalakadLoginViewSet
@@ -352,6 +355,7 @@ router.register_group("schedule-setup", "trip-plans", TripPlanViewSet)
 router.register_group("schedule-operations", "daily-trip-assignments", DailyTripAssignmentViewSet)
 router.register_group("schedule-operations", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
 router.register_group("schedule-operations", "route-detour-waypoints", RouteDetourWaypointViewSet)
+router.register_group("schedule-operations", "trip-plan-static-routes", TripPlanStaticRouteViewSet)
 router.register_group("schedule-operations", "daily-trip-household-collections", DailyTripHouseholdCollectionViewSet)
 router.register_group("schedule-operations", "bin-collection-events", BinCollectionEventViewSet)
 router.register_group("schedule-operations", "daily-trip-logs", DailyTripLogViewSet)
@@ -373,6 +377,8 @@ router.register_group("reports", "complaints-report", ComplaintsReportViewSet, b
 # ============================================================
 router.register_group("audits", "login-audit", LoginAuditViewSet)
 router.register_group("audits", "common-audit", CommonAuditViewSet)
+router.register_group("audits", "permission-audit", PermissionAuditLogViewSet, basename="permission-audit")
+router.register_group("audits", "static-route-audit", StaticRouteAuditLogViewSet, basename="static-route-audit")
 
 # ============================================================
 # GROUP: EXTERNAL ATTENDANCE

@@ -1,11 +1,14 @@
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 from app.serializers.core_modules.schedule_setup.trip_plan_serializer import (
     TripPlanSerializer,
 )
+from app.models.superadmin.audits.static_route_audit import StaticRouteAuditLog
+from app.services.static_route import plan_static_route, sync_plan_static_route
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.filters import (
@@ -50,7 +53,17 @@ class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     @swagger_auto_schema(request_body=TripPlanSerializer)
     def update(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
+        response = super().update(request, *args, **kwargs)
+        # Stops may have changed: keep a saved static route (and the daily
+        # trips following it) in step. Plans whose route was never drawn
+        # are left alone.
+        sync_plan_static_route(
+            self.get_object(),
+            user_id=self._audit_actor_id(),
+            only_if_saved=True,
+            trigger=StaticRouteAuditLog.TRIGGER_TRIP_PLAN_EDIT,
+        )
+        return response
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -60,3 +73,11 @@ class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=["get"], url_path="static-route")
+    def static_route(self, request, unique_id=None):
+        """The plan's static route for the Static Route Map: plant → active
+        plan stops in sequence → plant, plus the detours drawn on the plan,
+        and what was last saved (see TripPlanStaticRouteViewSet). Daily
+        trips generated from this plan get a copy of the saved route."""
+        return Response(plan_static_route(self.get_object()))

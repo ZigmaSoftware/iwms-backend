@@ -45,6 +45,8 @@ Everything else below explains why, and how.
 
 9. **[09-supervisor-trips.md](09-supervisor-trips.md)** — Supervisor Active/History behaviour, API filters, counts and rollout checks.
 
+10. **[10-static-routes.md](10-static-routes.md)** — Static routes: edited on the trip plan, auto-copied to daily trips, flow charts, DB tables and JSON shapes.
+
 ## The one-paragraph map of the whole project
 
 ```text
