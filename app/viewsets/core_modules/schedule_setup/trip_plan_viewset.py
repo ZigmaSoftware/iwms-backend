@@ -7,6 +7,7 @@ from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 from app.serializers.core_modules.schedule_setup.trip_plan_serializer import (
     TripPlanSerializer,
 )
+from app.models.superadmin.audits.static_route_audit import StaticRouteAuditLog
 from app.services.static_route import plan_static_route, sync_plan_static_route
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
@@ -56,7 +57,12 @@ class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         # Stops may have changed: keep a saved static route (and the daily
         # trips following it) in step. Plans whose route was never drawn
         # are left alone.
-        sync_plan_static_route(self.get_object(), user_id=self._audit_actor_id(), only_if_saved=True)
+        sync_plan_static_route(
+            self.get_object(),
+            user_id=self._audit_actor_id(),
+            only_if_saved=True,
+            trigger=StaticRouteAuditLog.TRIGGER_TRIP_PLAN_EDIT,
+        )
         return response
 
     def destroy(self, request, *args, **kwargs):

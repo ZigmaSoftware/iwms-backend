@@ -91,6 +91,7 @@ from .superadmin.audits.loginAudit import LoginAudit
 from .superadmin.audits.auditlog import AuditLog
 from app.utils.common_audit import CommonAudit
 from .superadmin.audits.permission_audit import PermissionAuditLog
+from .superadmin.audits.static_route_audit import StaticRouteAuditLog
 
 
 # ============================================================
@@ -297,6 +298,7 @@ __all__ = [
 
     # Audits
     "PermissionAuditLog",
+    "StaticRouteAuditLog",
 
     # Daily Trip Assignment
     "DailyTripAssignment",

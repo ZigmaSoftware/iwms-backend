@@ -6,6 +6,7 @@ from app.models.core_modules.schedule_setup.trip_plan_static_route import TripPl
 from app.serializers.core_modules.schedule_setup.trip_plan_static_route_serializer import (
     TripPlanStaticRouteSerializer,
 )
+from app.models.superadmin.audits.static_route_audit import StaticRouteAuditLog
 from app.services.static_route import save_plan_static_route
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
@@ -70,7 +71,9 @@ class TripPlanStaticRouteViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         previous_data = self._serialize_instance(previous) if previous else None
         try:
             saved, routing_error, updated_trips = save_plan_static_route(
-                plan, user_id=self._audit_actor_id(),
+                plan,
+                user_id=self._audit_actor_id(),
+                trigger=StaticRouteAuditLog.TRIGGER_MANUAL_SAVE,
             )
         except Exception as exc:
             self._log_failed_audit(exc, instance=previous, new_data=request.data)

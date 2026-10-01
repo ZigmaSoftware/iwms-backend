@@ -36,7 +36,8 @@ class RouteDetourWaypointSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"trip_assignment_id": "Detours are drawn on the trip plan, not on a daily trip."}
             )
-        if not attrs.get("trip_plan_id"):
+        # A partial update (moving a detour) keeps the detour's plan.
+        if not (attrs.get("trip_plan_id") or getattr(self.instance, "trip_plan_id", None)):
             raise serializers.ValidationError({"trip_plan_id": "This field is required."})
         attrs["trip_assignment_id"] = None
         return attrs

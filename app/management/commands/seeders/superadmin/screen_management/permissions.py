@@ -450,6 +450,7 @@ class PermissionSeeder(BaseSeeder):
                 "common-audit",
                 "login-audit",
                 "permission-audit",
+                "static-route-audit",
             ],
             # CITIZEN APP — the one exception to "one permission list".
             # Every citizen route is middleware-exempt and self-scoped, so

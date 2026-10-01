@@ -416,17 +416,167 @@ def _active_trips(plan):
 
 
 def _copy_to_active_trips(plan, saved):
-    updated = 0
+    """Copy `saved` to the plan's active trips; returns their ids."""
+    trip_ids = []
     for assignment in _active_trips(plan):
         copy_plan_route_to_assignment(assignment, saved)
-        updated += 1
-    return updated
+        trip_ids.append(assignment.unique_id)
+    return trip_ids
 
 
-def save_plan_static_route(plan, user_id=None):
-    """Store the plan's route as currently drawn, with its road path, and
-    copy it to the plan's active daily trips (see _active_trips). Returns
-    (saved route, routing error or None, number of trips updated)."""
+# ----------------------------------------------------------------------
+# Route change audit
+# ----------------------------------------------------------------------
+
+def _route_snapshot(route):
+    """The parts of a saved route an audit row keeps."""
+    return {
+        "stops": route.stops,
+        "detour_waypoints": route.detour_waypoints,
+        "route_geojson": route.route_geojson,
+        "distance_meters": route.distance_meters,
+        "duration_seconds": route.duration_seconds,
+    }
+
+
+def _same_point(a, b):
+    return round(a["latitude"], 6) == round(b["latitude"], 6) and round(a["longitude"], 6) == round(
+        b["longitude"], 6
+    )
+
+
+def route_diff(previous, new):
+    """What changed between two route snapshots (dicts shaped like
+    _route_snapshot). The plant at either end is never reported.
+
+    {
+      "stops_added":   [{id, label, type, order, latitude, longitude}],
+      "stops_removed": [...],
+      "stops_moved":   [{id, label, from: {latitude, longitude}, to: {...}}],
+      "stops_reordered": bool,
+      "detours_added":   [{id, after_stop_id, leg, sequence, latitude, longitude}],
+      "detours_removed": [...],
+      "detours_moved":   [{id, leg, from: {after_stop_id, leg, latitude, longitude}, to: {...}}],
+    }
+    """
+    def collection_stops(route):
+        return [st for st in (route or {}).get("stops", []) if st.get("type") != "plant"]
+
+    def labels(route):
+        return {st["id"]: st.get("label") or st["id"] for st in (route or {}).get("stops", [])}
+
+    def stop_row(st):
+        return {key: st.get(key) for key in ("id", "label", "type", "order", "latitude", "longitude")}
+
+    old_stops = {st["id"]: st for st in collection_stops(previous)}
+    new_stops = {st["id"]: st for st in collection_stops(new)}
+    common = [sid for sid in new_stops if sid in old_stops]
+    old_order = [st["id"] for st in collection_stops(previous) if st["id"] in new_stops]
+    new_order = [st["id"] for st in collection_stops(new) if st["id"] in old_stops]
+
+    old_labels, new_labels = labels(previous), labels(new)
+
+    def detour_row(waypoint, leg_labels):
+        return {
+            "id": waypoint["id"],
+            "after_stop_id": waypoint["after_stop_id"],
+            "leg": leg_labels.get(waypoint["after_stop_id"], waypoint["after_stop_id"]),
+            "sequence": waypoint.get("sequence"),
+            "latitude": waypoint["latitude"],
+            "longitude": waypoint["longitude"],
+        }
+
+    old_detours = {w["id"]: w for w in (previous or {}).get("detour_waypoints", [])}
+    new_detours = {w["id"]: w for w in (new or {}).get("detour_waypoints", [])}
+
+    detours_moved = []
+    for wid in new_detours:
+        if wid not in old_detours:
+            continue
+        before, after = old_detours[wid], new_detours[wid]
+        if _same_point(before, after) and before["after_stop_id"] == after["after_stop_id"]:
+            continue
+        before_row, after_row = detour_row(before, old_labels), detour_row(after, new_labels)
+        detours_moved.append({
+            "id": wid,
+            "leg": after_row["leg"],
+            "from": {k: before_row[k] for k in ("after_stop_id", "leg", "latitude", "longitude")},
+            "to": {k: after_row[k] for k in ("after_stop_id", "leg", "latitude", "longitude")},
+        })
+
+    return {
+        "stops_added": [stop_row(new_stops[sid]) for sid in new_stops if sid not in old_stops],
+        "stops_removed": [stop_row(old_stops[sid]) for sid in old_stops if sid not in new_stops],
+        "stops_moved": [
+            {
+                "id": sid,
+                "label": new_stops[sid].get("label"),
+                "from": {"latitude": old_stops[sid]["latitude"], "longitude": old_stops[sid]["longitude"]},
+                "to": {"latitude": new_stops[sid]["latitude"], "longitude": new_stops[sid]["longitude"]},
+            }
+            for sid in common
+            if not _same_point(old_stops[sid], new_stops[sid])
+        ],
+        "stops_reordered": old_order != new_order,
+        "detours_added": [detour_row(new_detours[w], new_labels) for w in new_detours if w not in old_detours],
+        "detours_removed": [detour_row(old_detours[w], old_labels) for w in old_detours if w not in new_detours],
+        "detours_moved": detours_moved,
+    }
+
+
+def _change_type(previous, changes):
+    from app.models.superadmin.audits.static_route_audit import StaticRouteAuditLog as Log
+
+    if previous is None:
+        return Log.CHANGE_CREATED
+    if changes["stops_added"] or changes["stops_removed"] or changes["stops_moved"] or changes["stops_reordered"]:
+        return Log.CHANGE_STOPS_CHANGED
+    kinds = [
+        kind
+        for kind, key in (
+            (Log.CHANGE_DETOUR_ADDED, "detours_added"),
+            (Log.CHANGE_DETOUR_REMOVED, "detours_removed"),
+            (Log.CHANGE_DETOUR_MOVED, "detours_moved"),
+        )
+        if changes[key]
+    ]
+    if not kinds:
+        return Log.CHANGE_RESAVED
+    return kinds[0] if len(kinds) == 1 else Log.CHANGE_ROUTE_CHANGED
+
+
+def _write_route_audit(plan, previous, saved, trip_ids, trigger, user_id, routing_error):
+    from app.models.superadmin.audits.static_route_audit import StaticRouteAuditLog
+
+    new = _route_snapshot(saved)
+    changes = route_diff(previous, new)
+    return StaticRouteAuditLog.objects.create(
+        company_id=plan.company_id,
+        project_id=plan.project_id,
+        trip_plan_id=plan.unique_id,
+        trip_plan_code=plan.display_code,
+        change_type=_change_type(previous, changes),
+        trigger=trigger or StaticRouteAuditLog.TRIGGER_SYSTEM,
+        previous_version=(saved.version - 1) if previous is not None else None,
+        new_version=saved.version,
+        previous_route=previous,
+        new_route=new,
+        changes=changes,
+        distance_change_meters=(new["distance_meters"] or 0) - ((previous or {}).get("distance_meters") or 0),
+        duration_change_seconds=(new["duration_seconds"] or 0) - ((previous or {}).get("duration_seconds") or 0),
+        affected_trip_ids=trip_ids,
+        affected_trip_count=len(trip_ids),
+        routing_error=(routing_error or "")[:255] or None,
+        updated_by=user_id,
+    )
+
+
+def save_plan_static_route(plan, user_id=None, trigger=None):
+    """Store the plan's route as currently drawn, with its road path, copy
+    it to the plan's active daily trips (see _active_trips), and record the
+    change — previous route, new route and what differs — in
+    StaticRouteAuditLog. `trigger` is one of StaticRouteAuditLog.TRIGGER_*.
+    Returns (saved route, routing error or None, number of trips updated)."""
     stops = plan_route_stops(plan)
     waypoints = plan_detour_waypoints(plan.unique_id)
     # Routed before the transaction: it's an external HTTP call.
@@ -438,6 +588,7 @@ def save_plan_static_route(plan, user_id=None):
             .filter(trip_plan_id=plan.unique_id)
             .first()
         )
+        previous = _route_snapshot(saved) if saved else None
         if saved:
             saved.version += 1
             saved.is_active = True
@@ -452,12 +603,13 @@ def save_plan_static_route(plan, user_id=None):
         saved.duration_seconds = duration or 0
         saved.saved_at = timezone.now()
         saved.save()
-        updated = _copy_to_active_trips(plan, saved)
+        trip_ids = _copy_to_active_trips(plan, saved)
+        _write_route_audit(plan, previous, saved, trip_ids, trigger, user_id, routing_error)
 
-    return saved, routing_error, updated
+    return saved, routing_error, len(trip_ids)
 
 
-def sync_plan_static_route(plan, user_id=None, only_if_saved=False):
+def sync_plan_static_route(plan, user_id=None, only_if_saved=False, trigger=None):
     """Keep the stored route in step with the plan after it changes (a
     detour drawn or removed, stops edited on the trip plan form), so its
     daily trips pick the change up without a manual save.
@@ -475,7 +627,7 @@ def sync_plan_static_route(plan, user_id=None, only_if_saved=False):
     ):
         _copy_to_active_trips(plan, saved)
         return saved
-    saved, _, _ = save_plan_static_route(plan, user_id=user_id)
+    saved, _, _ = save_plan_static_route(plan, user_id=user_id, trigger=trigger)
     return saved
 
 

@@ -22,7 +22,9 @@ class RouteDetourWaypointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
 
     serializer_class = RouteDetourWaypointSerializer
     lookup_field = "unique_id"
-    http_method_names = ["get", "post", "delete"]
+    # PATCH moves a detour (dragged on the map) in one save, so the route
+    # audit records it as a single "Detour moved".
+    http_method_names = ["get", "post", "patch", "delete"]
 
     permission_resource = "RouteDetourWaypoint"
 
@@ -52,6 +54,10 @@ class RouteDetourWaypointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         super().perform_create(serializer)
         self._sync_plan_route(serializer.instance.trip_plan_id)
 
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._sync_plan_route(serializer.instance.trip_plan_id)
+
     def perform_destroy(self, instance):
         trip_plan_id = instance.trip_plan_id
         instance.delete()
@@ -63,8 +69,13 @@ class RouteDetourWaypointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if not trip_plan_id:
             return
         from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+        from app.models.superadmin.audits.static_route_audit import StaticRouteAuditLog
         from app.services.static_route import sync_plan_static_route
 
         plan = TripPlan.objects.filter(unique_id=trip_plan_id, is_deleted=False).first()
         if plan:
-            sync_plan_static_route(plan, user_id=self._audit_actor_id())
+            sync_plan_static_route(
+                plan,
+                user_id=self._audit_actor_id(),
+                trigger=StaticRouteAuditLog.TRIGGER_DETOUR_EDIT,
+            )

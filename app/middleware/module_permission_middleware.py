@@ -254,6 +254,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "LoginAudit",
         "CommonAudit",
         "PermissionAudit",
+        "StaticRouteAudit",
     },
 }
 
