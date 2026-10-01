@@ -39,7 +39,11 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
-from app.utils.screen_dependencies import screen_group
+from app.utils.screen_dependencies import (
+    mainscreen_label,
+    screen_group,
+    screen_label,
+)
 
 
 class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -421,6 +425,11 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 {
                     "mainScreenId": perm.mainscreen_id,
                     "mainScreenName": mainscreen.mainscreen_name if mainscreen else None,
+                    # What the sidebar calls it; the name stays the key.
+                    "mainScreenLabel": (
+                        mainscreen_label(mainscreen.mainscreen_name)
+                        if mainscreen else None
+                    ),
                     # The group this module belongs to. "mobile-app" modules
                     # are app features, not web sidebar routes, so the form
                     # renders them in their own "App Access" tab.
@@ -442,6 +451,10 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 {
                     "userScreenId": perm.userscreen_id,
                     "userScreenName": userscreen.userscreen_name if userscreen else None,
+                    "userScreenLabel": (
+                        screen_label(userscreen.userscreen_name)
+                        if userscreen else None
+                    ),
                     # Screens sharing a group render under one heading.
                     "screenGroup": group_key,
                     "screenGroupLabel": group_label,

@@ -12,6 +12,7 @@ from app.models.masters.customer_masters.customercreation import CustomerCreatio
 from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.leader_management.district_leader_login import DistrictLeaderLogin
 from app.utils.permission_response import resolve_permission_payload
+from app.utils.permission_catalog import ROUTE_OWNERS
 from app.utils.screen_dependencies import INCLUDED_BY, LOOKUP_FOR
 
 
@@ -90,6 +91,11 @@ COMMON_AUDIT_CREATE_PATHS = tuple(
 # ============================================================
 # MODULE → RESOURCE ALLOWLIST
 # (THIS MUST MATCH ViewSet.permission_resource)
+#
+# Routes a screen owns in app/utils/permission_catalog.py are allowed
+# without being listed here. This list is still needed for routes reached only
+# through SCREEN_DEPENDENCIES (child APIs, dropdown lookups) and for the
+# read-only restrictions below. New screens go in the catalog first.
 # ============================================================
 
 MODULE_RESOURCE_ALLOWLIST = {
@@ -667,6 +673,15 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             permission_resource,
         )
         route_resource = _route_resource_from_path(request.path, module)
+        # The screen the permission catalog says owns this route
+        # (app/utils/permission_catalog.py). It is the primary answer; the
+        # allowlist + name matching below only covers routes the catalog
+        # leaves to SCREEN_DEPENDENCIES, and per-request resource hooks.
+        route_owner = (
+            None
+            if callable(getattr(view_class, "permission_resource_for_request", None))
+            else ROUTE_OWNERS.get(f"{module}/{route_resource}")
+        )
 
         allowed_resources = MODULE_RESOURCE_ALLOWLIST.get(module, set())
         allowed_resource_keys = {
@@ -677,7 +692,7 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             permission_resource,
             route_resource,
         )
-        resource_allowed = any(
+        resource_allowed = route_owner is not None or any(
             self._normalize_permission_key(candidate) in allowed_resource_keys
             for candidate in resource_candidates
         )
@@ -726,11 +741,16 @@ class ModulePermissionMiddleware(MiddlewareMixin):
 
         permissions = _resolve_permissions_for_request(request)
         request.resolved_permissions = permissions
-        allowed_actions = self._resolve_allowed_actions(
-            permissions.get(module, {}),
-            permission_resource,
-            route_resource,
+        allowed_actions = (
+            self._owner_actions(permissions, *route_owner) if route_owner else []
         )
+
+        if not allowed_actions:
+            allowed_actions = self._resolve_allowed_actions(
+                permissions.get(module, {}),
+                permission_resource,
+                route_resource,
+            )
 
         if not allowed_actions:
             alias_module = MODULE_PERMISSION_ALIASES.get(module)

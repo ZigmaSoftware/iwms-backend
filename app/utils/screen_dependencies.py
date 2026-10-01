@@ -21,6 +21,8 @@ module_permission_middleware.py); `superadmin/*` and the other
 unprotected groups are reachable by any authenticated user already.
 """
 
+from app.utils import permission_catalog as _catalog
+
 _LOCATION_LOOKUPS = (
     "common-masters/continents",
     "common-masters/countries",
@@ -66,6 +68,11 @@ SCREEN_DEPENDENCIES = {
             "waste-types/wastetypes",
             "screen-managements/app-modules",
         ),
+    },
+    # Its own sidebar page, but it only reads the customer list (and its
+    # apartment-count action) — no screen of its own on the backend router.
+    ("customers", "apartment-list"): {
+        "lookups": ("customer-masters/customercreations",),
     },
 
     # ---------------- role / staff setup ----------------
@@ -120,7 +127,6 @@ SCREEN_DEPENDENCIES = {
             "waste-types/bins",
         ),
     },
-    # Also gates the Daily Trip Tracking page in the sidebar.
     ("schedule-operations", "daily-trip-collection-points"): {
         "lookups": (
             "schedule-operations/daily-trip-assignments",
@@ -134,6 +140,18 @@ SCREEN_DEPENDENCIES = {
             "masters/zones",
             "masters/wards",
             "masters/panchayat",
+        ),
+    },
+    # The Daily Trip Tracking page: everything it calls is a read (the
+    # route-static POST counts as "view", see DailyTripCollectionPointViewSet).
+    ("schedule-operations", "daily-trip-tracking"): {
+        "lookups": (
+            "schedule-operations/daily-trip-collection-points",
+            "schedule-operations/daily-trip-assignments",
+            "schedule-operations/route-detour-waypoints",
+            "schedule-setup/staff-templates",
+            "schedule-setup/alternative-staff-templates",
+            "masters/plants",
         ),
     },
     # Detours are drawn and saved from the static route map itself, on a
@@ -205,37 +223,13 @@ SCREEN_DEPENDENCIES = {
 }
 
 
-# Screens shown together under one heading in the permission forms. Each
-# screen keeps its own grant rows and can still be ticked on its own; ticking
-# an action on the heading ticks it on every screen in the group.
-# Keyed by a stable group key; screens are userscreen_names.
-SCREEN_GROUPS = {
-    "daily-trip-plan": {
-        "label": "Daily Trip Plan",
-        "screens": (
-            "daily-trip-assignments",
-            "daily-trip-collection-points",
-            "daily-trip-household-collections",
-        ),
-    },
-    "staff-user-type": {
-        "label": "Staff User Type",
-        "screens": (
-            "staffusertypes",
-            "contractorusertypes",
-        ),
-    },
-    # Sidebar "Weighbridge Management" menu and its two reports: granting the
-    # parent grants the Day and Date reports with it.
-    "weighbridge-management": {
-        "label": "Weighbridge Management",
-        "screens": (
-            "weighbridge-management",
-            "date-report",
-            "day-report",
-        ),
-    },
-}
+# Screens shown together under one heading in the permission forms, and the
+# sidebar's name for each module/screen, both come from the one catalog
+# (app/utils/permission_catalog.py). Each grouped screen keeps its own grant
+# rows; ticking the heading ticks every screen in the group.
+SCREEN_GROUPS = _catalog.SCREEN_GROUPS
+MAINSCREEN_LABELS = _catalog.MAINSCREEN_LABELS
+SCREEN_LABELS = _catalog.SCREEN_LABELS
 SCREEN_GROUP_OF = {
     screen: key for key, group in SCREEN_GROUPS.items() for screen in group["screens"]
 }
@@ -245,6 +239,16 @@ def screen_group(userscreen_name):
     """(group key, group label) for a screen, or (None, None)."""
     key = SCREEN_GROUP_OF.get(userscreen_name)
     return (key, SCREEN_GROUPS[key]["label"]) if key else (None, None)
+
+
+def mainscreen_label(mainscreen_name):
+    """Sidebar label for a main screen, falling back to its catalog name."""
+    return MAINSCREEN_LABELS.get(mainscreen_name, mainscreen_name)
+
+
+def screen_label(userscreen_name):
+    """Sidebar label for a user screen, falling back to its catalog name."""
+    return SCREEN_LABELS.get(userscreen_name, userscreen_name)
 
 
 def _index(kind):

@@ -12,6 +12,11 @@ from app.utils.app_feature_grants import (
     CITIZEN_APP_SCREENS,
 )
 from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
+from app.utils.permission_catalog import (
+    INHERITS_GRANTS_FROM,
+    SCREEN_STRUCTURE,
+    SECTION_MODULES,
+)
 from app.models.superadmin.screen_management.mainscreen import MainScreen
 from app.models.superadmin.screen_management.userscreen import UserScreen
 from app.models.superadmin.screen_management.companyuserscreenpermission import (
@@ -155,6 +160,67 @@ class PermissionSeeder(BaseSeeder):
             f"{granted} permissions across {screens} screens."
         )
 
+    @staticmethod
+    def _copy_rows(model, rows, screen, existing_key):
+        """Clone `rows` onto `screen`, skipping ones it already holds."""
+        skip = {"id", "unique_id", "created_at", "updated_at"}
+        fields = [
+            f.name for f in model._meta.concrete_fields if f.name not in skip
+        ]
+        copied = 0
+        for row in rows:
+            values = {name: getattr(row, name) for name in fields}
+            values["userscreen_id"] = screen.unique_id
+            values["mainscreen_id"] = screen.mainscreen_id
+            if "description" in values and values["description"]:
+                action = (values["description"].split(" ", 1) + [""])[0]
+                values["description"] = f"{action} {screen.userscreen_name}"
+            if model.objects.filter(
+                userscreen_id=screen.unique_id, **existing_key(row)
+            ).exists():
+                continue
+            model.objects.create(**values)
+            copied += 1
+        return copied
+
+    def _inherit_grants(self, screen, source_name):
+        """Give a newly created screen the grants of the screen it was split
+        from (catalog `inherits_grants_from`), so the split takes no access
+        away. Runs only when the screen row is first created."""
+        source = UserScreen.objects.filter(
+            userscreen_name=source_name, is_deleted=False
+        ).first()
+        if not source:
+            return
+
+        company = self._copy_rows(
+            CompanyUserScreenPermission,
+            CompanyUserScreenPermission.objects.filter(
+                userscreen_id=source.unique_id, is_deleted=False
+            ),
+            screen,
+            lambda row: {
+                "company_id": row.company_id,
+                "project_id": row.project_id,
+                "userscreenaction_id": row.userscreenaction_id,
+            },
+        )
+        staff = self._copy_rows(
+            StaffAccessConfigurationPermission,
+            StaffAccessConfigurationPermission.objects.filter(
+                userscreen_id=source.unique_id, is_deleted=False
+            ),
+            screen,
+            lambda row: {
+                "staff_access_configuration_id": row.staff_access_configuration_id,
+                "userscreenaction_id": row.userscreenaction_id,
+            },
+        )
+        self.log(
+            f"{screen.userscreen_name}: copied {company} company and {staff} "
+            f"staff grants from {source_name}."
+        )
+
     def _move_mainscreen_orders_out_of_range(self, mainscreentype, reserved_count):
         """Free the target 1..N order range without tripping MySQL unique checks."""
         screens = list(
@@ -267,17 +333,12 @@ class PermissionSeeder(BaseSeeder):
         # --------------------------------------------------
         # 1. MAIN SCREEN TYPE
         # --------------------------------------------------
-        screen_type_names = (
-            "super-admin",
-            "masters",
-            "core-modules",
-            "reports",
-            # Holds the citizen app screens. Every other mobile screen is
-            # governed by the ordinary web permission it maps to — see
-            # app/utils/app_feature_grants.py — so only the citizen app, which
-            # has no web screens at all, needs rows of its own here.
-            "mobile-app",
-        )
+        # The sidebar sections (permission_catalog.SECTIONS), plus
+        # "mobile-app" for the citizen app screens. Every other mobile screen
+        # is governed by the ordinary web permission it maps to — see
+        # app/utils/app_feature_grants.py — so only the citizen app, which
+        # has no web screens at all, needs rows of its own here.
+        screen_type_names = tuple(SECTION_MODULES) + ("mobile-app",)
         screen_types = {}
         for type_name in screen_type_names:
             screen_type, _ = MainScreenType.objects.update_or_create(
@@ -305,218 +366,23 @@ class PermissionSeeder(BaseSeeder):
             actions[name] = action
 
         # --------------------------------------------------
-        # 3. SCREEN STRUCTURE (MATCHES ROUTER GROUPS)
+        # 3. SCREEN STRUCTURE — from the one permission catalog
         # --------------------------------------------------
+        # Modules, screens and their sidebar grouping are defined once in
+        # app/utils/permission_catalog.py (shared with the middleware and,
+        # via the generated permissionCatalog.ts, the frontend sidebar). Add
+        # or rename screens there, never here.
         screen_structure = {
-            "superadmin-masters": [
-                "company",
-                "project",
-            ],
-            "common-masters": [
-                "continents",
-                "countries",
-                "states",
-            ],
-            "masters": [
-                "districts",
-                "cities",
-                "zones",
-                "wards",
-                "panchayat",
-                "panchayat-leaders",
-                "district-leaders",
-                "plants",
-            ],
-            "waste-types": [
-                "properties",
-                "subproperties",
-                # merged in from the legacy "assets" screen group
-                "bins",
-                "waste type",
-            ],
-            "screen-managements": [
-                "mainscreentype",
-                "mainscreens",
-                "userscreens",
-                "userscreen-action",
-                "companywisescreenpermissions",
-                "app-modules",
-            ],
-            "role-assigns": [
-                "user-type",
-                # Staff and contractor user types are two tabs of one page;
-                # permission forms show them as one "Staff User Type" row
-                # (SCREEN_GROUPS in app/utils/screen_dependencies.py).
-                "staffusertypes",
-                "contractorusertypes",
-                # Has its own sidebar page; it was missing here, so it could
-                # never be granted.
-                "project-staff-hierarchy",
-            ],
-            "staff-creations": [
-                # "users-creation",
-                # moved out of the "masters" group so the org/staff setup
-                # screens live with the rest of staff management
-                "department-masters",
-                "designation-masters",
-                "staffcreation",
-                "staff-access-configuration",
-                # "stafftemplate-creation",
-                # "alternative-stafftemplate",
-                # "supervisor-zone-map",
-                # "unassigned-staff-pool",
-            ],
-            "attendance": [
-                "attendance",
-            ],
-            "customers": [
-                "customercreations",
-                "customer-access-configuration",
-                "apartment-list",
-            ],
-            # "waste-management": [
-            #     "collection monitoring",
-            #     "panchayat base collection",
-            #     "ward base collection",
-            # ],
-            # SUPER ADMIN — global complaint configuration. Split out of
-            # "complaint-ticket" because these tables have no company/project
-            # FK: one edit changes behaviour for every tenant.
-            #
-            # Only the three Complaint Types tabs get screens. The seeded
-            # reference tables (module/priority/status/source/language) are
-            # code-keyed vocabularies the routing and SLA resolvers depend on,
-            # so they stay seeder-owned with no UI; routing rules are an
-            # API-only override now that routing falls back to the category's
-            # default_department.
-            "complaint-masters": [
-                "types",
-                "categories",
-                "subcategories",
-                "sla-rules",
-            ],
-            # CORE MODULES — company/project-scoped complaint entries. The
-            # master screens are intentionally absent: staff read them through
-            # the view-only routes (MODULE_READONLY_RESOURCES) and never get
-            # add/edit/delete on them from here.
-            "complaint-ticket": [
-                # renamed from the legacy "grivences" screen group
-                "tickets",
-                "department-members",
-                "supervisor-dashboard",
-                "my-tasks",
-                "feedback",
-                "reopen-history",
-                "notifications",
-                "address-change",
-            ],
-            "transport-masters": [
-                "vehicle-type",
-                "vehicle-creation",
-                "fuels",
-            ],
-            "schedule-setup": [
-                # split from the legacy "schedule-masters" screen group
-                "staff-templates",
-                "alternative-staff-templates",
-                "collection-points",
-                "trip-plans",
-            ],
-            "schedule-operations": [
-                # split from the legacy "schedule-masters" screen group
-                "daily-trip-assignments",
-                "daily-trip-collection-points",
-                "daily-trip-household-collections",
-                "static-route-map",
-                "bin-collection-events",
-                "daily-trip-logs",
-                "wastecollections",
-                # registered in base_urls.py but previously missing here, so no
-                # UserScreen/permission row was ever seeded for them
-                "vehicle-breakdowns",
-                "trip-delay-reports",
-                "retrip-requests",
-                # Registered in base_urls.py and called by every mobile
-                # surface, but no UserScreen existed — so it could not be
-                # granted from web at all.
-                "staff-notifications",
-            ],
-            "audits": [
-                # "stafftemplate-audit-log",
-                # "supervisor-zone-access-audit",
-                # "vehicle-trip-audit",
-                # "trip-exception-log",
-                # "bin-load-log",
-                "common-audit",
-                "login-audit",
-                "permission-audit",
-                "static-route-audit",
-            ],
-            # CITIZEN APP — the one exception to "one permission list".
-            # Every citizen route is middleware-exempt and self-scoped, so
-            # there is nothing in the ordinary catalog to grant a customer;
-            # these rows are ticked on a CustomerAccessConfiguration and gate
-            # the app's UI only.
-            CITIZEN_APP_MAINSCREEN: CITIZEN_APP_SCREENS,
-            # The sidebar's "Fleet & Reports" group, split out of "reports"
-            # by migration 0011_split_fleet_reports_mainscreen (which also
-            # re-points the existing grants). Frontend-only GPS pages — no
-            # backend routes, so no middleware module key depends on this.
-            "fleet-reports": [
-                "vehicle-track",
-                "vehicle-history",
-                "trip-summary",
-                "monthly-distance",
-                "waste-collected-summary",
-                # Weighbridge Management and its two reports — one permission
-                # row via SCREEN_GROUPS (app/utils/screen_dependencies.py);
-                # renamed from "workforce-management" and moved out of
-                # "reports" by migration 0012_weighbridge_management_screens.
-                "weighbridge-management",
-                "date-report",
-                "day-report",
-            ],
-            "reports": [
-                # Moved here from the legacy "schedule-masters" main screen;
-                # get_or_create below re-homes the existing rows, so their
-                # grants carry over.
-                "daily-waste-comparisons",
-                "monthly-waste-comparison",
-                "complaints-report",
-            ],
+            name: list(screens) for name, screens in SCREEN_STRUCTURE.items()
         }
+        # CITIZEN APP — the one exception to "one permission list". Every
+        # citizen route is middleware-exempt and self-scoped, so there is
+        # nothing in the ordinary catalog to grant a customer; these rows are
+        # ticked on a CustomerAccessConfiguration and gate the app's UI only.
+        screen_structure[CITIZEN_APP_MAINSCREEN] = CITIZEN_APP_SCREENS
 
-        # Keep the backend permission hierarchy in the same groups and order as
-        # the admin sidebar. MainScreen remains the permission module key; its
-        # MainScreenType provides the parent group shown in screen management.
-        screen_groups = {
-            "super-admin": (
-                "superadmin-masters",
-                "screen-managements",
-                "role-assigns",
-                "staff-creations",
-                "common-masters",
-                "complaint-masters",
-                "audits",
-            ),
-            "masters": (
-                "masters",
-                "waste-types",
-                "transport-masters",
-                "customers",
-            ),
-            "core-modules": (
-                "schedule-setup",
-                "schedule-operations",
-                "complaint-ticket",
-                "attendance",
-            ),
-            "reports": (
-                "reports",
-                "fleet-reports",
-            ),
-            "mobile-app": (CITIZEN_APP_MAINSCREEN,),
-        }
+        screen_groups = dict(SECTION_MODULES)
+        screen_groups["mobile-app"] = (CITIZEN_APP_MAINSCREEN,)
 
         module_group = {
             module_name: group_name
@@ -541,6 +407,7 @@ class PermissionSeeder(BaseSeeder):
         # 4. CREATE MAIN SCREENS + USER SCREENS
         # --------------------------------------------------
         mainscreens = {}
+        created_screens = []
 
         for group_name, module_names in screen_groups.items():
             self._move_mainscreen_orders_out_of_range(
@@ -601,7 +468,7 @@ class PermissionSeeder(BaseSeeder):
                             ]
                         )
 
-                screen, _ = UserScreen.objects.get_or_create(
+                screen, screen_created = UserScreen.objects.get_or_create(
                     userscreen_name=screen_name,
                     defaults={
                         "mainscreen_id": main.unique_id if hasattr(main, 'unique_id') else main,
@@ -612,6 +479,8 @@ class PermissionSeeder(BaseSeeder):
                         "is_deleted": False,
                     },
                 )
+                if screen_created:
+                    created_screens.append(screen)
                 main_id = main.unique_id if hasattr(main, 'unique_id') else main
                 if screen.mainscreen_id != main_id:
                     # `_move_userscreen_orders_out_of_range` above only parked
@@ -696,6 +565,14 @@ class PermissionSeeder(BaseSeeder):
             legacy_megamenu.is_active = False
             legacy_megamenu.is_deleted = True
             legacy_megamenu.save(update_fields=["is_active", "is_deleted"])
+
+        # --------------------------------------------------
+        # 4B. GRANTS FOR SCREENS SPLIT OUT OF AN EXISTING ONE
+        # --------------------------------------------------
+        for screen in created_screens:
+            source_name = INHERITS_GRANTS_FROM.get(screen.userscreen_name)
+            if source_name:
+                self._inherit_grants(screen, source_name)
 
         # --------------------------------------------------
         # 4C. MONTHLY WASTE COMPARISON COLUMNS

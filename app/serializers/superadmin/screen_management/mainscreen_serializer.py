@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.utils.screen_dependencies import mainscreen_label
 
 class MainScreenSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     mainscreentype_name = serializers.CharField(
@@ -12,6 +13,11 @@ class MainScreenSerializer(TenancyReadSerializerMixin, serializers.ModelSerializ
     order_no = serializers.IntegerField(required=False, allow_null=True)
     # UI no longer sends icon_name; derive it from mainscreen_name if omitted.
     icon_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    # What the admin sidebar calls this module (MAINSCREEN_LABELS).
+    mainscreen_label = serializers.SerializerMethodField()
+
+    def get_mainscreen_label(self, obj):
+        return mainscreen_label(obj.mainscreen_name)
 
     class Meta:
         model = MainScreen
