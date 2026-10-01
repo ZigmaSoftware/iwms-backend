@@ -125,7 +125,7 @@ class TripPlan(BaseMaster):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    CASCADE_SOFT_DELETE = ("plan_collection_points", "daily_trip_assignments")
+    CASCADE_SOFT_DELETE = ("plan_collection_points", "daily_trip_assignments", "route_detour_waypoints", "static_route")
     CACHE_SCOPES = ("trip_plan_list", "trip_plan_detail")
 
     class Meta:

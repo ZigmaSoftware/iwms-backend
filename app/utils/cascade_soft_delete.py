@@ -225,6 +225,8 @@ _DAILY_TRIP_HOUSEHOLD_COLLECTION = "app.models.core_modules.daily_operations.dai
 _BIN_COLLECTION_EVENT = "app.models.core_modules.daily_operations.bin_collection_event.BinCollectionEvent"
 _VEHICLE_BREAKDOWN = "app.models.core_modules.daily_operations.vehicle_breakdown.VehicleBreakdown"
 _ROUTE_DETOUR_WAYPOINT = "app.models.core_modules.daily_operations.route_detour_waypoint.RouteDetourWaypoint"
+_TRIP_PLAN_STATIC_ROUTE = "app.models.core_modules.schedule_setup.trip_plan_static_route.TripPlanStaticRoute"
+_DAILY_TRIP_STATIC_ROUTE = "app.models.core_modules.daily_operations.daily_trip_static_route.DailyTripStaticRoute"
 _CUSTOMER_CREATION = "app.models.masters.customer_masters.customercreation.CustomerCreation"
 _WASTE_COLLECTION = "app.models.core_modules.daily_operations.wastecollection.WasteCollection"
 _COMPLAINT_TICKET = "app.models.core_modules.complaint_management.ticket.ComplaintTicket"
@@ -397,9 +399,11 @@ _register(_STAFF_CREATION, "access_configuration", _STAFF_ACCESS_CONFIG, "staff_
 # StaffAccessConfiguration -> granted_permissions
 _register(_STAFF_ACCESS_CONFIG, "granted_permissions", _STAFF_ACCESS_CONFIG_PERM, "staff_access_configuration_id")
 
-# TripPlan -> plan_collection_points, daily_trip_assignments
+# TripPlan -> plan_collection_points, daily_trip_assignments, route_detour_waypoints, static_route
 _register(_TRIP_PLAN, "plan_collection_points", "app.models.core_modules.schedule_setup.trip_plan_collection_point.TripPlanCollectionPoint", "trip_plan_id")
 _register(_TRIP_PLAN, "daily_trip_assignments", _DAILY_TRIP_ASSIGNMENT, "trip_plan_id")
+_register(_TRIP_PLAN, "route_detour_waypoints", _ROUTE_DETOUR_WAYPOINT, "trip_plan_id")
+_register(_TRIP_PLAN, "static_route", _TRIP_PLAN_STATIC_ROUTE, "trip_plan_id")
 
 # DailyTripAssignment -> daily_trip_log, trip_collection_points, trip_household_collections, bin_collection_events, waste_collections, vehicle_breakdown
 _register(_DAILY_TRIP_ASSIGNMENT, "daily_trip_log", _DAILY_TRIP_LOG, "trip_assignment_id")
@@ -409,6 +413,7 @@ _register(_DAILY_TRIP_ASSIGNMENT, "bin_collection_events", _BIN_COLLECTION_EVENT
 _register(_DAILY_TRIP_ASSIGNMENT, "waste_collections", _WASTE_COLLECTION, "trip_assignment_id")
 _register(_DAILY_TRIP_ASSIGNMENT, "vehicle_breakdown", _VEHICLE_BREAKDOWN, "trip_assignment_id")
 _register(_DAILY_TRIP_ASSIGNMENT, "route_detour_waypoints", _ROUTE_DETOUR_WAYPOINT, "trip_assignment_id")
+_register(_DAILY_TRIP_ASSIGNMENT, "static_route", _DAILY_TRIP_STATIC_ROUTE, "trip_assignment_id")
 
 # CollectionPoint -> bin, trip_plan_cps, daily_trip_logs, daily_trip_cps, bin_collection_events
 _register(_COLLECTION_POINT, "bin", _BINS, "collection_point_id")

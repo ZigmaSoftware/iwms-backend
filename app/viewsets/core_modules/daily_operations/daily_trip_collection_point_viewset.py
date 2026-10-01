@@ -21,6 +21,7 @@ from app.models.core_modules.daily_operations.bin_collection_event import BinCol
 from app.models.core_modules.schedule_setup.collection_point import Collection_point
 from app.models.masters.waste_masters.bins import Bins
 from app.services.openroute_service import OpenRouteServiceError, optimize_stops, route_stops
+from app.services.static_route import assignment_static_route
 from app.serializers.core_modules.daily_operations.daily_trip_collection_point_serializer import (
     DailyTripCollectionPointSerializer,
 )
@@ -682,109 +683,13 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             return None
         return Plant.objects.filter(project_id=project, is_active=True, is_deleted=False).first()
 
-    def _route_stops_for_assignment(self, assignment):
-        """RouteStop-shaped dicts for one assignment's real stops, with the
-        project's plant (if any) appended as the final stop. Purely a
-        read-time projection — never creates a DailyTripCollectionPoint row.
-
-        A single physical collection point commonly has several bins (one
-        per waste stream), each a separate DailyTripCollectionPoint row at
-        the exact same coordinate — grouped here into one RouteStop per
-        collection_point_id so the map shows one pin per real-world location
-        instead of stacking N identical markers on top of each other. Order
-        follows the group's earliest sequence; bin-level detail survives in
-        `details["Bins"]`.
-        """
-        # No select_related() here: collection_point_id/bin_id/customer_id
-        # are this codebase's string-pseudo-FK CharFields, not real Django
-        # relations — resolved individually below via the .collection_point
-        # / .bin / .customer @property accessors instead.
-        stops = list(
-            DailyTripCollectionPoint.objects
-            .filter(trip_assignment_id=assignment, is_deleted=False)
-            .order_by("sequence")
-        )
-
-        grouped = {}
-        for stop in stops:
-            cp = stop.collection_point
-            if not cp:
-                continue
-            group = grouped.setdefault(cp.unique_id, {
-                "id": stop.unique_id,
-                "label": cp.cp_name,
-                "type": "collection_point",
-                "sequence": stop.sequence,
-                "latitude": float(cp.latitude),
-                "longitude": float(cp.longitude),
-                "bins": [],
-            })
-            group["sequence"] = min(group["sequence"], stop.sequence)
-            bin_obj = stop.bin
-            group["bins"].append(f"{bin_obj.bin_name if bin_obj else stop.bin_id} ({stop.status})")
-
-        household_stops = list(
-            DailyTripHouseholdCollection.objects
-            .filter(trip_assignment_id=assignment, is_deleted=False)
-            .order_by("sequence")
-        )
-        for stop in household_stops:
-            customer = stop.customer
-            if not customer or customer.latitude is None or customer.longitude is None:
-                continue
-            grouped[f"household:{stop.unique_id}"] = {
-                "id": stop.unique_id,
-                "label": customer.customer_name,
-                "type": "household",
-                "sequence": stop.sequence,
-                "latitude": float(customer.latitude),
-                "longitude": float(customer.longitude),
-                "bins": [],
-                "status": stop.status,
-            }
-
-        ordered_groups = sorted(grouped.values(), key=lambda group: group["sequence"])
-        route_stops = [
-            {
-                "id": group["id"],
-                "label": group["label"],
-                "type": group["type"],
-                "order": index + 1,
-                "latitude": group["latitude"],
-                "longitude": group["longitude"],
-                "details": (
-                    {"Bins": ", ".join(group["bins"])}
-                    if group["type"] == "collection_point"
-                    else {"Status": group.get("status", "")}
-                ),
-            }
-            for index, group in enumerate(ordered_groups)
-        ]
-
-        plant = self._plant_for(assignment.project_id)
-        if plant:
-            plant_stop = {
-                "id": plant.unique_id,
-                "label": plant.name,
-                "type": "plant",
-                "latitude": float(plant.latitude),
-                "longitude": float(plant.longitude),
-                "details": {},
-            }
-            # The vehicle starts its day at the plant and returns there
-            # at the end of the trip, so it's both the first and last stop.
-            route_stops = [{**plant_stop, "order": 1}] + [
-                {**stop, "order": stop["order"] + 1} for stop in route_stops
-            ]
-            route_stops.append({**plant_stop, "order": len(route_stops) + 1})
-
-        return route_stops
-
     @action(detail=False, methods=["get"], url_path="static-route")
     def static_route(self, request):
-        """Real, fixed-order stop list for one trip assignment — Start
-        (implicit, the vehicle's own position) → collection points → dump
-        yard — for the Static Route Map. Never reorders or optimizes."""
+        """One trip's static route for the Static Route Map: its copy of the
+        trip plan's saved route (or the plan's current drawing if none was
+        saved yet) with the day's status on each stop, plus the plan's
+        detours and this trip's day-only detours. Never reorders, optimizes
+        or creates stops."""
         assignment_id = request.query_params.get("trip_assignment_id")
         if not assignment_id:
             return Response(
@@ -792,40 +697,21 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        assignment = self._ensure_assignment_stops(assignment_id)
+        assignment = DailyTripAssignment.objects.filter(
+            unique_id=assignment_id, is_deleted=False,
+        ).first()
         if not assignment:
             return Response(
                 {"detail": "Daily Trip Assignment was not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        from app.models.core_modules.daily_operations.route_detour_waypoint import RouteDetourWaypoint
-
-        waypoints = RouteDetourWaypoint.objects.filter(
-            trip_assignment_id=assignment.unique_id, is_active=True, is_deleted=False,
-        ).order_by("after_stop_id", "sequence")
-
-        return Response({
-            "trip_assignment_id": assignment.unique_id,
-            "trip_date": assignment.trip_date,
-            "vehicle_no": getattr(assignment.vehicle, "vehicle_no", None),
-            "stops": self._route_stops_for_assignment(assignment),
-            "detour_waypoints": [
-                {
-                    "id": waypoint.unique_id,
-                    "after_stop_id": waypoint.after_stop_id,
-                    "sequence": waypoint.sequence,
-                    "latitude": float(waypoint.latitude),
-                    "longitude": float(waypoint.longitude),
-                }
-                for waypoint in waypoints
-            ],
-        })
+        return Response(assignment_static_route(assignment))
 
     @action(detail=False, methods=["get"], url_path="static-routes")
     def static_routes(self, request):
-        """Every trip assignment's fixed-order stop list at once, for the
-        Static Route Map's "all routes" view. Supports the same
+        """Every trip assignment's static route at once, for the Static
+        Route Map's "all routes" view. Supports the same
         company/project/date filters as tracking-overview."""
         assignments = DailyTripAssignment.objects.filter(is_deleted=False)
 
@@ -840,20 +726,8 @@ class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             assignments = assignments.filter(trip_date=trip_date)
         assignments = assignments.order_by("-trip_date", "-scheduled_time")[:30]
 
-        routes = []
-        for assignment in assignments:
-            self._ensure_assignment_stops(assignment.unique_id)
-            stops = self._route_stops_for_assignment(assignment)
-            if not stops:
-                continue
-            routes.append({
-                "trip_assignment_id": assignment.unique_id,
-                "trip_date": assignment.trip_date,
-                "vehicle_no": getattr(assignment.vehicle, "vehicle_no", None),
-                "stops": stops,
-            })
-
-        return Response({"routes": routes})
+        routes = [assignment_static_route(assignment) for assignment in assignments]
+        return Response({"routes": [route for route in routes if route["stops"]]})
 
     @action(detail=False, methods=["post"], url_path="route-static")
     def route_static(self, request):

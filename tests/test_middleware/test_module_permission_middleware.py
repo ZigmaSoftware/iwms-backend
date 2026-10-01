@@ -398,6 +398,25 @@ def test_previously_unallowlisted_resources_are_grantable(monkeypatch):
     )
     assert status == 200
 
+    status, _ = _run_as(
+        monkeypatch,
+        {"schedule-operations": {"static-route-map": ["view", "add", "delete"]}},
+        "post",
+        "/api/v1/schedule-operations/trip-plan-static-routes/",
+        _view("TripPlanStaticRoute"),
+    )
+    assert status == 200
+
+    # View-only on the map can't save a plan's route.
+    status, _ = _run_as(
+        monkeypatch,
+        {"schedule-operations": {"static-route-map": ["view"]}},
+        "post",
+        "/api/v1/schedule-operations/trip-plan-static-routes/",
+        _view("TripPlanStaticRoute"),
+    )
+    assert status == 403
+
 
 def test_route_static_post_only_needs_view(monkeypatch):
     from app.viewsets.core_modules.daily_operations.daily_trip_collection_point_viewset import (
