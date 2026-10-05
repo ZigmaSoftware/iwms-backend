@@ -175,6 +175,9 @@ class ComplaintStatusHistory(BaseMaster):
     to_status_id = models.CharField(max_length=30, null=True, blank=True)
     changed_by_user_id = models.CharField(max_length=30, null=True, blank=True)
     changed_by_customer_id = models.CharField(max_length=30, null=True, blank=True)
+    # Staff log in as StaffcreationOfficeDetails, not an auth User, so their
+    # actions need their own column to be attributable in the audit.
+    changed_by_staff_id = models.CharField(max_length=30, null=True, blank=True)
     changed_by_system = models.BooleanField(default=False)
     remarks = models.TextField(blank=True, null=True)
     visible_to_citizen = models.BooleanField(default=True)
@@ -503,6 +506,9 @@ class ComplaintEscalationHistory(BaseMaster):
     escalation_level = models.IntegerField(default=1)
     escalated_to_user_id = models.CharField(max_length=30, null=True, blank=True)
     escalated_to_staff_id = models.CharField(max_length=30, null=True, blank=True)
+    # Who raised a manual escalation (both null when escalated_by_system).
+    escalated_by_user_id = models.CharField(max_length=30, null=True, blank=True)
+    escalated_by_staff_id = models.CharField(max_length=30, null=True, blank=True)
     reason = models.TextField(blank=True, null=True)
     escalated_by_system = models.BooleanField(default=False)
 
@@ -598,6 +604,7 @@ class ComplaintReopenHistory(BaseMaster):
     ticket_id = models.CharField(max_length=30, null=True, blank=True)
     reopened_by_customer_id = models.CharField(max_length=30, null=True, blank=True)
     reopened_by_user_id = models.CharField(max_length=30, null=True, blank=True)
+    reopened_by_staff_id = models.CharField(max_length=30, null=True, blank=True)
     reopen_reason = models.TextField(blank=True, null=True)
     previous_status_id = models.CharField(max_length=30, null=True, blank=True)
 

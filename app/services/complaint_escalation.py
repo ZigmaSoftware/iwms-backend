@@ -83,7 +83,7 @@ def get_next_level_staff(ticket):
 
 
 @transaction.atomic
-def escalate_ticket(ticket, reason=None, escalated_by=None, by_system=True):
+def escalate_ticket(ticket, reason=None, escalated_by=None, escalated_by_staff_id=None, by_system=True):
     """Escalate `ticket` to the next enabled hierarchy level above its
     current one.
 
@@ -138,6 +138,8 @@ def escalate_ticket(ticket, reason=None, escalated_by=None, by_system=True):
         escalation_level=to_level,
         escalated_to_staff_id=next_staff.staff_unique_id,
         reason=reason,
+        escalated_by_user_id=getattr(escalated_by, "unique_id", None),
+        escalated_by_staff_id=escalated_by_staff_id,
         escalated_by_system=by_system,
     )
 
@@ -149,6 +151,7 @@ def escalate_ticket(ticket, reason=None, escalated_by=None, by_system=True):
             from_status_id=old_status_id,
             to_status_id=escalated_status.unique_id,
             changed_by_user_id=getattr(escalated_by, "unique_id", None),
+            changed_by_staff_id=escalated_by_staff_id,
             changed_by_system=by_system,
             remarks=f"Auto-escalated {from_label} -> {to_label}"
             + (f": {reason}" if reason else ""),

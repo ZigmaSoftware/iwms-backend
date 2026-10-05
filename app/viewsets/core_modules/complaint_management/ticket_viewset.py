@@ -60,6 +60,15 @@ def _actor_user_id(request):
     return getattr(_actor_user(request), "unique_id", None)
 
 
+def _actor_staff_id(request):
+    """The logged-in staff member's id, for the history models'
+    `*_by_staff_id` columns — None when the actor is an auth User."""
+    user = getattr(request, "user", None)
+    if user is None or isinstance(user, User):
+        return None
+    return getattr(user, "staff_unique_id", None)
+
+
 def _resolve_status(status_code):
     return ComplaintStatus.objects.filter(status_code=status_code, is_deleted=False).first()
 
@@ -311,6 +320,8 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             ticket_id=ticket.unique_id,
             from_status_id=None,
             to_status_id=ticket.status_id,
+            changed_by_user_id=_actor_user_id(self.request),
+            changed_by_staff_id=_actor_staff_id(self.request),
             changed_by_system=True,
             remarks="Ticket created",
         )
@@ -357,6 +368,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             from_status_id=old_status_id,
             to_status_id=new_status.unique_id,
             changed_by_user_id=_actor_user_id(request),
+            changed_by_staff_id=_actor_staff_id(request),
             remarks=request.data.get("remarks"),
         )
         if new_status.status_code in CLOSED_STATUS_CODES:
@@ -384,6 +396,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             from_status_id=old_status_id,
             to_status_id=resolved_status.unique_id,
             changed_by_user_id=_actor_user_id(request),
+            changed_by_staff_id=_actor_staff_id(request),
             remarks=note or "Marked as resolved",
             visible_to_citizen=True,
         )
@@ -407,6 +420,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 ticket,
                 reason=request.data.get("reason"),
                 actor_user=_actor_user(request),
+                actor_staff_id=_actor_staff_id(request),
             )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=http_status.HTTP_400_BAD_REQUEST)
@@ -477,6 +491,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         ComplaintReopenHistory.objects.create(
             ticket_id=ticket.unique_id,
             reopened_by_user_id=_actor_user_id(request),
+            reopened_by_staff_id=_actor_staff_id(request),
             reopen_reason=reopen_reason,
             previous_status_id=previous_status_id,
         )
@@ -485,6 +500,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             from_status_id=previous_status_id,
             to_status_id=reopened_status.unique_id,
             changed_by_user_id=_actor_user_id(request),
+            changed_by_staff_id=_actor_staff_id(request),
             remarks=reopen_reason,
         )
         return Response(self.get_serializer(ticket).data)

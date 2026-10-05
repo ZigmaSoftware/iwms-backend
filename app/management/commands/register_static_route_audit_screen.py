@@ -13,6 +13,7 @@ TEMPLATE_SCREENS = ("permission-audit", "common-audit")
 
 
 class Command(BaseCommand):
+    screen_name = SCREEN
     help = (
         "Register the Static Route Audit screen on an existing database without "
         "re-running the whole permission seeder (which also re-seeds access "
@@ -21,6 +22,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        SCREEN = self.screen_name
         template = next(
             (
                 screen

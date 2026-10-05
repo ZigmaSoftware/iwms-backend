@@ -135,6 +135,7 @@ from ..viewsets.superadmin.audits.login_audit_viewset import LoginAuditViewSet
 from ..viewsets.superadmin.audits.common_audit_viewset import CommonAuditViewSet
 from ..viewsets.superadmin.audits.permission_audit_viewset import PermissionAuditLogViewSet
 from ..viewsets.superadmin.audits.static_route_audit_viewset import StaticRouteAuditLogViewSet
+from ..viewsets.superadmin.audits.complaint_audit_viewset import ComplaintAuditViewSet
 
 # Palakad district admin portal
 from ..viewsets.palakad.palakad_login_viewset import PalakadLoginViewSet
@@ -364,6 +365,7 @@ router.register_group("audits", "login-audit", LoginAuditViewSet)
 router.register_group("audits", "common-audit", CommonAuditViewSet)
 router.register_group("audits", "permission-audit", PermissionAuditLogViewSet, basename="permission-audit")
 router.register_group("audits", "static-route-audit", StaticRouteAuditLogViewSet, basename="static-route-audit")
+router.register_group("audits", "complaint-audit", ComplaintAuditViewSet, basename="complaint-audit")
 
 # ============================================================
 # GROUP: EXTERNAL ATTENDANCE

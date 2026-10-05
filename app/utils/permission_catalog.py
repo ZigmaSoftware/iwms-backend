@@ -125,6 +125,7 @@ SECTIONS = (
             screen("login-audit", "Login Audit"),
             screen("permission-audit", "User Access Audit"),
             screen("static-route-audit", "Static Route Audit"),
+            screen("complaint-audit", "Complaint Audit"),
         )),
     )),
     ("masters", (
