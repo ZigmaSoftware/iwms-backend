@@ -123,7 +123,7 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def get_reporter_type(self, obj):
-        return "Customer" if obj.customer_id or self._matched_customer_name(obj) else "Public Grievance"
+        return "Customer" if obj.customer_id or self._matched_customer_name(obj) else "Internal"
 
     def get_reporter_name(self, obj):
         return (
@@ -191,8 +191,8 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
 
         Every ticket needs both, but neither is a
         decision the person raising a ticket should have to make: priority
-        comes from the chosen subcategory or category (the same precedence
-        `PublicGrievanceViewSet` uses), and a new ticket is always SUBMITTED.
+        comes from the chosen subcategory or category, and a new ticket is
+        always SUBMITTED.
         Leaving them out of the staff form removes two required pickers whose
         answer is already implied by the category.
         """
@@ -239,7 +239,6 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
         }
         incident_type = (values.get("incident_type") or "").strip().lower()
         if not incident_type:
-            source_code = (getattr(obj.source, "source_code", "") or "").lower()
             searchable = " ".join(
                 str(value or "").lower()
                 for value in (
@@ -250,17 +249,14 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
                     getattr(getattr(obj.category, "module", None), "module_name", ""),
                 )
             )
-            if source_code == "public_grievance":
-                incident_type = "public"
-            else:
-                incident_type = next(
-                    (
-                        kind
-                        for kind in ("driver", "operator", "vehicle", "trip")
-                        if kind in searchable
-                    ),
-                    "other",
-                )
+            incident_type = next(
+                (
+                    kind
+                    for kind in ("driver", "operator", "vehicle", "trip")
+                    if kind in searchable
+                ),
+                "other",
+            )
         return {
             "incident_type": incident_type,
             "trip_reference": values.get("trip_reference") or "",

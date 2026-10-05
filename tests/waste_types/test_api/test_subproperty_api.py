@@ -55,5 +55,5 @@ class TestSubPropertyAPIDelete:
         from app.models.masters.waste_masters.subproperty import SubProperty
         prop = Property.objects.create(property_name="Hazardous")
         sub = SubProperty.objects.create(property_id=prop, sub_property_name="Chemical")
-        resp = auth_client.delete(f"{BASE}{sub.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{sub.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

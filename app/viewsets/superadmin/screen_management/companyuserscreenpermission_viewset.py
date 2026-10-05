@@ -708,7 +708,7 @@ class CompanyUserScreenPermissionViewSet(CompanyPermissionAuditMixin, AuditViewS
 
         deleted_count = qs.count()
         if deleted_count > 0:
-            qs.update(is_deleted=True, is_active=False)
+            qs.update(is_deleted=True, is_active=False, delete_reason=self._delete_reason)
             mainscreen_userscreen_ids = UserScreen.objects.filter(
                 mainscreen_id=mainscreen_id,
             ).values("unique_id")
@@ -717,7 +717,7 @@ class CompanyUserScreenPermissionViewSet(CompanyPermissionAuditMixin, AuditViewS
                 project_id=project_id,
                 userscreen_id__in=mainscreen_userscreen_ids,
                 is_deleted=False,
-            ).update(is_deleted=True, is_active=False)
+            ).update(is_deleted=True, is_active=False, delete_reason=self._delete_reason)
 
         return Response(
             {

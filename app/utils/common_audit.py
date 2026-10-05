@@ -71,6 +71,10 @@ class CommonAudit(models.Model):
     user_agent = models.TextField(null=True, blank=True)
     success = models.BooleanField(default=True, db_index=True)
     reason = models.CharField(max_length=255, null=True, blank=True)
+    # Why the user deleted the record — required on every DELETE (see
+    # DeleteReasonMixin) and kept separate from `reason`, which holds the
+    # error message when a write fails.
+    delete_reason = models.CharField(max_length=500, null=True, blank=True)
 
     class Meta:
         db_table = "common_audit"

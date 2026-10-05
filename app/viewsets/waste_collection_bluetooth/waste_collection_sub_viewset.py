@@ -1,3 +1,4 @@
+from app.utils.audit_mixin import DeleteReasonMixin
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteCollectionSub
 from app.serializers.waste_collection_bluetooth.waste_collection_sub_serializer import (
@@ -5,11 +6,13 @@ from app.serializers.waste_collection_bluetooth.waste_collection_sub_serializer 
 )
 
 
-class WasteCollectionSubViewSet(CompanyScopedViewSet):
+class WasteCollectionSubViewSet(DeleteReasonMixin, CompanyScopedViewSet):
     queryset = WasteCollectionSub.objects.filter(is_deleted=False)
     serializer_class = WasteCollectionSubSerializer
     lookup_field = "unique_id"
     permission_resource = "WasteCollectionSub"
+    AUDIT_MODULE = "waste-collection"
+    AUDIT_ENDPOINT = "waste-collection-sub"
 
     def perform_destroy(self, instance):
         instance.is_deleted = True

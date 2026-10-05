@@ -17,6 +17,11 @@ inherits it and declares CASCADE_SOFT_DELETE gets this for free.
 from collections import defaultdict
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
+from app.utils.delete_reason import (
+    DELETE_REASON_MAX_LENGTH,
+    cascaded_delete_reason,
+    get_current_delete_reason,
+)
 
 
 _AUDIT_RELATED_NAMES = {"created_by", "updated_by"}
@@ -145,7 +150,7 @@ def collect_cascade_targets(instance):
 
 
 @transaction.atomic
-def cascade_soft_delete(instance, updated_by=None):
+def cascade_soft_delete(instance, updated_by=None, delete_reason=None):
     """Soft-deletes instance and every object in its CASCADE_SOFT_DELETE graph.
 
     Applies as one bulk UPDATE per model class touched (plus one for
@@ -153,7 +158,16 @@ def cascade_soft_delete(instance, updated_by=None):
     field. instance itself is left as a normal Python object the caller
     can still use afterward — only its DB row is updated via the bulk
     query, mirroring every other model's rows.
+
+    delete_reason defaults to the reason sent with the current DELETE
+    request. instance gets it verbatim; cascaded rows get it tagged with
+    the parent that removed them.
     """
+    if delete_reason is None:
+        delete_reason = get_current_delete_reason()
+    if delete_reason:
+        delete_reason = str(delete_reason)[:DELETE_REASON_MAX_LENGTH]
+
     targets = collect_cascade_targets(instance)
 
     all_models = defaultdict(set)
@@ -171,8 +185,19 @@ def cascade_soft_delete(instance, updated_by=None):
             update_fields["active_status"] = False
         if updated_by is not None and _model_has_field(model, "updated_by_id"):
             update_fields["updated_by_id"] = _account_id(updated_by)
-        if update_fields:
-            model.objects.filter(pk__in=pks, is_deleted=False).update(**update_fields)
+        if not update_fields:
+            continue
+        rows = model.objects.filter(pk__in=pks, is_deleted=False)
+        if delete_reason and _model_has_field(model, "delete_reason"):
+            # Cascaded children are tagged with the parent that removed
+            # them; instance's own row gets the plain reason below.
+            child_pks = pks - {instance.pk} if model is type(instance) else pks
+            rows.filter(pk__in=child_pks).update(
+                **update_fields,
+                delete_reason=cascaded_delete_reason(delete_reason, instance),
+            )
+            rows = rows.exclude(pk__in=child_pks)
+        rows.update(**update_fields)
 
     instance.is_deleted = True
     if _model_has_field(type(instance), "is_active"):
@@ -181,6 +206,9 @@ def cascade_soft_delete(instance, updated_by=None):
         instance.active_status = False
     if updated_by is not None and _model_has_field(type(instance), "updated_by_id"):
         instance.updated_by_id = _account_id(updated_by)
+    if delete_reason and _model_has_field(type(instance), "delete_reason"):
+        type(instance)._base_manager.filter(pk=instance.pk).update(delete_reason=delete_reason)
+        instance.delete_reason = delete_reason
 
 
 def _account_id(updated_by):

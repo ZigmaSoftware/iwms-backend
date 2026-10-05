@@ -79,7 +79,6 @@ PLATFORM_PREFIXES = (
 
 PUBLIC_PREFIXES = (
     "/media/",
-    "/api/v1/publicgrievance/",
 )
 
 COMMON_AUDIT_CREATE_PATHS = tuple(

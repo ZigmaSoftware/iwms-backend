@@ -102,9 +102,6 @@ from ..viewsets.core_modules.complaint_management.address_change_viewset import 
 from ..viewsets.core_modules.complaint_management.citizen_ticket_viewset import (
     CitizenComplaintTicketViewSet,
 )
-from ..viewsets.core_modules.complaint_management.public_grievance_viewset import (
-    PublicGrievanceViewSet,
-)
 from ..viewsets.core_modules.complaint_management.ticket_viewset import ComplaintTicketViewSet
 from ..viewsets.core_modules.notifications.staff_notification_viewset import StaffNotificationViewSet
 
@@ -314,18 +311,6 @@ router.register_group("complaint-ticket", "grievance-tickets", ComplaintTicketVi
 # CITIZEN_PREFIXES in module_permission_middleware.py)
 # ============================================================
 router.register_group("citizen", "complaint-tickets", CitizenComplaintTicketViewSet, basename="citizen-complaint-tickets")
-
-# ============================================================
-# GROUP: PUBLIC (no login, no module permission check — see
-# AUTH_EXEMPT_PREFIXES in module_permission_middleware.py)
-# ============================================================
-router.register_group(
-    "public",
-    "publicgrievance",
-    PublicGrievanceViewSet,
-    basename="publicgrievance",
-    include_group_in_prefix=False,
-)
 
 # ============================================================
 # GROUP: STAFF NOTIFICATIONS (shared by driver/operator/supervisor apps)

@@ -53,5 +53,5 @@ class TestStaffUserTypeAPIUpdate:
 class TestStaffUserTypeAPIDelete:
     def test_delete_returns_success(self, auth_client, user_type):
         sut = StaffUserType.objects.create(name="temp_staff", usertype_id=user_type.unique_id)
-        resp = auth_client.delete(f"{BASE}{sut.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{sut.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

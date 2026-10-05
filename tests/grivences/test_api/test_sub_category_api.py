@@ -50,5 +50,5 @@ class TestSubCategoryAPIUpdate:
 class TestSubCategoryAPIDelete:
     def test_delete_returns_success(self, auth_client, main_cat):
         sc = SubCategory.objects.create(name="Temp Sub", mainCategory=main_cat)
-        resp = auth_client.delete(f"{BASE}{sc.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{sc.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

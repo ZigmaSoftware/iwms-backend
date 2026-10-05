@@ -245,7 +245,7 @@ class TestAutomaticSync:
         assert payload["plan_route_version"] == 2
         assert len(payload["detour_waypoints"]) == 1
 
-        res = auth_client.delete(f"/api/v1/schedule-operations/route-detour-waypoints/{res.json()['unique_id']}/")
+        res = auth_client.delete(f"/api/v1/schedule-operations/route-detour-waypoints/{res.json()['unique_id']}/", {"delete_reason": "Test delete"}, format="json")
         assert res.status_code == 204, res.content
         payload = assignment_static_route(running)
         assert payload["plan_route_version"] == 3

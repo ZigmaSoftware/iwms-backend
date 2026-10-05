@@ -119,7 +119,7 @@ class TestAuditFromTheMap:
 
         moved = auth_client.patch(f"{DETOURS}{detour_id}/", {"latitude": "13.020000"}, format="json")
         assert moved.status_code == 200, moved.content
-        assert auth_client.delete(f"{DETOURS}{detour_id}/").status_code == 204
+        assert auth_client.delete(f"{DETOURS}{detour_id}/", {"delete_reason": "Test delete"}, format="json").status_code == 204
 
         rows = list(Log.objects.order_by("id").values_list("change_type", "trigger", "new_version"))
         assert rows == [

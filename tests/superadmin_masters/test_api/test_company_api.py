@@ -70,10 +70,10 @@ class TestCompanyAPIUpdate:
 @pytest.mark.django_db
 class TestCompanyAPIDelete:
     def test_delete_returns_success(self, auth_client, company):
-        resp = auth_client.delete(f"{BASE}{company.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{company.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
     def test_delete_soft_deletes(self, auth_client, company):
-        auth_client.delete(f"{BASE}{company.unique_id}/")
+        auth_client.delete(f"{BASE}{company.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         company.refresh_from_db()
         assert company.is_deleted is True

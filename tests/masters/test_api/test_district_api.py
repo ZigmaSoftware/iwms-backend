@@ -44,5 +44,5 @@ class TestDistrictAPIUpdate:
 @pytest.mark.django_db
 class TestDistrictAPIDelete:
     def test_delete_returns_success(self, auth_client, district):
-        resp = auth_client.delete(f"{BASE}{district.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{district.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
