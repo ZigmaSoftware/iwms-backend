@@ -260,6 +260,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "CommonAudit",
         "PermissionAudit",
         "StaticRouteAudit",
+        "ComplaintAudit",
     },
 }
 

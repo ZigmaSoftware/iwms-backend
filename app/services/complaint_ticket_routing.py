@@ -297,7 +297,7 @@ def apply_routing_and_sla(ticket, save=True):
     return updated_fields
 
 
-def perform_escalation(ticket, reason=None, actor_user=None, by_system=False):
+def perform_escalation(ticket, reason=None, actor_user=None, actor_staff_id=None, by_system=False):
     """Manually escalate `ticket` one hop up its project's staff hierarchy.
 
     Thin wrapper over `complaint_escalation.escalate_ticket` kept so the
@@ -307,4 +307,10 @@ def perform_escalation(ticket, reason=None, actor_user=None, by_system=False):
     """
     from app.services.complaint_escalation import escalate_ticket
 
-    return escalate_ticket(ticket, reason=reason, escalated_by=actor_user, by_system=by_system)
+    return escalate_ticket(
+        ticket,
+        reason=reason,
+        escalated_by=actor_user,
+        escalated_by_staff_id=actor_staff_id,
+        by_system=by_system,
+    )
