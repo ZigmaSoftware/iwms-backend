@@ -261,6 +261,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "PermissionAudit",
         "StaticRouteAudit",
         "ComplaintAudit",
+        "AuditDashboard",
     },
 }
 

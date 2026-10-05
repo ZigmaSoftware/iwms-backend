@@ -121,6 +121,7 @@ SECTIONS = (
             screen("sla-rules", "SLA Rules", group="complaint-types"),
         )),
         module("audits", "Audits", (
+            screen("audit-dashboard", "Audit Dashboard"),
             screen("common-audit", "Common Audit"),
             screen("login-audit", "Login Audit"),
             screen("permission-audit", "User Access Audit"),
