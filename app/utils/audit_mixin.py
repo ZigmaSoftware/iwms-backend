@@ -3,9 +3,17 @@ import logging
 
 from django.forms.models import model_to_dict
 from django.db.models.fields.files import FieldFile
+from rest_framework.exceptions import ValidationError
 from app.utils.common_audit import CommonAudit
 from app.utils.audit_context import resolve_actor, resolve_tenancy
 from app.utils.base_models import Account
+from app.utils.delete_reason import (
+    DELETE_REASON_FIELD,
+    DELETE_REASON_MAX_LENGTH,
+    read_delete_reason,
+    reset_current_delete_reason,
+    set_current_delete_reason,
+)
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from datetime import datetime, date, time
 from decimal import Decimal
@@ -97,10 +105,16 @@ def _to_json_safe(value):
 def write_common_audit(
     request, *, module_name, endpoint_name, instance=None,
     previous_data=None, new_data=None, success=True, reason=None,
+    delete_reason=None,
 ):
     """Write one CommonAudit row, resolving actor, tenancy and request
     context server-side. Shared by AuditViewSetMixin and any non-viewset
     code (function-based views, services) that needs an audit entry."""
+    if request.method == "DELETE":
+        delete_reason = delete_reason or read_delete_reason(request) or None
+        # Lets DeleteReasonMixin skip its fallback audit row.
+        request._delete_audit_logged = True
+
     user = getattr(request, "user", None)
     is_authenticated = getattr(user, "is_authenticated", False)
 
@@ -129,6 +143,7 @@ def write_common_audit(
         user_agent=request.META.get("HTTP_USER_AGENT"),
         success=success,
         reason=(reason or None) and str(reason)[:255],
+        delete_reason=delete_reason and str(delete_reason)[:DELETE_REASON_MAX_LENGTH],
     )
 
 
@@ -163,10 +178,84 @@ def format_audit_error(exc):
     return message[:255]
 
 
-class AuditViewSetMixin:
+class DeleteReasonMixin:
+    """Requires a `delete_reason` on every DELETE request and records it.
+
+    - Rejects the DELETE with 400 before anything is touched when the
+      reason is missing.
+    - Publishes the reason for the request so cascade_soft_delete() stamps
+      it on the deleted row and every cascaded child.
+    - After a successful destroy, stamps the reason on the row itself (for
+      destroy paths that flip is_deleted by hand instead of calling
+      delete()) and writes a CommonAudit row if the destroy path didn't.
+    """
 
     AUDIT_MODULE = None
     AUDIT_ENDPOINT = None
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if request.method != "DELETE":
+            return
+
+        reason = read_delete_reason(request)
+        if not reason:
+            raise ValidationError({DELETE_REASON_FIELD: ["Please enter the reason for deleting this record."]})
+        if len(reason) > DELETE_REASON_MAX_LENGTH:
+            raise ValidationError({
+                DELETE_REASON_FIELD: [f"Ensure this field has no more than {DELETE_REASON_MAX_LENGTH} characters."]
+            })
+        self._delete_reason = reason
+        self._delete_reason_token = set_current_delete_reason(reason)
+
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        finally:
+            token = getattr(self, "_delete_reason_token", None)
+            if token is not None:
+                reset_current_delete_reason(token)
+                self._delete_reason_token = None
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        reason = getattr(self, "_delete_reason", None)
+        if reason and 200 <= response.status_code < 300:
+            try:
+                self._record_delete_reason(request, reason)
+            except Exception:
+                logger.exception(
+                    "Failed to record delete reason for %s", self.__class__.__name__
+                )
+        return response
+
+    def _deleted_instance(self):
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_value = self.kwargs.get(lookup_url_kwarg)
+        if lookup_value is None:
+            return None
+        model = self.get_queryset().model
+        return model._base_manager.filter(**{self.lookup_field: lookup_value}).first()
+
+    def _record_delete_reason(self, request, reason):
+        instance = self._deleted_instance()
+        if instance is not None and hasattr(instance, DELETE_REASON_FIELD):
+            type(instance)._base_manager.filter(pk=instance.pk).update(delete_reason=reason)
+            instance.delete_reason = reason
+
+        if not getattr(request, "_delete_audit_logged", False):
+            write_common_audit(
+                request,
+                module_name=self.AUDIT_MODULE or self.__class__.__name__,
+                endpoint_name=self.AUDIT_ENDPOINT or self.__class__.__name__,
+                instance=instance,
+                new_data=serialize_instance_for_audit(instance) if instance is not None else None,
+                delete_reason=reason,
+            )
+
+
+class AuditViewSetMixin(DeleteReasonMixin):
+
     AUDIT_REDACT_FIELDS = set()
 
     def get_audit_object_id(self, instance):

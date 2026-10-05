@@ -3,15 +3,18 @@ from django.db import transaction
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.audit_mixin import DeleteReasonMixin
 
 from app.models.superadmin.screen_management.mainscreen import MainScreen
 from app.serializers.superadmin.screen_management.mainscreen_serializer import MainScreenSerializer
 
 
-class MainScreenViewSet(viewsets.ModelViewSet):
+class MainScreenViewSet(DeleteReasonMixin, viewsets.ModelViewSet):
     serializer_class = MainScreenSerializer
     queryset = MainScreen.objects.filter(is_deleted=False)
     lookup_field = "unique_id"
+    AUDIT_MODULE = "screen-managements"
+    AUDIT_ENDPOINT = "mainscreen"
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)

@@ -1,10 +1,7 @@
 """Citizen-facing complaint ticket endpoints for the mobile app.
 
 Ported from the government backend's `citizen_viewset.py`
-(`CitizenComplaintTicketViewSet`). The public/no-login grievance intake and
-the local-body picker actions live separately in `public_grievance_viewset.py`
-(this project has no Corporation/Municipality/TownPanchayat local bodies to
-offer, so its geo pickers are state/district/panchayat/zone/ward instead).
+(`CitizenComplaintTicketViewSet`).
 
 Registered under the `citizen/` URL group, which
 `ModulePermissionMiddleware.AUTH_ONLY_SUFFIXES` exempts from module
@@ -14,7 +11,7 @@ see/raise their own tickets.
 
 Routing/SLA auto-assignment now runs via
 `app.services.complaint_ticket_routing.apply_routing_and_sla` right after a
-ticket is created, same as the public grievance intake.
+ticket is created.
 """
 
 from django.db import transaction

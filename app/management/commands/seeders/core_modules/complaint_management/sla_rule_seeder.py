@@ -5,7 +5,7 @@ it — a sub-category's `default_priority` where one is set, otherwise the
 parent category's — so a "Dead animal" (P1) under Garbage gets its own
 resolve target rather than inheriting the category's slower one. A
 category-wide rule (`subcategory=None`) is kept alongside them for tickets
-raised without a sub-category chosen (the public form makes sub-type
+raised without a sub-category chosen (the ticket form makes sub-type
 optional) — `_best_sla_rule` only ever considers rules whose sub-category is
 null or matches, so without this fallback such a ticket would resolve no SLA
 rule at all. `_sla_specificity` ranks a sub-category match above a bare

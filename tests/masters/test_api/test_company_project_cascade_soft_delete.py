@@ -24,7 +24,7 @@ class TestCompanyCascadeSoftDelete:
             project_id=project.unique_id,
         )
 
-        resp = auth_client.delete(f"/api/v1/superadmin/company/{company.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/superadmin/company/{company.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         assert Company.objects.get(pk=company.pk).is_deleted is True
@@ -44,7 +44,7 @@ class TestCompanyCascadeSoftDelete:
             project_id=project.unique_id,
         )
 
-        resp = auth_client.delete(f"/api/v1/superadmin/company/{company.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/superadmin/company/{company.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         assert Company.objects.get(pk=company.pk).is_deleted is True
@@ -59,7 +59,7 @@ class TestCompanyCascadeSoftDelete:
             name="Sibling Project", company_id=sibling_company.unique_id
         )
 
-        resp = auth_client.delete(f"/api/v1/superadmin/company/{company.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/superadmin/company/{company.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         assert Company.objects.get(pk=sibling_company.pk).is_deleted is False
@@ -90,7 +90,7 @@ class TestProjectCascadeSoftDelete:
             project_id=project.unique_id,
         )
 
-        resp = auth_client.delete(f"/api/v1/superadmin/project/{project.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/superadmin/project/{project.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         assert Project.objects.get(pk=project.pk).is_deleted is True
@@ -104,7 +104,7 @@ class TestProjectCascadeSoftDelete:
             name="Sibling Project", company_id=company.unique_id
         )
 
-        resp = auth_client.delete(f"/api/v1/superadmin/project/{project.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/superadmin/project/{project.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         assert Project.objects.get(pk=sibling_project.pk).is_deleted is False

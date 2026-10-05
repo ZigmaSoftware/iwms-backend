@@ -20,7 +20,6 @@ from app.models.core_modules.complaint_management import (
     ComplaintComment,
     ComplaintFeedback,
     ComplaintReopenHistory,
-    ComplaintSource,
     ComplaintStatus,
     ComplaintStatusHistory,
     ComplaintTicket,
@@ -42,10 +41,6 @@ from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 User = get_user_model()
-
-
-# Source code written by `PublicGrievanceViewSet` for anonymous intake.
-PUBLIC_SOURCE_CODE = "PUBLIC_GRIEVANCE"
 
 
 def _actor_user(request):
@@ -76,11 +71,6 @@ def _resolve_status(status_code):
 def _status_q(*codes):
     ids = ComplaintStatus.objects.filter(status_code__in=codes).values("unique_id")
     return models.Q(status_id__in=ids)
-
-
-def _public_source_q():
-    ids = ComplaintSource.objects.filter(source_code=PUBLIC_SOURCE_CODE).values("unique_id")
-    return models.Q(source_id__in=ids)
 
 
 def _status_bucket_q(bucket):
@@ -269,19 +259,9 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             escalated = params.get("escalated")
             if escalated in ("1", "true", "True"):
                 qs = qs.filter(is_escalated=True)
-            # Intake origin. "public" is anything raised through the no-login
-            # public grievance form; "internal" is everything else (admin,
-            # call-centre, mobile app). The Desk's tabs send these two words
-            # rather than a ComplaintSource id, because a deployment can have
-            # several internal sources and the tab means "not public".
-            source = (params.get("source") or "").strip().lower()
-            if source == "public":
-                qs = qs.filter(_public_source_q())
-            elif source == "internal":
-                qs = qs.exclude(_public_source_q())
-            elif source:
-                # Any other value is treated as a ComplaintSource id, so the
-                # API can still filter to one specific source.
+            # Filter to one specific ComplaintSource id.
+            source = (params.get("source") or "").strip()
+            if source:
                 qs = qs.filter(source_id=source)
 
             status_code = params.get("status")
@@ -321,13 +301,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     @action(detail=False, methods=["get"], url_path="counts")
     def counts(self, request):
         qs = self.filter_queryset(self.get_queryset())
-        total = qs.count()
-        public = qs.filter(_public_source_q()).count()
-        return Response({
-            "all": total,
-            "public": public,
-            "internal": total - public,
-        })
+        return Response({"all": qs.count()})
 
     def perform_create(self, serializer):
         super().perform_create(serializer)  # tenancy + audit (CompanyScopedViewSet)
@@ -481,11 +455,18 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 {"detail": "Current status does not allow reopen."},
                 status=http_status.HTTP_400_BAD_REQUEST,
             )
+        # Required for audit: every reopen must say why.
+        reopen_reason = str(request.data.get("reopen_reason") or "").strip()
+        if not reopen_reason:
+            return Response(
+                {"reopen_reason": ["Please enter the reason for reopening this ticket."]},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+
         reopened_status = _resolve_status("REOPENED")
         if not reopened_status:
             return Response({"detail": "REOPENED status not configured."}, status=http_status.HTTP_400_BAD_REQUEST)
 
-        reopen_reason = request.data.get("reopen_reason")
         previous_status_id = ticket.status_id
         ticket.status_id = reopened_status.unique_id
         ticket.reopened_count = (ticket.reopened_count or 0) + 1
@@ -504,7 +485,7 @@ class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             from_status_id=previous_status_id,
             to_status_id=reopened_status.unique_id,
             changed_by_user_id=_actor_user_id(request),
-            remarks=reopen_reason or "Reopened",
+            remarks=reopen_reason,
         )
         return Response(self.get_serializer(ticket).data)
 

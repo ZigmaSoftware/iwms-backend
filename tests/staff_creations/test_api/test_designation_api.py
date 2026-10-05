@@ -49,5 +49,5 @@ class TestDesignationAPIDelete:
     def test_delete_returns_success(self, auth_client):
         from app.models.superadmin.staff_management.designation import Designation
         desg = Designation.objects.create(designation_name="Temp Officer")
-        resp = auth_client.delete(f"{BASE}{desg.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{desg.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

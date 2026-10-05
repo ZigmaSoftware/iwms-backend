@@ -94,5 +94,5 @@ class TestContractorUserTypeAPIUpdate:
 class TestContractorUserTypeAPIDelete:
     def test_delete_returns_success(self, auth_client, contractor_user_type):
         cut = ContractorUserType.objects.create(name="contractor_operator", usertype_id=contractor_user_type.unique_id)
-        resp = auth_client.delete(f"{BASE}{cut.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{cut.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

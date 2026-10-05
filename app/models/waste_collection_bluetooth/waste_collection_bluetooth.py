@@ -94,6 +94,7 @@ class WasteCollectionSub(models.Model):
     longitude = models.CharField(max_length=100, null=True, blank=True)
     form_unique_id = models.CharField(max_length=100, null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
+    delete_reason = models.CharField(max_length=500, null=True, blank=True)
     date_time = models.DateTimeField(auto_now=True)
 
     @property
@@ -127,6 +128,7 @@ class WasteCollectionMain(models.Model):
     entry_type = models.CharField(max_length=20, default="app")
     customer_id = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
+    delete_reason = models.CharField(max_length=500, null=True, blank=True)
 
     @property
     def company(self):

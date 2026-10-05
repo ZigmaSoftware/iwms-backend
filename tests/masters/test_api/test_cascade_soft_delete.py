@@ -14,7 +14,7 @@ class TestDistrictCascadeSoftDelete:
         from app.models.masters.ward import Ward
         from app.models.masters.district import District
 
-        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         assert District.objects.get(pk=district.pk).is_deleted is True
@@ -44,7 +44,7 @@ class TestDistrictCascadeSoftDelete:
             project_id=project.unique_id,
         )
 
-        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         assert District.objects.get(pk=sibling_district.pk).is_deleted is False
@@ -54,7 +54,7 @@ class TestDistrictCascadeSoftDelete:
         from app.utils.common_audit import CommonAudit
 
         before = CommonAudit.objects.filter(object_id=district.unique_id).count()
-        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         after = CommonAudit.objects.filter(object_id=district.unique_id).count()
@@ -106,7 +106,9 @@ class TestComplaintTicketCascadeOneToOne:
         feedback = ComplaintFeedback.objects.create(ticket_id=ticket.unique_id, rating=5)
 
         resp = auth_client.delete(
-            f"/api/v1/complaint-ticket/tickets/{ticket.unique_id}/"
+            f"/api/v1/complaint-ticket/tickets/{ticket.unique_id}/",
+            {"delete_reason": "Test delete"},
+            format="json",
         )
         assert resp.status_code in (200, 204)
 
@@ -123,7 +125,9 @@ class TestComplaintTicketCascadeOneToOne:
         ticket = self._make_ticket(company, project, ward, zone)
 
         resp = auth_client.delete(
-            f"/api/v1/complaint-ticket/tickets/{ticket.unique_id}/"
+            f"/api/v1/complaint-ticket/tickets/{ticket.unique_id}/",
+            {"delete_reason": "Test delete"},
+            format="json",
         )
         assert resp.status_code in (200, 204)
         assert ComplaintTicket.objects.get(pk=ticket.pk).is_deleted is True

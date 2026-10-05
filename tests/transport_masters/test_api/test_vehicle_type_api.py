@@ -44,5 +44,5 @@ class TestVehicleTypeAPIUpdate:
 class TestVehicleTypeAPIDelete:
     def test_delete_returns_success(self, auth_client):
         vt = VehicleTypeCreation.objects.create(vehicleType="TempType")
-        resp = auth_client.delete(f"{BASE}{vt.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{vt.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

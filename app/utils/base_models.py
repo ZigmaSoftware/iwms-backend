@@ -45,8 +45,9 @@ class BaseMaster(models.Model):
 
     is_active = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)
-
-
+    # Why the record was deleted — required from the user on every delete
+    # (see app/utils/delete_reason.py) and kept for audit.
+    delete_reason = models.CharField(max_length=500, null=True, blank=True)
 
     created_by_id = models.CharField(max_length=50, null=True, blank=True)
     updated_by_id = models.CharField(max_length=50, null=True, blank=True)
@@ -66,5 +67,5 @@ class BaseMaster(models.Model):
             return Account.objects.filter(account_id=self.updated_by_id).first()
         return None
 
-    def delete(self, *args, updated_by=None, **kwargs):
-        cascade_soft_delete(self, updated_by=updated_by)
+    def delete(self, *args, updated_by=None, delete_reason=None, **kwargs):
+        cascade_soft_delete(self, updated_by=updated_by, delete_reason=delete_reason)

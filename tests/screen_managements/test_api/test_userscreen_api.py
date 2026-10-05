@@ -72,5 +72,5 @@ class TestUserScreenAPIDelete:
             mainscreen_id=main_screen, userscreen_name="Profile",
             folder_name="profile", icon_name="user", order_no=2,
         )
-        resp = auth_client.delete(f"{BASE}{us.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{us.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

@@ -1,19 +1,12 @@
-"""Sample complaint tickets — internal (staff-raised) and public grievance.
+"""Sample complaint tickets raised by staff/call-centre.
 
-Gives the Complaint Desk something to show: its four tabs (All / Public
-Grievances / Internal / With Feedback), the SLA countdown column, the Kanban
-board, and the Feedback list all render off real rows rather than an empty
-table.
+Gives the Complaint Desk something to show: the SLA countdown column, the
+Kanban board, and the Feedback list all render off real rows rather than an
+empty table.
 
-The two kinds mirror the two real intake paths:
-
-  * INTERNAL  — raised by staff/call-centre against a known `CustomerCreation`.
-    Carries `customer`, and its geo is copied from that customer so the row
-    lands in the same zone/ward the supervisor queues filter on.
-  * PUBLIC    — raised anonymously through `PublicGrievanceViewSet`. No
-    customer; identity is just `profile_name`/`wa_phone`, and it carries the
-    `PUBLIC_GRIEVANCE` source plus an `idempotency_key`, exactly as that
-    viewset writes them.
+Each ticket is raised against a known `CustomerCreation` and its geo is copied
+from that customer so the row lands in the same zone/ward the supervisor
+queues filter on.
 
 Priority/status/team/SLA are NOT hardcoded here. Each ticket is created with
 status SUBMITTED and the priority its category implies, then run through
@@ -59,27 +52,8 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
          "No collection staff visited our street this week."),
     ]
 
-    # (category_code, subcategory_code|None, person, phone, title, description)
-    PUBLIC = [
-        ("GARBAGE", "OPEN_DUMPING", "Rajesh Kumar", "9876543210",
-         "Illegal dumping on the vacant plot",
-         "People are dumping construction waste on the empty plot at night."),
-        ("PUBLIC_TOILET", "NOT_CLEANED", "Meena S", "9876500011",
-         "Public toilet not cleaned",
-         "The public toilet near the bus stand has not been cleaned for days."),
-        ("GARBAGE", "DEAD_ANIMAL", "Anonymous Caller", "9876500022",
-         "Dead animal on the roadside",
-         "A dead dog has been lying on the roadside since morning."),
-        ("MISSED_PICKUP", "VEHICLE_NOT_ARRIVED", "Suresh P", "9876500033",
-         "Collection vehicle did not arrive",
-         "The vehicle has not come to our lane for two days."),
-        ("OTHER", "SUGGESTION", "Lakshmi R", "9876500044",
-         "Request for an extra bin",
-         "Our street needs one more bin; the existing one fills up by noon."),
-    ]
-
-    # Tickets that also get citizen feedback, so the "With Feedback" tab and
-    # the Feedback list are not empty. (index into PUBLIC, rating, solved)
+    # Tickets that also get citizen feedback, so the Feedback list is not
+    # empty. (index into INTERNAL, rating, solved)
     FEEDBACK = [(0, 4, True), (1, 2, False)]
 
     def _resolve(self, category_code, subcategory_code):
@@ -153,14 +127,6 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
             source_code="ADMIN",
             defaults={"source_name": "Admin", "is_active": True, "is_deleted": False},
         )
-        public_source, _ = ComplaintSource.objects.get_or_create(
-            source_code="PUBLIC_GRIEVANCE",
-            defaults={
-                "source_name": "Public Grievance",
-                "is_active": True,
-                "is_deleted": False,
-            },
-        )
 
         customers = list(
             CustomerCreation.objects.filter(is_deleted=False).select_related()[:len(self.INTERNAL)]
@@ -169,12 +135,13 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
             self.log("---Sample tickets: no customers found, internal tickets skipped---")
 
         created_internal = 0
+        internal_tickets = {}
         for index, (cat_code, sub_code, title, description) in enumerate(self.INTERNAL):
             category, subcategory = self._resolve(cat_code, sub_code)
             if not category or index >= len(customers):
                 continue
             customer = customers[index]
-            _, created = self._create(
+            ticket, created = self._create(
                 category=category,
                 subcategory=subcategory,
                 status=submitted,
@@ -193,43 +160,14 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
                 ward_id=customer.ward_id,
                 location_text=getattr(customer, "address", "") or "",
             )
+            internal_tickets[index] = ticket
             created_internal += 1 if created else 0
-
-        # Public grievances resolve tenancy the way the public viewset does:
-        # from the chosen ward, falling back to the single active company.
-        fallback = customers[0] if customers else None
-        created_public = 0
-        public_tickets = []
-        for cat_code, sub_code, person, phone, title, description in self.PUBLIC:
-            category, subcategory = self._resolve(cat_code, sub_code)
-            if not category:
-                continue
-            ticket, created = self._create(
-                category=category,
-                subcategory=subcategory,
-                status=submitted,
-                priority=self._priority_for(category, subcategory),
-                source=public_source,
-                title=title,
-                description=description,
-                # No `customer` — an anonymous grievance is identified only by
-                # the name/phone the citizen typed.
-                profile_name=person,
-                wa_phone=phone,
-                company_id=getattr(fallback, "company_id", None),
-                project_id=getattr(fallback, "project_id", None),
-                zone_id=getattr(fallback, "zone_id", None),
-                ward_id=getattr(fallback, "ward_id", None),
-                idempotency_key=f"publicgrievance:seed-{phone}",
-            )
-            public_tickets.append(ticket)
-            created_public += 1 if created else 0
 
         created_feedback = 0
         for index, rating, solved in self.FEEDBACK:
-            if index >= len(public_tickets):
+            ticket = internal_tickets.get(index)
+            if ticket is None:
                 continue
-            ticket = public_tickets[index]
             _, created = ComplaintFeedback.objects.get_or_create(
                 ticket_id=ticket.unique_id,
                 defaults={
@@ -246,6 +184,6 @@ class ComplaintSampleTicketSeeder(BaseSeeder):
 
         self.log(
             f"---Sample complaint tickets seeded (internal +{created_internal}, "
-            f"public +{created_public}, feedback +{created_feedback}; "
+            f"feedback +{created_feedback}; "
             f"total tickets now {ComplaintTicket.objects.filter(is_deleted=False).count()})---"
         )
