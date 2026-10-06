@@ -12,6 +12,7 @@ from app.models.superadmin_masters.project import Project
 from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 from app.models.masters.waste_masters.property import Property
 from app.models.masters.waste_masters.subproperty import SubProperty
+from app.management.commands.seed_static_route_samples import NAME_PREFIX as STATIC_ROUTE_NAME_PREFIX
 
 COMPANY_NAME = "Blue Planet"
 PROJECT_NAME = "Blue Planet Integrated Waste Management"
@@ -230,7 +231,10 @@ class NoidaCustomerImportSeeder(BaseSeeder):
             company_id=company.unique_id,
             project_id=project.unique_id,
             is_deleted=False,
-        ).exclude(customer_name__in=authoritative_names)
+        ).exclude(customer_name__in=authoritative_names).exclude(
+            # Owned by `manage.py seed_static_route_samples`, not the xlsx.
+            customer_name__startswith=f"{STATIC_ROUTE_NAME_PREFIX} · "
+        )
         deleted_count = stale_qs.count()
         stale_qs.update(is_active=False, is_deleted=True)
 
