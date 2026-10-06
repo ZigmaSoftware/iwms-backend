@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
 # ============================================================
@@ -367,6 +368,11 @@ class Command(BaseCommand):
                 "complaint-ticket | grivences (legacy alias) | audits | reports | all"
             ),
         )
+        parser.add_argument(
+            "--fresh",
+            action="store_true",
+            help="Delete ALL existing data in the database (manage.py flush) before seeding.",
+        )
 
     def handle(self, *args, **options):
         if settings.ENVIRONMENT == "production":
@@ -394,6 +400,11 @@ class Command(BaseCommand):
                 return
         else:
             seeders = SEED_GROUPS["all"]
+
+        if options.get("fresh"):
+            self.stdout.write(self.style.WARNING("Removing all existing data (flush)..."))
+            call_command("flush", interactive=False, verbosity=0)
+            self.stdout.write(self.style.SUCCESS("Existing data removed.\n"))
 
         self.stdout.write(self.style.WARNING("Starting database seeding...\n"))
 
