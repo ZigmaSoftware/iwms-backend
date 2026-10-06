@@ -274,6 +274,14 @@ class RetripDemoSeeder(BaseSeeder):
             return None
         return Staffcreation.objects.filter(staff_unique_id=actor_id).first()
 
+    @staticmethod
+    def _resolve_staff(staff_unique_id):
+        """driver_id/supervisor_id are plain staff_unique_id strings, but
+        retrip_service reads .staff_unique_id off the staff it is given."""
+        if not staff_unique_id:
+            return None
+        return Staffcreation.objects.filter(staff_unique_id=staff_unique_id).first()
+
     def _run_proceed_next_trip_scenario(self, plan, today, *, is_household):
         assignment, _created = self._get_or_create_today_assignment(plan, today)
         if assignment.status in (DailyTripAssignment.STATUS_COMPLETED, DailyTripAssignment.STATUS_CANCELLED):
@@ -315,7 +323,7 @@ class RetripDemoSeeder(BaseSeeder):
         if not pending_ids:
             return f"{assignment.unique_id} has no pending collection points to demo"
 
-        driver = assignment.staff_template.driver_id if assignment.staff_template else None
+        driver = self._resolve_staff(assignment.staff_template.driver_id if assignment.staff_template else None)
         retrip_service.request_retrip(assignment, requested_by=driver, reason=REMARKS)
         return f"{assignment.unique_id} (bin, {collected} collected) -> Pending Re-Trip request raised"
 
@@ -333,8 +341,8 @@ class RetripDemoSeeder(BaseSeeder):
         if not pending_ids:
             return f"{assignment.unique_id} has no pending collection points to demo"
 
-        driver = assignment.staff_template.driver_id if assignment.staff_template else None
-        supervisor = plan.supervisor_id
+        driver = self._resolve_staff(assignment.staff_template.driver_id if assignment.staff_template else None)
+        supervisor = self._resolve_staff(plan.supervisor_id)
         request = retrip_service.request_retrip(assignment, requested_by=driver, reason=REMARKS)
         retrip_service.reject_retrip(request, reviewed_by=supervisor, remarks="Please finish the remaining stops today.")
         return f"{assignment.unique_id} (bin, {collected} collected) -> Rejected Re-Trip request"

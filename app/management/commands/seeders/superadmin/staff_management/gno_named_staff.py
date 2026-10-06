@@ -87,9 +87,9 @@ class GnoNamedStaffSeeder(BaseSeeder):
             "employee_name": employee_name,
             "username": username,
             "office_email": f"{username.lower()}@blueplanet.local",
-            "staffusertype_id": role,
-            "department_id": department,
-            "designation_id": designation,
+            "staffusertype_id": uid(role),
+            "department_id": uid(department),
+            "designation_id": uid(designation),
             # Denormalised labels the list screens read.
             "department": department.department_name if department else None,
             "designation": designation.designation_name if designation else None,
@@ -144,7 +144,7 @@ class GnoNamedStaffSeeder(BaseSeeder):
         def _desg(name, department):
             return Designation.objects.filter(
                 company_id=uid(company), project_id=uid(project),
-                designation_name=name, department_id=department,
+                designation_name=name, department_id=uid(department),
                 is_deleted=False,
             ).first()
 
@@ -166,13 +166,13 @@ class GnoNamedStaffSeeder(BaseSeeder):
             return
 
         base = {
-            "user_type_id": staff_type,
+            "user_type_id": uid(staff_type),
             "company_id": uid(company),
             "project_id": uid(project),
-            "district_id": District.objects.filter(is_deleted=False).first(),
-            "city_id": City.objects.filter(is_deleted=False).first(),
-            "zone_id": Zone.objects.filter(is_deleted=False).first(),
-            "ward_id": Ward.objects.filter(is_deleted=False).first(),
+            "district_id": uid(District.objects.filter(project_id=uid(project), is_deleted=False).first()),
+            "city_id": uid(City.objects.filter(project_id=uid(project), is_deleted=False).first()),
+            "zone_id": uid(Zone.objects.filter(project_id=uid(project), is_deleted=False).first()),
+            "ward_id": uid(Ward.objects.filter(project_id=uid(project), is_deleted=False).first()),
         }
 
         # 1. Project admin — top of the chain, so no staff head of their own.

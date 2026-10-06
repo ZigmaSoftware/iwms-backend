@@ -173,9 +173,6 @@ USER_CREATIONS_SEEDERS = [
     # Named logins for the Blue Planet GNO project (megha > mukund >
     # aashish/cheren). Runs after the masters it links to.
     GnoNamedStaffSeeder,
-    # Full company/project permission grant for the project admin. Must run
-    # after the screen-managements catalog it mirrors.
-    MeghaProjectAdminPermissionSeeder,
     # StaffOfficeSeeder/StaffPersonalSeeder dropped — Blue Planet's staff
     # are already created inside BluePlanetSeeder.
 ]
@@ -241,16 +238,19 @@ SCHEDULE_MASTERS_SEEDERS = [
 
 SCREEN_MANAGEMENTS_SEEDERS = [
     *PERMISSION_SEEDERS,
+    # Full company/project permission grant for the GNO project admin
+    # (from GnoNamedStaffSeeder, staff-creations). Must run after the
+    # permission catalog above, which it mirrors.
+    MeghaProjectAdminPermissionSeeder,
 ]
 
 
 CUSTOMER_MASTERS_SEEDERS = [
     # CustomerCreationSeeder dropped — Blue Planet's own customers are
     # created directly inside BluePlanetSeeder.
-    # NoidaCustomerImportSeeder dropped — customer seeding is disabled for the
-    # "Blue Planet Integrated Waste Management" project; its customer records
-    # are managed outside the seeders. Still available via
-    # `seed --group noida-customers` if it is ever needed explicitly.
+    # Blue Planet Integrated Waste Management (Noida / ZNE3-GAMMA-01 / Ward B)
+    # customers, synced from customer_creation_template_final.xlsx.
+    NoidaCustomerImportSeeder,
     # Re-Trip demo scenarios need customers (household stops) + daily
     # trip assignments (schedule-operations) to already exist.
     RetripDemoSeeder,

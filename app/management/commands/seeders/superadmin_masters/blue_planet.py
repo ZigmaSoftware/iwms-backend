@@ -1,6 +1,6 @@
 import math
 
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 from django.contrib.auth.hashers import make_password
 from django.core.files.storage import default_storage
 from django.db.models import F, Max
@@ -12,7 +12,7 @@ from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
-from app.models.masters.zone import Zone
+from app.models.masters.zone import GeoFencingType, Zone
 from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.models.superadmin.role_management.userType import UserType
 from app.models.core_modules.schedule_setup.collection_point import Collection_point
@@ -200,6 +200,30 @@ class BluePlanetSeeder(BaseSeeder):
         ],
     }
 
+    # Real site boundary of ZNE3-GAMMA-01 ("GAMMA 1", Greater Noida), as
+    # surveyed for Blue Planet. Connected in order to draw the zone polygon.
+    GAMMA_01_ZONE_BOUNDARY = [
+        {"latitude": 28.488876, "longitude": 77.50349395599494},
+        {"latitude": 28.48923800793327, "longitude": 77.50413414293003},
+        {"latitude": 28.490354381034557, "longitude": 77.50361561557074},
+        {"latitude": 28.491033306194158, "longitude": 77.50131255819706},
+        {"latitude": 28.49027894463618, "longitude": 77.49890221246272},
+        {"latitude": 28.48967924612614, "longitude": 77.4979303669922},
+        {"latitude": 28.488664638341163, "longitude": 77.4970872675544},
+        {"latitude": 28.486409076190427, "longitude": 77.49507920359704},
+        {"latitude": 28.483255762046685, "longitude": 77.49739308895748},
+        {"latitude": 28.48394232621382, "longitude": 77.49845165092357},
+        {"latitude": 28.484572305555172, "longitude": 77.49959604357812},
+        {"latitude": 28.4831276593093, "longitude": 77.49983921400369},
+        {"latitude": 28.47991007809596, "longitude": 77.50192774423152},
+        {"latitude": 28.48206963574756, "longitude": 77.50288969709781},
+        {"latitude": 28.484134848261156, "longitude": 77.5035727002265},
+        {"latitude": 28.48539088110138, "longitude": 77.50448642290579},
+        {"latitude": 28.486345142487355, "longitude": 77.50595804506015},
+        {"latitude": 28.487704876699937, "longitude": 77.5050264079372},
+        {"latitude": 28.489176830945848, "longitude": 77.50410997826121},
+    ]
+
     # (main_category, sub_category, category, priority, status, details)
     COMPLAINT_DATA = [
         ("Missed Collection", "Bin not collected", Complaint.CategoryChoices.COLLECTION, Complaint.PriorityChoices.HIGH, Complaint.StatusChoices.PROGRESSING, "Bin was not collected on the scheduled day."),
@@ -211,13 +235,13 @@ class BluePlanetSeeder(BaseSeeder):
         asia, _ = Continent.objects.get_or_create(name="Asia")
         india, _ = Country.objects.get_or_create(
             name="India",
-            continent_id=asia,
+            continent_id=uid(asia),
             defaults={"currency": "INR", "mob_code": "+91", "is_active": True, "is_deleted": False},
         )
         state, _ = State.objects.get_or_create(
             name=state_name,
-            country_id=india,
-            continent_id=asia,
+            country_id=uid(india),
+            continent_id=uid(asia),
             defaults={"label": state_name[:2].upper(), "is_active": True, "is_deleted": False},
         )
         return asia, india, state
@@ -881,6 +905,7 @@ class BluePlanetSeeder(BaseSeeder):
                 "is_deleted": False,
             },
         )
+        gamma_center_lat, gamma_center_lon = self._polygon_centroid(self.GAMMA_01_ZONE_BOUNDARY)
         zone, _ = Zone.objects.update_or_create(
             zone_name="ZNE3-GAMMA-01",
             city_id=city.unique_id if hasattr(city, 'unique_id') else city,
@@ -889,8 +914,10 @@ class BluePlanetSeeder(BaseSeeder):
             defaults={
                 "state_id": state.unique_id if hasattr(state, 'unique_id') else state,
                 "district_id": district.unique_id if hasattr(district, 'unique_id') else district,
-                "latitude": 28.474400,
-                "longitude": 77.504000,
+                "latitude": round(gamma_center_lat, 6),
+                "longitude": round(gamma_center_lon, 6),
+                "geofencing_type": GeoFencingType.POLYGON,
+                "boundary_coordinates": self.GAMMA_01_ZONE_BOUNDARY,
                 "is_active": True,
                 "is_deleted": False,
             },

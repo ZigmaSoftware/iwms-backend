@@ -42,6 +42,15 @@ class Zone(BaseMaster):
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     geofencing_type = models.CharField(max_length=20, choices=GeoFencingType.choices, default=GeoFencingType.SQUARE)
+    boundary_coordinates = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Ordered list of {latitude, longitude} points tracing this "
+            "zone's boundary. Connected in order (and back to the first "
+            "point) to draw the geofence polygon on the map."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -68,6 +68,7 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
             "description",
 
             "geofencing_type",
+            "boundary_coordinates",
             
             "is_active",
             "created_at",
