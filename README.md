@@ -131,6 +131,7 @@ python3 manage.py migrate
 # Seed sample data
 python3 manage.py seed                    # all groups, in dependency order
 python3 manage.py seed --group masters    # one group
+python3 manage.py seed --fresh            # wipe ALL existing data, then seed everything
 
 # Tests
 python -m pytest tests/ -q
