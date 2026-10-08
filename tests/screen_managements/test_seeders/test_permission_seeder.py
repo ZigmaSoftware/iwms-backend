@@ -9,6 +9,7 @@ from app.models.superadmin.screen_management.userscreen import UserScreen
 
 
 EXPECTED_GROUPS = {
+    "dashboard": ["dashboard"],
     "super-admin": [
         "screen-managements",
         "role-assigns",

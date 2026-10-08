@@ -254,6 +254,13 @@ MODULE_RESOURCE_ALLOWLIST = {
         "MonthlyWasteComparisonReport",
         "ComplaintsReport",
     },
+    # Admin Dashboard is granted by the dashboard/admin-dashboard screen; the
+    # Superadmin Dashboard has no screen, so only a superuser passes here
+    # (and its view also requires a platform super admin).
+    "dashboards": {
+        "AdminDashboard",
+        "SuperadminDashboard",
+    },
     "audits": {
         "StaffTemplateAuditLog",
         "LoginAudit",
@@ -293,6 +300,20 @@ MODULE_READONLY_RESOURCES["grivences"] = MODULE_READONLY_RESOURCES["complaint-ti
 MODULE_READONLY_RESOURCES["grievance"] = MODULE_READONLY_RESOURCES["complaint-ticket"]
 
 PROTECTED_MODULES = tuple(MODULE_RESOURCE_ALLOWLIST.keys())
+
+# "module/route" pairs only a platform super admin (superuser with no
+# company) may call. Checked before the superuser bypass, so a superuser tied
+# to a company is refused too, and no screen grant can open them.
+PLATFORM_SUPERADMIN_ROUTES = frozenset({
+    "dashboards/superadmin",
+})
+
+
+def _is_platform_super_admin(user):
+    return bool(
+        getattr(user, "is_superuser", False)
+        and getattr(user, "company_id", None) is None
+    )
 
 MODULE_PERMISSION_ALIASES = {
     "customer-masters": "customers",
@@ -655,6 +676,19 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         auth_error = _authenticate_request(request)
         if auth_error:
             return auth_error
+
+        if (
+            f"{module}/{_route_resource_from_path(request.path, module)}" in PLATFORM_SUPERADMIN_ROUTES
+            and not _is_platform_super_admin(request.user)
+        ):
+            return JsonResponse(
+                {
+                    "detail": "Permission denied",
+                    "module": module,
+                    "reason": "Platform super admin only",
+                },
+                status=403,
+            )
 
         if getattr(request.user, "is_superuser", False):
             return None
