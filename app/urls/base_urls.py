@@ -147,6 +147,9 @@ from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardV
 from ..viewsets.district.district_dashboard_viewset import DistrictDashboardViewSet
 # Company/project-scoped dashboard summary
 from ..viewsets.dashboard.dashboard_summary_viewset import DashboardSummaryViewSet
+# Admin / Superadmin dashboards (sidebar "Dashboard" and "Superadmin Dashboard")
+from ..viewsets.dashboard.admin_dashboard_viewset import AdminDashboardViewSet
+from ..viewsets.dashboard.superadmin_dashboard_viewset import SuperadminDashboardViewSet
 
 # Operator mobile
 from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet, MyTripsTodayViewSet
@@ -397,6 +400,13 @@ router.register_group("district", "dashboard", DistrictDashboardViewSet, basenam
 # GROUP: DASHBOARD (company/project-scoped dashboard summary)
 # ============================================================
 router.register_group("dashboard", "summary", DashboardSummaryViewSet, basename="dashboard-summary")
+
+# ============================================================
+# GROUP: DASHBOARDS (permission-gated: dashboard/admin-dashboard screen;
+# superadmin is platform super admin only)
+# ============================================================
+router.register_group("dashboards", "admin", AdminDashboardViewSet, basename="admin-dashboard")
+router.register_group("dashboards", "superadmin", SuperadminDashboardViewSet, basename="superadmin-dashboard")
 
 # ============================================================
 # GROUP: OPERATOR MOBILE

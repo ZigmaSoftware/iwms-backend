@@ -13,6 +13,7 @@ from app.utils.app_feature_grants import (
 )
 from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
 from app.utils.permission_catalog import (
+    ANY_GRANT,
     INHERITS_GRANTS_FROM,
     SCREEN_STRUCTURE,
     SECTION_MODULES,
@@ -187,6 +188,9 @@ class PermissionSeeder(BaseSeeder):
         """Give a newly created screen the grants of the screen it was split
         from (catalog `inherits_grants_from`), so the split takes no access
         away. Runs only when the screen row is first created."""
+        if source_name == ANY_GRANT:
+            self._grant_view_to_every_holder(screen)
+            return
         source = UserScreen.objects.filter(
             userscreen_name=source_name, is_deleted=False
         ).first()
@@ -219,6 +223,46 @@ class PermissionSeeder(BaseSeeder):
         self.log(
             f"{screen.userscreen_name}: copied {company} company and {staff} "
             f"staff grants from {source_name}."
+        )
+
+    def _grant_view_to_every_holder(self, screen):
+        """`view` on `screen` for every company/project and every staff
+        access configuration that holds any grant: a page that used to be
+        open to every signed-in user keeps being open to them."""
+        view = UserScreenAction.objects.filter(action_name="view", is_deleted=False).first()
+        if not view:
+            return
+        company = 0
+        for company_id, project_id in (
+            CompanyUserScreenPermission.objects.filter(is_deleted=False)
+            .exclude(userscreen_id=screen.unique_id)
+            .values_list("company_id", "project_id").distinct()
+        ):
+            _, created = CompanyUserScreenPermission.objects.get_or_create(
+                company_id=company_id,
+                project_id=project_id,
+                mainscreen_id=screen.mainscreen_id,
+                userscreen_id=screen.unique_id,
+                userscreenaction_id=view.unique_id,
+                defaults={"description": f"view {screen.userscreen_name}", "order_no": 1},
+            )
+            company += int(created)
+        staff = 0
+        for config_id in (
+            StaffAccessConfigurationPermission.objects.filter(is_deleted=False)
+            .exclude(userscreen_id=screen.unique_id)
+            .values_list("staff_access_configuration_id", flat=True).distinct()
+        ):
+            _, created = StaffAccessConfigurationPermission.objects.get_or_create(
+                staff_access_configuration_id=config_id,
+                mainscreen_id=screen.mainscreen_id,
+                userscreen_id=screen.unique_id,
+                userscreenaction_id=view.unique_id,
+            )
+            staff += int(created)
+        self.log(
+            f"{screen.userscreen_name}: granted view to {company} company/project "
+            f"scopes and {staff} staff access configurations that hold any grant."
         )
 
     def _move_mainscreen_orders_out_of_range(self, mainscreentype, reserved_count):

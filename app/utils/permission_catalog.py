@@ -39,7 +39,13 @@ Naming rules
 - Splitting a page out of an existing screen? Give the new screen
   `inherits_grants_from="<old screen>"`: when the seeder first creates it, it
   copies the old screen's company and staff grants, so nobody loses access.
+  `inherits_grants_from=ANY_GRANT` instead gives "view" to every company and
+  staff access configuration holding any grant at all — for a page that used
+  to be open to every signed-in user and now needs a grant of its own.
 """
+
+# `inherits_grants_from` value: "view" for everyone who holds any grant.
+ANY_GRANT = "*"
 
 
 def screen(name, label, *, routes=None, group=None, inherits_grants_from=None):
@@ -74,6 +80,18 @@ GROUP_LABELS = {
 # ("mobile-app") are added by the seeder from app_feature_grants.py: they gate
 # the citizen app only and have no web page.
 SECTIONS = (
+    ("dashboard", (
+        module("dashboard", "Dashboard", (
+            # The sidebar "Dashboard" page. It used to be shown to anyone
+            # holding any permission, hence ANY_GRANT. The Superadmin
+            # Dashboard ("dashboards/superadmin") is not grantable: see
+            # SUPERADMIN_ONLY_ROUTES.
+            screen(
+                "admin-dashboard", "Admin Dashboard",
+                routes=("admin",), inherits_grants_from=ANY_GRANT,
+            ),
+        ), url_module="dashboards"),
+    )),
     ("super-admin", (
         # Platform routes ("superadmin/...") are not module-gated.
         module("superadmin-masters", "SuperAdmin Masters", (
@@ -269,6 +287,8 @@ SECTIONS = (
 # reaches them. Listed so the route audit test can tell "intentional" from
 # "forgotten".
 SUPERADMIN_ONLY_ROUTES = frozenset({
+    # Every company, project and permission on the platform.
+    "dashboards/superadmin",
     # Seeder-owned complaint vocabularies the routing/SLA resolvers key on.
     "complaint-masters/routing-rules",
     "complaint-masters/modules",
