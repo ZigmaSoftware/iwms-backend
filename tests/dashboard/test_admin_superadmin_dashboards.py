@@ -12,7 +12,11 @@ from app.models.superadmin.staff_management.staff_access_configuration import (
 )
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.utils.permission_catalog import ROUTE_OWNERS, SUPERADMIN_ONLY_ROUTES
+from app.utils.permission_catalog import (
+    ROUTE_OWNERS,
+    SCREEN_STRUCTURE,
+    SUPERADMIN_ONLY_ROUTES,
+)
 from app.viewsets.dashboard.admin_dashboard_viewset import AdminDashboardViewSet
 from app.viewsets.dashboard.superadmin_dashboard_viewset import SuperadminDashboardViewSet
 
@@ -57,8 +61,10 @@ def test_admin_dashboard_is_a_grantable_screen():
     assert ROUTE_OWNERS["dashboards/admin"] == ("dashboard", "admin-dashboard")
 
 
-def test_superadmin_dashboard_is_not_grantable():
+def test_superadmin_dashboard_is_listed_but_not_grantable():
+    assert "superadmin-dashboard" in SCREEN_STRUCTURE["dashboard"]
     assert "dashboards/superadmin" in SUPERADMIN_ONLY_ROUTES
+    assert "dashboards/superadmin" in mpm.PLATFORM_SUPERADMIN_ROUTES
     assert "dashboards/superadmin" not in ROUTE_OWNERS
 
 
@@ -145,6 +151,10 @@ def test_company_user_is_pinned_to_company_and_allowed_projects(
     assert data["scope"]["company_name"] == "Test Company"
     assert data["filters"]["can_pick_company"] is False
     assert [p["id"] for p in data["filters"]["projects"]] == [project.unique_id]
+    # Their one project is preselected and cannot be changed.
+    assert data["filters"]["can_pick_project"] is False
+    assert data["scope"]["project_ids"] == [project.unique_id]
+    assert data["scope"]["project_name"] == "Test Project"
     assert data["operations"]["trips"]["total"] == 2
 
 

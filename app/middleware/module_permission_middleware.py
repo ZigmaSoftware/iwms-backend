@@ -12,7 +12,7 @@ from app.models.masters.customer_masters.customercreation import CustomerCreatio
 from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.leader_management.district_leader_login import DistrictLeaderLogin
 from app.utils.permission_response import resolve_permission_payload
-from app.utils.permission_catalog import ROUTE_OWNERS
+from app.utils.permission_catalog import PLATFORM_SUPERADMIN_ROUTES, ROUTE_OWNERS
 from app.utils.screen_dependencies import INCLUDED_BY, LOOKUP_FOR
 
 
@@ -254,9 +254,9 @@ MODULE_RESOURCE_ALLOWLIST = {
         "MonthlyWasteComparisonReport",
         "ComplaintsReport",
     },
-    # Admin Dashboard is granted by the dashboard/admin-dashboard screen; the
-    # Superadmin Dashboard has no screen, so only a superuser passes here
-    # (and its view also requires a platform super admin).
+    # Admin Dashboard is granted by the dashboard/admin-dashboard screen. The
+    # dashboard/superadmin-dashboard screen is superadmin-only: its route is
+    # in PLATFORM_SUPERADMIN_ROUTES, refused before any grant is read.
     "dashboards": {
         "AdminDashboard",
         "SuperadminDashboard",
@@ -302,11 +302,9 @@ MODULE_READONLY_RESOURCES["grievance"] = MODULE_READONLY_RESOURCES["complaint-ti
 PROTECTED_MODULES = tuple(MODULE_RESOURCE_ALLOWLIST.keys())
 
 # "module/route" pairs only a platform super admin (superuser with no
-# company) may call. Checked before the superuser bypass, so a superuser tied
-# to a company is refused too, and no screen grant can open them.
-PLATFORM_SUPERADMIN_ROUTES = frozenset({
-    "dashboards/superadmin",
-})
+# company) may call: the routes of the catalog's `superadmin_only` screens
+# (PLATFORM_SUPERADMIN_ROUTES). Checked before the superuser bypass, so a
+# superuser tied to a company is refused too, and no screen grant opens them.
 
 
 def _is_platform_super_admin(user):

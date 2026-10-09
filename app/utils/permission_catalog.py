@@ -42,19 +42,30 @@ Naming rules
   `inherits_grants_from=ANY_GRANT` instead gives "view" to every company and
   staff access configuration holding any grant at all — for a page that used
   to be open to every signed-in user and now needs a grant of its own.
+- `actions` limits which actions the seeder offers on a screen (default: all
+  of them). A read-only page such as a dashboard takes `("view",)`.
+- `superadmin_only=True` lists a screen in the permission tree but never
+  seeds it into a company/project catalog, and its routes are refused to
+  everyone but a platform super admin (PLATFORM_SUPERADMIN_ROUTES), whatever
+  is granted.
 """
 
 # `inherits_grants_from` value: "view" for everyone who holds any grant.
 ANY_GRANT = "*"
 
 
-def screen(name, label, *, routes=None, group=None, inherits_grants_from=None):
+def screen(
+    name, label, *, routes=None, group=None, inherits_grants_from=None,
+    actions=None, superadmin_only=False,
+):
     return {
         "name": name,
         "label": label,
         "routes": routes,
         "group": group,
         "inherits_grants_from": inherits_grants_from,
+        "actions": actions,
+        "superadmin_only": superadmin_only,
     }
 
 
@@ -83,12 +94,17 @@ SECTIONS = (
     ("dashboard", (
         module("dashboard", "Dashboard", (
             # The sidebar "Dashboard" page. It used to be shown to anyone
-            # holding any permission, hence ANY_GRANT. The Superadmin
-            # Dashboard ("dashboards/superadmin") is not grantable: see
-            # SUPERADMIN_ONLY_ROUTES.
+            # holding any permission, hence ANY_GRANT.
             screen(
                 "admin-dashboard", "Admin Dashboard",
                 routes=("admin",), inherits_grants_from=ANY_GRANT,
+                actions=("view",),
+            ),
+            # Every company and project on the platform: listed so it shows
+            # in the permission tree, but only a platform super admin opens it.
+            screen(
+                "superadmin-dashboard", "Superadmin Dashboard",
+                routes=("superadmin",), actions=("view",), superadmin_only=True,
             ),
         ), url_module="dashboards"),
     )),
@@ -286,9 +302,7 @@ SECTIONS = (
 # Protected routes deliberately granted to no screen: only a superuser
 # reaches them. Listed so the route audit test can tell "intentional" from
 # "forgotten".
-SUPERADMIN_ONLY_ROUTES = frozenset({
-    # Every company, project and permission on the platform.
-    "dashboards/superadmin",
+_SUPERADMIN_ONLY_ROUTES = frozenset({
     # Seeder-owned complaint vocabularies the routing/SLA resolvers key on.
     "complaint-masters/routing-rules",
     "complaint-masters/modules",
@@ -354,10 +368,39 @@ def screen_routes(mod, scr):
     return tuple(r if "/" in r else f"{mod['url_module']}/{r}" for r in routes)
 
 
+# Routes of `superadmin_only` screens: refused to everyone but a platform
+# super admin (superuser with no company), even a superuser tied to a company.
+PLATFORM_SUPERADMIN_ROUTES = frozenset(
+    route
+    for m in MODULES.values()
+    for s in m["screens"]
+    if s["superadmin_only"]
+    for route in screen_routes(m, s)
+)
+
+SUPERADMIN_ONLY_ROUTES = _SUPERADMIN_ONLY_ROUTES | PLATFORM_SUPERADMIN_ROUTES
+
+# Screens never seeded into a company/project catalog.
+SUPERADMIN_ONLY_SCREENS = frozenset(
+    s["name"] for m in MODULES.values() for s in m["screens"] if s["superadmin_only"]
+)
+
+# userscreen -> the only actions the seeder offers on it (others: all).
+SCREEN_ACTIONS = {
+    s["name"]: tuple(s["actions"])
+    for m in MODULES.values()
+    for s in m["screens"]
+    if s["actions"]
+}
+
+
 def _route_owners():
     owners = {}
     for m in MODULES.values():
         for s in m["screens"]:
+            # No grant opens a superadmin-only screen's routes.
+            if s["superadmin_only"]:
+                continue
             for route in screen_routes(m, s):
                 if route in owners:
                     raise ValueError(

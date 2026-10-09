@@ -26,6 +26,7 @@ from app.models.superadmin.role_management.userType import UserType
 from app.models.superadmin.screen_management.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
+from app.models.superadmin.screen_management.mainscreen import MainScreen
 from app.models.superadmin.staff_management.department import Department
 from app.models.superadmin.staff_management.designation import Designation
 from app.models.superadmin.staff_management.staff_access_configuration import (
@@ -37,6 +38,7 @@ from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.password_encryption import encrypt_password
+from app.utils.permission_catalog import SECTION_MODULES
 
 
 class GnoNamedStaffSeeder(BaseSeeder):
@@ -235,7 +237,7 @@ class GnoNamedStaffSeeder(BaseSeeder):
 
 
 class MeghaProjectAdminPermissionSeeder(BaseSeeder):
-    """Grant Megha the full permission catalog for her company/project.
+    """Grant Megha her company/project's permission catalog.
 
     Staff authorization resolves through StaffAccessConfiguration ->
     StaffAccessConfigurationPermission (see utils/permission_response.py
@@ -243,11 +245,18 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
     the company catalog only defines what *may* be granted. As project admin
     Megha gets every action of that catalog, mirrored one-for-one, and the
     config is scoped to her project so column permissions narrow with it.
+
+    She is in charge of one Blue Planet project, not the platform, so from
+    the "super-admin" section she gets Staff Management only — no company or
+    project creation, screen/role management, global masters or audits.
     """
 
     name = "megha-project-admin-permissions"
 
     USERNAME = "megha"
+
+    # The only "super-admin" section modules a project admin is given.
+    SUPERADMIN_MODULES = ("staff-creations",)
 
     def run(self):
         staff = Staffcreation.objects.filter(username=self.USERNAME).first()
@@ -271,6 +280,13 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
                 is_deleted=False,
             )
         )
+        excluded = set(
+            MainScreen.objects.filter(
+                mainscreen_name__in=set(SECTION_MODULES["super-admin"])
+                - set(self.SUPERADMIN_MODULES),
+            ).values_list("unique_id", flat=True)
+        )
+        catalog = [e for e in catalog if e.mainscreen_id not in excluded]
         if not catalog:
             company_name = getattr(staff.company, "name", company)
             project_name = getattr(staff.project, "name", project)
@@ -321,8 +337,9 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
             )
             granted += 1
 
-        # Drop grants that are no longer in the catalog so a re-run cannot
-        # leave Megha holding permissions the company no longer defines.
+        # Drop grants that are no longer in the catalog (or no longer hers,
+        # like the super-admin modules above) so a re-run cannot leave Megha
+        # holding permissions she should not have.
         # The triple has to be compared as a whole — three independent __in
         # filters would keep any row whose columns each appear in some other
         # valid combination.

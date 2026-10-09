@@ -123,6 +123,40 @@ Screen- and column-level permissions are *data*, not code: they live in the
 `screen_managements` tables and are seeded by
 `seeders/superadmin/screen_management/permissions.py`.
 
+Which modules and screens exist is defined once, in
+`app/utils/permission_catalog.py`. The seeder, the middleware and the
+frontend sidebar (through the generated `permissionCatalog.ts`) all read it.
+After editing it, run `python manage.py sync_permission_catalog` and then
+`seed --group screen-managements`. Two `screen()` options decide how a
+screen is granted:
+
+- `actions=("view",)` limits the actions the seeder offers. A read-only
+  page uses it, so it offers view only. On its next run the seeder
+  soft-deletes any other action already granted on that screen.
+- `superadmin_only=True` lists the screen in the permission tree but never
+  seeds it into a company or project's permissions. Its routes go into
+  `PLATFORM_SUPERADMIN_ROUTES`. The middleware refuses those routes to
+  everyone except a platform super admin (a superuser with no company),
+  whatever has been granted.
+
+The two dashboards use these options:
+
+| Screen | Route | Who opens it |
+|---|---|---|
+| `dashboard / admin-dashboard` | `dashboards/admin/` | Anyone granted view; data is pinned to their company and allowed projects |
+| `dashboard / superadmin-dashboard` | `dashboards/superadmin/` | Platform super admin only (`superadmin_only`), because it shows every company |
+
+The permission seeder also grants view on the Admin Dashboard to the Blue
+Planet Greater Noida project ("Blue Planet Integrated Waste Management"),
+and to every staff access configuration scoped to that project.
+
+Megha, that project's admin, is seeded by `MeghaProjectAdminPermissionSeeder`
+(`seeders/superadmin/staff_management/gno_named_staff.py`). She gets her
+project's full permission catalog except the platform modules: from the
+Super Admin section she gets Staff Management only. She cannot create
+companies or projects, or manage screens, roles, the global masters or
+audits. A re-run removes any of those grants she already holds.
+
 ## `app/services/` — the real business logic
 
 | File | What it does |
