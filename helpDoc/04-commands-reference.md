@@ -105,7 +105,7 @@ superadmin → common-masters → masters → waste-types → role-assigns
 | `transport-masters` | Vehicle types, vehicles, fuel, trip attendance |
 | `schedule-setup` | 20 Greater Noida BP household trip plans + their customers (trip plans only) |
 | `schedule-operations` | Trip attendance, supervisor user, driver wet/dry bin trips |
-| `screen-managements` | Screen permissions |
+| `screen-managements` | Screen permissions from `app/utils/permission_catalog.py`, including the Admin Dashboard grant for Greater Noida BP and Megha's project-admin access (from the Super Admin section, Staff Management only) |
 | `collections` | Panchayat-, ward- and zone-wise collections |
 | `customer-masters` | Customers, feedback, user charge rules |
 | `complaint-ticket` | Tickets, categories, priorities, SLA and routing rules |

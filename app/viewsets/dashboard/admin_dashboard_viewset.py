@@ -87,6 +87,10 @@ class AdminDashboardViewSet(ViewSet):
         picked_projects = set(id_list(params, "project_id"))
         visible_projects = list(projects)
         selected = [p for p in visible_projects if p.unique_id in picked_projects]
+        # A company/project admin with one project has nothing to pick: that
+        # project is the selection (see `can_pick_project`).
+        if not is_platform_super_admin(user) and len(visible_projects) == 1:
+            selected = visible_projects
         if selected:
             project_ids = tuple(p.unique_id for p in selected)
         elif project_limit is not None:
@@ -127,6 +131,7 @@ class AdminDashboardViewSet(ViewSet):
             },
             "filters": {
                 "can_pick_company": is_platform_super_admin(request.user),
+                "can_pick_project": is_platform_super_admin(request.user) or len(projects) > 1,
                 "companies": [{"id": c.unique_id, "name": c.name} for c in companies]
                 if not is_platform_super_admin(request.user)
                 else [

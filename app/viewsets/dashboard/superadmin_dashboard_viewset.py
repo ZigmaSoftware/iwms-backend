@@ -2,9 +2,10 @@
 
 GET /api/v1/dashboards/superadmin/?date= | from_date=&to_date=
 
-Platform super admins only (is_superuser with no company). The route is in
-SUPERADMIN_ONLY_ROUTES: no screen grants it, so no company user can be given
-it from Staff Access Configuration.
+Platform super admins only (is_superuser with no company). Its catalog
+screen, dashboard/superadmin-dashboard, is `superadmin_only`: it shows in the
+permission tree, but its route is in PLATFORM_SUPERADMIN_ROUTES, so no grant
+opens it for a company user.
 """
 from collections import Counter, defaultdict
 
