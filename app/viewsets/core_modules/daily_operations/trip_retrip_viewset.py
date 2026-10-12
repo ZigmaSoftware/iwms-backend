@@ -39,6 +39,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.serializers.core_modules.daily_operations.trip_retrip_serializer import (
     TripRetripRequestSerializer,
@@ -60,6 +61,13 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
     serializer_class = TripRetripRequestSerializer
     lookup_field = "unique_id"
     filter_backends = [ModelFieldQueryFilter, ModelFieldSearchFilter, SerializerOrderingFilter]
+
+    @staticmethod
+    def permission_action_for_request(request, default_action):
+        path = request.path.rstrip("/")
+        if path.endswith("/approve") or path.endswith("/reject"):
+            return "edit"
+        return default_action
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -123,11 +131,21 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
         """
         if self._is_platform_super_admin():
             return
-        plan = getattr(retrip.assignment, "trip_plan_id", None)
+        permissions = getattr(self.request, "resolved_permissions", {}) or {}
+        retrip_actions = (
+            permissions
+            .get("schedule-operations", {})
+            .get("retrip-requests", [])
+        )
+        if "edit" in retrip_actions:
+            return
+        assignment = retrip.assignment
+        plan_id = getattr(assignment, "trip_plan_id", None) if assignment else None
+        plan = TripPlan.objects.filter(unique_id=plan_id).first() if plan_id else None
         supervisor = getattr(plan, "supervisor_id", None) if plan else None
-        if supervisor is None or supervisor.staff_unique_id != getattr(
+        if supervisor is None or str(supervisor) != str(getattr(
             self.request.user, "staff_unique_id", None
-        ):
+        )):
             raise PermissionDenied("You do not supervise this trip plan.")
 
     def retrieve(self, request, *args, **kwargs):

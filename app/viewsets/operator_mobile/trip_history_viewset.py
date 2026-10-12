@@ -155,7 +155,7 @@ class TripHistoryViewSet(viewsets.ViewSet):
         summary = _serialize_summary(assignment)
         events_qs = (
             BinCollectionEvent.objects
-            .filter(trip_assignment_id=assignment, is_deleted=False)
+            .filter(trip_assignment_id=assignment.unique_id, is_deleted=False)
             .order_by("event_at")
         )
         summary["events"] = [_serialize_event(e) for e in events_qs]

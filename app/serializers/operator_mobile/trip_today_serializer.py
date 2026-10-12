@@ -78,8 +78,8 @@ class TripCollectionPointSerializer(serializers.Serializer):
     collected_weight_kg = serializers.DecimalField(
         max_digits=10, decimal_places=2, allow_null=True
     )
-    collection_point = _CollectionPointBriefSerializer(source="collection_point")
-    bin = _BinBriefSerializer(source="bin")
+    collection_point = _CollectionPointBriefSerializer()
+    bin = _BinBriefSerializer()
 
 
 class _HouseholdCustomerBriefSerializer(serializers.Serializer):
@@ -289,8 +289,8 @@ class MyTripTodaySerializer(serializers.Serializer):
     actual_end_at = serializers.DateTimeField(allow_null=True)
     panchayat = serializers.SerializerMethodField()
     ward = serializers.SerializerMethodField()
-    waste_type = _WasteTypeBriefSerializer(source="primary_waste_type", allow_null=True)
-    vehicle = _VehicleBriefSerializer(source="vehicle_id", allow_null=True)
+    waste_type = serializers.SerializerMethodField()
+    vehicle = serializers.SerializerMethodField()
     trip_plan = serializers.SerializerMethodField()
     progress = serializers.SerializerMethodField()
     collection_points = serializers.SerializerMethodField()
@@ -335,6 +335,25 @@ class MyTripTodaySerializer(serializers.Serializer):
 
     def get_collection_type(self, obj):
         return getattr(obj.trip_plan, "collection_type", None)
+
+    def get_waste_type(self, obj):
+        waste_type_id = getattr(obj, "primary_waste_type", None)
+        if not waste_type_id:
+            return None
+        from app.models.waste_collection_bluetooth.waste_collection_bluetooth import (
+            WasteType,
+        )
+
+        waste_type = WasteType.objects.filter(unique_id=waste_type_id).first()
+        if not waste_type:
+            return None
+        return _WasteTypeBriefSerializer(waste_type).data
+
+    def get_vehicle(self, obj):
+        vehicle = obj.vehicle
+        if not vehicle:
+            return None
+        return _VehicleBriefSerializer(vehicle).data
 
     def get_panchayat(self, obj):
         if not obj.panchayat_id:

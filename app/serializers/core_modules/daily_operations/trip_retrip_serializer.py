@@ -1,6 +1,9 @@
 from rest_framework import serializers
 
 from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
 from app.services.retrip_service import build_pending_snapshot
 
 
@@ -18,9 +21,7 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
     scheduled_time = serializers.TimeField(source="assignment.scheduled_time", read_only=True, default=None)
     assignment_status = serializers.CharField(source="assignment.status", read_only=True, default=None)
     collection_type = serializers.SerializerMethodField()
-    vehicle_no = serializers.CharField(
-        source="assignment.vehicle_id.vehicle_no", read_only=True, default=None
-    )
+    vehicle_no = serializers.SerializerMethodField()
     area_name = serializers.SerializerMethodField()
     requested_by_name = serializers.CharField(
         source="requested_by.employee_name", read_only=True, default=None
@@ -36,8 +37,20 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
         read_only_fields = ["unique_id", "created_at", "updated_at"]
 
     def get_collection_type(self, obj):
-        plan = getattr(obj.assignment, "trip_plan_id", None)
+        assignment = obj.assignment
+        plan_id = getattr(assignment, "trip_plan_id", None) if assignment else None
+        plan = TripPlan.objects.filter(unique_id=plan_id).first() if plan_id else None
         return getattr(plan, "collection_type", None)
+
+    def get_vehicle_no(self, obj):
+        assignment = obj.assignment
+        vehicle_id = getattr(assignment, "vehicle_id", None) if assignment else None
+        vehicle = (
+            VehicleCreation.objects.filter(unique_id=vehicle_id).first()
+            if vehicle_id
+            else None
+        )
+        return getattr(vehicle, "vehicle_no", None)
 
     def get_area_name(self, obj):
         assignment = obj.assignment
@@ -46,7 +59,11 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
         ward = assignment.wards.first()
         if ward is not None:
             return ward.ward_name
-        panchayat = assignment.panchayat_id
+        panchayat = (
+            Panchayat.objects.filter(unique_id=assignment.panchayat_id).first()
+            if assignment.panchayat_id
+            else None
+        )
         return getattr(panchayat, "panchayat_name", None)
 
     def get_live_pending(self, obj):

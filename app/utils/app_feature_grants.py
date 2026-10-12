@@ -122,7 +122,7 @@ SCREEN_PERMISSIONS = {
     "supervisor.notifications": ("schedule-operations", "staff-notifications", "view"),
     "supervisor.livemap": ("schedule-operations", "daily-trip-collection-points", "view"),
     "supervisor.vehicles": ("transport-masters", "vehicle-creation", "view"),
-    "supervisor.attendance": ("attendance", "daily-attendance", "view"),
+    "supervisor.attendance": ("attendance", "attendance", "view"),
     "supervisor.profile": None,
 
     # ---- Driver ----
@@ -134,7 +134,7 @@ SCREEN_PERMISSIONS = {
     "driver.retrips": ("schedule-operations", "retrip-requests", "view"),
     "driver.notifications": ("schedule-operations", "staff-notifications", "view"),
     "driver.customers": ("customers", "customercreations", "view"),
-    "driver.attendance": ("attendance", "daily-attendance", "view"),
+    "driver.attendance": ("attendance", "attendance", "view"),
     "driver.profile": None,
 
     # ---- Operator (deprecated shell, same permissions as Driver) ----
@@ -143,7 +143,7 @@ SCREEN_PERMISSIONS = {
     "operator.bins": ("schedule-operations", "bin-collection-events", "view"),
     "operator.breakdowns": ("schedule-operations", "vehicle-breakdowns", "view"),
     "operator.notifications": ("schedule-operations", "staff-notifications", "view"),
-    "operator.attendance": ("attendance", "daily-attendance", "view"),
+    "operator.attendance": ("attendance", "attendance", "view"),
     "operator.profile": None,
 
     # ---- Citizen ----
@@ -236,7 +236,7 @@ ROLE_SCREEN_TEMPLATES = {
             "retrip-requests": ["view"],
         },
         "attendance": {
-            "daily-attendance": ["view", "add", "edit"],
+            "attendance": ["view", "add", "edit"],
         },
         "schedule-setup": {
             "collection-points": ["view"],
@@ -265,7 +265,7 @@ ROLE_SCREEN_TEMPLATES = {
             "retrip-requests": ["view"],
         },
         "attendance": {
-            "daily-attendance": ["view", "add", "edit"],
+            "attendance": ["view", "add", "edit"],
         },
         "schedule-setup": {
             "collection-points": ["view"],
@@ -301,14 +301,12 @@ ROLE_SCREEN_TEMPLATES = {
             # a driver makes is silently invisible to the dashboard (only
             # bin scans were ever visible before this was added).
             "wastecollections": ["view"],
-            # Reviews Re-Trip requests via the approve/reject actions —
-            # both POST, so the middleware's HTTP_ACTION_MAP scores them as
-            # "add", not "edit"; create/update/destroy stay disabled in the
-            # viewset itself so nothing else can write here.
-            "retrip-requests": ["view", "add"],
+            # Reviews Re-Trip requests via approve/reject. The endpoint is a
+            # POST transport-wise, but semantically edits the request status.
+            "retrip-requests": ["view", "edit"],
         },
         "attendance": {
-            "daily-attendance": ["view", "add", "edit"],
+            "attendance": ["view", "add", "edit"],
         },
         "schedule-setup": {
             # The Crew screen creates and edits templates, and creates an
