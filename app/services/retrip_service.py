@@ -184,7 +184,9 @@ def create_breakdown_continuation(
         remarks=f"Vehicle Breakdown continuation of {source.unique_id}",
     )
 
-    cloned_bins = DailyTripCollectionPoint.objects.filter(trip_assignment_id=continuation)
+    cloned_bins = DailyTripCollectionPoint.objects.filter(
+        trip_assignment_id=continuation.unique_id
+    )
     if carry_bin_keys:
         keep = Q()
         for cp_id, bin_id in carry_bin_keys:
@@ -194,7 +196,7 @@ def create_breakdown_continuation(
         cloned_bins.delete()
 
     cloned_households = DailyTripHouseholdCollection.objects.filter(
-        trip_assignment_id=continuation
+        trip_assignment_id=continuation.unique_id
     )
     if carry_customer_ids:
         cloned_households.exclude(customer_id__in=carry_customer_ids).delete()
@@ -242,7 +244,17 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
 
     if collection_point_ids is not None:
         selected = set(collection_point_ids)
+        pending_stop_ids = {
+            *(stop.unique_id for stop in pending_bins),
+            *(stop.unique_id for stop in pending_households),
+        }
+        unknown = selected - pending_stop_ids
+        if unknown:
+            raise ValueError("Selected stop is not pending on this trip.")
         pending_bins = [stop for stop in pending_bins if stop.unique_id in selected]
+        pending_households = [
+            stop for stop in pending_households if stop.unique_id in selected
+        ]
 
     # A bin stop is identified by the (collection point, bin) PAIR — one
     # collection point can hold several bins, each its own stop.
@@ -261,7 +273,9 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
     # shares a bin with a carried stop but a different collection point
     # would survive; and `__in` never matches a NULL bin_id, so bin-less
     # stops would leak too.
-    cloned_bins = DailyTripCollectionPoint.objects.filter(trip_assignment_id=continuation)
+    cloned_bins = DailyTripCollectionPoint.objects.filter(
+        trip_assignment_id=continuation.unique_id
+    )
     if carry_bin_keys:
         keep = Q()
         for cp_id, bin_id in carry_bin_keys:
@@ -271,7 +285,7 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
         cloned_bins.delete()
 
     cloned_households = DailyTripHouseholdCollection.objects.filter(
-        trip_assignment_id=continuation
+        trip_assignment_id=continuation.unique_id
     )
     if carry_customer_ids:
         cloned_households.exclude(customer_id__in=carry_customer_ids).delete()

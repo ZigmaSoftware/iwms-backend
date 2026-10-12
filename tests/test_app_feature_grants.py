@@ -38,6 +38,7 @@ from app.utils.app_feature_grants import (
     SCREEN_PERMISSIONS,
     visible_screens,
 )
+from app.utils.permission_catalog import ROUTE_OWNERS
 from app.utils.permission_response import fallback_app_module
 
 VALID_ACTIONS = {"view", "add", "edit", "delete", "use"}
@@ -66,6 +67,16 @@ def _resource_is_reachable(module, resource):
     both are tried, exactly as `process_view` does.
     """
     normalize = ModulePermissionMiddleware._normalize_permission_key
+
+    # Some permission rows are seeded under a catalog screen that owns one or
+    # more concrete routes. Example: the screen is `attendance`, while the app
+    # calls `attendance/daily-attendance/`. That is reachable even though the
+    # router has no literal `/attendance/attendance/` endpoint.
+    if any(
+        owner_module == module and owner_screen == resource
+        for owner_module, owner_screen in ROUTE_OWNERS.values()
+    ):
+        return True
 
     url_modules = {module}
     for url_module, alias in MODULE_PERMISSION_ALIASES.items():
@@ -314,6 +325,17 @@ def test_profiles_with_no_permission_are_still_visible_but_attendance_is_not():
     assert "supervisor.attendance" not in visible
 
 
+def test_driver_attendance_uses_the_seeded_attendance_screen_name():
+    """The attendance module has one seeded screen named `attendance`.
+
+    The mobile route is `attendance/daily-attendance/`, but Staff Access
+    Configuration grants the parent screen (`attendance`). Gating the tab on
+    `daily-attendance` hides it even when the API permission itself works.
+    """
+    permissions = {"attendance": {"attendance": ["view"]}}
+    assert "driver.attendance" in visible_screens(permissions, "driver")
+
+
 def test_partial_grants_do_not_hide_a_screen():
     """A screen is gated on its main list permission only. Gating on every
     endpoint it reads would mean one missed tick makes a tab vanish."""
@@ -344,10 +366,11 @@ def test_citizen_screen_names_match_the_seeded_screens():
         assert name in CITIZEN_APP_SCREENS, f"{screen_key} has no seeded screen"
 
 
-def test_role_template_can_supply_legacy_app_module():
-    assert fallback_app_module("Company Supervisor", None) == "supervisor"
-    assert fallback_app_module("Company Driver", "driver") == "driver"
-    assert fallback_app_module("Company Supervisor", "none") == "supervisor"
+def test_fallback_app_module_uses_only_explicit_app_module():
+    assert fallback_app_module("driver") == "driver"
+    assert fallback_app_module("supervisor") == "supervisor"
+    assert fallback_app_module("Company Supervisor") is None
+    assert fallback_app_module("none") is None
 
 
 # ============================================================

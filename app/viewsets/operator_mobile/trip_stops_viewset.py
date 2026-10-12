@@ -134,5 +134,7 @@ class TripStopsViewSet(viewsets.ViewSet):
             "page": page,
             "page_size": STOPS_PAGE_SIZE,
             "has_next": end < count,
-            "results": serializer_cls(page_items, many=True).data,
+            "results": serializer_cls(
+                page_items, many=True, context={"request": request}
+            ).data,
         })

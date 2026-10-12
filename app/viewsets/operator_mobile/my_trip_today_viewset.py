@@ -1,15 +1,13 @@
-from django.db.models import Q
-from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 
-from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.permissions.operator_permission import IsOperatorRole
 from app.serializers.operator_mobile.trip_today_serializer import (
     MyTripTodaySerializer,
 )
 from app.viewsets.operator_mobile.helpers import (
     OperatorFlowError,
+    find_assignments_for_operator_today,
     find_active_assignment_for_operator,
     resolve_operator_staff,
 )
@@ -57,27 +55,10 @@ class MyTripsTodayViewSet(viewsets.ViewSet):
                 status=exc.http_status,
             )
 
-        today = timezone.localdate()
-        base = (
-            DailyTripAssignment.objects
-            .filter(trip_date=today, is_deleted=False)
-            .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-        )
-
         # Driver ("captain") and operator apps are merged, so match either
         # slot on the staff template — same rule as
         # helpers.find_active_assignment_for_operator.
-        assignments = list(
-            base.filter(
-                Q(staff_template_id__operator_id=operator)
-                | Q(staff_template_id__driver_id=operator)
-            )
-        )
-        if not assignments:
-            for candidate in base:
-                extras = getattr(candidate.staff_template_id, "extra_operator_id", None) or []
-                if operator.staff_unique_id in extras:
-                    assignments.append(candidate)
+        assignments = find_assignments_for_operator_today(operator)
 
         data = MyTripTodaySerializer(
             assignments, many=True, context={"request": request}
