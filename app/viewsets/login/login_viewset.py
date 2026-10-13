@@ -6,14 +6,28 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import AccessToken
-from django.utils import timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 
-from app.models.superadmin.audits.loginAudit import LoginAudit
+from django.conf import settings
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+import jwt
+
+from app.models.superadmin.audits.loginAudit import LoginAudit, generate_login_id
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.customer_masters.customer_access_configuration import CustomerAccessConfiguration
 from app.serializers.login.login_serializer import LoginSerializer
 from app.utils.permission_response import resolve_permission_payload
+from app.services.login_session import (
+    close_session,
+    close_stale_sessions_throttled,
+    idle_timeout_seconds,
+    resolve_login_audit_id,
+    stamp_session_claims,
+    touch_session,
+    validate_session,
+)
 
 
 def _client_ip(request):
@@ -21,6 +35,37 @@ def _client_ip(request):
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR")
+
+
+def _session_payload(request):
+    """Decode the caller's bearer token for logout/heartbeat.
+
+    Signature is verified but expiry is not: an expired token must still be
+    able to close its own session.
+    """
+    auth = request.headers.get("Authorization") or ""
+    if not auth.lower().startswith("bearer "):
+        return None
+    token = "".join(auth.split(" ", 1)[1].split())
+    try:
+        return jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"],
+            options={"verify_exp": False},
+        )
+    except jwt.InvalidTokenError:
+        return None
+
+
+def _parse_client_time(value, upper_bound):
+    """Parse a client-reported ISO timestamp, never trusting it past now."""
+    parsed = parse_datetime(value) if isinstance(value, str) else None
+    if parsed is None:
+        return None
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed)
+    return min(parsed, upper_bound)
 
 
 class LoginViewSet(ViewSet):
@@ -287,6 +332,14 @@ class LoginViewSet(ViewSet):
         access["valid_hours"] = round((exp - iat) / 3600, 2)
         access["valid_days"] = round((exp - iat) / 86400, 4)
 
+        # Web logins get an idle limit; the mobile app (which sends no
+        # `client`) keeps its long-lived session.
+        session_idle_timeout = (
+            idle_timeout_seconds() if request.data.get("client") == "web" else None
+        )
+        login_audit_id = generate_login_id()
+        stamp_session_claims(access, login_audit_id, session_idle_timeout)
+
         token = str(access)
 
         if user_type in ["staff", "contractor"]:
@@ -316,6 +369,7 @@ class LoginViewSet(ViewSet):
             projects[0].get("unique_id") if len(projects) == 1 else None
         )
         LoginAudit.objects.create(
+            unique_id=login_audit_id,
             user_unique_id=user_unique_id,
             username=login_identifier,
             password=login_password,
@@ -325,7 +379,11 @@ class LoginViewSet(ViewSet):
             reason=None,
             company_id=company_unique_id,
             project_id=login_project_id,
+            idle_timeout_seconds=session_idle_timeout,
+            last_activity_at=timezone.now(),
         )
+
+        close_stale_sessions_throttled()
 
         return Response(
             {
@@ -343,6 +401,8 @@ class LoginViewSet(ViewSet):
                 "access_token": token,
                 "token_type": "Bearer",
                 "expires_in": exp - iat,
+                "login_audit_id": login_audit_id,
+                "idle_timeout_seconds": session_idle_timeout,
                 "email": email,
                 "emp_id": emp_id,
                 "employee_id": employee_id,
@@ -362,6 +422,93 @@ class LoginViewSet(ViewSet):
             },
             status=status.HTTP_200_OK
         )
+
+    # ----------------------------------------------------------
+    # POST /api/v1/login/logout/
+    # ----------------------------------------------------------
+    @drf_action(
+        detail=False,
+        methods=["post"],
+        url_path="logout",
+        authentication_classes=[],
+    )
+    def logout(self, request):
+        """Close the caller's login session on its LoginAudit row.
+
+        Body: {"reason": "manual" | "idle_timeout" | "token_expired",
+               "last_activity_at": ISO timestamp (idle_timeout only)}
+        For an idle timeout the logout is stamped at last activity + idle
+        limit, i.e. when the auto-logout actually fell due.
+        """
+        payload = _session_payload(request)
+        audit_id = resolve_login_audit_id(payload) if payload else None
+        if not audit_id:
+            # No token, or no matching login row: nothing to close, and the
+            # client clears its own storage regardless.
+            return Response({"detail": "No active session"}, status=status.HTTP_200_OK)
+
+        reason = request.data.get("reason") or LoginAudit.LOGOUT_MANUAL
+        if reason not in dict(LoginAudit.LOGOUT_TYPE_CHOICES):
+            reason = LoginAudit.LOGOUT_MANUAL
+
+        now = timezone.now()
+        logout_at = now
+        if reason == LoginAudit.LOGOUT_IDLE_TIMEOUT and payload.get("idle_timeout"):
+            last_activity = _parse_client_time(request.data.get("last_activity_at"), now)
+            if last_activity:
+                logout_at = min(
+                    last_activity + timedelta(seconds=payload["idle_timeout"]),
+                    now,
+                )
+        elif reason == LoginAudit.LOGOUT_TOKEN_EXPIRED and payload.get("exp"):
+            logout_at = min(
+                datetime.fromtimestamp(payload["exp"], tz=dt_timezone.utc), now
+            )
+
+        audit = close_session(audit_id, reason, logout_at)
+        if audit is None:
+            return Response({"detail": "No active session"}, status=status.HTTP_200_OK)
+
+        return Response(
+            {
+                "login_audit_id": audit.unique_id,
+                "login_at": audit.timestamp,
+                "logout_at": audit.logout_at,
+                "logout_type": audit.logout_type,
+                "session_duration_seconds": audit.session_duration_seconds,
+                "used_hours": audit.used_hours,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # ----------------------------------------------------------
+    # POST /api/v1/login/heartbeat/
+    # ----------------------------------------------------------
+    @drf_action(
+        detail=False,
+        methods=["post"],
+        url_path="heartbeat",
+        authentication_classes=[],
+    )
+    def heartbeat(self, request):
+        """Record user activity so the server-side idle check stays in step
+        with the browser. Sent only while the user is actually interacting
+        (background polling does not count as activity)."""
+        payload = _session_payload(request)
+        audit_id = (payload or {}).get("login_audit_id")
+        if not audit_id:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        ended = validate_session(payload)
+        if ended:
+            return Response({"detail": ended}, status=status.HTTP_401_UNAUTHORIZED)
+
+        now = timezone.now()
+        touch_session(
+            audit_id,
+            _parse_client_time(request.data.get("last_activity_at"), now) or now,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     # ----------------------------------------------------------
     # GET /api/v1/login/my-permissions/
