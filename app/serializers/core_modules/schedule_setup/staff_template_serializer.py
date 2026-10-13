@@ -44,8 +44,8 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     )
 
 
-    driver_name = serializers.CharField(source="driver_id.employee_name", read_only=True)
-    operator_name = serializers.CharField(source="operator_id.employee_name", read_only=True)
+    driver_name = serializers.CharField(source="driver.employee_name", read_only=True)
+    operator_name = serializers.CharField(source="operator.employee_name", read_only=True)
 
     extra_operator_id = CommaSeparatedListField(
         child=serializers.CharField(),
