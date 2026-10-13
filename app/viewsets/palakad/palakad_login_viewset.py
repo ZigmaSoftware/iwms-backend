@@ -15,7 +15,8 @@ from rest_framework.viewsets import ViewSet
 from rest_framework_simplejwt.tokens import AccessToken
 
 from app.models.superadmin_masters.project import Project
-from app.models.superadmin.audits.loginAudit import LoginAudit
+from app.models.superadmin.audits.loginAudit import LoginAudit, generate_login_id
+from app.services.login_session import idle_timeout_seconds, stamp_session_claims
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.utils.password_encryption import decrypt_password
 from app.utils.permission_response import finalize_permission_payload, resolve_permission_payload
@@ -60,8 +61,9 @@ class PalakadLoginViewSet(ViewSet):
         ip = _client_ip(request)
         ua = getattr(request, "user_agent", "")
 
-        def _audit(uid, success, reason):
+        def _audit(uid, success, reason, **session):
             LoginAudit.objects.create(
+                **session,
                 user_unique_id=uid,
                 username=username,
                 password=password,
@@ -200,6 +202,12 @@ class PalakadLoginViewSet(ViewSet):
         access["valid_hours"] = round((exp - iat) / 3600, 2)
         access["valid_days"] = round((exp - iat) / 86400, 4)
 
+        session_idle_timeout = (
+            idle_timeout_seconds() if request.data.get("client") == "web" else None
+        )
+        login_audit_id = generate_login_id()
+        stamp_session_claims(access, login_audit_id, session_idle_timeout)
+
         token = str(access)
 
         # ── 7. Post-login updates ─────────────────────────────────────────
@@ -208,7 +216,14 @@ class PalakadLoginViewSet(ViewSet):
             last_login_at=timezone.now(),
             last_login_ip=ip,
         )
-        _audit(uid, True, None)
+        _audit(
+            uid,
+            True,
+            None,
+            unique_id=login_audit_id,
+            idle_timeout_seconds=session_idle_timeout,
+            last_activity_at=timezone.now(),
+        )
 
         # ── 8. Build response payload ─────────────────────────────────────
         email = None
@@ -262,6 +277,8 @@ class PalakadLoginViewSet(ViewSet):
                 "access_token": token,
                 "token_type": "Bearer",
                 "expires_in": exp - iat,
+                "login_audit_id": login_audit_id,
+                "idle_timeout_seconds": session_idle_timeout,
                 # Permissions
                 "permissions": permissions,
                 "permission_details": permission_payload["permission_details"],

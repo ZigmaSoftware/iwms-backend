@@ -19,3 +19,8 @@ SIMPLE_JWT = {
     # (their primary keys differ, but pk always resolves correctly).
     "USER_ID_FIELD": "pk",
 }
+
+# Web sessions are auto-logged-out after this many minutes with no user
+# activity (mouse / keyboard / touch). The value is sent to the browser in the
+# login response and also enforced server-side on every authenticated request.
+LOGIN_IDLE_TIMEOUT_SECONDS = int(os.getenv("LOGIN_IDLE_TIMEOUT_MINUTES", "40")) * 60
