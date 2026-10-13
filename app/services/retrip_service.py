@@ -7,13 +7,11 @@ inherits them from the source assignment automatically via
 `DailyTripAssignment.save()` / `CompanyScopedViewSet`.
 
 Carry-over rules differ by collection type:
-  * household — every remaining household moves to the continuation trip.
-  * bin       — the supervisor/admin picks which collection points move; the
-                rest are dropped for the day.
+  * household — the supervisor/admin can pick which household stops move.
+  * bin       — the supervisor/admin can pick which collection points move.
 """
 
 from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
@@ -145,6 +143,91 @@ def _create_continuation_assignment(
     return continuation
 
 
+def _replace_continuation_bins(continuation, pending_bins):
+    """Make continuation bin stops mirror the chosen source stops exactly.
+
+    The assignment create signal clones from the current TripPlan. That is a
+    useful default for ordinary assignments, but Re-Trip approval must carry
+    the source assignment's live pending rows. If the plan changed, its
+    catch-all expansion is stale, or the plan cannot expand right now, relying
+    on auto-cloned rows can silently create an empty continuation.
+    """
+    DailyTripCollectionPoint.objects.filter(
+        trip_assignment_id=continuation.unique_id
+    ).delete()
+
+    rows = []
+    for stop in pending_bins:
+        rows.append(
+            DailyTripCollectionPoint(
+                company_id=continuation.company_id,
+                project_id=continuation.project_id,
+                trip_assignment_id=continuation.unique_id,
+                collection_point_id=stop.collection_point_id,
+                zone_id=stop.zone_id,
+                ward_id=stop.ward_id,
+                panchayat_id=stop.panchayat_id,
+                bin_id=stop.bin_id,
+                sequence=stop.sequence,
+                is_collected=False,
+                status=DailyTripCollectionPoint.STATUS_PENDING,
+                created_by_id=getattr(stop, "created_by_id", None),
+            )
+        )
+    DailyTripCollectionPoint.objects.bulk_create(rows)
+
+
+def _replace_continuation_households(continuation, pending_households):
+    """Make continuation household stops mirror the chosen source stops."""
+    DailyTripHouseholdCollection.objects.filter(
+        trip_assignment_id=continuation.unique_id
+    ).delete()
+
+    rows = []
+    for stop in pending_households:
+        rows.append(
+            DailyTripHouseholdCollection(
+                company_id=continuation.company_id,
+                project_id=continuation.project_id,
+                trip_assignment_id=continuation.unique_id,
+                customer_id=stop.customer_id,
+                zone_id=stop.zone_id,
+                ward_id=stop.ward_id,
+                panchayat_id=stop.panchayat_id,
+                collection_type=stop.collection_type,
+                sequence=stop.sequence,
+                is_collected=False,
+                status=DailyTripHouseholdCollection.STATUS_PENDING,
+                created_by_id=getattr(stop, "created_by_id", None),
+            )
+        )
+    DailyTripHouseholdCollection.objects.bulk_create(rows)
+
+
+def _copy_selected_stops_to_continuation(
+    continuation, *, pending_bins, pending_households
+):
+    _replace_continuation_bins(continuation, pending_bins)
+    _replace_continuation_households(continuation, pending_households)
+
+    carried = len(pending_bins) + len(pending_households)
+    landed = (
+        DailyTripCollectionPoint.objects.filter(
+            trip_assignment_id=continuation.unique_id,
+            is_deleted=False,
+        ).count()
+        + DailyTripHouseholdCollection.objects.filter(
+            trip_assignment_id=continuation.unique_id,
+            is_deleted=False,
+        ).count()
+    )
+    if carried and landed != carried:
+        raise ValueError("Continuation trip could not be created with all selected stops.")
+    if not landed:
+        raise ValueError("Continuation trip would have no collection points.")
+    return landed
+
+
 @transaction.atomic
 def create_breakdown_continuation(
     source, *, vehicle_id, alt_staff_template_id, collection_point_ids=None
@@ -153,10 +236,9 @@ def create_breakdown_continuation(
     crewed by the replacement vehicle/driver/operator, carrying the same-day
     leftover stops.
 
-    Carry-over rules mirror Re-Trip: household trips always carry every
-    pending stop; bin trips carry only `collection_point_ids` (required —
-    the caller, e.g. the breakdown-verify screen, must let the supervisor
-    pick which collection points move).
+    Carry-over rules mirror Re-Trip: live pending source rows are copied
+    directly to the continuation. For bin trips, `collection_point_ids`
+    restricts which bin stops move; household stops carry when present.
     """
     pending_bins = list(source.pending_bin_stops())
     pending_households = list(source.pending_household_stops())
@@ -172,36 +254,17 @@ def create_breakdown_continuation(
     if not pending_bins and not pending_households:
         raise ValueError("There are no pending stops to carry over.")
 
-    carry_bin_keys = {
-        (stop.collection_point_id, stop.bin_id) for stop in pending_bins
-    }
-    carry_customer_ids = {stop.customer_id for stop in pending_households}
-
     continuation = _create_continuation_assignment(
         source,
         vehicle_id=vehicle_id,
         alt_staff_template_id=alt_staff_template_id,
         remarks=f"Vehicle Breakdown continuation of {source.unique_id}",
     )
-
-    cloned_bins = DailyTripCollectionPoint.objects.filter(
-        trip_assignment_id=continuation.unique_id
+    _copy_selected_stops_to_continuation(
+        continuation,
+        pending_bins=pending_bins,
+        pending_households=pending_households,
     )
-    if carry_bin_keys:
-        keep = Q()
-        for cp_id, bin_id in carry_bin_keys:
-            keep |= Q(collection_point_id=cp_id, bin_id=bin_id)
-        cloned_bins.exclude(keep).delete()
-    else:
-        cloned_bins.delete()
-
-    cloned_households = DailyTripHouseholdCollection.objects.filter(
-        trip_assignment_id=continuation.unique_id
-    )
-    if carry_customer_ids:
-        cloned_households.exclude(customer_id__in=carry_customer_ids).delete()
-    else:
-        cloned_households.delete()
 
     DailyTripCollectionPoint.objects.filter(
         unique_id__in=[stop.unique_id for stop in pending_bins]
@@ -231,9 +294,9 @@ def create_breakdown_continuation(
 def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=None):
     """Approve: end the old trip, open a continuation trip.
 
-    `collection_point_ids` are `DailyTripCollectionPoint.unique_id`s that
-    were ticked to carry over. Ignored for a household trip, where
-    everything carries. Returns the new assignment.
+    `collection_point_ids` are selected pending stop ids. They may refer to
+    `DailyTripCollectionPoint.unique_id` or
+    `DailyTripHouseholdCollection.unique_id`. Returns the new assignment.
     """
     source = request.assignment
 
@@ -256,41 +319,12 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
             stop for stop in pending_households if stop.unique_id in selected
         ]
 
-    # A bin stop is identified by the (collection point, bin) PAIR — one
-    # collection point can hold several bins, each its own stop.
-    carry_bin_keys = {
-        (stop.collection_point_id, stop.bin_id) for stop in pending_bins
-    }
-    carry_customer_ids = {stop.customer_id for stop in pending_households}
-
     continuation = _create_continuation_assignment(source)
-
-    # Prune the auto-cloned stops down to only what was carried over.
-    #
-    # Match on the pair, one Q per carried stop. A single
-    # `.exclude(collection_point_id__in=…, bin_id__in=…)` would be wrong
-    # twice over: exclude() negates the AND of its lookups, so a stop that
-    # shares a bin with a carried stop but a different collection point
-    # would survive; and `__in` never matches a NULL bin_id, so bin-less
-    # stops would leak too.
-    cloned_bins = DailyTripCollectionPoint.objects.filter(
-        trip_assignment_id=continuation.unique_id
+    carried = _copy_selected_stops_to_continuation(
+        continuation,
+        pending_bins=pending_bins,
+        pending_households=pending_households,
     )
-    if carry_bin_keys:
-        keep = Q()
-        for cp_id, bin_id in carry_bin_keys:
-            keep |= Q(collection_point_id=cp_id, bin_id=bin_id)
-        cloned_bins.exclude(keep).delete()
-    else:
-        cloned_bins.delete()
-
-    cloned_households = DailyTripHouseholdCollection.objects.filter(
-        trip_assignment_id=continuation.unique_id
-    )
-    if carry_customer_ids:
-        cloned_households.exclude(customer_id__in=carry_customer_ids).delete()
-    else:
-        cloned_households.delete()
 
     # Point the SOURCE stops that carried over at the continuation, so the
     # Daily Trip Plan / Daily Trip Log screens can show "Assigned to Next
@@ -327,9 +361,6 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
         new_assignment=continuation,
     )
 
-    # Count what actually landed on the continuation, not what we intended to
-    # carry — the plan may no longer contain a stop the driver still had.
-    carried = cloned_bins.count() + cloned_households.count()
     for staff in _crew_of(source):
         notify_staff(
             staff,
