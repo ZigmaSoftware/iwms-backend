@@ -1,5 +1,5 @@
 from rest_framework import filters, viewsets
-from app.models.common_masters.continent import Continent
+from app.models.superadmin.common_masters.continent import Continent
 from app.serializers.superadmin.common_masters.continent_serializer import ContinentSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin

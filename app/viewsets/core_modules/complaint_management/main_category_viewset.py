@@ -1,8 +1,8 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
-from app.models.grivences.main_category_citizenGrievance import MainCategory
+from app.models.core_modules.complaint_management.main_category_citizenGrievance import MainCategory
 from app.serializers.core_modules.complaint_management.maincategory_serializer import MainCategorySerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.filters import (

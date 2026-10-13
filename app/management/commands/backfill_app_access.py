@@ -18,19 +18,19 @@ given, so this is safe to re-run.
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
 
-from app.models.customers.customer_access_configuration import (
+from app.models.masters.customer_masters.customer_access_configuration import (
     CustomerAccessConfiguration,
 )
-from app.models.customers.customercreation import CustomerCreation
-from app.models.screen_managements.app_module import AppModule
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.staff_creations.staff_access_configuration import (
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.superadmin.screen_management.app_module import AppModule
+from app.models.superadmin.screen_management.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
+from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.utils.app_feature_grants import (
     CITIZEN_APP_SCREENS,
     ROLE_SCREEN_TEMPLATES,

@@ -1,6 +1,6 @@
 """API tests for Fuel endpoint — CRUD operations."""
 import pytest
-from app.models.transport_masters.fuel import Fuel
+from app.models.masters.transport_masters.fuel import Fuel
 
 BASE = "/api/v1/transport-masters/fuels/"
 
@@ -53,5 +53,5 @@ class TestFuelAPIUpdate:
 class TestFuelAPIDelete:
     def test_delete_returns_success(self, auth_client):
         fuel = Fuel.objects.create(fuel_type="Hydrogen")
-        resp = auth_client.delete(f"{BASE}{fuel.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{fuel.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

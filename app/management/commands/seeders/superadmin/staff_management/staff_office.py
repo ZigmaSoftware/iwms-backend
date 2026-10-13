@@ -1,18 +1,19 @@
 from django.utils import timezone
 from django.db.models import Q
 
-from app.models.staff_creations.department import Department
-from app.models.staff_creations.designation import Designation
+from app.models.superadmin.staff_management.department import Department
+from app.models.superadmin.staff_management.designation import Designation
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.zone import Zone
 from app.models.masters.ward import Ward
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.userType import UserType
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.role_management.userType import UserType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.utils.password_encryption import encrypt_password
+from app.management.commands.seeders.base import uid
 
 
 DEFAULT_STAFF_PASSWORD = "Staff123"
@@ -31,14 +32,14 @@ def backfill_missing_staff_ids():
 
 def _get_dept(company, project, code):
     return Department.objects.filter(
-        company_id=company, project_id=project,
+        company_id=uid(company), project_id=uid(project),
         department_code=code, is_deleted=False,
     ).first()
 
 
 def _get_desg(company, project, name, department):
     return Designation.objects.filter(
-        company_id=company, project_id=project,
+        company_id=uid(company), project_id=uid(project),
         designation_name=name, department_id=department,
         is_deleted=False,
     ).first()
@@ -62,12 +63,12 @@ class StaffOfficeSeeder:
                     "is_deleted": False,
                 },
             )
-        project = Project.objects.filter(company_id=company, is_deleted=False).first()
+        project = Project.objects.filter(company_id=uid(company), is_deleted=False).first()
         if not project:
             project_name = f"{company.name} Main Project"
             project, _ = Project.objects.get_or_create(
                 name=project_name,
-                company_id=company,
+                company_id=uid(company),
                 defaults={
                     "description": f"Default project for {company.name}",
                     "is_active": True,
@@ -136,8 +137,8 @@ class StaffOfficeSeeder:
                 "site_name": site,
                 "salary_type": salary,
                 "active_status": True,
-                "company_id": company,
-                "project_id": project,
+                "company_id": uid(company),
+                "project_id": uid(project),
                 "district_id": district,
                 "city_id": city,
                 "zone_id": zone,
@@ -174,8 +175,8 @@ class StaffOfficeSeeder:
             encrypted_password = encrypt_password(raw_password)
 
             staff = Staffcreation.objects.filter(
-                company_id=company,
-                project_id=project,
+                company_id=uid(company),
+                project_id=uid(project),
                 employee_name=staff_data["employee_name"],
             ).first()
 

@@ -1,7 +1,7 @@
 from rest_framework import filters
 from app.models.masters.block_panchayat_union import BlockPanchayatUnion
 from app.serializers.masters.block_panchayat_union_serializer import BlockPanchayatUnionSerializer
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 

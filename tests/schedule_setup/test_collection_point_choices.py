@@ -2,7 +2,7 @@
 import pytest
 from django.urls import reverse
 
-from app.models.schedule_masters.collection_point import Collection_point
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
 from app.serializers.core_modules.schedule_setup.collection_point_serializer import (
     CollectionPointSerializer,
 )

@@ -1,7 +1,7 @@
 """One Plant for Blue Planet / Greater Noida BP.
 
-Placed a short drive from the GNO collection point cluster (CP-GNO-01/02/03,
-clustered around 28.47/77.51) so the Static Route Map and Daily Trip
+The real Blue Planet Integrated Waste Management Facility site (polygon
+boundary + centroid point) so the Static Route Map and Daily Trip
 Tracking have a real, visually sensible route endpoint for every seeded
 trip in that project — never inserted into DailyTripCollectionPoint (see
 PlantViewSet's docstring): the map appends it to route geometry at
@@ -19,9 +19,23 @@ from app.models.superadmin_masters.project import Project
 
 COMPANY_NAME = "Blue Planet"
 PROJECT_NAME = "Blue Planet Integrated Waste Management"
-PLANT_NAME = "Greater Noida Municipal Waste Processing Yard"
-LATITUDE = "28.4900"
-LONGITUDE = "77.5350"
+PLANT_NAME = "Blue Planet Integrated Waste Management Facility"
+# Real site boundary of the facility. Connected in order to draw the plant
+# polygon; the plant's point location is the polygon's centroid.
+BOUNDARY_COORDINATES = [
+    {"latitude": 28.47645880924013, "longitude": 77.48256775824794},
+    {"latitude": 28.47745264244425, "longitude": 77.48167913595746},
+    {"latitude": 28.477017719240173, "longitude": 77.48090853086369},
+    {"latitude": 28.476197241897378, "longitude": 77.47955345309401},
+    {"latitude": 28.476029707545056, "longitude": 77.47970739900384},
+    {"latitude": 28.47508195738197, "longitude": 77.48061242912536},
+    {"latitude": 28.47451946330455, "longitude": 77.48107320560953},
+    {"latitude": 28.4748436520733, "longitude": 77.48164345613377},
+    {"latitude": 28.475226844216884, "longitude": 77.4826581422479},
+    {"latitude": 28.47563534978962, "longitude": 77.4833639687721},
+]
+LATITUDE = round(sum(p["latitude"] for p in BOUNDARY_COORDINATES) / len(BOUNDARY_COORDINATES), 6)
+LONGITUDE = round(sum(p["longitude"] for p in BOUNDARY_COORDINATES) / len(BOUNDARY_COORDINATES), 6)
 
 
 class PlantGNOSeeder(BaseSeeder):
@@ -47,6 +61,7 @@ class PlantGNOSeeder(BaseSeeder):
                 "name": PLANT_NAME,
                 "latitude": LATITUDE,
                 "longitude": LONGITUDE,
+                "boundary_coordinates": BOUNDARY_COORDINATES,
                 "is_active": True,
                 "is_deleted": False,
             },

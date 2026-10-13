@@ -1,14 +1,14 @@
 """Monthly waste collection analytics backed by confirmed DailyTripLog rows."""
 from rest_framework.response import Response
 
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
-from app.models.schedule_masters.monthly_weight_report import MonthlyWeightReport
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
+from app.models.reports.waste_reports.monthly_weight_report import MonthlyWeightReport
 from app.serializers.reports.waste_reports.monthly_weight_report_serializer import (
     MonthlyWeightReportSerializer,
 )
 from app.utils.waste_collection_report import build_waste_collection_report
 from app.viewsets.reports.waste_reports.daily_waste_comparison_viewset import _comma_values
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class MonthlyWasteComparisonReportViewSet(CompanyScopedViewSet):

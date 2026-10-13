@@ -1,8 +1,8 @@
 from django.db.models import Sum
 from rest_framework.response import Response
 from datetime import date
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.assets.weighbridge import WeighbridgeCheck
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.models.masters.waste_masters.weighbridge import WeighbridgeCheck
 from app.serializers.masters.waste_masters.weighbridge_serializer import WeighbridgeCheckSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 

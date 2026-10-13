@@ -7,7 +7,7 @@ requested/approved/rejected) should call `notify_staff` instead of creating a
 alert is always visible in-app (a `StaffNotification` row) even if the push
 never reaches the device (no token, app killed, Firebase not configured yet).
 """
-from app.models.notifications.staff_notification import StaffNotification
+from app.models.core_modules.notifications.staff_notification import StaffNotification
 from app.services.push_notification_service import send_push_to_staff
 
 

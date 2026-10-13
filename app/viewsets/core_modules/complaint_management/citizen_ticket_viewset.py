@@ -1,10 +1,7 @@
 """Citizen-facing complaint ticket endpoints for the mobile app.
 
 Ported from the government backend's `citizen_viewset.py`
-(`CitizenComplaintTicketViewSet`). The public/no-login grievance intake and
-the local-body picker actions live separately in `public_grievance_viewset.py`
-(this project has no Corporation/Municipality/TownPanchayat local bodies to
-offer, so its geo pickers are state/district/panchayat/zone/ward instead).
+(`CitizenComplaintTicketViewSet`).
 
 Registered under the `citizen/` URL group, which
 `ModulePermissionMiddleware.AUTH_ONLY_SUFFIXES` exempts from module
@@ -14,7 +11,7 @@ see/raise their own tickets.
 
 Routing/SLA auto-assignment now runs via
 `app.services.complaint_ticket_routing.apply_routing_and_sla` right after a
-ticket is created, same as the public grievance intake.
+ticket is created.
 """
 
 from django.db import transaction
@@ -24,8 +21,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from app.models.customers.customercreation import CustomerCreation
-from app.models.complaint_management import (
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.complaint_management import (
     ComplaintCategory,
     ComplaintFeedback,
     ComplaintPriority,
@@ -49,15 +46,8 @@ FEEDBACK_ELIGIBLE_STATUS_CODES = {"RESOLVED", "CLOSED", "REJECTED", "CANCELLED"}
 
 # Flat geo copied from the customer onto their ticket, mirroring this
 # project's Zone/Ward-under-Company/Project model (see `ticket.py`).
-# (ticket field name, customer FK attribute name) — the customer's panchayat
-# FK is named `panchayat_id` (not `panchayat`) unlike the others.
-CUSTOMER_GEO_FIELDS = (
-    ("state", "state"),
-    ("district", "district"),
-    ("panchayat", "panchayat_id"),
-    ("zone", "zone"),
-    ("ward", "ward"),
-)
+# Both sides store these as `<name>_id` CharFields holding the unique_id.
+CUSTOMER_GEO_FIELDS = ("state_id", "district_id", "panchayat_id", "zone_id", "ward_id")
 
 
 def _as_customer(request):
@@ -133,19 +123,16 @@ class CitizenComplaintTicketViewSet(viewsets.ViewSet):
             )
 
         description = str(data.get("description") or "").strip()
-        customer_geo = {
-            f"{ticket_field}_id": getattr(customer, f"{customer_attr}_id", None)
-            for ticket_field, customer_attr in CUSTOMER_GEO_FIELDS
-        }
+        customer_geo = {field: getattr(customer, field, None) for field in CUSTOMER_GEO_FIELDS}
         ticket = ComplaintTicket.objects.create(
-            company_id_id=getattr(customer, "company_id_id", None),
-            project_id_id=getattr(customer, "project_id_id", None),
-            customer=customer,
-            category=category,
-            subcategory=subcategory,
-            priority=priority,
-            status=status_obj,
-            source=source,
+            company_id=customer.company_id,
+            project_id=customer.project_id,
+            customer_id=customer.unique_id,
+            category_id=category.unique_id,
+            subcategory_id=getattr(subcategory, "unique_id", None),
+            priority_id=priority.unique_id,
+            status_id=status_obj.unique_id,
+            source_id=getattr(source, "unique_id", None),
             title=(description or category.category_name)[:120],
             description=description,
             location_text=str(data.get("location_text") or ""),
@@ -154,10 +141,10 @@ class CitizenComplaintTicketViewSet(viewsets.ViewSet):
             **customer_geo,
         )
         ComplaintStatusHistory.objects.create(
-            ticket=ticket,
-            from_status=None,
-            to_status=status_obj,
-            changed_by_customer=customer,
+            ticket_id=ticket.unique_id,
+            from_status_id=None,
+            to_status_id=status_obj.unique_id,
+            changed_by_customer_id=customer.unique_id,
             changed_by_system=False,
             remarks="Raised via mobile app",
             visible_to_citizen=True,
@@ -184,9 +171,9 @@ class CitizenComplaintTicketViewSet(viewsets.ViewSet):
                 status=http_status.HTTP_400_BAD_REQUEST,
             )
         feedback, _ = ComplaintFeedback.objects.update_or_create(
-            ticket=ticket,
+            ticket_id=ticket.unique_id,
             defaults={
-                "customer": customer,
+                "customer_id": customer.unique_id,
                 "rating": request.data.get("rating"),
                 "feedback_text": request.data.get("feedback_text"),
                 "is_issue_solved": bool(request.data.get("is_issue_solved", False)),

@@ -1,5 +1,5 @@
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.staff_creations.loginAudit import LoginAudit
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.models.superadmin.audits.loginAudit import LoginAudit
 from app.serializers.superadmin.audits.login_audit_serializer import LoginAuditSerializer
 from app.utils.filters import (
     ModelFieldQueryFilter,

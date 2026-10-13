@@ -2,16 +2,16 @@ from rest_framework import serializers
 
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.assets.bins import Bins
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
-from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.masters.waste_masters.bins import Bins
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
+from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 from app.services.daily_trip_generation import ensure_assignment_collection_points
 from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
@@ -263,8 +263,8 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         ]
 
     def get_trip_events(self, obj):
-        from app.models.schedule_masters.trip_delay_report import TripDelayReport
-        from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
+        from app.models.core_modules.daily_operations.trip_delay_report import TripDelayReport
+        from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 
         events = []
         for report in TripDelayReport.objects.filter(
@@ -292,7 +292,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         return sorted(events, key=lambda event: str(event.get("at") or ""))
 
     def get_trip_log_summary(self, obj):
-        from app.models.schedule_masters.daily_trip_log import DailyTripLog
+        from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 
         log = DailyTripLog.objects.filter(
             trip_assignment_id=obj.unique_id, is_deleted=False,
@@ -320,7 +320,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         return obj.trip_count()
 
     def get_retrip_info(self, obj):
-        from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
+        from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 
         latest = TripRetripRequest.objects.filter(
             assignment_id=obj.unique_id, is_deleted=False
@@ -334,7 +334,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         }
 
     def get_breakdown_info(self, obj):
-        from app.models.schedule_masters.vehicle_breakdown import VehicleBreakdown
+        from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown
 
         bd = VehicleBreakdown.objects.filter(
             trip_assignment_id=obj.unique_id, is_deleted=False,
@@ -356,7 +356,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         }
 
     def get_trip_plan(self, obj):
-        from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
+        from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
         plan = obj.trip_plan
         if not plan:
             return None
@@ -543,7 +543,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         ]
 
     def get_collection_types(self, obj):
-        from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
+        from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
         plan = obj.trip_plan
         if not plan:
             return {"has_bin": False, "has_household": False}
@@ -560,8 +560,8 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         return DailyTripCollectionPointInlineSerializer(stops, many=True).data
 
     def get_household_collection_points(self, obj):
-        from app.models.customers.customercreation import CustomerCreation
-        from app.models.customers.wastecollection import WasteCollection
+        from app.models.masters.customer_masters.customercreation import CustomerCreation
+        from app.models.core_modules.daily_operations.wastecollection import WasteCollection
 
         stops = obj.trip_household_collections.filter(is_deleted=False).order_by("sequence")
         customer_ids = {stop.customer_id for stop in stops if stop.customer_id}

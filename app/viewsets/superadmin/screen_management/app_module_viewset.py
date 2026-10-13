@@ -2,7 +2,7 @@ from django.core.cache import cache
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 
-from app.models.screen_managements.app_module import AppModule
+from app.models.superadmin.screen_management.app_module import AppModule
 from app.serializers.superadmin.screen_management.app_module_serializer import (
     AppModuleSerializer,
 )

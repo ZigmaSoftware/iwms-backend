@@ -1,11 +1,11 @@
-from app.models.schedule_masters.trip_plan_collection_point import (
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import (
     TripPlanCollectionPoint,
 )
 from app.serializers.core_modules.schedule_setup.trip_plan_collection_point_serializer import (
     TripPlanCollectionPointSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class TripPlanCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):

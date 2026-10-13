@@ -1,7 +1,7 @@
-from app.management.commands.seeders.base import BaseSeeder
-from app.models.schedule_masters.alternative_staff_template import AlternativeStaffTemplate
-from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.management.commands.seeders.base import BaseSeeder, uid
+from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
+from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 
@@ -30,7 +30,7 @@ class AlternativeStaffTemplateSeeder(BaseSeeder):
         )
         project, _ = Project.objects.get_or_create(
             name=f"{company.name} Main Project",
-            company_id=company,
+            company_id=uid(company),
             defaults={"description": f"Default project for {company.name}", "is_active": True, "is_deleted": False},
         )
 

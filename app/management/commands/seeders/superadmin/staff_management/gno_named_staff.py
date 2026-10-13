@@ -16,27 +16,29 @@ username.
 
 from django.utils import timezone
 
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.userType import UserType
-from app.models.screen_managements.companyuserscreenpermission import (
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.role_management.userType import UserType
+from app.models.superadmin.screen_management.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
-from app.models.staff_creations.department import Department
-from app.models.staff_creations.designation import Designation
-from app.models.staff_creations.staff_access_configuration import (
+from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.models.superadmin.staff_management.department import Department
+from app.models.superadmin.staff_management.designation import Designation
+from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
 
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.password_encryption import encrypt_password
+from app.utils.permission_catalog import SECTION_MODULES
 
 
 class GnoNamedStaffSeeder(BaseSeeder):
@@ -55,7 +57,7 @@ class GnoNamedStaffSeeder(BaseSeeder):
     def _get_role(self, staff_type, role_name):
         role, _ = StaffUserType.objects.get_or_create(
             name=role_name,
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id,
             defaults={"is_active": True, "is_deleted": False},
         )
         return role
@@ -87,9 +89,9 @@ class GnoNamedStaffSeeder(BaseSeeder):
             "employee_name": employee_name,
             "username": username,
             "office_email": f"{username.lower()}@blueplanet.local",
-            "staffusertype_id": role,
-            "department_id": department,
-            "designation_id": designation,
+            "staffusertype_id": uid(role),
+            "department_id": uid(department),
+            "designation_id": uid(designation),
             # Denormalised labels the list screens read.
             "department": department.department_name if department else None,
             "designation": designation.designation_name if designation else None,
@@ -137,14 +139,14 @@ class GnoNamedStaffSeeder(BaseSeeder):
 
         def _dept(code):
             return Department.objects.filter(
-                company_id=company, project_id=project,
+                company_id=uid(company), project_id=uid(project),
                 department_code=code, is_deleted=False,
             ).first()
 
         def _desg(name, department):
             return Designation.objects.filter(
-                company_id=company, project_id=project,
-                designation_name=name, department_id=department,
+                company_id=uid(company), project_id=uid(project),
+                designation_name=name, department_id=uid(department),
                 is_deleted=False,
             ).first()
 
@@ -166,13 +168,13 @@ class GnoNamedStaffSeeder(BaseSeeder):
             return
 
         base = {
-            "user_type_id": staff_type,
-            "company_id": company,
-            "project_id": project,
-            "district_id": District.objects.filter(is_deleted=False).first(),
-            "city_id": City.objects.filter(is_deleted=False).first(),
-            "zone_id": Zone.objects.filter(is_deleted=False).first(),
-            "ward_id": Ward.objects.filter(is_deleted=False).first(),
+            "user_type_id": uid(staff_type),
+            "company_id": uid(company),
+            "project_id": uid(project),
+            "district_id": uid(District.objects.filter(project_id=uid(project), is_deleted=False).first()),
+            "city_id": uid(City.objects.filter(project_id=uid(project), is_deleted=False).first()),
+            "zone_id": uid(Zone.objects.filter(project_id=uid(project), is_deleted=False).first()),
+            "ward_id": uid(Ward.objects.filter(project_id=uid(project), is_deleted=False).first()),
         }
 
         # 1. Project admin — top of the chain, so no staff head of their own.
@@ -235,7 +237,7 @@ class GnoNamedStaffSeeder(BaseSeeder):
 
 
 class MeghaProjectAdminPermissionSeeder(BaseSeeder):
-    """Grant Megha the full permission catalog for her company/project.
+    """Grant Megha her company/project's permission catalog.
 
     Staff authorization resolves through StaffAccessConfiguration ->
     StaffAccessConfigurationPermission (see utils/permission_response.py
@@ -243,11 +245,18 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
     the company catalog only defines what *may* be granted. As project admin
     Megha gets every action of that catalog, mirrored one-for-one, and the
     config is scoped to her project so column permissions narrow with it.
+
+    She is in charge of one Blue Planet project, not the platform, so from
+    the "super-admin" section she gets Staff Management only — no company or
+    project creation, screen/role management, global masters or audits.
     """
 
     name = "megha-project-admin-permissions"
 
     USERNAME = "megha"
+
+    # The only "super-admin" section modules a project admin is given.
+    SUPERADMIN_MODULES = ("staff-creations",)
 
     def run(self):
         staff = Staffcreation.objects.filter(username=self.USERNAME).first()
@@ -265,12 +274,19 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
 
         catalog = list(
             CompanyUserScreenPermission.objects.filter(
-                company_id=company,
-                project_id=project,
+                company_id=uid(company),
+                project_id=uid(project),
                 is_active=True,
                 is_deleted=False,
             )
         )
+        excluded = set(
+            MainScreen.objects.filter(
+                mainscreen_name__in=set(SECTION_MODULES["super-admin"])
+                - set(self.SUPERADMIN_MODULES),
+            ).values_list("unique_id", flat=True)
+        )
+        catalog = [e for e in catalog if e.mainscreen_id not in excluded]
         if not catalog:
             company_name = getattr(staff.company, "name", company)
             project_name = getattr(staff.project, "name", project)
@@ -283,7 +299,7 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
         config, created = StaffAccessConfiguration.objects.update_or_create(
             staff_id=staff.staff_unique_id,
             defaults={
-                "company_id": company,
+                "company_id": uid(company),
                 "is_active": True,
                 "is_deleted": False,
             },
@@ -321,8 +337,9 @@ class MeghaProjectAdminPermissionSeeder(BaseSeeder):
             )
             granted += 1
 
-        # Drop grants that are no longer in the catalog so a re-run cannot
-        # leave Megha holding permissions the company no longer defines.
+        # Drop grants that are no longer in the catalog (or no longer hers,
+        # like the super-admin modules above) so a re-run cannot leave Megha
+        # holding permissions she should not have.
         # The triple has to be compared as a whole — three independent __in
         # filters would keep any row whose columns each appear in some other
         # valid combination.

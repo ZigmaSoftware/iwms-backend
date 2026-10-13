@@ -1,6 +1,6 @@
 """API tests for Continent endpoint — CRUD operations."""
 import pytest
-from app.models.common_masters.continent import Continent
+from app.models.superadmin.common_masters.continent import Continent
 
 BASE = "/api/v1/common-masters/continents/"
 
@@ -55,5 +55,5 @@ class TestContinentAPIUpdate:
 @pytest.mark.django_db
 class TestContinentAPIDelete:
     def test_delete_returns_success(self, auth_client, continent):
-        resp = auth_client.delete(f"{BASE}{continent.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{continent.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

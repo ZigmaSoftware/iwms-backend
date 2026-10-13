@@ -12,8 +12,8 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 
-from app.models.customers.customercreation import CustomerCreation
-from app.models.complaint_management import (
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.complaint_management import (
     ComplaintAddressChangeRequest,
     ComplaintAssignmentHistory,
     ComplaintAttachment,
@@ -28,6 +28,10 @@ from app.models.complaint_management import (
     ComplaintStatusHistory,
     ComplaintTicket,
     ComplaintTicketExtraDetail,
+)
+from app.models.core_modules.complaint_management.masters import (
+    ComplaintCategory,
+    ComplaintSubcategory,
 )
 
 
@@ -90,12 +94,36 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
         # Derived in `_apply_derived_defaults` when omitted, so the staff form
         # need not ask for them. Still accepted if a caller sends one.
         extra_kwargs = {
-            "priority": {"required": False},
-            "status": {"required": False},
+            "priority_id": {"required": False},
+            "status_id": {"required": False},
         }
 
+    # The ticket's references are `<name>_id` CharFields, but the staff
+    # wizard (and older clients) post them under the relation name
+    # (`category`, `status`, `ward`, ...). Accept either spelling so those
+    # values aren't silently dropped by `fields = "__all__"`.
+    RELATION_ALIASES = (
+        "source", "customer", "language", "category", "subcategory",
+        "priority", "status", "state", "district", "panchayat", "zone",
+        "ward", "assigned_user", "assigned_staff", "escalated_to_staff",
+        "parent_ticket",
+    )
+
+    def to_internal_value(self, data):
+        # A plain dict rather than QueryDict.copy(), which deep-copies any
+        # uploaded files on a multipart post.
+        data = dict(data.items())
+        for name in self.RELATION_ALIASES:
+            id_field = f"{name}_id"
+            if name in data and id_field not in data:
+                value = data.get(name)
+                if isinstance(value, dict):
+                    value = value.get("unique_id")
+                data[id_field] = value or None
+        return super().to_internal_value(data)
+
     def get_reporter_type(self, obj):
-        return "Customer" if obj.customer_id or self._matched_customer_name(obj) else "Public Grievance"
+        return "Customer" if obj.customer_id or self._matched_customer_name(obj) else "Internal"
 
     def get_reporter_name(self, obj):
         return (
@@ -138,13 +166,13 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
         for field, value in values.items():
             cleaned = str(value or "").strip()
             row = ComplaintTicketExtraDetail.objects.filter(
-                ticket=ticket,
+                ticket_id=ticket.unique_id,
                 field_key=field,
                 is_deleted=False,
             ).first()
             if cleaned:
                 ComplaintTicketExtraDetail.objects.update_or_create(
-                    ticket=ticket,
+                    ticket_id=ticket.unique_id,
                     field_key=field,
                     is_deleted=False,
                     defaults={
@@ -161,27 +189,33 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
     def _apply_derived_defaults(self, validated_data):
         """Fill priority/status when the caller did not send them.
 
-        Both are non-null `PROTECT` FKs on the model, but neither is a
+        Every ticket needs both, but neither is a
         decision the person raising a ticket should have to make: priority
-        comes from the chosen subcategory or category (the same precedence
-        `PublicGrievanceViewSet` uses), and a new ticket is always SUBMITTED.
+        comes from the chosen subcategory or category, and a new ticket is
+        always SUBMITTED.
         Leaving them out of the staff form removes two required pickers whose
         answer is already implied by the category.
         """
-        if not validated_data.get("priority"):
-            subcategory = validated_data.get("subcategory")
-            category = validated_data.get("category")
-            validated_data["priority"] = (
-                getattr(subcategory, "default_priority", None)
-                or getattr(category, "default_priority", None)
-                or ComplaintPriority.objects.filter(
-                    priority_code="P3", is_deleted=False
-                ).first()
+        if not validated_data.get("priority_id"):
+            subcategory = ComplaintSubcategory.objects.filter(
+                unique_id=validated_data.get("subcategory_id") or None
+            ).first()
+            category = ComplaintCategory.objects.filter(
+                unique_id=validated_data.get("category_id") or None
+            ).first()
+            fallback = ComplaintPriority.objects.filter(
+                priority_code="P3", is_deleted=False
+            ).first()
+            validated_data["priority_id"] = (
+                getattr(subcategory, "default_priority_id", None)
+                or getattr(category, "default_priority_id", None)
+                or getattr(fallback, "unique_id", None)
             )
-        if not validated_data.get("status"):
-            validated_data["status"] = ComplaintStatus.objects.filter(
+        if not validated_data.get("status_id"):
+            submitted = ComplaintStatus.objects.filter(
                 status_code="SUBMITTED", is_deleted=False
             ).first()
+            validated_data["status_id"] = getattr(submitted, "unique_id", None)
         return validated_data
 
     def create(self, validated_data):
@@ -205,7 +239,6 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
         }
         incident_type = (values.get("incident_type") or "").strip().lower()
         if not incident_type:
-            source_code = (getattr(obj.source, "source_code", "") or "").lower()
             searchable = " ".join(
                 str(value or "").lower()
                 for value in (
@@ -216,17 +249,14 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
                     getattr(getattr(obj.category, "module", None), "module_name", ""),
                 )
             )
-            if source_code == "public_grievance":
-                incident_type = "public"
-            else:
-                incident_type = next(
-                    (
-                        kind
-                        for kind in ("driver", "operator", "vehicle", "trip")
-                        if kind in searchable
-                    ),
-                    "other",
-                )
+            incident_type = next(
+                (
+                    kind
+                    for kind in ("driver", "operator", "vehicle", "trip")
+                    if kind in searchable
+                ),
+                "other",
+            )
         return {
             "incident_type": incident_type,
             "trip_reference": values.get("trip_reference") or "",
@@ -269,7 +299,7 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
     def get_escalation_level_name(self, obj):
         """Human role name (e.g. "Supervisor") for the ticket's current
         `escalation_level`, resolved from the project's staff hierarchy."""
-        from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
+        from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
 
         if not obj.project_id:
             return None

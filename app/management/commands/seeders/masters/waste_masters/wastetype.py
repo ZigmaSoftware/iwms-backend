@@ -1,5 +1,5 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 

@@ -1,7 +1,7 @@
 """Complaint ticket sub-categories.
 
 The one master in this group that never had a seeder — `sub_category_seeder.py`
-seeds the LEGACY `app.models.grivences.SubCategory`, a different table used by
+seeds the LEGACY `app.models.core_modules.complaint_management.sub_category_citizenGrievance.SubCategory`, a different table used by
 the pre-rename grievance screens, so `ComplaintSubcategory` stayed empty and
 the Complaint Types "Sub Category" tab had nothing to list.
 
@@ -17,7 +17,7 @@ and AFTER `ComplaintPrioritySeeder` — see TICKET_SEEDERS ordering in
 """
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.complaint_management import (
+from app.models.core_modules.complaint_management import (
     ComplaintCategory,
     ComplaintPriority,
     ComplaintSubcategory,

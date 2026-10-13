@@ -1,10 +1,10 @@
 from rest_framework import filters
 from rest_framework import viewsets
-from app.models.staff_creations.department import Department
+from app.models.superadmin.staff_management.department import Department
 from app.serializers.superadmin.staff_management.department_serializer import DepartmentSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class DepartmentViewSet(AuditViewSetMixin, viewsets.ModelViewSet):

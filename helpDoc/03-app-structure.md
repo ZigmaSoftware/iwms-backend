@@ -8,7 +8,7 @@ fit together, so you know where to put a new feature.
 Adding "Bins" to the system meant touching five folders, in this order:
 
 ```text
-app/models/waste_types/bins.py            1. the table
+app/models/masters/waste_masters/bins.py  1. the table
 app/serializers/.../bins.py               2. JSON in/out
 app/viewsets/.../bins.py                  3. the endpoint behaviour
 app/urls/base_urls.py                     4. one register_group line
@@ -23,26 +23,38 @@ miss if you start from a blank file.
 
 ## `app/models/` — the database tables
 
-Grouped by domain, one folder per group, mirroring the URL groups:
+Grouped the same way as the admin sidebar and the frontend's
+`src/pages/admin/modules/`, so a screen's model, serializer and viewset sit in
+the same relative folder:
 
 ```text
 models/
-├── superadmin_masters/   company, project, developer
-├── common_masters/       continent, country, state
-├── masters/              district, city, zone, ward, panchayat, department, ...
-├── waste_types/          property, subproperty, waste type, bins
-├── role_assigns/         user types
-├── user_creations/       staff, staff office/personal details
-├── transport_masters/    vehicle, vehicle type, fuel
-├── schedule_masters/     collection points, trip plans, daily trips
-├── customers/            customer creation, feedback, charge rules
-├── complaint_management/ tickets, categories, SLA rules
-├── grivences/            grievance records (legacy naming)
-├── screen_managements/   screen and column permissions
-├── notifications/        staff notifications
-├── audits/               trip audits and exception logs
-└── reports/              waste comparison reports
+├── superadmin_masters/          company, project, auth user
+├── superadmin/
+│   ├── common_masters/          continent, country, state
+│   ├── screen_management/       main/user screens, screen + column permissions, app modules
+│   ├── role_management/         user types, staff/contractor user types, project staff hierarchy
+│   ├── staff_management/        staff, department, designation, staff access configuration
+│   └── audits/                  login audit, audit log, permission + staff template audits
+├── masters/                     district, city, zone, ward, panchayat, plant, ...
+│   ├── leader_management/       panchayat / district leader logins
+│   ├── waste_masters/           property, subproperty, bins, weighbridge
+│   ├── transport_masters/       vehicle, vehicle type, fuel
+│   └── customer_masters/        customers, customer access configuration, password reset OTP
+├── core_modules/
+│   ├── schedule_setup/          staff templates, collection points, trip plans
+│   ├── daily_operations/        daily trips + stops, bin events, detours, breakdowns,
+│   │                            delays, retrips, waste collections, scheduler config
+│   ├── complaint_management/    tickets, categories, SLA rules (+ legacy grievance models)
+│   ├── attendance/              face-recognition attendance
+│   └── notifications/           staff notifications
+├── reports/waste_reports/       daily / monthly waste comparison
+└── waste_collection_bluetooth/  Bluetooth weighing-device capture
 ```
+
+Moving a model file never needs a migration: the app label and `db_table`
+stay the same. Old migrations do import each model's id generator by module
+path, so update those import lines in `app/migrations/` along with the move.
 
 Two shared pieces almost every model uses, both in `app/utils/`:
 
@@ -69,7 +81,7 @@ Also mirrors the groups, plus a few audience-specific folders:
 
 | Folder | Purpose |
 |---|---|
-| `masters/`, `superadminmasters/`, `core_modules/` | Standard CRUD per domain |
+| `superadmin/`, `superadmin_masters/`, `masters/`, `core_modules/` | Standard CRUD per domain |
 | `login/`, `auth/`, `citizen_login/` | Desktop login, token issue, citizen login |
 | `dashboard/`, `district/`, `localbody/`, `palakad/` | Aggregated read-only dashboard data per audience |
 | `operator_mobile/` | Endpoints the driver/operator mobile screens call |
@@ -110,6 +122,40 @@ router.register_group("masters", "villages", VillageViewSet)
 Screen- and column-level permissions are *data*, not code: they live in the
 `screen_managements` tables and are seeded by
 `seeders/superadmin/screen_management/permissions.py`.
+
+Which modules and screens exist is defined once, in
+`app/utils/permission_catalog.py`. The seeder, the middleware and the
+frontend sidebar (through the generated `permissionCatalog.ts`) all read it.
+After editing it, run `python manage.py sync_permission_catalog` and then
+`seed --group screen-managements`. Two `screen()` options decide how a
+screen is granted:
+
+- `actions=("view",)` limits the actions the seeder offers. A read-only
+  page uses it, so it offers view only. On its next run the seeder
+  soft-deletes any other action already granted on that screen.
+- `superadmin_only=True` lists the screen in the permission tree but never
+  seeds it into a company or project's permissions. Its routes go into
+  `PLATFORM_SUPERADMIN_ROUTES`. The middleware refuses those routes to
+  everyone except a platform super admin (a superuser with no company),
+  whatever has been granted.
+
+The two dashboards use these options:
+
+| Screen | Route | Who opens it |
+|---|---|---|
+| `dashboard / admin-dashboard` | `dashboards/admin/` | Anyone granted view; data is pinned to their company and allowed projects |
+| `dashboard / superadmin-dashboard` | `dashboards/superadmin/` | Platform super admin only (`superadmin_only`), because it shows every company |
+
+The permission seeder also grants view on the Admin Dashboard to the Blue
+Planet Greater Noida project ("Blue Planet Integrated Waste Management"),
+and to every staff access configuration scoped to that project.
+
+Megha, that project's admin, is seeded by `MeghaProjectAdminPermissionSeeder`
+(`seeders/superadmin/staff_management/gno_named_staff.py`). She gets her
+project's full permission catalog except the platform modules: from the
+Super Admin section she gets Staff Management only. She cannot create
+companies or projects, or manage screens, roles, the global masters or
+audits. A re-run removes any of those grants she already holds.
 
 ## `app/services/` — the real business logic
 

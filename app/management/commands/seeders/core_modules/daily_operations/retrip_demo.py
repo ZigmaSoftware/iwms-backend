@@ -4,14 +4,15 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import DailyTripCollectionPoint
-from app.models.schedule_masters.daily_trip_household_collection import (
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
+from app.models.core_modules.daily_operations.daily_trip_household_collection import (
     DailyTripHouseholdCollection,
 )
-from app.models.customers.wastecollection import WasteCollection
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_retrip_request import TripRetripRequest
+from app.models.core_modules.daily_operations.wastecollection import WasteCollection
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.services import retrip_service
 from app.services.daily_trip_generation import generate_assignment_for_plan
 
@@ -142,7 +143,7 @@ class RetripDemoSeeder(BaseSeeder):
                 continue
             # Resolve driver_id and operator_id from the staff_template
             # (both are CharField unique_ids on StaffTemplate, not FKs)
-            from app.models.schedule_masters.staff_template import StaffTemplate
+            from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
             tmpl = StaffTemplate.objects.filter(
                 unique_id=plan.staff_template_id,
                 is_deleted=False,
@@ -245,13 +246,13 @@ class RetripDemoSeeder(BaseSeeder):
             if stop.is_collected:
                 continue
             if WasteCollection.objects.filter(
-                customer=stop.customer_id, trip_assignment_id=assignment
+                customer_id=stop.customer_id, trip_assignment_id=assignment.unique_id
             ).exists():
                 continue
             wet, dry, mixed, sanitary = WASTE_PRESETS[index % len(WASTE_PRESETS)]
             WasteCollection.objects.create(
-                customer=stop.customer_id,
-                trip_assignment_id=assignment,
+                customer_id=stop.customer_id,
+                trip_assignment_id=assignment.unique_id,
                 collection_date=assignment.trip_date,
                 wet_waste=wet,
                 dry_waste=dry,
@@ -263,6 +264,24 @@ class RetripDemoSeeder(BaseSeeder):
         return made
 
     # ------------------------------------------------------------------
+    def _resolve_actor(self, plan):
+        """supervisor_id/operator_id are plain CharFields (staff_unique_id
+        strings), but retrip_service.proceed_to_next_trip needs the actual
+        Staffcreation row — it reads .staff_unique_id off whatever is passed
+        as `actor`."""
+        actor_id = plan.supervisor_id or plan.staff_template_id.operator_id
+        if not actor_id:
+            return None
+        return Staffcreation.objects.filter(staff_unique_id=actor_id).first()
+
+    @staticmethod
+    def _resolve_staff(staff_unique_id):
+        """driver_id/supervisor_id are plain staff_unique_id strings, but
+        retrip_service reads .staff_unique_id off the staff it is given."""
+        if not staff_unique_id:
+            return None
+        return Staffcreation.objects.filter(staff_unique_id=staff_unique_id).first()
+
     def _run_proceed_next_trip_scenario(self, plan, today, *, is_household):
         assignment, _created = self._get_or_create_today_assignment(plan, today)
         if assignment.status in (DailyTripAssignment.STATUS_COMPLETED, DailyTripAssignment.STATUS_CANCELLED):
@@ -274,7 +293,7 @@ class RetripDemoSeeder(BaseSeeder):
             collected = self._partially_collect_household_stops(assignment)
             if collected == 0 and not assignment.has_pending_stops():
                 return f"{assignment.unique_id} has no household stops to demo"
-            actor = plan.supervisor_id or plan.staff_template_id.operator_id
+            actor = self._resolve_actor(plan)
             _request, continuation = retrip_service.proceed_to_next_trip(
                 assignment, actor=actor, collection_point_ids=None, remarks=REMARKS,
             )
@@ -282,7 +301,7 @@ class RetripDemoSeeder(BaseSeeder):
             collected, pending_ids = self._partially_collect_bin_stops(assignment)
             if not pending_ids:
                 return f"{assignment.unique_id} has no pending collection points to demo"
-            actor = plan.supervisor_id or plan.staff_template_id.operator_id
+            actor = self._resolve_actor(plan)
             _request, continuation = retrip_service.proceed_to_next_trip(
                 assignment, actor=actor, collection_point_ids=pending_ids, remarks=REMARKS,
             )
@@ -304,7 +323,7 @@ class RetripDemoSeeder(BaseSeeder):
         if not pending_ids:
             return f"{assignment.unique_id} has no pending collection points to demo"
 
-        driver = assignment.staff_template.driver_id if assignment.staff_template else None
+        driver = self._resolve_staff(assignment.staff_template.driver_id if assignment.staff_template else None)
         retrip_service.request_retrip(assignment, requested_by=driver, reason=REMARKS)
         return f"{assignment.unique_id} (bin, {collected} collected) -> Pending Re-Trip request raised"
 
@@ -322,8 +341,8 @@ class RetripDemoSeeder(BaseSeeder):
         if not pending_ids:
             return f"{assignment.unique_id} has no pending collection points to demo"
 
-        driver = assignment.staff_template.driver_id if assignment.staff_template else None
-        supervisor = plan.supervisor_id
+        driver = self._resolve_staff(assignment.staff_template.driver_id if assignment.staff_template else None)
+        supervisor = self._resolve_staff(plan.supervisor_id)
         request = retrip_service.request_retrip(assignment, requested_by=driver, reason=REMARKS)
         retrip_service.reject_retrip(request, reviewed_by=supervisor, remarks="Please finish the remaining stops today.")
         return f"{assignment.unique_id} (bin, {collected} collected) -> Rejected Re-Trip request"

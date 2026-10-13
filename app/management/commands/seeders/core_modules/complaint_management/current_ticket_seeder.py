@@ -19,8 +19,8 @@ unassigned.
 """
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.customers.customercreation import CustomerCreation
-from app.models.complaint_management import (
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.complaint_management import (
     ComplaintCategory,
     ComplaintPriority,
     ComplaintSource,
@@ -28,7 +28,7 @@ from app.models.complaint_management import (
     ComplaintSubcategory,
     ComplaintTicket,
 )
-from app.models.complaint_management.transactions import ComplaintStatusHistory
+from app.models.core_modules.complaint_management.transactions import ComplaintStatusHistory
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.services.complaint_ticket_routing import apply_routing_and_sla
@@ -105,7 +105,7 @@ class ComplaintCurrentTicketSeeder(BaseSeeder):
         company = Company.objects.filter(name=self.COMPANY_NAME, is_deleted=False).first()
         project = (
             Project.objects.filter(
-                name=self.PROJECT_NAME, company_id=company, is_deleted=False
+                name=self.PROJECT_NAME, company_id=company.unique_id, is_deleted=False
             ).first()
             if company
             else None
@@ -139,7 +139,7 @@ class ComplaintCurrentTicketSeeder(BaseSeeder):
             title, description, profile_name, wa_phone, customer_contact_no,
         ) in self.TICKETS:
             if ComplaintTicket.objects.filter(
-                source=internal_source, title=title, is_deleted=False
+                source_id=internal_source.unique_id, title=title, is_deleted=False
             ).exists():
                 continue
 
@@ -159,29 +159,29 @@ class ComplaintCurrentTicketSeeder(BaseSeeder):
             )
 
             ticket = ComplaintTicket.objects.create(
-                category=category,
-                subcategory=subcategory,
-                priority=priority,
-                status=submitted,
-                source=internal_source,
+                category_id=category.unique_id,
+                subcategory_id=subcategory.unique_id if subcategory else None,
+                priority_id=priority.unique_id if priority else None,
+                status_id=submitted.unique_id,
+                source_id=internal_source.unique_id,
                 title=title,
                 description=description,
                 profile_name=profile_name,
                 wa_phone=wa_phone,
-                customer=customer,
+                customer_id=customer.unique_id if customer else None,
                 # Pinned explicitly rather than derived from the customer —
                 # every ticket this seeder creates belongs to this one
                 # company/project regardless of the customer's own tenancy.
-                company_id=company,
-                project_id=project,
+                company_id=company.unique_id,
+                project_id=project.unique_id,
                 zone_id=getattr(customer, "zone_id", None),
                 ward_id=getattr(customer, "ward_id", None),
                 location_text=getattr(customer, "address", "") or "",
             )
             ComplaintStatusHistory.objects.create(
-                ticket=ticket,
-                from_status=None,
-                to_status=submitted,
+                ticket_id=ticket.unique_id,
+                from_status_id=None,
+                to_status_id=submitted.unique_id,
                 changed_by_system=True,
                 remarks="Seeded demo ticket",
             )

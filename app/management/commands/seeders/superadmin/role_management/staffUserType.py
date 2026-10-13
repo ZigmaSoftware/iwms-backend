@@ -1,8 +1,8 @@
 # seeders/role_assign/staff_usertype.py
 
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.role_assigns.userType import UserType
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin.role_management.userType import UserType
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 
 
 class StaffUserTypeSeeder(BaseSeeder):

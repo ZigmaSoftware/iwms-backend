@@ -4,36 +4,46 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.screen_managements.companyuserscreenpermission import (
+from app.models.superadmin.screen_management.companyuserscreenpermission import (
     CompanyUserScreenPermission,
 )
-from app.models.staff_creations.staff_access_configuration import (
+from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
 )
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.serializers.superadmin.staff_management.staff_access_configuration_serializer import (
     StaffAccessConfigurationSerializer,
 )
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreenaction import UserScreenAction
-from app.models.screen_managements.mainscreen import MainScreen
-from app.models.screen_managements.mainscreentype import MainScreenType
-from app.models.screen_managements.app_module import AppModule
+from app.models.superadmin.screen_management.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
+from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.models.superadmin.screen_management.mainscreentype import MainScreenType
+from app.models.superadmin.screen_management.app_module import AppModule
 from app.models.superadmin_masters.project import Project
 from app.utils.app_feature_grants import (
     CITIZEN_APP_MAINSCREEN,
     ROLE_SCREEN_TEMPLATES,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.permission_snapshot import (
+    EMPTY_SNAPSHOT,
+    staff_access_snapshot,
+    write_access_audit,
+)
 from app.utils.password_encryption import decrypt_password
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.filters import (
     ModelFieldQueryFilter,
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.screen_dependencies import (
+    mainscreen_label,
+    screen_group,
+    screen_label,
+)
 
 
 class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
@@ -54,6 +64,14 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     AUDIT_ENDPOINT = "staff-access-configuration"
 
     permission_resource = "staffaccessconfiguration"
+
+    @staticmethod
+    def _company_uid(company):
+        # company_id is a CharField uid string on Staffcreation/auth User,
+        # but a model instance on other user types — normalize to the string.
+        if company is None or isinstance(company, str):
+            return company
+        return getattr(company, "unique_id", company)
 
     def get_queryset(self):
         qs = StaffAccessConfiguration.objects.filter(is_deleted=False)
@@ -84,7 +102,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         if not company:
             return qs.none()
 
-        qs = qs.filter(company_id=company.unique_id)
+        qs = qs.filter(company_id=self._company_uid(company))
 
         if not self._is_admin_user():
             qs = qs.filter(staff_id=self.request.user.staff_unique_id)
@@ -106,16 +124,51 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         self.check_object_permissions(self.request, obj)
         return obj
 
+    # Each save writes ONE User Access Audit row holding the staff member's
+    # whole access before and after it (app/utils/permission_snapshot.py).
+
+    def _audit_access(self, config, before, after, action_type):
+        projects = config.get_project_ids()
+        write_access_audit(
+            source="STAFF_ACCESS",
+            request=self.request,
+            target_id=config.staff_id,
+            company_id=config.company_id,
+            project_id=projects[0] if len(projects) == 1 else None,
+            before=before,
+            after=after,
+            action_type=action_type,
+        )
+
     def perform_create(self, serializer):
-        serializer.save()
+        # Create re-uses a staff member's existing configuration, so the save
+        # may be an update of access they already had.
+        staff = serializer.validated_data.get("resolved_staff")
+        existing = (
+            StaffAccessConfiguration.objects.filter(
+                staff_id=staff.staff_unique_id, is_deleted=False
+            ).first()
+            if staff
+            else None
+        )
+        before = staff_access_snapshot(existing)
+        instance = serializer.save()
+        self._audit_access(
+            instance, before, staff_access_snapshot(instance),
+            "UPDATED" if existing else "CREATED",
+        )
         cache.clear()
 
     def perform_update(self, serializer):
-        serializer.save()
+        before = staff_access_snapshot(serializer.instance)
+        instance = serializer.save()
+        self._audit_access(instance, before, staff_access_snapshot(instance), "UPDATED")
         cache.clear()
 
     def perform_destroy(self, instance):
+        before = staff_access_snapshot(instance)
         instance.delete()
+        self._audit_access(instance, before, EMPTY_SNAPSHOT, "DELETED")
         cache.clear()
 
     @action(detail=False, methods=["get"], url_path="employee-options")
@@ -136,7 +189,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
 
         queryset = Staffcreation.objects.filter(
-            company_id=company.unique_id,
+            company_id=company,
             is_deleted=False,
             active_status=True,
         ).select_related("personal_details")
@@ -281,7 +334,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             project_ids = [p.strip() for p in project_ids[0].split(",") if p.strip()]
 
         base_qs = CompanyUserScreenPermission.objects.filter(
-            company_id=company.unique_id,
+            company_id=company,
             permission_type="screen",
             is_deleted=False,
             is_active=True,
@@ -372,6 +425,11 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                 {
                     "mainScreenId": perm.mainscreen_id,
                     "mainScreenName": mainscreen.mainscreen_name if mainscreen else None,
+                    # What the sidebar calls it; the name stays the key.
+                    "mainScreenLabel": (
+                        mainscreen_label(mainscreen.mainscreen_name)
+                        if mainscreen else None
+                    ),
                     # The group this module belongs to. "mobile-app" modules
                     # are app features, not web sidebar routes, so the form
                     # renders them in their own "App Access" tab.
@@ -385,11 +443,21 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                     "screens": {},
                 },
             )
+            group_key, group_label = screen_group(
+                userscreen.userscreen_name if userscreen else None
+            )
             screen_entry = mainscreen_entry["screens"].setdefault(
                 perm.userscreen_id,
                 {
                     "userScreenId": perm.userscreen_id,
                     "userScreenName": userscreen.userscreen_name if userscreen else None,
+                    "userScreenLabel": (
+                        screen_label(userscreen.userscreen_name)
+                        if userscreen else None
+                    ),
+                    # Screens sharing a group render under one heading.
+                    "screenGroup": group_key,
+                    "screenGroupLabel": group_label,
                     "actions": {},
                 },
             )
@@ -412,7 +480,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             projects.append(project_entry)
 
         return Response({
-            "company_id": company.unique_id,
+            "company_id": company,
             "project_ids": project_ids,
             "projects": projects,
         })
@@ -420,7 +488,7 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
     def _company_from_query(self, request):
         scoped_company = self._company()
         if scoped_company:
-            return scoped_company, None
+            return self._company_uid(scoped_company), None
 
         company_id = (
             request.query_params.get("company_id")
@@ -435,4 +503,4 @@ class StaffAccessConfigurationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         company = Company.objects.filter(unique_id=company_id).first()
         if not company:
             return None, Response({"error": "Invalid company"}, status=status.HTTP_400_BAD_REQUEST)
-        return company, None
+        return company.unique_id, None

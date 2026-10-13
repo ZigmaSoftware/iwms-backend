@@ -4,7 +4,7 @@ from app.models.masters.plant import Plant
 from app.serializers.masters.plant_serializer import PlantSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class PlantViewSet(AuditViewSetMixin, CompanyScopedViewSet):

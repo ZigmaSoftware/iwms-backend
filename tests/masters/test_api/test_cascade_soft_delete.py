@@ -14,7 +14,7 @@ class TestDistrictCascadeSoftDelete:
         from app.models.masters.ward import Ward
         from app.models.masters.district import District
 
-        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         assert District.objects.get(pk=district.pk).is_deleted is True
@@ -44,7 +44,7 @@ class TestDistrictCascadeSoftDelete:
             project_id=project.unique_id,
         )
 
-        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         assert District.objects.get(pk=sibling_district.pk).is_deleted is False
@@ -54,7 +54,7 @@ class TestDistrictCascadeSoftDelete:
         from app.utils.common_audit import CommonAudit
 
         before = CommonAudit.objects.filter(object_id=district.unique_id).count()
-        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/")
+        resp = auth_client.delete(f"/api/v1/masters/districts/{district.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)
 
         after = CommonAudit.objects.filter(object_id=district.unique_id).count()
@@ -69,12 +69,12 @@ class TestComplaintTicketCascadeOneToOne:
     """
 
     def _make_ticket(self, company, project, ward, zone):
-        from app.models.complaint_management.masters import (
+        from app.models.core_modules.complaint_management.masters import (
             ComplaintCategory,
             ComplaintPriority,
             ComplaintStatus,
         )
-        from app.models.complaint_management.ticket import ComplaintTicket
+        from app.models.core_modules.complaint_management.ticket import ComplaintTicket
 
         category = ComplaintCategory.objects.create(
             category_code="WASTE", category_name="Waste"
@@ -99,14 +99,16 @@ class TestComplaintTicketCascadeOneToOne:
     def test_ticket_with_one_to_one_feedback_cascades(
         self, auth_client, company, project, ward, zone
     ):
-        from app.models.complaint_management.ticket import ComplaintTicket
-        from app.models.complaint_management.transactions import ComplaintFeedback
+        from app.models.core_modules.complaint_management.ticket import ComplaintTicket
+        from app.models.core_modules.complaint_management.transactions import ComplaintFeedback
 
         ticket = self._make_ticket(company, project, ward, zone)
         feedback = ComplaintFeedback.objects.create(ticket_id=ticket.unique_id, rating=5)
 
         resp = auth_client.delete(
-            f"/api/v1/complaint-ticket/tickets/{ticket.unique_id}/"
+            f"/api/v1/complaint-ticket/tickets/{ticket.unique_id}/",
+            {"delete_reason": "Test delete"},
+            format="json",
         )
         assert resp.status_code in (200, 204)
 
@@ -118,12 +120,14 @@ class TestComplaintTicketCascadeOneToOne:
     ):
         """A ticket with nothing linked to its reverse one-to-ones must not
         raise DoesNotExist while walking the cascade graph."""
-        from app.models.complaint_management.ticket import ComplaintTicket
+        from app.models.core_modules.complaint_management.ticket import ComplaintTicket
 
         ticket = self._make_ticket(company, project, ward, zone)
 
         resp = auth_client.delete(
-            f"/api/v1/complaint-ticket/tickets/{ticket.unique_id}/"
+            f"/api/v1/complaint-ticket/tickets/{ticket.unique_id}/",
+            {"delete_reason": "Test delete"},
+            format="json",
         )
         assert resp.status_code in (200, 204)
         assert ComplaintTicket.objects.get(pk=ticket.pk).is_deleted is True

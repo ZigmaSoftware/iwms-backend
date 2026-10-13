@@ -4,11 +4,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 
-from app.models.screen_managements.companyuserscreencolumnpermission import (
+from app.models.superadmin.screen_management.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreencolumn import UserScreenColumn
+from app.models.superadmin.screen_management.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreencolumn import UserScreenColumn
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.serializers.superadmin.screen_management.companyuserscreencolumnpermission_serializer import (
@@ -16,10 +16,11 @@ from app.serializers.superadmin.screen_management.companyuserscreencolumnpermiss
     UserScreenColumnPermissionWriteSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.permission_snapshot import CompanyPermissionAuditMixin
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
-class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class CompanyUserScreenColumnPermissionViewSet(CompanyPermissionAuditMixin, AuditViewSetMixin, CompanyScopedViewSet):
     """
     Dedicated CRUD API for CompanyUserScreenColumnPermission.
 
@@ -86,10 +87,11 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = UserScreenColumnPermissionSerializer(instance)
+        userscreen = UserScreen.objects.filter(unique_id=instance.userscreen_id).first()
         return Response(
             {
                 "userscreen_id": str(instance.userscreen_id),
-                "userscreen_name": instance.userscreen_id.userscreen_name,
+                "userscreen_name": userscreen.userscreen_name if userscreen else None,
                 "column_permissions": [serializer.data],
             }
         )
@@ -128,12 +130,20 @@ class CompanyUserScreenColumnPermissionViewSet(AuditViewSetMixin, CompanyScopedV
 
         account = self._get_account()
 
+        # All four reference columns are plain CharField uid strings — never
+        # store model instances (str(obj) would persist the *name*, e.g.
+        # "test" or "prj (test)", which no uid-based lookup ever matches).
+        company_uid = self._company_uid(company)
+        project_uid = project if isinstance(project, str) else getattr(project, "unique_id", project)
+        userscreen_uid = getattr(userscreen, "unique_id", userscreen)
+        column_uid = getattr(column, "unique_id", column)
+
         with transaction.atomic():
             instance, created = CompanyUserScreenColumnPermission.objects.get_or_create(
-                company_id=company,
-                project_id=project,
-                userscreen_id=userscreen,
-                column_id=column,
+                company_id=company_uid,
+                project_id=project_uid,
+                userscreen_id=userscreen_uid,
+                column_id=column_uid,
                 is_deleted=False,
                 defaults={
                     "can_view": vd.get("is_active", True),

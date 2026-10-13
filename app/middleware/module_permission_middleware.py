@@ -7,11 +7,13 @@ from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.customers.customercreation import CustomerCreation
-from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
-from app.models.masters.district_leader_login import DistrictLeaderLogin
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
+from app.models.masters.leader_management.district_leader_login import DistrictLeaderLogin
 from app.utils.permission_response import resolve_permission_payload
+from app.utils.permission_catalog import PLATFORM_SUPERADMIN_ROUTES, ROUTE_OWNERS
+from app.utils.screen_dependencies import INCLUDED_BY, LOOKUP_FOR
 
 
 # ============================================================
@@ -77,7 +79,6 @@ PLATFORM_PREFIXES = (
 
 PUBLIC_PREFIXES = (
     "/media/",
-    "/api/v1/publicgrievance/",
 )
 
 COMMON_AUDIT_CREATE_PATHS = tuple(
@@ -89,6 +90,11 @@ COMMON_AUDIT_CREATE_PATHS = tuple(
 # ============================================================
 # MODULE → RESOURCE ALLOWLIST
 # (THIS MUST MATCH ViewSet.permission_resource)
+#
+# Routes a screen owns in app/utils/permission_catalog.py are allowed
+# without being listed here. This list is still needed for routes reached only
+# through SCREEN_DEPENDENCIES (child APIs, dropdown lookups) and for the
+# read-only restrictions below. New screens go in the catalog first.
 # ============================================================
 
 MODULE_RESOURCE_ALLOWLIST = {
@@ -129,6 +135,9 @@ MODULE_RESOURCE_ALLOWLIST = {
         "UserType",
         "StaffUserType",
         "ContractorUserType",
+        # Has its own sidebar page, but was never allowlisted, so every
+        # non-superuser request 403'd as "Resource not allowed".
+        "ProjectStaffHierarchy",
     },
     "staff-creations": {
         "StaffCreation",
@@ -163,7 +172,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "Complaint",
         "MainCategory",
         "SubCategory",
-        # ticketed complaint workflow (app.models.complaint_management)
+        # ticketed complaint workflow (app.models.core_modules.complaint_management)
         "ComplaintFeedback",
         "ComplaintReopenHistory",
         "ComplaintNotification",
@@ -206,6 +215,11 @@ MODULE_RESOURCE_ALLOWLIST = {
         "TripDelayReport",
         "TripRetripRequest",
         "StaffNotification",
+        # No screen of its own: granted through the static route map (writes)
+        # and Daily Trip Tracking (reads) — see app/utils/screen_dependencies.py.
+        "RouteDetourWaypoint",
+        # Same: saved from the static route map ("Save Route").
+        "TripPlanStaticRoute",
     },
     "operator-mobile": {
         # Driver/operator app endpoints. These are mobile-shaped URLs, but
@@ -231,29 +245,30 @@ MODULE_RESOURCE_ALLOWLIST = {
         # un-seeded resource is always empty, so every request would still
         # 403 regardless of this set.
     },
-    "schedule-masters": {
-        # Legacy permission bucket retained for grants created before Schedule
-        # Setup and Daily Operations became separate sidebar/router groups.
-        "StaffTemplateCreation",
-        "AlternativeStaffTemplate",
-        "CollectionPoint",
-        "TripPlan",
-        "DailyTripAssignment",
-        "DailyTripCollectionPoint",
-        "DailyTripHouseholdCollection",
-        "BinCollectionEvent",
-        "DailyTripLog",
-        "WasteCollection",
-        "VehicleBreakdown",
-        "TripDelayReport",
-        "TripRetripRequest",
+    # No "schedule-masters" entry: that URL group no longer registers any
+    # routes. Its setup/operations resources live under "schedule-setup" /
+    # "schedule-operations" and its reports under "reports"; grants still
+    # stored under the old module name resolve via RESOURCE_MODULE_FALLBACKS.
+    "reports": {
         "DailyWasteComparison",
         "MonthlyWasteComparisonReport",
+        "ComplaintsReport",
+    },
+    # Admin Dashboard is granted by the dashboard/admin-dashboard screen. The
+    # dashboard/superadmin-dashboard screen is superadmin-only: its route is
+    # in PLATFORM_SUPERADMIN_ROUTES, refused before any grant is read.
+    "dashboards": {
+        "AdminDashboard",
+        "SuperadminDashboard",
     },
     "audits": {
         "StaffTemplateAuditLog",
         "LoginAudit",
         "CommonAudit",
+        "PermissionAudit",
+        "StaticRouteAudit",
+        "ComplaintAudit",
+        "AuditDashboard",
     },
 }
 
@@ -285,6 +300,18 @@ MODULE_READONLY_RESOURCES["grivences"] = MODULE_READONLY_RESOURCES["complaint-ti
 MODULE_READONLY_RESOURCES["grievance"] = MODULE_READONLY_RESOURCES["complaint-ticket"]
 
 PROTECTED_MODULES = tuple(MODULE_RESOURCE_ALLOWLIST.keys())
+
+# "module/route" pairs only a platform super admin (superuser with no
+# company) may call: the routes of the catalog's `superadmin_only` screens
+# (PLATFORM_SUPERADMIN_ROUTES). Checked before the superuser bypass, so a
+# superuser tied to a company is refused too, and no screen grant opens them.
+
+
+def _is_platform_super_admin(user):
+    return bool(
+        getattr(user, "is_superuser", False)
+        and getattr(user, "company_id", None) is None
+    )
 
 MODULE_PERMISSION_ALIASES = {
     "customer-masters": "customers",
@@ -329,6 +356,19 @@ RESOURCE_MODULE_FALLBACKS = {
     "VehicleBreakdown": "schedule-masters",
     "TripDelayReport": "schedule-masters",
     "TripRetripRequest": "schedule-masters",
+    # Reports were registered under "schedule-masters" until they moved to
+    # the "reports" group; covers grants made before the permission seeder
+    # re-homes their screens.
+    "DailyWasteComparison": "schedule-masters",
+    "MonthlyWasteComparisonReport": "schedule-masters",
+}
+
+# Pre-split module names a screen's grants may still be stored under, used when
+# resolving the owner of a SCREEN_DEPENDENCIES entry.
+LEGACY_OWNER_MODULES = {
+    "schedule-setup": "schedule-masters",
+    "schedule-operations": "schedule-masters",
+    "waste-types": "assets",
 }
 
 RESOURCE_PERMISSION_ALIASES = {
@@ -635,6 +675,19 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         if auth_error:
             return auth_error
 
+        if (
+            f"{module}/{_route_resource_from_path(request.path, module)}" in PLATFORM_SUPERADMIN_ROUTES
+            and not _is_platform_super_admin(request.user)
+        ):
+            return JsonResponse(
+                {
+                    "detail": "Permission denied",
+                    "module": module,
+                    "reason": "Platform super admin only",
+                },
+                status=403,
+            )
+
         if getattr(request.user, "is_superuser", False):
             return None
 
@@ -653,6 +706,15 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             permission_resource,
         )
         route_resource = _route_resource_from_path(request.path, module)
+        # The screen the permission catalog says owns this route
+        # (app/utils/permission_catalog.py). It is the primary answer; the
+        # allowlist + name matching below only covers routes the catalog
+        # leaves to SCREEN_DEPENDENCIES, and per-request resource hooks.
+        route_owner = (
+            None
+            if callable(getattr(view_class, "permission_resource_for_request", None))
+            else ROUTE_OWNERS.get(f"{module}/{route_resource}")
+        )
 
         allowed_resources = MODULE_RESOURCE_ALLOWLIST.get(module, set())
         allowed_resource_keys = {
@@ -663,7 +725,7 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             permission_resource,
             route_resource,
         )
-        resource_allowed = any(
+        resource_allowed = route_owner is not None or any(
             self._normalize_permission_key(candidate) in allowed_resource_keys
             for candidate in resource_candidates
         )
@@ -712,11 +774,16 @@ class ModulePermissionMiddleware(MiddlewareMixin):
 
         permissions = _resolve_permissions_for_request(request)
         request.resolved_permissions = permissions
-        allowed_actions = self._resolve_allowed_actions(
-            permissions.get(module, {}),
-            permission_resource,
-            route_resource,
+        allowed_actions = (
+            self._owner_actions(permissions, *route_owner) if route_owner else []
         )
+
+        if not allowed_actions:
+            allowed_actions = self._resolve_allowed_actions(
+                permissions.get(module, {}),
+                permission_resource,
+                route_resource,
+            )
 
         if not allowed_actions:
             alias_module = MODULE_PERMISSION_ALIASES.get(module)
@@ -737,6 +804,18 @@ class ModulePermissionMiddleware(MiddlewareMixin):
                 )
 
         if action not in allowed_actions:
+            # The resource may belong to another screen's page — a child the
+            # page saves through, or a dropdown it fills. A grant on that
+            # owning screen covers it (app/utils/screen_dependencies.py).
+            dependency_actions = self._dependency_actions(
+                permissions, module, route_resource, action
+            )
+            if dependency_actions:
+                if action in dependency_actions:
+                    return None
+                allowed_actions = list(allowed_actions) + dependency_actions
+
+        if action not in allowed_actions:
             # A GET is also satisfied by "use" — a lighter-weight grant meant
             # for consuming a screen's records as reference data (e.g. a
             # dropdown option source) without exposing the full list screen.
@@ -755,6 +834,43 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             )
 
         return None
+
+    def _owner_actions(self, permissions, owner_module, owner_screen):
+        # Grants may still sit under a module's pre-rename name.
+        for module_name in (
+            owner_module,
+            MODULE_PERMISSION_ALIASES.get(owner_module),
+            LEGACY_OWNER_MODULES.get(owner_module),
+        ):
+            if not module_name:
+                continue
+            actions = self._resolve_allowed_actions(
+                permissions.get(module_name, {}), owner_screen
+            )
+            if actions:
+                return actions
+        return []
+
+    def _dependency_actions(self, permissions, module, route_resource, action):
+        """Actions a request earns from the screens that depend on its resource."""
+        if not route_resource:
+            return []
+        key = f"{module}/{route_resource}"
+
+        granted = set()
+        for owner_module, owner_screen in INCLUDED_BY.get(key, ()):
+            granted.update(
+                self._owner_actions(permissions, owner_module, owner_screen)
+            )
+
+        # Lookups are read-only: any real grant on the owner allows the read.
+        if action == "view":
+            for owner_module, owner_screen in LOOKUP_FOR.get(key, ()):
+                if self._owner_actions(permissions, owner_module, owner_screen):
+                    granted.add("use")
+                    break
+
+        return sorted(granted)
 
     @staticmethod
     def _normalize_permission_key(name):

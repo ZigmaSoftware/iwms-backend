@@ -2,7 +2,7 @@ from django.db.models import Q
 from rest_framework import filters, status, viewsets
 from rest_framework.response import Response
 
-from app.models.complaint_management import (
+from app.models.core_modules.complaint_management import (
     ComplaintFeedback,
     ComplaintReopenHistory,
     ComplaintRoutingRule,
@@ -44,7 +44,7 @@ class ComplaintFeedbackViewSet(_SoftDeleteMixin, AuditViewSetMixin, viewsets.Mod
     AUDIT_ENDPOINT = "feedback"
 
     def get_queryset(self):
-        from app.models.complaint_management.ticket import ComplaintTicket
+        from app.models.core_modules.complaint_management.ticket import ComplaintTicket
 
         qs = ComplaintFeedback.objects.filter(is_deleted=False).order_by("-submitted_at")
         ticket = self.request.query_params.get("ticket")
@@ -69,7 +69,7 @@ class ComplaintFeedbackViewSet(_SoftDeleteMixin, AuditViewSetMixin, viewsets.Mod
             matching_ticket_ids = ComplaintTicket.objects.filter(
                 Q(ticket_no__icontains=search) | Q(unique_id__icontains=search)
             ).values("unique_id")
-            from app.models.customers.customercreation import CustomerCreation
+            from app.models.masters.customer_masters.customercreation import CustomerCreation
             matching_customer_ids = CustomerCreation.objects.filter(
                 customer_name__icontains=search,
             ).values("unique_id")

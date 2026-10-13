@@ -5,9 +5,9 @@ from rest_framework.authtoken.models import Token as AuthToken
 from django.contrib.auth.hashers import check_password
 from django.db.models import Q
 
-from app.models.customers.customercreation import CustomerCreation
-from app.models.role_assigns.userType import UserType
-from app.serializers.citizenLogin.login_serializer import LoginSerializer
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.superadmin.role_management.userType import UserType
+from app.serializers.citizen_login.login_serializer import LoginSerializer
 
 
 class CitizenLoginViewSet(viewsets.ViewSet):

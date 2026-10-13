@@ -1,7 +1,7 @@
 # core/management/commands/seeders/assets/subproperty.py
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
 
 
 class SubPropertySeeder(BaseSeeder):

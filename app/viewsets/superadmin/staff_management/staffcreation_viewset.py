@@ -6,12 +6,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.staff_creations.department import Department
-from app.models.role_assigns.projectStaffHierarchy import ProjectStaffHierarchy
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.department import Department
+from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.permissions.platform import SuperAdminApprovalPermission
 from app.serializers.superadmin.staff_management.staffcreation_serializer import (
     StaffApprovalActionSerializer,
@@ -110,8 +110,8 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
             queryset = queryset.filter(login_enabled=str(login_enabled).lower() in ["1", "true"])
 
         if self._is_supervisor_user():
-            from app.models.schedule_masters.trip_plan import TripPlan
-            from app.models.schedule_masters.staff_template import StaffTemplate
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+            from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
 
             supervisor_staff_id = self.request.user.staff_unique_id
             supervised_template_ids = TripPlan.objects.filter(
@@ -266,13 +266,30 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
             ).first()
 
             if hierarchy_entry and hierarchy_entry.reports_to_staffusertype_id:
+                # Heads are staff of the reports-to role in the same project.
+                # Company-level staff of that role (project "All Projects" /
+                # null) are included too — e.g. a Company Admin overseeing
+                # every project can head project-level staff.
                 queryset = queryset.filter(
-                    project_id=project_id,
                     staffusertype_id=hierarchy_entry.reports_to_staffusertype_id,
+                ).filter(
+                    Q(project_id=project_id) | Q(project_id__isnull=True)
                 )
             elif hierarchy_entry:
                 # Top of the configured chain (e.g. Company Admin) — no head.
                 queryset = queryset.none()
+            else:
+                # Role has no hierarchy row in this project. If the project
+                # has any hierarchy configured at all, enforce it strictly
+                # (empty list) instead of falling back to every staff member.
+                # Projects with no hierarchy configured keep the legacy
+                # show-all fallback.
+                project_has_hierarchy = ProjectStaffHierarchy.objects.filter(
+                    project_id=project_id,
+                    is_deleted=False,
+                ).exists()
+                if project_has_hierarchy:
+                    queryset = queryset.none()
 
         staff_members = list(queryset[:200])
         department_names = {
@@ -363,9 +380,22 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
                 #     company_id=company,
                 #     project_id=project,
                 # )
+                # company/project may be model instances (platform-superadmin
+                # branch) or plain unique_id strings (company-user branch via
+                # _company()/_project()) — normalize to uid strings.
+                company_uid = (
+                    company
+                    if isinstance(company, str)
+                    else getattr(company, "unique_id", None)
+                )
+                project_uid = (
+                    project
+                    if isinstance(project, str)
+                    else getattr(project, "unique_id", None)
+                )
                 instance = serializer.save(
-                    company_id=company.unique_id,
-                    project_id=project.unique_id if project else None,
+                    company_id=company_uid,
+                    project_id=project_uid,
                 )
 
             new_data = self._serialize_instance(instance)
@@ -407,9 +437,20 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
                     )
                 previous_data = self._serialize_instance(instance)
 
+            # Normalize: each may be a model instance or a plain uid string.
+            company_uid = (
+                company
+                if company is None or isinstance(company, str)
+                else getattr(company, "unique_id", company)
+            )
+            project_uid = (
+                project
+                if project is None or isinstance(project, str)
+                else getattr(project, "unique_id", project)
+            )
             updated_instance = serializer.save(
-                company_id=company,
-                project_id=project,
+                company_id=company_uid,
+                project_id=project_uid,
             )
 
             new_data = self._serialize_instance(updated_instance)
@@ -471,7 +512,7 @@ class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
         token = (request.data.get("fcm_token") or "").strip()
         if not token:
             return Response({"error": "fcm_token is required"}, status=400)
-        from app.models.customers.customercreation import CustomerCreation
+        from app.models.masters.customer_masters.customercreation import CustomerCreation
 
         with transaction.atomic():
             Staffcreation.objects.filter(fcm_token=token).exclude(

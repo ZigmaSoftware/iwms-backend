@@ -7,8 +7,8 @@ from .custom_router import GroupedRouter
 # ============================================================
 
 # Superadmin masters
-from ..viewsets.superadminmasters.company_management import PlatformCompanyCreateViewSet
-from ..viewsets.superadminmasters.project_management import CompanyProjectCreateViewSet
+from ..viewsets.superadmin_masters.company_management import PlatformCompanyCreateViewSet
+from ..viewsets.superadmin_masters.project_management import CompanyProjectCreateViewSet
 
 # Common masters
 from ..viewsets.superadmin.common_masters.continent_viewset import ContinentViewSet
@@ -102,9 +102,6 @@ from ..viewsets.core_modules.complaint_management.address_change_viewset import 
 from ..viewsets.core_modules.complaint_management.citizen_ticket_viewset import (
     CitizenComplaintTicketViewSet,
 )
-from ..viewsets.core_modules.complaint_management.public_grievance_viewset import (
-    PublicGrievanceViewSet,
-)
 from ..viewsets.core_modules.complaint_management.ticket_viewset import ComplaintTicketViewSet
 from ..viewsets.core_modules.notifications.staff_notification_viewset import StaffNotificationViewSet
 
@@ -122,11 +119,13 @@ from ..viewsets.core_modules.schedule_setup.trip_plan_viewset import TripPlanVie
 from ..viewsets.core_modules.daily_operations.daily_trip_assignment_viewset import DailyTripAssignmentViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_collection_point_viewset import DailyTripCollectionPointViewSet
 from ..viewsets.core_modules.daily_operations.route_detour_waypoint_viewset import RouteDetourWaypointViewSet
+from ..viewsets.core_modules.schedule_setup.trip_plan_static_route_viewset import TripPlanStaticRouteViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_household_collection_viewset import DailyTripHouseholdCollectionViewSet
 from ..viewsets.core_modules.daily_operations.bin_collection_event_viewset import BinCollectionEventViewSet
 from ..viewsets.core_modules.daily_operations.daily_trip_log_viewset import DailyTripLogViewSet
 from ..viewsets.reports.waste_reports.monthly_waste_comparison_viewset import MonthlyWasteComparisonReportViewSet
 from ..viewsets.reports.waste_reports.daily_waste_comparison_viewset import DailyWasteComparisonViewSet
+from ..viewsets.reports.complaint_reports.complaints_report_viewset import ComplaintsReportViewSet
 from ..viewsets.core_modules.daily_operations.vehicle_breakdown_viewset import VehicleBreakdownViewSet
 from ..viewsets.core_modules.daily_operations.trip_delay_report_viewset import TripDelayReportViewSet
 from ..viewsets.core_modules.daily_operations.trip_retrip_viewset import TripRetripRequestViewSet
@@ -134,6 +133,10 @@ from ..viewsets.core_modules.daily_operations.trip_retrip_viewset import TripRet
 # Audits
 from ..viewsets.superadmin.audits.login_audit_viewset import LoginAuditViewSet
 from ..viewsets.superadmin.audits.common_audit_viewset import CommonAuditViewSet
+from ..viewsets.superadmin.audits.permission_audit_viewset import PermissionAuditLogViewSet
+from ..viewsets.superadmin.audits.static_route_audit_viewset import StaticRouteAuditLogViewSet
+from ..viewsets.superadmin.audits.complaint_audit_viewset import ComplaintAuditViewSet
+from ..viewsets.superadmin.audits.audit_dashboard_viewset import AuditDashboardViewSet
 
 # Palakad district admin portal
 from ..viewsets.palakad.palakad_login_viewset import PalakadLoginViewSet
@@ -144,6 +147,9 @@ from ..viewsets.localbody.localbody_dashboard_viewset import LocalBodyDashboardV
 from ..viewsets.district.district_dashboard_viewset import DistrictDashboardViewSet
 # Company/project-scoped dashboard summary
 from ..viewsets.dashboard.dashboard_summary_viewset import DashboardSummaryViewSet
+# Admin / Superadmin dashboards (sidebar "Dashboard" and "Superadmin Dashboard")
+from ..viewsets.dashboard.admin_dashboard_viewset import AdminDashboardViewSet
+from ..viewsets.dashboard.superadmin_dashboard_viewset import SuperadminDashboardViewSet
 
 # Operator mobile
 from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet, MyTripsTodayViewSet
@@ -312,18 +318,6 @@ router.register_group("complaint-ticket", "grievance-tickets", ComplaintTicketVi
 router.register_group("citizen", "complaint-tickets", CitizenComplaintTicketViewSet, basename="citizen-complaint-tickets")
 
 # ============================================================
-# GROUP: PUBLIC (no login, no module permission check — see
-# AUTH_EXEMPT_PREFIXES in module_permission_middleware.py)
-# ============================================================
-router.register_group(
-    "public",
-    "publicgrievance",
-    PublicGrievanceViewSet,
-    basename="publicgrievance",
-    include_group_in_prefix=False,
-)
-
-# ============================================================
 # GROUP: STAFF NOTIFICATIONS (shared by driver/operator/supervisor apps)
 # ============================================================
 router.register_group("schedule-operations", "staff-notifications", StaffNotificationViewSet, basename="schedule-operations-staff-notifications")
@@ -351,6 +345,7 @@ router.register_group("schedule-setup", "trip-plans", TripPlanViewSet)
 router.register_group("schedule-operations", "daily-trip-assignments", DailyTripAssignmentViewSet)
 router.register_group("schedule-operations", "daily-trip-collection-points", DailyTripCollectionPointViewSet)
 router.register_group("schedule-operations", "route-detour-waypoints", RouteDetourWaypointViewSet)
+router.register_group("schedule-operations", "trip-plan-static-routes", TripPlanStaticRouteViewSet)
 router.register_group("schedule-operations", "daily-trip-household-collections", DailyTripHouseholdCollectionViewSet)
 router.register_group("schedule-operations", "bin-collection-events", BinCollectionEventViewSet)
 router.register_group("schedule-operations", "daily-trip-logs", DailyTripLogViewSet)
@@ -360,25 +355,22 @@ router.register_group("schedule-operations", "trip-delay-reports", TripDelayRepo
 router.register_group("schedule-operations", "retrip-requests", TripRetripRequestViewSet)
 
 # ============================================================
-# GROUP: SCHEDULE MASTERS (legacy name — kept alive only for the
-# reporting sub-resources, matching the government reference app's
-# equivalent split; setup/operations resources above are no longer
-# registered under this group)
+# GROUP: REPORTS (moved out of the legacy "schedule-masters" group,
+# which no longer registers any routes)
 # ============================================================
-router.register_group("schedule-masters", "daily-waste-comparisons", DailyWasteComparisonViewSet)
-router.register_group("schedule-masters", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
-
-# ============================================================
-# GROUP: REPORTS (aliases used by the admin frontend)
-# ============================================================
-router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="reports-monthly-waste-comparison")
-router.register_group("reports", "daily-waste-comparisons", DailyWasteComparisonViewSet, basename="reports-daily-waste-comparisons")
+router.register_group("reports", "daily-waste-comparisons", DailyWasteComparisonViewSet, basename="daily-waste-comparisons")
+router.register_group("reports", "monthly-waste-comparison", MonthlyWasteComparisonReportViewSet, basename="monthly-waste-comparison")
+router.register_group("reports", "complaints-report", ComplaintsReportViewSet, basename="complaints-report")
 
 # ============================================================
 # GROUP: AUDIT
 # ============================================================
 router.register_group("audits", "login-audit", LoginAuditViewSet)
 router.register_group("audits", "common-audit", CommonAuditViewSet)
+router.register_group("audits", "permission-audit", PermissionAuditLogViewSet, basename="permission-audit")
+router.register_group("audits", "static-route-audit", StaticRouteAuditLogViewSet, basename="static-route-audit")
+router.register_group("audits", "complaint-audit", ComplaintAuditViewSet, basename="complaint-audit")
+router.register_group("audits", "audit-dashboard", AuditDashboardViewSet, basename="audit-dashboard")
 
 # ============================================================
 # GROUP: EXTERNAL ATTENDANCE
@@ -408,6 +400,13 @@ router.register_group("district", "dashboard", DistrictDashboardViewSet, basenam
 # GROUP: DASHBOARD (company/project-scoped dashboard summary)
 # ============================================================
 router.register_group("dashboard", "summary", DashboardSummaryViewSet, basename="dashboard-summary")
+
+# ============================================================
+# GROUP: DASHBOARDS (permission-gated: dashboard/admin-dashboard screen;
+# superadmin is platform super admin only)
+# ============================================================
+router.register_group("dashboards", "admin", AdminDashboardViewSet, basename="admin-dashboard")
+router.register_group("dashboards", "superadmin", SuperadminDashboardViewSet, basename="superadmin-dashboard")
 
 # ============================================================
 # GROUP: OPERATOR MOBILE

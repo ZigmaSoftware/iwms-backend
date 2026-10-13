@@ -4,12 +4,12 @@ from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 
-from app.models.schedule_masters.bin_collection_event import BinCollectionEvent
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import (
+from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.schedule_masters.daily_trip_log import DailyTripLog
+from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 from app.permissions.operator_permission import IsOperatorRole
 from app.serializers.operator_mobile.scan_serializers import (
     ScanBinRequestSerializer,
@@ -49,7 +49,7 @@ class ScanBinViewSet(viewsets.ViewSet):
 
         action = payload["action"]
         weight = payload.get("weight_kg")
-        vehicle = ctx.assignment.vehicle_id
+        vehicle = ctx.assignment.vehicle
         # `weight is not None` guard is load-bearing: weight_kg is optional on
         # a collect, and Decimal(None) raises TypeError — without this the
         # whole scan 500s the moment a driver collects without a weight.
@@ -81,7 +81,7 @@ class ScanBinViewSet(viewsets.ViewSet):
                 if action == ScanBinRequestSerializer.ACTION_COLLECT:
                     ctx.trip_cp.mark_collected(
                         weight_kg=weight,
-                        collected_by=operator,
+                        collected_by=operator.staff_unique_id,
                     )
                     event_status = BinCollectionEvent.STATUS_COLLECTED
                     event_weight = weight
@@ -164,13 +164,13 @@ class ScanBinViewSet(viewsets.ViewSet):
         return BinCollectionEvent.objects.create(
             company_id=ctx.assignment.company_id,
             project_id=ctx.assignment.project_id,
-            trip_assignment_id=ctx.assignment,
-            trip_collection_point_id=ctx.trip_cp,
+            trip_assignment_id=ctx.assignment.unique_id,
+            trip_collection_point_id=ctx.trip_cp.unique_id,
             collection_point_id=ctx.bin.collection_point_id,
-            bin_id=ctx.bin,
+            bin_id=ctx.bin.unique_id,
             # Nullable: zone/ward-scoped trips carry no panchayat.
             panchayat_id=ctx.assignment.panchayat_id,
-            ward_id=ward,
+            ward_id=getattr(ward, "unique_id", None),
             zone_id=getattr(ward, "zone_id", None),
             waste_type_id=ctx.bin.wastetype_id,
             vehicle_id=ctx.assignment.vehicle_id,
@@ -188,7 +188,9 @@ class ScanBinViewSet(viewsets.ViewSet):
             (c.collected_weight_kg or Decimal("0")) for c in children
         )
 
-        existing = DailyTripLog.objects.filter(trip_assignment_id=assignment).first()
+        existing = DailyTripLog.objects.filter(
+            trip_assignment_id=assignment.unique_id
+        ).first()
         log_status = (
             DailyTripLog.LOG_STATUS_SUBMITTED
             if total_weight > 0
@@ -210,7 +212,7 @@ class ScanBinViewSet(viewsets.ViewSet):
             return
 
         DailyTripLog.objects.create(
-            trip_assignment_id=assignment,
+            trip_assignment_id=assignment.unique_id,
             collected_weight_kg=total_weight,
             log_status=log_status,
             remarks=remarks,

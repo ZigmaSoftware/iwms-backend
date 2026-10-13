@@ -5,12 +5,16 @@ from typing import Optional
 from django.db.models import Q
 from django.utils import timezone
 
-from app.models.assets.bins import Bins
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.daily_trip_collection_point import (
+from app.models.masters.waste_masters.bins import Bins
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.core_modules.schedule_setup.alternative_staff_template import (
+    AlternativeStaffTemplate,
+)
+from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
 
 class OperatorFlowError(Exception):
@@ -40,25 +44,72 @@ def resolve_operator_staff(user) -> Staffcreation:
     return user
 
 
+def _template_ids_for_staff(staff: Staffcreation):
+    return set(
+        StaffTemplate.objects.filter(
+            Q(operator_id=staff.staff_unique_id) | Q(driver_id=staff.staff_unique_id)
+        ).values_list("unique_id", flat=True)
+    )
+
+
+def _alternative_template_ids_for_staff(staff: Staffcreation):
+    return set(
+        AlternativeStaffTemplate.objects.filter(
+            Q(operator_id=staff.staff_unique_id) | Q(driver_id=staff.staff_unique_id)
+        ).values_list("unique_id", flat=True)
+    )
+
+
 def _effective_staff_q(staff: Staffcreation) -> Q:
     """Match this staff against whichever template is currently in force.
 
     A vehicle breakdown can substitute the crew via `alt_staff_template_id`;
     when that's set, ONLY the alt crew is "effective" for the trip — the
     original crew's own login should no longer resolve it as theirs.
+
+    Both assignment template fields are plain unique-id strings, not FKs, so
+    resolve the matching template ids first and filter those id columns
+    directly. Do not use `staff_template_id__driver_id` style traversal here.
     """
-    return (
-        Q(alt_staff_template_id__isnull=False, alt_staff_template_id__operator_id=staff)
-        | Q(alt_staff_template_id__isnull=False, alt_staff_template_id__driver_id=staff)
-        | Q(alt_staff_template_id__isnull=True, staff_template_id__operator_id=staff)
-        | Q(alt_staff_template_id__isnull=True, staff_template_id__driver_id=staff)
-    )
+    template_ids = _template_ids_for_staff(staff)
+    alt_template_ids = _alternative_template_ids_for_staff(staff)
+    query = Q(pk__in=[])
+    if alt_template_ids:
+        query |= Q(alt_staff_template_id__in=alt_template_ids)
+    if template_ids:
+        query |= (
+            Q(alt_staff_template_id__isnull=True)
+            & Q(staff_template_id__in=template_ids)
+        )
+    return query
 
 
 def _effective_extra_operator_ids(assignment: DailyTripAssignment):
-    alt = assignment.alt_staff_template_id
-    source = alt if alt is not None else assignment.staff_template_id
+    source = assignment.alt_staff_template or assignment.staff_template
     return getattr(source, "extra_operator_id", None) or []
+
+
+def find_assignments_for_operator_today(staff: Staffcreation):
+    today = timezone.localdate()
+    base = (
+        DailyTripAssignment.objects
+        .filter(trip_date=today, is_deleted=False)
+        .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
+        .order_by("scheduled_time", "unique_id")
+    )
+
+    candidates = list(base.filter(_effective_staff_q(staff)))
+    extra_operator_matches = [
+        candidate for candidate in base
+        if staff.staff_unique_id in (_effective_extra_operator_ids(candidate) or [])
+    ]
+    seen = {candidate.unique_id for candidate in candidates}
+    candidates.extend(
+        candidate
+        for candidate in extra_operator_matches
+        if candidate.unique_id not in seen
+    )
+    return candidates
 
 
 def assignment_is_finished(assignment: DailyTripAssignment) -> bool:
@@ -92,42 +143,11 @@ def find_active_assignment_for_operator(
     trip of that type exists the filter is ignored, so assignments without a
     trip plan still resolve.
     """
-    today = timezone.localdate()
-
-    base = (
-        DailyTripAssignment.objects
-        .filter(trip_date=today, is_deleted=False)
-        .exclude(status=DailyTripAssignment.STATUS_CANCELLED)
-        .order_by("scheduled_time", "unique_id")
-    )
-
     # The driver ("captain") and operator apps were merged — one phone per
     # vehicle — so a trip belongs to this staff member whether they are the
     # template's driver OR its operator. Mirrors IsOperatorRole, which accepts
     # both roles.
-    #
-    # staff_template_id is a plain CharField now (StaffTemplate.unique_id),
-    # not a real FK, so it can't be traversed with `__driver_id`/`__operator_id`
-    # lookups. Resolve the matching StaffTemplate ids first, then filter on
-    # the id column directly.
-    from app.models.schedule_masters.staff_template import StaffTemplate
-
-    staff_template_ids = set(
-        StaffTemplate.objects.filter(
-            Q(operator_id=staff.staff_unique_id) | Q(driver_id=staff.staff_unique_id)
-        ).values_list("unique_id", flat=True)
-    )
-    candidates = list(
-        base.filter(staff_template_id__in=staff_template_ids)
-    ) if staff_template_ids else []
-    if not candidates:
-        # Extra-operator fallback: walk staff_templates and check JSON membership in Python
-        # (avoids SQLite-incompatible JSON __contains lookups).
-        candidates = [
-            candidate for candidate in base
-            if staff.staff_unique_id
-            in (getattr(candidate.staff_template, "extra_operator_id", None) or [])
-        ]
+    candidates = find_assignments_for_operator_today(staff)
 
     if not candidates:
         raise OperatorFlowError(
@@ -214,7 +234,7 @@ def _assignment_waste_type_ids(assignment: DailyTripAssignment) -> set:
     """
     ids = set(str(v) for v in (assignment.waste_type_ids or []) if v)
     if assignment.trip_plan_id:
-        from app.models.schedule_masters.trip_plan import TripPlan
+        from app.models.core_modules.schedule_setup.trip_plan import TripPlan
         plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id).first()
         if plan and plan.waste_type_id:
             ids.add(str(plan.waste_type_id))
@@ -223,7 +243,7 @@ def _assignment_waste_type_ids(assignment: DailyTripAssignment) -> set:
 
 def _assignment_waste_type_names(assignment: DailyTripAssignment) -> str:
     """Human-readable list of the trip's waste types, for error messages."""
-    from app.models.staff_creations.waste_collection_bluetooth import WasteType
+    from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
     ids = _assignment_waste_type_ids(assignment)
     if not ids:
@@ -251,7 +271,8 @@ def validate_bin_against_assignment(
             f"This bin is {bin_waste}; your trip collects {trip_waste_names}.",
         )
 
-    cp = bin_obj.collection_point_id
+    cp = bin_obj.collection_point
+    cp_id = getattr(cp, "unique_id", None) or bin_obj.collection_point_id
 
     # Geo guard: only enforced when BOTH the trip and the collection point
     # are panchayat-scoped. Unlike government (where every trip is panchayat
@@ -270,14 +291,14 @@ def validate_bin_against_assignment(
     # exists() check every scan on CP 2 or 3 of that trip was rejected as
     # "outside your assigned panchayat" despite being squarely on the trip —
     # the exact case the CP_NOT_IN_TRIP lookup below would have accepted.
-    cp_panchayat_id = getattr(cp, "panchayat_id_id", None)
+    cp_panchayat_id = getattr(cp, "panchayat_id", None)
     if (
         assignment.panchayat_id
         and cp_panchayat_id
         and str(cp_panchayat_id) != str(assignment.panchayat_id)
         and not DailyTripCollectionPoint.objects.filter(
-            trip_assignment_id=assignment,
-            collection_point_id=cp,
+            trip_assignment_id=assignment.unique_id,
+            collection_point_id=cp_id,
             is_deleted=False,
         ).exists()
     ):
@@ -291,9 +312,9 @@ def validate_bin_against_assignment(
     trip_cp = (
         DailyTripCollectionPoint.objects
         .filter(
-            trip_assignment_id=assignment,
-            collection_point_id=cp,
-            bin_id=bin_obj,
+            trip_assignment_id=assignment.unique_id,
+            collection_point_id=cp_id,
+            bin_id=bin_obj.unique_id,
             is_deleted=False,
         )
         .first()
@@ -333,7 +354,7 @@ def require_trip_started(assignment: DailyTripAssignment) -> None:
 
 
 def build_scan_context(bin_qr: str, operator: Staffcreation) -> ScanContext:
-    from app.models.schedule_masters.trip_plan import TripPlan
+    from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 
     # A bin scan belongs to a BIN trip: with a household trip open at the same
     # time, an untyped lookup would hand the scan to the household trip and the
@@ -372,7 +393,7 @@ def _raise_if_bin_belongs_to_locked_trip(bin_obj, operator, active_assignment):
     other = (
         DailyTripCollectionPoint.objects
         .filter(
-            bin_id=bin_obj,
+            bin_id=bin_obj.unique_id,
             is_deleted=False,
             trip_assignment_id__in=today_assignment_ids,
         )
@@ -396,9 +417,9 @@ def _raise_if_bin_belongs_to_locked_trip(bin_obj, operator, active_assignment):
 
 
 def _staff_owns_assignment(assignment: DailyTripAssignment, staff: Staffcreation) -> bool:
-    # staff_template_id is a plain CharField now — resolve the actual
-    # StaffTemplate row via the model's resolver property instead.
-    template = assignment.staff_template
+    # Template ids are plain CharFields now — resolve the actual template row
+    # through the model's resolver property instead.
+    template = assignment.alt_staff_template or assignment.staff_template
     if template is None:
         return False
     if staff.staff_unique_id in (
@@ -434,6 +455,7 @@ def _bin_qr_image_url(bin_obj: Bins, request=None):
 
 
 def serialize_bin_brief(bin_obj: Bins, request=None) -> dict:
+    waste_type = bin_obj.wastetype
     return {
         "unique_id": bin_obj.unique_id,
         "bin_name": bin_obj.bin_name,
@@ -446,12 +468,17 @@ def serialize_bin_brief(bin_obj: Bins, request=None) -> dict:
         "bin_capacity": bin_obj.bin_capacity,
         "waste_type": {
             "unique_id": bin_obj.wastetype_id,
-            "name": getattr(bin_obj.wastetype_id, "waste_type_name", None),
+            "name": getattr(waste_type, "waste_type_name", None),
         },
     }
 
 
 def serialize_cp_brief(cp) -> dict:
+    if isinstance(cp, str):
+        from app.models.core_modules.schedule_setup.collection_point import Collection_point
+        cp = Collection_point.objects.filter(unique_id=cp).first()
+    if cp is None:
+        return None
     return {
         "unique_id": cp.unique_id,
         "name": cp.cp_name,
@@ -476,10 +503,14 @@ def serialize_trip_cp_brief(trip_cp: DailyTripCollectionPoint) -> dict:
 
 
 def serialize_assignment_brief(assignment: DailyTripAssignment) -> dict:
-    panchayat = assignment.panchayat_id
+    panchayat = assignment.panchayat
     ward = assignment.wards.first()
     waste_type = assignment.primary_waste_type
-    vehicle = assignment.vehicle_id
+    vehicle = assignment.vehicle
+    waste_type_obj = None
+    if waste_type:
+        from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
+        waste_type_obj = WasteType.objects.filter(unique_id=waste_type).first()
     return {
         "unique_id": assignment.unique_id,
         "status": assignment.status,
@@ -504,10 +535,10 @@ def serialize_assignment_brief(assignment: DailyTripAssignment) -> dict:
         ),
         "waste_type": (
             {
-                "unique_id": waste_type.unique_id,
-                "name": waste_type.waste_type_name,
+                "unique_id": waste_type_obj.unique_id,
+                "name": waste_type_obj.waste_type_name,
             }
-            if waste_type
+            if waste_type_obj
             else None
         ),
         "vehicle": (
@@ -523,8 +554,11 @@ def serialize_assignment_brief(assignment: DailyTripAssignment) -> dict:
 
 
 def maybe_resolve_driver(assignment: DailyTripAssignment) -> Optional[Staffcreation]:
-    template = assignment.staff_template_id
-    return getattr(template, "driver_id", None)
+    template = assignment.staff_template
+    driver_id = getattr(template, "driver_id", None)
+    if not driver_id:
+        return None
+    return Staffcreation.objects.filter(staff_unique_id=driver_id).first()
 
 
 def resolve_customer_from_id(customer_id: str):
@@ -534,7 +568,7 @@ def resolve_customer_from_id(customer_id: str):
     payload) or the legacy `customer_id` column, so match on both — the same
     pair every other household endpoint in this project matches on.
     """
-    from app.models.customers.customercreation import CustomerCreation
+    from app.models.masters.customer_masters.customercreation import CustomerCreation
 
     identifier = (customer_id or "").strip()
     if not identifier:
@@ -576,7 +610,7 @@ def validate_customer_against_assignment(customer, assignment):
     friendlier `TRIP_LOCKED` message instead, so "finish your current trip"
     never reads as "this QR is invalid".
     """
-    from app.models.schedule_masters.daily_trip_household_collection import (
+    from app.models.core_modules.daily_operations.daily_trip_household_collection import (
         DailyTripHouseholdCollection,
     )
 
@@ -606,8 +640,8 @@ def validate_customer_against_assignment(customer, assignment):
     stop = (
         DailyTripHouseholdCollection.objects
         .filter(
-            trip_assignment_id=assignment,
-            customer_id=customer,
+            trip_assignment_id=assignment.unique_id,
+            customer_id=customer.unique_id,
             is_deleted=False,
         )
         .first()
@@ -625,25 +659,35 @@ def _raise_if_customer_belongs_to_locked_trip(customer, active_assignment):
     """Mirror of `_raise_if_bin_belongs_to_locked_trip` for households: if the
     customer is a stop on another of today's trips, say so rather than
     claiming they are not on any trip at all."""
-    from app.models.schedule_masters.daily_trip_household_collection import (
+    from app.models.core_modules.daily_operations.daily_trip_household_collection import (
         DailyTripHouseholdCollection,
     )
+    from app.models.core_modules.daily_operations.daily_trip_assignment import (
+        DailyTripAssignment,
+    )
+
+    today_assignment_ids = DailyTripAssignment.objects.filter(
+        trip_date=timezone.localdate(),
+        is_deleted=False,
+    ).values_list("unique_id", flat=True)
 
     other = (
         DailyTripHouseholdCollection.objects
         .filter(
-            customer_id=customer,
+            customer_id=customer.unique_id,
             is_deleted=False,
-            trip_assignment_id__trip_date=timezone.localdate(),
-            trip_assignment_id__is_deleted=False,
+            trip_assignment_id__in=today_assignment_ids,
         )
-        .exclude(trip_assignment_id=active_assignment)
+        .exclude(trip_assignment_id=active_assignment.unique_id)
         .first()
     )
     if not other:
         return
-    other_assignment = other.trip_assignment_id
-    scheduled = other_assignment.scheduled_time
+    other_assignment = DailyTripAssignment.objects.filter(
+        unique_id=other.trip_assignment_id,
+        is_deleted=False,
+    ).first()
+    scheduled = getattr(other_assignment, "scheduled_time", None)
     raise OperatorFlowError(
         "TRIP_LOCKED",
         (

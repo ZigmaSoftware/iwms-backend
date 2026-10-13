@@ -1,0 +1,434 @@
+import hashlib
+from django.conf import settings
+from django.db import models, transaction
+from app.utils.base_models import Account, BaseMaster
+from app.utils.comfun import generate_unique_id
+from ..role_management.userType import UserType
+from ..role_management.staffUserType import StaffUserType
+from ..role_management.contractorUserType import ContractorUserType
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+from app.utils.customer_qr import generate_customer_qr_content
+from app.utils.scoped_display_id import lock_tenant_scope, next_scoped_display_id
+
+
+def generate_staff_unique_id():
+    """Generate readable prefixed ID, e.g., ST-20251028001"""
+    return f"STC-{generate_unique_id()}"
+
+
+class StaffcreationOfficeDetails(BaseMaster):
+    APPROVAL_PENDING = "PENDING"
+    APPROVAL_APPROVED = "APPROVED"
+    APPROVAL_REJECTED = "REJECTED"
+    APPROVAL_SUSPENDED = "SUSPENDED"
+
+    APPROVAL_STATUS_CHOICES = [
+        (APPROVAL_PENDING, "Pending"),
+        (APPROVAL_APPROVED, "Approved"),
+        (APPROVAL_REJECTED, "Rejected"),
+        (APPROVAL_SUSPENDED, "Suspended"),
+    ]
+
+    staff_unique_id = models.CharField(
+        max_length=30,
+        primary_key=True,
+        unique=True,
+        editable=False,
+        default=generate_staff_unique_id,
+    )
+    staff_id = models.CharField(
+        max_length=20,
+        editable=False,
+        db_index=True,
+    )
+    emp_id = models.CharField(
+        max_length=8,
+        blank=True,
+        null=True,
+        editable=False,
+    )
+    employee_name = models.CharField(max_length=200)
+    doj = models.DateField(blank=True, null=True)
+    department = models.CharField(max_length=200, blank=True, null=True)
+    designation = models.CharField(max_length=200, blank=True, null=True)
+    department_id = models.CharField(max_length=30, null=True, blank=True)
+    designation_id = models.CharField(max_length=30, null=True, blank=True)
+
+    grade = models.CharField(max_length=50, blank=True, null=True)
+    site_name = models.CharField(max_length=200, blank=True, null=True)
+    staff_head = models.CharField(max_length=200, blank=True, null=True)
+    staff_head_id = models.CharField(max_length=30, blank=True, null=True)
+    employee_known = models.CharField(max_length=20, blank=True, null=True)
+    photo = models.ImageField(upload_to="staff_photos/", blank=True, null=True)
+    qr_code = models.ImageField(upload_to="staff_qr/", blank=True, null=True)
+    active_status = models.BooleanField(default=True)
+    salary_type = models.CharField(max_length=50, blank=True, null=True)
+
+    # Driving Licence Fields
+    driving_licence_no = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True
+    )
+    driving_licence_expiry_date = models.DateField(
+        blank=True,
+        null=True,
+    )
+    driving_licence_file = models.FileField(
+        upload_to="staff_licences/",
+        blank=True,
+        null=True
+    )
+
+    # =============================================
+    # AUTHENTICATION FIELDS (from User model)
+    # =============================================
+    username = models.CharField(
+        max_length=150,
+        null=True,
+        blank=True,
+        help_text="Required for platform super admins. Staff users may be created without it."
+    )
+
+    office_email = models.EmailField(
+        null=True,
+        blank=True,
+    )
+
+    password = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        help_text="Django auth password field"
+    )
+
+    password_crt_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of last password change"
+    )
+
+    previous_password = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        help_text="Previous encrypted password for reuse prevention"
+    )
+
+    # Firebase device token for the driver/operator/supervisor apps,
+    # registered on login and refreshed on rotation. Mirrors
+    # `CustomerCreation.fcm_token` for the citizen app.
+    fcm_token = models.CharField(max_length=255, null=True, blank=True)
+
+    is_staff = models.BooleanField(
+        default=False,
+        help_text="Django admin-site access flag (not a business role).",
+    )
+
+    is_superuser = models.BooleanField(default=False)
+
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default=APPROVAL_PENDING,
+        db_index=True,
+    )
+    login_enabled = models.BooleanField(default=False, db_index=True)
+    approved_by = models.CharField(max_length=30, null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_reason = models.TextField(null=True, blank=True)
+    failed_login_attempts = models.PositiveIntegerField(default=0)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+    last_login_ip = models.GenericIPAddressField(null=True, blank=True)
+
+    # Type Links
+    user_type_id = models.CharField(max_length=30, null=True, blank=True)
+    staffusertype_id = models.CharField(max_length=30, null=True, blank=True)
+    contractorusertype_id = models.CharField(max_length=30, null=True, blank=True)
+
+    # -----------------------------
+    # LOCATION FIELDS (match auth_user)
+    # -----------------------------
+    district_id = models.CharField(max_length=30, null=True, blank=True)
+    city_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True)
+
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ("personal_details", "access_configuration")
+    CACHE_SCOPES = ("staff_list", "staff_detail")
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company_id", "project_id", "staff_id"],
+                name="uniq_staff_id_per_company_project",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.employee_name} ({self.staff_unique_id})"
+
+    @staticmethod
+    def _derive_emp_id(staff_unique_id, salt=0):
+        digest = hashlib.sha1(f"{staff_unique_id}:{salt}".encode("utf-8")).hexdigest()
+        numeric = int(digest[:12], 16) % 10**8
+        return f"{numeric:08d}"
+
+    def _ensure_emp_id(self):
+        if self.emp_id or not self.staff_unique_id:
+            return
+
+        for salt in range(100):
+            candidate = self._derive_emp_id(self.staff_unique_id, salt)
+            exists = (
+                StaffcreationOfficeDetails.objects.filter(emp_id=candidate)
+                .exclude(pk=self.pk)
+                .exists()
+            )
+            if not exists:
+                self.emp_id = candidate
+                return
+
+        self.emp_id = self._derive_emp_id(self.staff_unique_id, 999999)
+
+    def _regenerate_qr_code(self):
+        file_content = generate_customer_qr_content({"id": self.staff_unique_id})
+        file_name = f"{self.staff_unique_id}.png"
+        if self.qr_code:
+            self.qr_code.delete(save=False)
+        self.qr_code.save(file_name, file_content, save=False)
+        super().save(update_fields=["qr_code"])
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+
+        if not is_new and self.staff_unique_id and self.staff_id:
+            previous_scope = (
+                type(self)
+                .objects.filter(staff_unique_id=self.staff_unique_id)
+                .values("company_id", "project_id")
+                .first()
+            )
+            if previous_scope and (
+                previous_scope["company_id"] != self.company_id
+                or previous_scope["project_id"] != self.project_id
+            ):
+                self.staff_id = ""
+                update_fields = kwargs.get("update_fields")
+                if update_fields is not None:
+                    update_fields = set(update_fields)
+                    update_fields.add("staff_id")
+                    kwargs["update_fields"] = list(update_fields)
+
+        if not self.emp_id:
+            self._ensure_emp_id()
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                update_fields = set(update_fields)
+                update_fields.add("emp_id")
+                kwargs["update_fields"] = list(update_fields)
+
+        if not self.staff_id:
+            with transaction.atomic():
+                lock_tenant_scope(
+                    company_model=Company,
+                    project_model=Project,
+                    company_id=self.company_id,
+                    project_id=self.project_id,
+                )
+                self.staff_id = next_scoped_display_id(
+                    model=StaffcreationOfficeDetails,
+                    field_name="staff_id",
+                    prefix="STF",
+                    company_id=self.company_id,
+                    project_id=self.project_id,
+                )
+                update_fields = kwargs.get("update_fields")
+                if update_fields is not None:
+                    update_fields = set(update_fields)
+                    update_fields.add("staff_id")
+                    kwargs["update_fields"] = list(update_fields)
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
+
+        if is_new:
+            Account.objects.get_or_create(staff=self)
+
+        if is_new or not self.qr_code:
+            self._regenerate_qr_code()
+
+    @property
+    def is_authenticated(self):
+        """
+        Always return True for authenticated users.
+        Required by Django REST Framework's permission system.
+        """
+        return True
+
+    @property
+    def department_obj(self):
+        from app.models.superadmin.staff_management.department import Department
+        if self.department_id:
+            return Department.objects.filter(unique_id=self.department_id).first()
+        return None
+
+    @property
+    def designation_obj(self):
+        from app.models.superadmin.staff_management.designation import Designation
+        if self.designation_id:
+            return Designation.objects.filter(unique_id=self.designation_id).first()
+        return None
+
+    @property
+    def district(self):
+        from app.models.masters.district import District
+        if self.district_id:
+            return District.objects.filter(unique_id=self.district_id).first()
+        return None
+
+    @property
+    def city(self):
+        from app.models.masters.city import City
+        if self.city_id:
+            return City.objects.filter(unique_id=self.city_id).first()
+        return None
+
+    @property
+    def zone(self):
+        from app.models.masters.zone import Zone
+        if self.zone_id:
+            return Zone.objects.filter(unique_id=self.zone_id).first()
+        return None
+
+    @property
+    def ward(self):
+        from app.models.masters.ward import Ward
+        if self.ward_id:
+            return Ward.objects.filter(unique_id=self.ward_id).first()
+        return None
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+    @property
+    def user_type(self):
+        from ..role_management.userType import UserType
+        if self.user_type_id:
+            return UserType.objects.filter(unique_id=self.user_type_id).first()
+        return None
+
+    @property
+    def staffusertype(self):
+        from ..role_management.staffUserType import StaffUserType
+        if self.staffusertype_id:
+            return StaffUserType.objects.filter(unique_id=self.staffusertype_id).first()
+        return None
+
+    @property
+    def contractorusertype(self):
+        from ..role_management.contractorUserType import ContractorUserType
+        if self.contractorusertype_id:
+            return ContractorUserType.objects.filter(unique_id=self.contractorusertype_id).first()
+        return None
+
+    @property
+    def app_module(self):
+        """Surface key of the ONE mobile app this staff member signs into.
+
+        Read-only, and resolved from the staff member's active
+        `StaffAccessConfiguration` — the single place the app is stored. It
+        used to be a column here as well, which let "which app opens after
+        sign-in" (this field) and "which apps may they sign in to" (the
+        access configuration) disagree, stranding the user on a shell with
+        no tabs. None means no mobile access, and the login gate refuses a
+        mobile sign-in for that.
+        """
+        from app.models.superadmin.staff_management.staff_access_configuration import (
+            StaffAccessConfiguration,
+        )
+        config = StaffAccessConfiguration.objects.filter(
+            staff_id=self.staff_unique_id, is_active=True, is_deleted=False,
+        ).first()
+        if not config or not config.app_module_id:
+            return None
+        module = config.app_module
+        return module.surface_key if module and module.is_active and not module.is_deleted else None
+
+
+class StaffPersonalDetails(models.Model):
+    staff = models.OneToOneField(
+        StaffcreationOfficeDetails,
+        on_delete=models.CASCADE,
+        related_name="personal_details"
+    )
+    staff_unique_id = models.CharField(
+        max_length=30,
+        primary_key=True,
+        editable=False
+    )
+    company_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True)
+    marital_status = models.CharField(max_length=50, blank=True, null=True)
+    dob = models.DateField(blank=True, null=True)
+    age = models.PositiveSmallIntegerField(blank=True, null=True)
+    blood_group = models.CharField(max_length=20, blank=True, null=True)
+    gender = models.CharField(max_length=20, blank=True, null=True)
+    physically_challenged = models.CharField(max_length=20, blank=True, null=True)
+    present_address = models.JSONField(blank=True, null=True)
+    permanent_address = models.JSONField(blank=True, null=True)
+    contact_mobile = models.CharField(max_length=20, blank=True, null=True)
+    contact_email = models.EmailField(max_length=254, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    CASCADE_SOFT_DELETE = ()
+    CACHE_SCOPES = ("staff_personal_details_list", "staff_personal_details_detail")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Personal details for {self.staff.employee_name}"
+
+    def save(self, *args, **kwargs):
+        if self.staff and not self.staff_unique_id:
+            self.staff_unique_id = self.staff.staff_unique_id
+        super().save(*args, **kwargs)
+
+    @property
+    def company(self):
+        from app.models.superadmin_masters.company import Company
+        if self.company_id:
+            return Company.objects.filter(unique_id=self.company_id).first()
+        return None
+
+    @property
+    def project(self):
+        from app.models.superadmin_masters.project import Project
+        if self.project_id:
+            return Project.objects.filter(unique_id=self.project_id).first()
+        return None
+
+
+# Backward compatibility alias
+Staffcreation = StaffcreationOfficeDetails

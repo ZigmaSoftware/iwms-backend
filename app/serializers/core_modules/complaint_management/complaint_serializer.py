@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.models.grivences.complaints import Complaint
+from app.models.core_modules.complaint_management.complaints import Complaint
 
 
 class ComplaintSerializer(serializers.ModelSerializer):

@@ -48,6 +48,8 @@ class CommonAuditViewSet(
         "object_id",
         "company_name",
         "project_name",
+        "reason",
+        "ip_address",
     ]
     ordering_fields = ["createdAt", "module_name", "company_name", "project_name"]
 
@@ -128,6 +130,14 @@ class CommonAuditViewSet(
         created_by_id = params.get("created_by_id")
         if created_by_id:
             queryset = queryset.filter(created_by_id=created_by_id)
+
+        # "true"/"false" — isolates rejected writes (validation failures,
+        # blocked deletes) from the successful trail.
+        success = params.get("success")
+        if success not in (None, ""):
+            queryset = queryset.filter(
+                success=success.lower() in ("1", "true", "yes")
+            )
 
         date_from = params.get("date_from")
         if date_from:

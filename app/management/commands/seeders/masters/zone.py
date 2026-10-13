@@ -1,8 +1,8 @@
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 
-from app.models.common_masters.continent import Continent
-from app.models.common_masters.country import Country
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.continent import Continent
+from app.models.superadmin.common_masters.country import Country
+from app.models.superadmin.common_masters.state import State
 from app.models.masters.district import District
 from app.models.masters.city import City
 from app.models.masters.zone import Zone, GeoFencingType
@@ -46,7 +46,7 @@ class ZoneSeeder(BaseSeeder):
         )
         project, _ = Project.objects.get_or_create(
             name=f"{company.name} Main Project",
-            company_id=company,
+            company_id=uid(company),
             defaults={
                 "description": f"Default project for {company.name}",
                 "is_active": True,
@@ -80,14 +80,14 @@ class ZoneSeeder(BaseSeeder):
                     state_id=state_cache[state_name],
                     country_id=india,
                     continent_id=asia,
-                    company_id=company,
-                    project_id=project,
+                    company_id=uid(company),
+                    project_id=uid(project),
                 )
             _, created = Zone.objects.update_or_create(
                 zone_name=zone_name,
                 city_id=city_cache[city_key],
-                company_id=company,
-                project_id=project,
+                company_id=uid(company),
+                project_id=uid(project),
                 defaults={
                     "state_id": state_cache[state_name],
                     "district_id": district_cache[district_key],

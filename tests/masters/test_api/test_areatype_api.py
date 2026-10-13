@@ -62,5 +62,5 @@ class TestAreaTypeAPIDelete:
         at = AreaType.objects.create(
             name="Coastal", state_id=state, city_id=city, district_id=district
         )
-        resp = auth_client.delete(f"{BASE}{at.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{at.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

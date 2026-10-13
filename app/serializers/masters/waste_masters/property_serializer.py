@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.waste_types.property import Property
+from app.models.masters.waste_masters.property import Property
 from app.validators.unique_name_validator import unique_name_validator
 
 class PropertySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):

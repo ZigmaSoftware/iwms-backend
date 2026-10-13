@@ -1,7 +1,7 @@
 """Unit tests for Department model — CRUD + constraints."""
 import pytest
 from django.db import IntegrityError
-from app.models.staff_creations.department import Department
+from app.models.superadmin.staff_management.department import Department
 
 
 @pytest.fixture

@@ -3,10 +3,10 @@ from django.db import transaction
 from rest_framework import viewsets, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.superadmin_masters.company import Company
 
-from app.models.screen_managements.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreen import UserScreen
 from app.serializers.superadmin.screen_management.userscreen_serializer import UserScreenSerializer
 from app.utils.filters import (
     ModelFieldQueryFilter,

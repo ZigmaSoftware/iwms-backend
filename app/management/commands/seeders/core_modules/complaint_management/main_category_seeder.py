@@ -1,5 +1,5 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.grivences.main_category_citizenGrievance import MainCategory
+from app.models.core_modules.complaint_management.main_category_citizenGrievance import MainCategory
 
 
 class MainCategorySeeder(BaseSeeder):

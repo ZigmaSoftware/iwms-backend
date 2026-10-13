@@ -10,13 +10,13 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
-from app.models.transport_masters.fuel import Fuel
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
+from app.models.masters.transport_masters.fuel import Fuel
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.serializers.masters.transport_masters.vehicleCreation_serializer import VehicleCreationSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.filters import (
@@ -112,14 +112,17 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             Q(unique_id__iexact=value) | Q(name__iexact=value)
         ).first()
 
-    def _find_project(self, company: Company, raw_value: str | None) -> Project | None:
+    def _find_project(self, company, raw_value: str | None) -> Project | None:
         if not raw_value:
             return None
 
         value = str(raw_value).strip()
+        # company may be a model instance (superadmin branch) or a plain
+        # uid string (company-user branch via self._company()).
+        company_uid = company if isinstance(company, str) else getattr(company, "unique_id", company)
         return Project.objects.filter(
             is_deleted=False,
-            company_id=company
+            company_id=company_uid
         ).filter(
             Q(unique_id__iexact=value) | Q(name__iexact=value)
         ).first()
@@ -247,14 +250,20 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             if is_active_value:
                 payload["is_active"] = is_active_value in {"true", "1", "yes", "y"}
 
-            payload["company_id_input"] = company.unique_id if company else None
-            if project:
-                payload["project_id_input"] = project.unique_id
+            # company/project may be model instances (superadmin branch) or
+            # plain uid strings (company-user branch) — normalize to strings
+            # for the CharField columns below.
+            company_uid = company if isinstance(company, str) else getattr(company, "unique_id", company)
+            project_uid = project if isinstance(project, str) else getattr(project, "unique_id", project)
+
+            payload["company_id_input"] = company_uid
+            if project_uid:
+                payload["project_id_input"] = project_uid
 
             serializer = self.get_serializer(data=payload)
 
             if serializer.is_valid():
-                serializer.save(company_id=company, project_id=project)
+                serializer.save(company_id=company_uid, project_id=project_uid)
                 success_count += 1
             else:
                 errors.append({"row": index, "error": serializer.errors})

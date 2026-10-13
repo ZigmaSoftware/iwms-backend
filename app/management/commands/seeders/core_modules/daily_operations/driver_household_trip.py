@@ -30,26 +30,26 @@ Idempotent: get_or_create / update_or_create throughout, safe to re-run.
 
 from django.utils import timezone
 
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 
-from app.models.customers.customercreation import CustomerCreation
+from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
-from app.models.role_assigns.staffUserType import StaffUserType
-from app.models.role_assigns.userType import UserType
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.role_management.userType import UserType
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
 
 
 COMPANY_NAME = "Blue Planet"
@@ -106,13 +106,13 @@ class DriverHouseholdTripSeeder(BaseSeeder):
             return None
 
         project = Project.objects.filter(
-            name=PROJECT_NAME, company_id=company, is_deleted=False
+            name=PROJECT_NAME, company_id=uid(company), is_deleted=False
         ).first()
         if not project:
             self.log(f"Project '{PROJECT_NAME}' not found under {COMPANY_NAME}.")
             return None
 
-        scope = {"company_id": company, "project_id": project, "is_deleted": False}
+        scope = {"company_id": uid(company), "project_id": uid(project), "is_deleted": False}
         district = District.objects.filter(**scope).first()
         city = City.objects.filter(**scope).first()
         zone = Zone.objects.filter(**scope).first()
@@ -183,7 +183,7 @@ class DriverHouseholdTripSeeder(BaseSeeder):
         # driver_wet_dry_bin_trips.py creates/repins this same StaffTemplate;
         # get_or_create here so this seeder also works standalone.
         template, created = StaffTemplate.objects.get_or_create(
-            company_id=company, project_id=project,
+            company_id=uid(company), project_id=uid(project),
             driver_id=driver, operator_id=operator,
             is_deleted=False,
             defaults={"is_active": True},
@@ -221,7 +221,7 @@ class DriverHouseholdTripSeeder(BaseSeeder):
             return None
         role, _ = StaffUserType.objects.get_or_create(
             name="Company Supervisor",
-            usertype_id=staff_type,
+            usertype_id=staff_type.unique_id,
             defaults={"is_active": True, "is_deleted": False},
         )
 
@@ -232,8 +232,8 @@ class DriverHouseholdTripSeeder(BaseSeeder):
                 "password": "Supervisor123",
                 "user_type_id": staff_type,
                 "staffusertype_id": role,
-                "company_id": company,
-                "project_id": project,
+                "company_id": uid(company),
+                "project_id": uid(project),
                 "is_active": True,
                 "is_deleted": False,
                 "is_superuser": False,
@@ -315,7 +315,7 @@ class DriverHouseholdTripSeeder(BaseSeeder):
         on this plan's assignments for a customer no longer on the plan.
         Collected stops are left alone (real audit history).
         """
-        from app.models.schedule_masters.daily_trip_household_collection import (
+        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
             DailyTripHouseholdCollection,
         )
 
@@ -328,7 +328,7 @@ class DriverHouseholdTripSeeder(BaseSeeder):
 
     # ------------------------------------------------------------------
     def _report(self, plan):
-        from app.models.schedule_masters.daily_trip_household_collection import (
+        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
             DailyTripHouseholdCollection,
         )
 

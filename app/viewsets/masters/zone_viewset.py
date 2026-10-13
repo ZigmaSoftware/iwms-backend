@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.masters.zone import Zone
 from app.serializers.masters.zone_serializer import ZoneSerializer
 

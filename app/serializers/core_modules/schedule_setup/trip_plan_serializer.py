@@ -2,25 +2,25 @@ from rest_framework import serializers
 from django.db import transaction
 from django.db.models import F, Max
 
-from app.models.assets.bins import Bins
-from app.models.customers.customercreation import CustomerCreation
-from app.models.schedule_masters.collection_point import Collection_point
+from app.models.masters.waste_masters.bins import Bins
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import (
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import (
     TripPlanCollectionPoint,
 )
-from app.models.schedule_masters.daily_trip_assignment import DailyTripAssignment
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.schedule_masters.staff_template import StaffTemplate
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
-from app.models.waste_types.property import Property
-from app.models.waste_types.subproperty import SubProperty
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
+from app.models.masters.waste_masters.property import Property
+from app.models.masters.waste_masters.subproperty import SubProperty
 from app.signals.trip_plan_signals import (
     _customers_for_household_stop,
     sync_daily_assignment_stops_from_plan,

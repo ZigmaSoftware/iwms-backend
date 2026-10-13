@@ -5,12 +5,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.models.screen_managements.companyuserscreencolumnpermission import (
+from app.models.superadmin.screen_management.companyuserscreencolumnpermission import (
     CompanyUserScreenColumnPermission,
 )
-from app.models.screen_managements.companyuserscreenpermission import CompanyUserScreenPermission
-from app.models.screen_managements.userscreen import UserScreen
-from app.models.screen_managements.userscreencolumn import UserScreenColumn
+from app.models.superadmin.screen_management.companyuserscreenpermission import CompanyUserScreenPermission
+from app.models.superadmin.screen_management.userscreen import UserScreen
+from app.models.superadmin.screen_management.userscreencolumn import UserScreenColumn
 from app.serializers.superadmin.screen_management.companyuserscreenpermission_serializer import (
     CompanyUserScreenPermissionMultiScreenSerializer,
 )
@@ -18,6 +18,7 @@ from app.serializers.superadmin.screen_management.userscreencolumn_serializer im
     UserScreenColumnSerializer,
 )
 from app.services.schema_sync_service import sync_userscreen_schema
+from app.utils.permission_snapshot import CompanyPermissionAuditMixin
 
 
 class UserScreenColumnsAPIView(APIView):
@@ -38,7 +39,7 @@ class UserScreenColumnsAPIView(APIView):
         return Response(UserScreenColumnSerializer(columns, many=True).data)
 
 
-class PermissionAssignAPIView(APIView):
+class PermissionAssignAPIView(CompanyPermissionAuditMixin, APIView):
     @transaction.atomic
     def post(self, request):
         payload = request.data

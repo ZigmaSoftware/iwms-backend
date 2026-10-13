@@ -29,6 +29,15 @@ class Plant(BaseMaster):
     name = models.CharField(max_length=100)
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    boundary_coordinates = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Ordered list of {latitude, longitude} points tracing this "
+            "plant's boundary. Connected in order (and back to the first "
+            "point) to draw the geofence polygon on the map."
+        ),
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

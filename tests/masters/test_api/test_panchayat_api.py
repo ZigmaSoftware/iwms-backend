@@ -92,5 +92,5 @@ class TestPanchayatAPIDelete:
             panchayat_name="Delete Me",
             geofencing_type="rectangle",
         )
-        resp = auth_client.delete(f"{BASE}{p.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{p.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

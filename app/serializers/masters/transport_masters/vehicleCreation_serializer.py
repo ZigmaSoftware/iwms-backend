@@ -1,8 +1,8 @@
 from rest_framework import serializers
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.transport_masters.vehicleTypeCreation import VehicleTypeCreation
-from app.models.transport_masters.fuel import Fuel
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
+from app.models.masters.transport_masters.fuel import Fuel
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
 

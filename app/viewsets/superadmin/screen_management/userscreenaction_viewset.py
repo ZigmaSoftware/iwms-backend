@@ -3,10 +3,10 @@ from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.superadmin_masters.company import Company
 
-from app.models.screen_managements.userscreenaction import UserScreenAction
+from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
 from app.serializers.superadmin.screen_management.userscreenaction_serializer import (
     UserScreenActionSerializer
 )

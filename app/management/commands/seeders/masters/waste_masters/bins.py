@@ -1,10 +1,10 @@
-from app.management.commands.seeders.base import BaseSeeder
+from app.management.commands.seeders.base import BaseSeeder, uid
 
-from app.models.assets.bins import Bins, BinType
+from app.models.masters.waste_masters.bins import Bins, BinType
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.staff_creations.waste_collection_bluetooth import WasteType
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
 
 class BinSeeder(BaseSeeder):
@@ -31,8 +31,8 @@ class BinSeeder(BaseSeeder):
 
         # --- Ward CPs: 1 bin (any waste type) per ward CP ---
         ward_cps = Collection_point.objects.filter(
-            company_id=company,
-            project_id=project,
+            company_id=uid(company),
+            project_id=uid(project),
             wards__isnull=False,
             is_deleted=False,
         ).distinct().order_by("cp_name")
@@ -44,8 +44,8 @@ class BinSeeder(BaseSeeder):
             waste_type = wet_waste or any_waste
             _, created = Bins.objects.get_or_create(
                 bin_qr=qr,
-                company_id=company,
-                project_id=project,
+                company_id=uid(company),
+                project_id=uid(project),
                 defaults={
                     "collection_point_id": cp,
                     "wastetype_id": waste_type,
@@ -67,8 +67,8 @@ class BinSeeder(BaseSeeder):
             return
 
         panchayat_cps = Collection_point.objects.filter(
-            company_id=company,
-            project_id=project,
+            company_id=uid(company),
+            project_id=uid(project),
             wards__isnull=True,
             panchayat_id__isnull=False,
             is_deleted=False,
@@ -81,8 +81,8 @@ class BinSeeder(BaseSeeder):
                 bin_name = f"{cp.cp_name} {label.capitalize()} Bin"
                 _, created = Bins.objects.get_or_create(
                     bin_qr=qr,
-                    company_id=company,
-                    project_id=project,
+                    company_id=uid(company),
+                    project_id=uid(project),
                     defaults={
                         "collection_point_id": cp,
                         "wastetype_id": waste_type,

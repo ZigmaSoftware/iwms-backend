@@ -1,5 +1,5 @@
 from app.management.commands.seeders.base import BaseSeeder
-from app.models.complaint_management import ComplaintStatus
+from app.models.core_modules.complaint_management import ComplaintStatus
 
 
 class ComplaintStatusSeeder(BaseSeeder):

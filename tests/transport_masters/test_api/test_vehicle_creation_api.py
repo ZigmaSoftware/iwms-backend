@@ -34,7 +34,7 @@ class TestVehicleCreationAPICreate:
 @pytest.mark.django_db
 class TestVehicleCreationAPIRetrieve:
     def test_retrieve_returns_200(self, auth_client, company, project):
-        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
         v = VehicleCreation.objects.create(
             company_id=company, project_id=project,
             vehicle_no="TN-02-CD-5678",
@@ -46,7 +46,7 @@ class TestVehicleCreationAPIRetrieve:
 @pytest.mark.django_db
 class TestVehicleCreationAPIUpdate:
     def test_patch_returns_success(self, auth_client, company, project):
-        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
         v = VehicleCreation.objects.create(
             company_id=company, project_id=project,
             vehicle_no="TN-03-EF-9012",
@@ -60,10 +60,10 @@ class TestVehicleCreationAPIUpdate:
 @pytest.mark.django_db
 class TestVehicleCreationAPIDelete:
     def test_delete_returns_success(self, auth_client, company, project):
-        from app.models.transport_masters.vehicleCreation import VehicleCreation
+        from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
         v = VehicleCreation.objects.create(
             company_id=company, project_id=project,
             vehicle_no="TN-04-GH-3456",
         )
-        resp = auth_client.delete(f"{BASE}{v.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{v.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

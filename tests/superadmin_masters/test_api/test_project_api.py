@@ -1,6 +1,6 @@
 """API tests for Project endpoint — CRUD operations."""
 import pytest
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.superadmin_masters.project import Project
 
 BASE = "/api/v1/superadmin/project/"
@@ -103,5 +103,5 @@ class TestProjectAPIUpdate:
 @pytest.mark.django_db
 class TestProjectAPIDelete:
     def test_delete_returns_success(self, auth_client, project):
-        resp = auth_client.delete(f"{BASE}{project.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{project.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

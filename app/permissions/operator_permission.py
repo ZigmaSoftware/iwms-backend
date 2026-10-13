@@ -1,5 +1,7 @@
 from rest_framework.permissions import BasePermission
 
+from app.permissions.platform import _role_name
+
 
 class IsOperatorRole(BasePermission):
     """Allow Staffcreation users whose role is driver, operator, or any other
@@ -18,12 +20,11 @@ class IsOperatorRole(BasePermission):
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
-        role_names = []
-        for attr in ("staffusertype_id", "contractorusertype_id"):
-            role_obj = getattr(user, attr, None)
-            name = (getattr(role_obj, "name", "") or "").lower()
-            if name:
-                role_names.append(name)
+        role_names = [(_role_name(user) or "").lower()]
+        contractor_role = getattr(user, "contractorusertype", None)
+        contractor_role_name = (getattr(contractor_role, "name", "") or "").lower()
+        if contractor_role_name:
+            role_names.append(contractor_role_name)
         field_role_markers = ("driver", "operator", "field")
         return any(
             marker in role_name

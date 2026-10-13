@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
-from app.models.role_assigns.userType import UserType
+from app.models.superadmin.role_management.userType import UserType
 from app.validators.unique_name_validator import unique_name_validator
 class UserTypeSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 

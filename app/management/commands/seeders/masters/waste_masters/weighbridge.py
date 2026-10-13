@@ -3,7 +3,7 @@
 
 # from app.management.commands.seeders.base import BaseSeeder
 
-# from app.models.assets.weighbridge import WeighbridgeCheck
+# from app.models.masters.waste_masters.weighbridge import WeighbridgeCheck
 # from app.models.transport_masters.trip import Trip
 # from app.models.superadmin_masters.company import Company
 # from app.models.superadmin_masters.project import Project

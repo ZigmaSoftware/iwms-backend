@@ -13,12 +13,12 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from app.models.staff_creations.staffcreation import Staffcreation
-from app.models.staff_creations.attendance import Recognized
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.core_modules.attendance.attendance import Recognized
 from app.serializers.superadmin.staff_management.staffcreation_serializer import (
     StaffcreationSerializer,
 )
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
 
 class AttendanceRecordsViewSet(CompanyScopedViewSet):

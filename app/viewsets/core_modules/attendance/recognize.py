@@ -24,7 +24,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from app.models.staff_creations.attendance import Employee, Recognized
+from app.models.core_modules.attendance.attendance import Employee, Recognized
 from app.services import face_recognition
 
 

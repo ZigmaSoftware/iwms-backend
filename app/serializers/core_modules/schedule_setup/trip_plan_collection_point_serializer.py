@@ -1,10 +1,10 @@
 from rest_framework import serializers
 
-from app.models.assets.bins import Bins
-from app.models.customers.customercreation import CustomerCreation
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import (
+from app.models.masters.waste_masters.bins import Bins
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import (
     TripPlanCollectionPoint,
 )
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin

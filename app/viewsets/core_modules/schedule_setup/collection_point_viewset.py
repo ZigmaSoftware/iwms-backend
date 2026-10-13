@@ -1,10 +1,10 @@
 from django.db import models
 from rest_framework import filters, viewsets, status
-from app.models.schedule_masters.collection_point import Collection_point
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
 from app.serializers.core_modules.schedule_setup.collection_point_serializer import CollectionPointSerializer
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 

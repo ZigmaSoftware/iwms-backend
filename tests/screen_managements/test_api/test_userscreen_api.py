@@ -6,8 +6,8 @@ BASE = "/api/v1/screen-managements/userscreens/"
 
 @pytest.fixture
 def main_screen(db):
-    from app.models.screen_managements.mainscreentype import MainScreenType
-    from app.models.screen_managements.mainscreen import MainScreen
+    from app.models.superadmin.screen_management.mainscreentype import MainScreenType
+    from app.models.superadmin.screen_management.mainscreen import MainScreen
     mst = MainScreenType.objects.create(type_name="Admin")
     return MainScreen.objects.create(
         mainscreen_name="Dashboard", mainscreentype_id=mst,
@@ -53,7 +53,7 @@ class TestUserScreenAPIRetrieve:
 @pytest.mark.django_db
 class TestUserScreenAPIUpdate:
     def test_patch_returns_success(self, auth_client, main_screen):
-        from app.models.screen_managements.userscreen import UserScreen
+        from app.models.superadmin.screen_management.userscreen import UserScreen
         us = UserScreen.objects.create(
             mainscreen_id=main_screen, userscreen_name="Monthly",
             folder_name="monthly", icon_name="calendar", order_no=1,
@@ -67,10 +67,10 @@ class TestUserScreenAPIUpdate:
 @pytest.mark.django_db
 class TestUserScreenAPIDelete:
     def test_delete_returns_success(self, auth_client, main_screen):
-        from app.models.screen_managements.userscreen import UserScreen
+        from app.models.superadmin.screen_management.userscreen import UserScreen
         us = UserScreen.objects.create(
             mainscreen_id=main_screen, userscreen_name="Profile",
             folder_name="profile", icon_name="user", order_no=2,
         )
-        resp = auth_client.delete(f"{BASE}{us.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{us.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

@@ -2,8 +2,8 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework.response import Response
 from rest_framework import viewsets
-from app.viewsets.superadminmasters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.role_assigns.staffUserType import StaffUserType
+from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.serializers.superadmin.role_management.staffusertype_serializer import StaffUserTypeSerializer
 from rest_framework.decorators import action
 from app.utils.audit_mixin import AuditViewSetMixin

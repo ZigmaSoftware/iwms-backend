@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 
-from app.models.masters.panchayat_leader_login import PanchayatLeaderLogin
+from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.panchayat import Panchayat
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.utils.name_or_id_field import NameOrUniqueIdField
@@ -14,10 +14,7 @@ class PanchayatLeaderLoginSerializer(TenancyReadSerializerMixin, serializers.Mod
         queryset=Panchayat.objects.filter(is_deleted=False),
         required=True,
     )
-    panchayat_name = serializers.CharField(
-        source="panchayat_id.panchayat_name",
-        read_only=True,
-    )
+    panchayat_name = serializers.SerializerMethodField()
 
     password = serializers.CharField(
         required=False,
@@ -45,6 +42,9 @@ class PanchayatLeaderLoginSerializer(TenancyReadSerializerMixin, serializers.Mod
             "updated_at",
         ]
         read_only_fields = ["unique_id", "created_at", "updated_at"]
+
+    def get_panchayat_name(self, obj):
+        return getattr(obj.panchayat, "panchayat_name", None)
 
     def validate_panchayat_id(self, value):
         """One panchayat can have at most one (non-deleted) leader."""
@@ -81,7 +81,8 @@ class PanchayatLeaderLoginSerializer(TenancyReadSerializerMixin, serializers.Mod
             raise serializers.ValidationError({"password": "Password is required."})
 
         # Inherit company/project from panchayat if not provided
-        panchayat = validated_data.get("panchayat_id")
+        panchayat_id = validated_data.get("panchayat_id")
+        panchayat = Panchayat.objects.filter(unique_id=panchayat_id).first() if panchayat_id else None
         if panchayat and not validated_data.get("company_id"):
             validated_data["company_id"] = panchayat.company_id
         if panchayat and not validated_data.get("project_id"):

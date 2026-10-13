@@ -10,7 +10,7 @@ through it. These cover the resolution rules that enforce that.
 import pytest
 from rest_framework import serializers
 
-from app.models.screen_managements.app_module import AppModule
+from app.models.superadmin.screen_management.app_module import AppModule
 from app.serializers.superadmin.staff_management.staff_access_configuration_serializer import (
     StaffAccessConfigurationSerializer,
 )
@@ -68,10 +68,10 @@ def test_field_sent_detection():
 
 def test_staff_app_module_reads_through_access_configuration(db, modules):
     """`Staffcreation.app_module` reflects the access configuration, and only it."""
-    from app.models.staff_creations.staff_access_configuration import (
+    from app.models.superadmin.staff_management.staff_access_configuration import (
         StaffAccessConfiguration,
     )
-    from app.models.staff_creations.staffcreation import Staffcreation
+    from app.models.superadmin.staff_management.staffcreation import Staffcreation
     from app.models.superadmin_masters.company import Company
 
     company = Company.objects.create(name="Acme")

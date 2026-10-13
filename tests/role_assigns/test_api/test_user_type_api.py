@@ -7,7 +7,7 @@ BASE = "/api/v1/role-assigns/user-type/"
 
 
 def _staff_auth_client(api_client, company, project, user_type):
-    from app.models.staff_creations.staffcreation import Staffcreation
+    from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
     staff = Staffcreation.objects.create(
         employee_name="Company Admin",
@@ -88,5 +88,5 @@ class TestUserTypeAPIUpdate:
 @pytest.mark.django_db
 class TestUserTypeAPIDelete:
     def test_delete_returns_success(self, auth_client, user_type):
-        resp = auth_client.delete(f"{BASE}{user_type.unique_id}/")
+        resp = auth_client.delete(f"{BASE}{user_type.unique_id}/", {"delete_reason": "Test delete"}, format="json")
         assert resp.status_code in (200, 204)

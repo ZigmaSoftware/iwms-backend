@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from app.models.assets.weighbridge import WeighbridgeCheck
-from app.models.schedule_masters.trip_plan import TripPlan
+from app.models.masters.waste_masters.weighbridge import WeighbridgeCheck
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 

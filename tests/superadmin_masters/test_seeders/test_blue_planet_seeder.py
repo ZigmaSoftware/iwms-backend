@@ -6,18 +6,18 @@ from app.management.commands.seeders.superadmin_masters.blue_planet import (
 from app.management.commands.seeders.superadmin.staff_management.staff_office import (
     backfill_missing_staff_ids,
 )
-from app.models.assets.bins import Bins
-from app.models.customers.customercreation import CustomerCreation
-from app.models.grivences.complaints import Complaint
+from app.models.masters.waste_masters.bins import Bins
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.core_modules.complaint_management.complaints import Complaint
 from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
-from app.models.schedule_masters.collection_point import Collection_point
-from app.models.schedule_masters.trip_plan import TripPlan
-from app.models.schedule_masters.trip_plan_collection_point import TripPlanCollectionPoint
+from app.models.core_modules.schedule_setup.collection_point import Collection_point
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
-from app.models.transport_masters.vehicleCreation import VehicleCreation
-from app.models.staff_creations.staffcreation import Staffcreation
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.superadmin.staff_management.staffcreation import Staffcreation
 
 
 @pytest.mark.django_db

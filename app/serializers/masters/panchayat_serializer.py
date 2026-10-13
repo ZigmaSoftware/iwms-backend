@@ -4,7 +4,7 @@ from app.models.masters.panchayat import Panchayat
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.masters.block_panchayat_union import BlockPanchayatUnion
-from app.models.common_masters.state import State
+from app.models.superadmin.common_masters.state import State
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
 

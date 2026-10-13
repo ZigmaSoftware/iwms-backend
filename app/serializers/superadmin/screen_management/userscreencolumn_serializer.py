@@ -4,7 +4,7 @@
 
 from rest_framework import serializers
 
-from app.models.screen_managements.userscreencolumn import (
+from app.models.superadmin.screen_management.userscreencolumn import (
     UserScreenColumn
 )
 

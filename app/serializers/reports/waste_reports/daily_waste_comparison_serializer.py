@@ -1,7 +1,7 @@
 from decimal import Decimal, ROUND_HALF_UP
 
 from rest_framework import serializers
-from app.models.schedule_masters.daily_waste_comparison import DailyWasteComparison
+from app.models.reports.waste_reports.daily_waste_comparison import DailyWasteComparison
 
 ZERO = Decimal("0")
 TWO = Decimal("0.01")

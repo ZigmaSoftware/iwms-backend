@@ -21,9 +21,23 @@ class ExternalAttendanceViewSet(ViewSet):
 
     def _company(self, request):
         user = request.user
+        # company_id is a CharField uid string on Staffcreation/auth User —
+        # normalize to the string first, then load the object, so callers can
+        # safely use company.unique_id / company.name either way.
         user_company = getattr(user, "company_id", None)
-        if user_company is not None:
-            return user_company
+        company_uid = (
+            user_company
+            if isinstance(user_company, str)
+            else getattr(user_company, "unique_id", None)
+        )
+        if company_uid is not None:
+            company = Company.objects.filter(
+                unique_id=company_uid,
+                is_deleted=False,
+            ).first()
+            if company:
+                return company
+            raise PermissionDenied("Company user required")
 
         if getattr(user, "is_superuser", False):
             company_id = request.query_params.get("company_id")
@@ -47,7 +61,7 @@ class ExternalAttendanceViewSet(ViewSet):
 
         project = Project.objects.filter(
             unique_id=project_id,
-            company_id=company,
+            company_id=company.unique_id if not isinstance(company, str) else company,
             is_deleted=False,
         ).first()
         if not project:

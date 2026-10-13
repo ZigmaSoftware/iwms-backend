@@ -1,7 +1,7 @@
 """Unit tests for MainCategory grievance model — CRUD + constraints."""
 import pytest
 from django.db import IntegrityError
-from app.models.grivences.main_category_citizenGrievance import MainCategory
+from app.models.core_modules.complaint_management.main_category_citizenGrievance import MainCategory
 
 
 @pytest.mark.django_db

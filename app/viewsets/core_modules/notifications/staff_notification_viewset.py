@@ -7,7 +7,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.models.notifications.staff_notification import StaffNotification
+from app.models.core_modules.notifications.staff_notification import StaffNotification
 from app.serializers.core_modules.notifications.staff_notification_serializer import (
     StaffNotificationSerializer,
 )

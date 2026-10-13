@@ -70,7 +70,7 @@ Here is a real test from the suite, `tests/common_masters/test_models/test_conti
 ```python
 """Unit tests for Continent model — CRUD + constraints."""
 import pytest
-from app.models.common_masters.continent import Continent
+from app.models.superadmin.common_masters.continent import Continent
 
 
 @pytest.mark.django_db
