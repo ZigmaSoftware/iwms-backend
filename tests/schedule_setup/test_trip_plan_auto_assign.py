@@ -47,7 +47,11 @@ class TestIsAutoAssignFilter:
         plan.repeat_days = [0, 1, 2, 3, 4, 5, 6]
         plan.save(update_fields=["repeat_days"])
         summary = run_for_date(target_date=target_date)
-        assert DailyTripAssignment.objects.filter(trip_plan_id=plan.unique_id, trip_date=target_date).exists()
+        assignment = DailyTripAssignment.objects.get(
+            trip_plan_id=plan.unique_id,
+            trip_date=target_date,
+        )
+        assert assignment.approval_status == DailyTripAssignment.APPROVAL_APPROVED
         assert summary["created"] == 1
 
 
@@ -142,7 +146,11 @@ class TestForceSemantics:
         monday = __import__("datetime").date(2026, 8, 3)  # Monday
         summary = run_for_date(target_date=monday, force=True)
         assert summary["created"] == 1
-        assert DailyTripAssignment.objects.filter(trip_plan_id=plan.unique_id, trip_date=monday).exists()
+        assignment = DailyTripAssignment.objects.get(
+            trip_plan_id=plan.unique_id,
+            trip_date=monday,
+        )
+        assert assignment.approval_status == DailyTripAssignment.APPROVAL_APPROVED
 
     def test_non_force_excludes_unapproved_plan(
         self, company, project, district, city, panchayat, staff_template, vehicle, supervisor, waste_type_obj,
@@ -168,7 +176,11 @@ class TestForceSemantics:
         monday = __import__("datetime").date(2026, 8, 3)
         summary = run_for_date(target_date=monday, force=True)
         assert summary["created"] == 1
-        assert DailyTripAssignment.objects.filter(trip_plan_id=plan.unique_id, trip_date=monday).exists()
+        assignment = DailyTripAssignment.objects.get(
+            trip_plan_id=plan.unique_id,
+            trip_date=monday,
+        )
+        assert assignment.approval_status == DailyTripAssignment.APPROVAL_PENDING
 
 
 # ----------------------------------------------------------------------
