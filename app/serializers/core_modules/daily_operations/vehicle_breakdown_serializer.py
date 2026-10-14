@@ -142,6 +142,19 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
             else None
         )
         if assignment:
+            request = self.context.get("request")
+            user = getattr(request, "user", None)
+            if user and not getattr(user, "is_superuser", False):
+                user_company_id = getattr(user, "company_id", None)
+                user_project_id = getattr(user, "project_id", None)
+                if (
+                    assignment.company_id != user_company_id
+                    or assignment.project_id != user_project_id
+                ):
+                    raise serializers.ValidationError(
+                        {"trip_assignment_id": "Trip assignment is outside your company or project."}
+                    )
+
             if assignment.status in [
                 DailyTripAssignment.STATUS_COMPLETED,
                 DailyTripAssignment.STATUS_CANCELLED,
@@ -149,6 +162,15 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"trip_assignment_id": "Cannot log a breakdown for a completed or cancelled trip."}
                 )
+
+            reported_vehicle_id = attrs.get("breakdown_vehicle_id")
+            if reported_vehicle_id and reported_vehicle_id != assignment.vehicle_id:
+                raise serializers.ValidationError(
+                    {"breakdown_vehicle_id": "Vehicle does not belong to this trip assignment."}
+                )
+            # The assignment is authoritative. This also keeps older mobile
+            # clients working when their cached trip payload omits the vehicle.
+            attrs["breakdown_vehicle_id"] = assignment.vehicle_id
 
         repl = attrs.get("replacement_vehicle_id")
         orig = attrs.get("breakdown_vehicle_id")
@@ -322,12 +344,103 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
-    # Bin trips: which pending collection points move to the continuation
-    # trip. Required for a bin trip, ignored for a household trip (every
-    # pending household stop always carries over) — mirrors Re-Trip.
+    # Optional for API/web clients that offer per-stop selection. The mobile
+    # replacement sheet does not, so omitting it carries every pending stop.
     collection_point_ids = serializers.ListField(
         child=serializers.CharField(), required=False, allow_empty=True
     )
+
+    @staticmethod
+    def _staff_id(value):
+        if value is None or isinstance(value, str):
+            return value or None
+        return getattr(value, "staff_unique_id", None)
+
+    def validate(self, attrs):
+        instance = self.context["instance"]
+        assignment = instance.trip_assignment
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if assignment is None:
+            raise serializers.ValidationError(
+                "The trip for this breakdown no longer exists."
+            )
+
+        driver_id = self._staff_id(attrs.get("replacement_driver_id"))
+        operator_id = self._staff_id(attrs.get("replacement_operator_id"))
+        selected_ids = {staff_id for staff_id in [driver_id, operator_id] if staff_id}
+
+        role_name = (getattr(getattr(user, "staffusertype", None), "name", "") or "").lower()
+        if "supervisor" in role_name:
+            from django.db.models import Q
+            from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+
+            supervisor_id = user.staff_unique_id
+            if getattr(assignment.trip_plan, "supervisor_id", None) != supervisor_id:
+                raise serializers.ValidationError(
+                    "You can only approve breakdowns from trips assigned to you."
+                )
+
+            supervised_template_ids = TripPlan.objects.filter(
+                supervisor_id=supervisor_id,
+                is_deleted=False,
+            ).exclude(staff_template_id__isnull=True).values_list(
+                "staff_template_id", flat=True
+            )
+            supervised_staff_ids = set(
+                StaffTemplate.objects.filter(unique_id__in=supervised_template_ids)
+                .exclude(driver_id__isnull=True)
+                .values_list("driver_id", flat=True)
+            ) | set(
+                StaffTemplate.objects.filter(unique_id__in=supervised_template_ids)
+                .exclude(operator_id__isnull=True)
+                .values_list("operator_id", flat=True)
+            )
+            allowed_ids = set(
+                Staffcreation.objects.filter(
+                    Q(staff_head_id=supervisor_id)
+                    | Q(staff_unique_id__in=supervised_staff_ids),
+                    company_id=assignment.company_id,
+                    project_id=assignment.project_id,
+                    is_deleted=False,
+                    active_status=True,
+                ).values_list("staff_unique_id", flat=True)
+            )
+            if not selected_ids.issubset(allowed_ids):
+                raise serializers.ValidationError(
+                    "Replacement staff must report to the trip supervisor."
+                )
+
+        busy_assignments = DailyTripAssignment.objects.filter(
+            company_id=assignment.company_id,
+            project_id=assignment.project_id,
+            trip_date=assignment.trip_date,
+            status__in=[
+                DailyTripAssignment.STATUS_SCHEDULED,
+                DailyTripAssignment.STATUS_IN_PROGRESS,
+            ],
+            is_deleted=False,
+        ).exclude(pk=assignment.pk)
+        busy_driver_ids = set()
+        busy_operator_ids = set()
+        for busy_assignment in busy_assignments:
+            template = busy_assignment.alt_staff_template or busy_assignment.staff_template
+            if template:
+                if template.driver_id:
+                    busy_driver_ids.add(template.driver_id)
+                if template.operator_id:
+                    busy_operator_ids.add(template.operator_id)
+        if driver_id in busy_driver_ids:
+            raise serializers.ValidationError(
+                {"replacement_driver_id": "Driver is already assigned to another active trip."}
+            )
+        if operator_id in busy_operator_ids:
+            raise serializers.ValidationError(
+                {"replacement_operator_id": "Operator is already assigned to another active trip."}
+            )
+
+        return attrs
 
     def save(self):
         instance = self.context["instance"]
@@ -376,14 +489,9 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             raise serializers.ValidationError("The trip for this breakdown no longer exists.")
         pending_bins = list(assignment.pending_bin_stops())
         pending_households = list(assignment.pending_household_stops())
-        is_bin_trip = assignment.trip_collection_points.exists()
         collection_point_ids = self.validated_data.get("collection_point_ids")
         if not pending_bins and not pending_households:
             raise serializers.ValidationError("There are no pending stops to carry over.")
-        if is_bin_trip and pending_bins and not collection_point_ids:
-            raise serializers.ValidationError(
-                {"collection_point_ids": "Select at least one collection point to carry over to the replacement trip."}
-            )
         if collection_point_ids:
             pending_bin_ids = {stop.unique_id for stop in pending_bins}
             unknown = set(collection_point_ids) - pending_bin_ids

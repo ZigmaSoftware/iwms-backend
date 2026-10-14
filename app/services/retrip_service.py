@@ -273,6 +273,14 @@ def create_breakdown_continuation(
         unique_id__in=[stop.unique_id for stop in pending_households]
     ).update(carried_to_assignment=continuation.unique_id)
 
+    # The broken vehicle can no longer execute the source assignment. Closing
+    # it also releases its existing crew so they may continue on the
+    # replacement vehicle without appearing double-booked.
+    source.mark_ended()
+    source_log = getattr(source, "daily_trip_log", None)
+    if source_log is not None:
+        source_log.save()
+
     for staff in _crew_of(source):
         notify_staff(
             staff,
