@@ -255,7 +255,14 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
             # explicitly; this fallback only fires when nothing was given
             # at all, so it never silently overrides an explicit choice.
             user = getattr(self.request, "user", None)
-            own_project_id = getattr(user, "project_id_id", None)
+            # Staffcreation stores project_id as a plain CharField, while a
+            # few older account models expose a ForeignKey-style
+            # project_id_id. Mobile callers do not send X-Project-Id, so the
+            # logged-in staff record is the authoritative project fallback.
+            own_project_id = (
+                getattr(user, "project_id_id", None)
+                or getattr(user, "project_id", None)
+            )
             if own_project_id:
                 project_unique_id = own_project_id
             else:
