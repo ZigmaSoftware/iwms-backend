@@ -78,6 +78,17 @@ def run_daily_trip_job(target_date=None, force: bool = False):
     _status["last_error"] = None
     try:
         result = run_for_date(target_date=target_date, force=force)
+        # Same nightly pass: close trips left In Progress on earlier dates so
+        # they stop sitting in the supervisor's "From earlier days" list. A
+        # failure here must never fail trip generation.
+        try:
+            from app.services.stale_trip_closer import close_stale_trips
+
+            stale = close_stale_trips(today=target_date)
+            if isinstance(result, dict):
+                result = {**result, "stale_trips_closed": len(stale["closed"])}
+        except Exception:
+            logger.exception("Stale trip closer failed")
         _status["last_run_at"] = timezone.localtime().isoformat()
         _status["last_run_mode"] = mode
         if not force:
