@@ -77,6 +77,15 @@ def run_for_date(target_date=None, logger=None, force=False):
             "panchayat_id": plan.panchayat_id,
             "scheduled_time": plan.scheduled_time,
             "waste_type_ids": plan_waste_type_ids,
+            # Daily work generated from an approved plan is already approved.
+            # Leaving this out fell back to the assignment model's PENDING
+            # default and produced an impossible approval warning after the
+            # driver had already started collecting.
+            "approval_status": (
+                DailyTripAssignment.APPROVAL_APPROVED
+                if plan.approval_status == TripPlan.ApprovalStatus.APPROVED
+                else DailyTripAssignment.APPROVAL_PENDING
+            ),
         }
 
         with transaction.atomic():

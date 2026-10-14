@@ -120,6 +120,11 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
         "waste_type_ids": plan_waste_type_ids,
         "panchayat_id": plan.panchayat_id,
         "scheduled_time": plan.scheduled_time,
+        "approval_status": (
+            DailyTripAssignment.APPROVAL_APPROVED
+            if plan.approval_status == TripPlan.ApprovalStatus.APPROVED
+            else DailyTripAssignment.APPROVAL_PENDING
+        ),
     }
     assignment = (
         DailyTripAssignment.objects.filter(
