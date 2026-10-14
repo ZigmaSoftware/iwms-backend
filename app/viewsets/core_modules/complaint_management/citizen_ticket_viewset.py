@@ -48,6 +48,7 @@ FEEDBACK_ELIGIBLE_STATUS_CODES = {"RESOLVED", "CLOSED", "REJECTED", "CANCELLED"}
 # project's Zone/Ward-under-Company/Project model (see `ticket.py`).
 # Both sides store these as `<name>_id` CharFields holding the unique_id.
 CUSTOMER_GEO_FIELDS = ("state_id", "district_id", "panchayat_id", "zone_id", "ward_id")
+STAFF_ONLY_CATEGORY_CODES = {"VEHICLE_ISSUE"}
 
 
 def _as_customer(request):
@@ -100,10 +101,15 @@ class CitizenComplaintTicketViewSet(viewsets.ViewSet):
         ).first()
         if not category:
             return Response({"category": "This field is required."}, status=http_status.HTTP_400_BAD_REQUEST)
+        if category.category_code in STAFF_ONLY_CATEGORY_CODES or not category.is_active:
+            return Response({"category": "This grievance type is unavailable."}, status=http_status.HTTP_400_BAD_REQUEST)
 
         subcategory = ComplaintSubcategory.objects.filter(
-            unique_id=data.get("subcategory"), is_deleted=False
+            unique_id=data.get("subcategory"), category_id=category.unique_id,
+            is_deleted=False, is_active=True,
         ).first()
+        if data.get("subcategory") and not subcategory:
+            return Response({"subcategory": "Invalid grievance type."}, status=http_status.HTTP_400_BAD_REQUEST)
         priority = (
             ComplaintPriority.objects.filter(unique_id=data.get("priority"), is_deleted=False).first()
             or category.default_priority
@@ -185,8 +191,12 @@ class CitizenComplaintTicketViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def meta(self, request):
         """Categories (+subcategories) + priorities so the chat can offer choices."""
-        cats = ComplaintCategory.objects.filter(is_deleted=False, is_active=True).order_by("sort_order")
-        subs = ComplaintSubcategory.objects.filter(is_deleted=False, is_active=True).order_by("sort_order")
+        cats = ComplaintCategory.objects.filter(is_deleted=False, is_active=True).exclude(
+            category_code__in=STAFF_ONLY_CATEGORY_CODES
+        ).order_by("sort_order")
+        subs = ComplaintSubcategory.objects.filter(
+            is_deleted=False, is_active=True, category_id__in=cats.values("unique_id")
+        ).order_by("sort_order")
         pris = ComplaintPriority.objects.filter(is_deleted=False, is_active=True).order_by("sort_order")
         return Response({
             "categories": [

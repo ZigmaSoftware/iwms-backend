@@ -29,6 +29,14 @@ from app.viewsets.superadmin_masters.company_scoped_viewset import (
 
 
 class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+    STAFF_ROLE_ALIASES = {
+        "driver": "Company Driver",
+        "company driver": "Company Driver",
+        "govt_panchayat_driver": "Company Driver",
+        "operator": "Company Operator",
+        "company operator": "Company Operator",
+        "govt_panchayat_operator": "Company Operator",
+    }
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     # Every relation above (trip_assignment_id, breakdown_vehicle_id,
     # replacement_vehicle_id/driver_id/operator_id, alt_staff_template_id,
@@ -80,7 +88,11 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         search = params.get("search") or params.get("q")
         project = params.get("project_id")
 
-        if str(params.get("mine", "")).lower() in {"true", "1", "yes"}:
+        if self._is_supervisor_user() or str(params.get("mine", "")).lower() in {
+            "true",
+            "1",
+            "yes",
+        }:
             from app.models.core_modules.schedule_setup.trip_plan import TripPlan
             from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 
@@ -210,27 +222,50 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         )
 
     # ── available-staff action ────────────────────────────────────────
-    # Returns staff NOT already assigned to any Scheduled/In-Progress trip on the given date.
-    # role param: "Company Driver" or "Company Operator"
+    # Returns this supervisor's staff who are not already assigned to another
+    # Scheduled/In-Progress trip on the given date. The broken trip is excluded
+    # so its existing crew can continue with the replacement vehicle.
 
     @action(detail=False, methods=["get"], url_path="available-staff")
     def available_staff(self, request):
-        from app.models.superadmin.staff_management.staffcreation import Staffcreation
-        from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
-        from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
-
         trip_date = request.query_params.get("date")
-        role = request.query_params.get("role")
+        requested_role = (request.query_params.get("role") or "").strip()
+        role = self.STAFF_ROLE_ALIASES.get(requested_role.lower())
         if not trip_date:
             return Response(
                 {"detail": "date query param is required (YYYY-MM-DD)."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if not role:
+        if not requested_role:
             return Response(
                 {"detail": "role query param is required (e.g. 'Company Driver')."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if not role:
+            return Response(
+                {"detail": "role must identify a driver or operator."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        excluded_assignment_id = None
+        breakdown_id = request.query_params.get("breakdown_id")
+        if breakdown_id:
+            breakdown = self._scope_company_project(
+                VehicleBreakdown.objects.filter(
+                    unique_id=breakdown_id,
+                    is_deleted=False,
+                )
+            ).first()
+            assignment = breakdown.trip_assignment if breakdown else None
+            if (
+                assignment
+                and (
+                    not self._is_supervisor_user()
+                    or getattr(assignment.trip_plan, "supervisor_id", None)
+                    == self.request.user.staff_unique_id
+                )
+            ):
+                excluded_assignment_id = breakdown.trip_assignment_id
 
         active_assignments = self._scope_company_project(DailyTripAssignment.objects.filter(
             trip_date=trip_date,
@@ -240,6 +275,10 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             ],
             is_deleted=False,
         ))
+        if excluded_assignment_id:
+            active_assignments = active_assignments.exclude(
+                unique_id=excluded_assignment_id
+            )
 
         busy_driver_ids = set()
         busy_operator_ids = set()
@@ -252,7 +291,10 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             if tmpl.operator_id:
                 busy_operator_ids.add(tmpl.operator_id)
 
-        matching_staffusertype_ids = StaffUserType.objects.filter(name=role).values("unique_id")
+        matching_staffusertype_ids = StaffUserType.objects.filter(
+            name__iexact=role,
+            is_deleted=False,
+        ).values("unique_id")
         qs = Staffcreation.objects.filter(
             is_deleted=False,
             active_status=True,
@@ -265,6 +307,31 @@ class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             qs = qs.exclude(staff_unique_id__in=busy_operator_ids)
 
         qs = self._scope_company_project(qs)
+
+        if self._is_supervisor_user():
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+            from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+
+            supervisor_id = self.request.user.staff_unique_id
+            supervised_template_ids = TripPlan.objects.filter(
+                supervisor_id=supervisor_id,
+                is_deleted=False,
+            ).exclude(staff_template_id__isnull=True).values_list(
+                "staff_template_id", flat=True
+            )
+            supervised_staff_ids = set(
+                StaffTemplate.objects.filter(unique_id__in=supervised_template_ids)
+                .exclude(driver_id__isnull=True)
+                .values_list("driver_id", flat=True)
+            ) | set(
+                StaffTemplate.objects.filter(unique_id__in=supervised_template_ids)
+                .exclude(operator_id__isnull=True)
+                .values_list("operator_id", flat=True)
+            )
+            qs = qs.filter(
+                Q(staff_head_id=supervisor_id)
+                | Q(staff_unique_id__in=supervised_staff_ids)
+            ).distinct()
 
         data = [
             {
