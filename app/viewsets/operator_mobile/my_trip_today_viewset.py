@@ -11,6 +11,8 @@ from app.viewsets.operator_mobile.helpers import (
     find_active_assignment_for_operator,
     resolve_operator_staff,
 )
+from app.services.daily_service_notice import notices_for_staff, serialize_notice
+from django.utils import timezone
 
 
 class MyTripTodayViewSet(viewsets.ViewSet):
@@ -63,4 +65,11 @@ class MyTripsTodayViewSet(viewsets.ViewSet):
         data = MyTripTodaySerializer(
             assignments, many=True, context={"request": request}
         ).data
-        return Response({"results": data}, status=status.HTTP_200_OK)
+        notices = [
+            serialize_notice(notice)
+            for notice in notices_for_staff(operator, timezone.localdate())
+        ]
+        return Response(
+            {"results": data, "service_notices": notices},
+            status=status.HTTP_200_OK,
+        )

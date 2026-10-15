@@ -105,6 +105,9 @@ class TripDelayReport(BaseMaster):
         max_digits=10, decimal_places=7, null=True, blank=True
     )
     delay_location = models.CharField(max_length=255, null=True, blank=True)
+    evidence_image = models.ImageField(
+        upload_to="trip_delay_evidence/%Y/%m/%d/", null=True, blank=True
+    )
 
     status = models.CharField(
         max_length=20,

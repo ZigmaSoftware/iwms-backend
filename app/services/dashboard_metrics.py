@@ -565,15 +565,20 @@ def attendance_summary(scope):
     ).values_list("staff_id", "punch_date"):
         present[day].add(staff_id)
     total = staff.count()
-    per_day = {day: len(ids) for day, ids in present.items()}
+    # This dictionary is returned directly by both dashboard APIs. JSON object
+    # keys must be primitives, so expose ISO dates instead of Python date
+    # instances. Keep all calculations on the original date-keyed mapping.
+    per_day_counts = {day: len(ids) for day, ids in present.items()}
     days = max(len(scope.days), 1)
-    avg = round(sum(per_day.values()) / days, 1)
+    avg = round(sum(per_day_counts.values()) / days, 1)
     return {
         "staff": total,
         "avg_present": avg,
         "attendance_rate": pct(avg, total),
-        "present_last_day": per_day.get(scope.end, 0),
-        "per_day": per_day,
+        "present_last_day": per_day_counts.get(scope.end, 0),
+        "per_day": {
+            day.isoformat(): count for day, count in per_day_counts.items()
+        },
     }
 
 
@@ -653,7 +658,7 @@ def daily_series(scope):
         row["total_kg"] = round(row["household_kg"] + row["bin_kg"], 2)
         row["breakdowns"] = breakdown_days.get(day, 0)
         row["complaints"] = ticket_days.get(day, 0)
-        row["present"] = present.get(day, 0)
+        row["present"] = present.get(day.isoformat(), 0)
     return list(rows.values())
 
 
