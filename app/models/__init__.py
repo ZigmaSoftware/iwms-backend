@@ -181,6 +181,7 @@ from .core_modules.daily_operations.route_detour_waypoint import RouteDetourWayp
 from .core_modules.daily_operations.daily_trip_static_route import DailyTripStaticRoute
 from .core_modules.schedule_setup.trip_plan_static_route import TripPlanStaticRoute
 from .core_modules.daily_operations.scheduler_config import SchedulerConfig
+from .core_modules.daily_operations.daily_service_notice import DailyServiceNotice
 from .reports.waste_reports.daily_waste_comparison import DailyWasteComparison
 from .reports.waste_reports.monthly_weight_report import MonthlyWeightReport
 
@@ -314,5 +315,6 @@ __all__ = [
     "TripPlanStaticRoute",
     "DailyWasteComparison",
     "SchedulerConfig",
+    "DailyServiceNotice",
     "MonthlyWeightReport",
 ]

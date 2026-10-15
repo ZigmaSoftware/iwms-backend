@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.db import transaction
 from rest_framework import status, viewsets
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
@@ -32,6 +33,7 @@ class ScanBinViewSet(viewsets.ViewSet):
 
     permission_classes = [IsOperatorRole]
     permission_resource = "BinCollectionEvent"
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def create(self, request):
         serializer = ScanBinRequestSerializer(data=request.data)
@@ -112,6 +114,7 @@ class ScanBinViewSet(viewsets.ViewSet):
                     longitude=payload.get("longitude"),
                     notes=payload.get("notes"),
                     status_reason=status_reason,
+                    evidence_image=payload.get("evidence_image"),
                 )
 
                 ctx.assignment.refresh_from_db()
@@ -139,6 +142,9 @@ class ScanBinViewSet(viewsets.ViewSet):
                     "event_type": event.status,
                     "collected_weight_kg": str(event.collected_weight_kg),
                     "status_reason": event.status_reason,
+                    "evidence_image_url": request.build_absolute_uri(
+                        event.status_evidence_image.url
+                    ) if event.status_evidence_image else None,
                 },
             },
             status=status.HTTP_201_CREATED,
@@ -155,6 +161,7 @@ class ScanBinViewSet(viewsets.ViewSet):
         longitude,
         notes,
         status_reason,
+        evidence_image,
     ):
         event_notes = notes
         if action != ScanBinRequestSerializer.ACTION_COLLECT and not event_notes:
@@ -180,6 +187,7 @@ class ScanBinViewSet(viewsets.ViewSet):
             driver_latitude=latitude,
             driver_longitude=longitude,
             notes=event_notes,
+            status_evidence_image=evidence_image,
         )
 
     def _upsert_trip_log(self, assignment: DailyTripAssignment, operator):

@@ -127,6 +127,10 @@ class HouseholdCollectionSerializer(serializers.Serializer):
     collected_weight_kg = serializers.DecimalField(
         max_digits=10, decimal_places=2, allow_null=True
     )
+    # Customer tapped "I'm home now" after a Collect Later — the app shows an
+    # "Available now" badge and moves the stop up.
+    customer_available_at = serializers.DateTimeField(allow_null=True, required=False)
+    customer_available_note = serializers.CharField(allow_null=True, required=False)
     customer = serializers.SerializerMethodField()
     # Per-waste-type split of what was collected — the "eye" button on the
     # app's household tile opens a floating list built from this, so the
@@ -272,6 +276,7 @@ class _RetripRequestBriefSerializer(serializers.Serializer):
     pending_bin_count = serializers.IntegerField()
     pending_household_count = serializers.IntegerField()
     created_at = serializers.DateTimeField()
+    expires_at = serializers.DateTimeField(allow_null=True)
 
 
 class MyTripTodaySerializer(serializers.Serializer):

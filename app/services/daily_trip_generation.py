@@ -132,6 +132,9 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
             project_id=plan.project_id,
             trip_plan_id=plan.unique_id,
             trip_date=target_date,
+            # A deleted trip must not count as today's assignment, or the
+            # plan can never be assigned again that day.
+            is_deleted=False,
         )
         .order_by("created_at")
         .first()

@@ -7,6 +7,7 @@ from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.serializers.evidence_image import absolute_image_url
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.utils.waste_images import capture_images_for_customer
 from app.utils.waste_type_breakdown import bulk_waste_type_rows_for_trip_assignments
@@ -200,6 +201,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             .order_by("sequence")
         )
         breakdown_by_stop = {}
+        evidence_by_stop = {}
         stop_ids = [tcp.unique_id for tcp in cps]
         if stop_ids:
             rows = (
@@ -221,6 +223,25 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
                     "waste_type_name": waste_type_names.get(row["waste_type_id"]),
                     "collected_weight_kg": str(row["total_weight"]),
                 })
+            evidence_events = (
+                BinCollectionEvent.objects.filter(
+                    trip_collection_point_id__in=stop_ids,
+                    is_deleted=False,
+                )
+                .exclude(status_evidence_image="")
+                .order_by("trip_collection_point_id", "-created_at")
+            )
+            for event in evidence_events:
+                if event.trip_collection_point_id in evidence_by_stop:
+                    continue
+                url = absolute_image_url(self, event.status_evidence_image)
+                if url:
+                    evidence_by_stop[event.trip_collection_point_id] = [{
+                        "url": url,
+                        "trip_collection_point_id": event.trip_collection_point_id,
+                        "bin_collection_event_id": event.unique_id,
+                        "image_type": "status_evidence",
+                    }]
         return [
             {
                 "unique_id": tcp.collection_point.unique_id,
@@ -234,6 +255,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
                     else None
                 ),
                 "waste_type_breakdown": breakdown_by_stop.get(tcp.unique_id, []),
+                "capture_images": evidence_by_stop.get(tcp.unique_id, []),
             }
             for tcp in cps
             if tcp.collection_point_id
@@ -312,8 +334,20 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
                 "waste_type_breakdown": waste_type_breakdown,
                 "collected_at": hh.collected_at.isoformat() if hh.collected_at else None,
                 "status": hh.status,
+                "capture_images": self._household_status_evidence(hh),
             })
         return result
+
+    def _household_status_evidence(self, household):
+        url = absolute_image_url(self, household.status_evidence_image)
+        if not url:
+            return []
+        return [{
+            "url": url,
+            "household_collection_id": household.unique_id,
+            "trip_household_collection_id": household.unique_id,
+            "image_type": "status_evidence",
+        }]
 
     def get_capture_images(self, obj):
         """Capture photos taken during this trip — aggregated by matching every

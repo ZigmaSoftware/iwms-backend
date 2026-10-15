@@ -361,12 +361,16 @@ class TestWeightSync:
         with patch(
             "app.services.push_notification_service.send_push_to_customer"
         ) as send_push:
-            WasteCollection.objects.create(
+            collection = WasteCollection.objects.create(
                 trip_assignment_id=assignment.unique_id,
                 customer_id=household_customer.unique_id,
                 wet_waste=2.5,
                 status=WasteCollection.STATUS_COLLECTED,
             )
+
+            # Correcting an already-collected record must not notify twice.
+            collection.wet_waste = 3.0
+            collection.save()
 
         send_push.assert_called_once()
         args, kwargs = send_push.call_args
@@ -375,6 +379,24 @@ class TestWeightSync:
         assert args[2] == "2.5 kg of wet waste collected. Thank you!"
         assert kwargs["data"]["event"] == "household_collected"
         assert kwargs["data"]["total_quantity"] == 2.5
+
+    def test_pending_collection_notifies_when_status_becomes_collected(
+        self, assignment, household_customer
+    ):
+        collection = WasteCollection.objects.create(
+            trip_assignment_id=assignment.unique_id,
+            customer_id=household_customer.unique_id,
+            wet_waste=1.0,
+            status=WasteCollection.STATUS_PENDING,
+        )
+
+        with patch(
+            "app.services.push_notification_service.send_push_to_customer"
+        ) as send_push:
+            collection.status = WasteCollection.STATUS_COLLECTED
+            collection.save(update_fields=["status"])
+
+        send_push.assert_called_once()
 
     def test_household_weight_not_overridden_when_no_records(self, assignment):
         log = _make_log(assignment, household_collected_weight_kg=Decimal("9.00"))

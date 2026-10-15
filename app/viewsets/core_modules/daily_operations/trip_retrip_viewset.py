@@ -203,12 +203,22 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
             collection_point_ids = [str(value) for value in raw_ids]
 
         reviewer = request.user if isinstance(request.user, Staffcreation) else None
-        continuation = retrip_service.approve_retrip(
-            retrip,
-            reviewed_by=reviewer,
-            collection_point_ids=collection_point_ids,
-            remarks=request.data.get("remarks"),
-        )
+        try:
+            continuation = retrip_service.approve_retrip(
+                retrip,
+                reviewed_by=reviewer,
+                collection_point_ids=collection_point_ids,
+                remarks=request.data.get("remarks"),
+            )
+        except retrip_service.RetripRequestUnavailable as exc:
+            return Response(
+                {"detail": str(exc)}, status=http_status.HTTP_409_CONFLICT
+            )
+        if continuation is None:
+            return Response(
+                {"detail": "This request expired before it could be approved."},
+                status=http_status.HTTP_409_CONFLICT,
+            )
 
         retrip.refresh_from_db()
         return Response(
@@ -231,11 +241,21 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
             )
 
         reviewer = request.user if isinstance(request.user, Staffcreation) else None
-        retrip_service.reject_retrip(
-            retrip,
-            reviewed_by=reviewer,
-            remarks=request.data.get("remarks"),
-        )
+        try:
+            decided = retrip_service.reject_retrip(
+                retrip,
+                reviewed_by=reviewer,
+                remarks=request.data.get("remarks"),
+            )
+        except retrip_service.RetripRequestUnavailable as exc:
+            return Response(
+                {"detail": str(exc)}, status=http_status.HTTP_409_CONFLICT
+            )
+        if decided.status == TripRetripRequest.STATUS_EXPIRED:
+            return Response(
+                {"detail": "This request expired before it could be rejected."},
+                status=http_status.HTTP_409_CONFLICT,
+            )
 
         retrip.refresh_from_db()
         return Response(

@@ -7,6 +7,7 @@ from app.models.core_modules.daily_operations.daily_trip_assignment import Daily
 from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
 from app.models.core_modules.daily_operations.daily_trip_household_collection import DailyTripHouseholdCollection
 from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
+from app.models.core_modules.daily_operations.daily_service_notice import DailyServiceNotice
 
 
 def run_for_date(target_date=None, logger=None, force=False):
@@ -52,6 +53,15 @@ def run_for_date(target_date=None, logger=None, force=False):
     details = []
 
     for plan in plans.all():
+        if DailyServiceNotice.objects.filter(
+            trip_plan_id=plan.unique_id,
+            service_date=today,
+            status=DailyServiceNotice.STATUS_ACTIVE,
+            is_deleted=False,
+        ).exists():
+            log(f"TripPlan {plan.unique_id} skipped: no-collection notice exists")
+            skipped_count += 1
+            continue
         if not force:
             repeat_days = plan.repeat_days or []
             if not repeat_days:
@@ -101,6 +111,7 @@ def run_for_date(target_date=None, logger=None, force=False):
                     project_id=plan.project_id,
                     trip_plan_id=plan.unique_id,
                     trip_date=today,
+                    is_deleted=False,
                 )
                 .order_by("created_at")
                 .first()

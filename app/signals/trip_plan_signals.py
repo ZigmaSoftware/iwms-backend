@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
@@ -230,6 +230,17 @@ def _describe_waste_collection(instance):
     return f"{instance.total_quantity:g} kg collected ({parts}). Thank you!"
 
 
+@receiver(pre_save, sender="app.WasteCollection")
+def remember_previous_waste_collection_status(sender, instance, **kwargs):
+    """Remember the old status so a later edit cannot resend the same push."""
+    if not instance.pk:
+        instance._previous_collection_status = None
+        return
+    instance._previous_collection_status = sender.objects.filter(
+        pk=instance.pk
+    ).values_list("status", flat=True).first()
+
+
 @receiver(post_save, sender="app.WasteCollection")
 def sync_household_collection_on_waste_save(sender, instance, **kwargs):
     """When a WasteCollection is saved with a trip_assignment_id:
@@ -277,23 +288,28 @@ def sync_household_collection_on_waste_save(sender, instance, **kwargs):
     if instance.status == WasteCollection.STATUS_COLLECTED:
         dthc.mark_collected(instance)
 
-        # Notify the customer instantly that their waste was collected. Safe
-        # no-op if push isn't configured or they have no registered device.
-        from app.services.push_notification_service import send_push_to_customer
-        send_push_to_customer(
-            instance.customer,
-            "Waste collected",
-            _describe_waste_collection(instance),
-            data={
-                "event": "household_collected",
-                "trip_assignment_id": str(instance.trip_assignment_id),
-                "wet_waste": instance.wet_waste,
-                "dry_waste": instance.dry_waste,
-                "mixed_waste": instance.mixed_waste,
-                "sanitary_waste": instance.sanitary_waste,
-                "total_quantity": instance.total_quantity,
-            },
+        was_collected = (
+            getattr(instance, "_previous_collection_status", None)
+            == WasteCollection.STATUS_COLLECTED
         )
+        if not was_collected:
+            # Notify only on the transition to Collected. Saving remarks or
+            # correcting a weight later must not send the customer duplicates.
+            from app.services.push_notification_service import send_push_to_customer
+            send_push_to_customer(
+                instance.customer,
+                "Waste collected",
+                _describe_waste_collection(instance),
+                data={
+                    "event": "household_collected",
+                    "trip_assignment_id": str(instance.trip_assignment_id),
+                    "wet_waste": instance.wet_waste,
+                    "dry_waste": instance.dry_waste,
+                    "mixed_waste": instance.mixed_waste,
+                    "sanitary_waste": instance.sanitary_waste,
+                    "total_quantity": instance.total_quantity,
+                },
+            )
     elif instance.status in (
         WasteCollection.STATUS_NOT_AVAILABLE,
         WasteCollection.STATUS_COLLECT_LATER,

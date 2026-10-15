@@ -20,9 +20,14 @@ from app.serializers.superadmin.staff_management.user_serializer import UniqueId
 from app.serializers.waste_collection_bluetooth.waste_type_serializer import (
     WasteTypeSerializer,
 )
+from app.serializers.evidence_image import EvidenceImageField, absolute_image_url
 
 
 class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
+    status_evidence_image_url = serializers.SerializerMethodField()
+    status_evidence_image = EvidenceImageField(
+        required=False, allow_null=True, write_only=True
+    )
     created_by = serializers.CharField(source="created_by_id", read_only=True)
     updated_by = serializers.CharField(source="updated_by_id", read_only=True)
 
@@ -97,6 +102,8 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             "collected_weight_kg",
             "status",
             "status_reason",
+            "status_evidence_image",
+            "status_evidence_image_url",
             "driver_latitude",
             "driver_longitude",
             "notes",
@@ -126,6 +133,9 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
         # validate() from the assignment (or the model's own save() as a
         # fallback), so they must NOT appear in writable fields.
 
+    def get_status_evidence_image_url(self, obj):
+        return absolute_image_url(self, obj.status_evidence_image)
+
     def validate(self, attrs):
         # trip_assignment_id / trip_collection_point_id / bin_id in attrs are
         # plain unique_id strings (UniqueIdOrPkField.to_internal_value already
@@ -140,6 +150,25 @@ class BinCollectionEventSerializer(TenancyReadSerializerMixin, serializers.Model
             getattr(self.instance, "trip_assignment_id", None),
         )
         bin_id = attrs.get("bin_id", getattr(self.instance, "bin_id", None))
+
+        status_value = attrs.get("status", getattr(self.instance, "status", None))
+        existing_image = getattr(self.instance, "status_evidence_image", None)
+        if status_value == BinCollectionEvent.STATUS_NOT_COLLECTED:
+            errors = {}
+            if not attrs.get("status_evidence_image") and not existing_image:
+                errors["status_evidence_image"] = (
+                    "A geotagged evidence image is required."
+                )
+            if attrs.get(
+                "driver_latitude", getattr(self.instance, "driver_latitude", None)
+            ) is None:
+                errors["driver_latitude"] = "Capture latitude is required."
+            if attrs.get(
+                "driver_longitude", getattr(self.instance, "driver_longitude", None)
+            ) is None:
+                errors["driver_longitude"] = "Capture longitude is required."
+            if errors:
+                raise serializers.ValidationError(errors)
 
         trip_cp = (
             DailyTripCollectionPoint.objects.filter(unique_id=trip_cp_id).first()

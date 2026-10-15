@@ -73,6 +73,10 @@ def _end_of_trip_day(trip_date):
 def _close_one(assignment):
     pending_bins = assignment.pending_bin_stops()
     pending_households = assignment.pending_household_stops()
+    flagged_ids = list(
+        pending_households.filter(customer_available_at__isnull=False)
+        .values_list("unique_id", flat=True)
+    )
     count = pending_bins.count() + pending_households.count()
 
     # QuerySet.update(): these are system closures, not driver actions, so the
@@ -92,6 +96,13 @@ def _close_one(assignment):
         collected_weight_kg=None,
         updated_at=timezone.now(),
     )
+
+    # Customers who said "I'm home now" and were still missed get a ticket.
+    if flagged_ids:
+        from app.services.customer_availability import raise_missed_pickup_ticket
+
+        for stop in DailyTripHouseholdCollection.objects.filter(unique_id__in=flagged_ids):
+            raise_missed_pickup_ticket(stop)
 
     remark = TRIP_REMARK.format(count=count)
     assignment.remarks = (

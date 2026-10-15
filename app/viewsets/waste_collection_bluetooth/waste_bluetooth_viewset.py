@@ -1,10 +1,11 @@
-from rest_framework import viewsets, status
+from rest_framework import serializers, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Case, IntegerField, Q, Sum, Value, When
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from app.models.waste_collection_bluetooth.waste_collection_bluetooth import (
     WasteCollectionMain,
     WasteCollectionSub,
@@ -14,6 +15,7 @@ from app.models.waste_collection_bluetooth.waste_collection_bluetooth import (
 from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.core_modules.daily_operations.wastecollection import WasteCollection
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.serializers.evidence_image import EvidenceImageField
 
 
 
@@ -78,8 +80,19 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
         reason = str(
             request.data.get("reason") or request.data.get("status_reason") or ""
         ).strip()
-        latitude = request.data.get("latitude") or None
-        longitude = request.data.get("longitude") or None
+        def _coordinate(raw):
+            # Older apps send "NaN" for a household with no saved location;
+            # treat anything that isn't a finite number as not provided.
+            try:
+                value = Decimal(str(raw).strip())
+            except (InvalidOperation, ValueError, TypeError):
+                return None
+            if not value.is_finite():
+                return None
+            return value.quantize(Decimal("0.000001"))
+
+        latitude = _coordinate(request.data.get("latitude"))
+        longitude = _coordinate(request.data.get("longitude"))
 
         status_aliases = {
             # "Not available" from the app → canonical "Not Available".
@@ -109,6 +122,26 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             return Response(
                 {"status": "error", "message": "reason is required"}, status=400
             )
+
+        evidence_image = None
+        if normalized_status == DailyTripHouseholdCollection.STATUS_MISSED:
+            evidence_errors = {}
+            raw_evidence = request.FILES.get("evidence_image")
+            if not raw_evidence:
+                evidence_errors["evidence_image"] = (
+                    "A geotagged evidence image is required."
+                )
+            else:
+                try:
+                    evidence_image = EvidenceImageField().run_validation(raw_evidence)
+                except serializers.ValidationError as exc:
+                    evidence_errors["evidence_image"] = exc.detail
+            if latitude is None:
+                evidence_errors["latitude"] = "Capture latitude is required."
+            if longitude is None:
+                evidence_errors["longitude"] = "Capture longitude is required."
+            if evidence_errors:
+                return Response(evidence_errors, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             staff = resolve_operator_staff(request.user)
@@ -152,7 +185,11 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             )
 
         dthc.mark_status(
-            normalized_status, reason=reason, latitude=latitude, longitude=longitude,
+            normalized_status,
+            reason=reason,
+            latitude=latitude,
+            longitude=longitude,
+            evidence_image=evidence_image,
         )
         # "Not Available" resolves the stop for the day same as a real
         # collection does (see pending_household_stops); "Collect Later"
@@ -169,8 +206,12 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
             push_title, push_body = "Collection update", "Your waste will be collected later today."
         if reason:
             push_body += f' ("{reason}")'
+        if normalized_status == DailyTripHouseholdCollection.STATUS_COLLECT_LATER:
+            push_body += " At home now? Tap \"I'm home now\" in the app to tell the crew."
+        # send_push_to_customer reads `.fcm_token` off a CustomerCreation —
+        # passing the bare id string silently sent nothing.
         send_push_to_customer(
-            dthc.customer_id,
+            dthc.customer,
             push_title,
             push_body,
             data={"event": "household_status", "status": dthc.status, "trip_assignment_id": str(dthc.trip_assignment_id)},
@@ -184,6 +225,9 @@ class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
                 "trip_assignment_id": dthc.trip_assignment_id,
                 "collection_status": dthc.status,
                 "reason": dthc.status_reason,
+                "evidence_image_url": request.build_absolute_uri(
+                    dthc.status_evidence_image.url
+                ) if dthc.status_evidence_image else None,
             },
         })
 
