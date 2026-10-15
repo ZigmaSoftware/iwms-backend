@@ -127,6 +127,12 @@ def _get_scheduler_config():
 def _scheduler_loop():
     time.sleep(1)
     while True:
+        try:
+            from app.services.retrip_timeout_service import process_retrip_timeouts
+
+            _status["last_retrip_timeout_result"] = process_retrip_timeouts()
+        except Exception:
+            logger.exception("Re-Trip timeout processor failed")
         run_time, is_enabled = _get_scheduler_config()
         now = timezone.localtime()
         run_at_today = datetime.combine(now.date(), run_time, tzinfo=now.tzinfo)
@@ -166,6 +172,7 @@ def _should_start_scheduler():
         "seed",
         "showmigrations",
         "generate_daily_trips",
+        "process_retrip_timeouts",
     }
     if len(sys.argv) > 1 and sys.argv[1] in management_commands:
         return False

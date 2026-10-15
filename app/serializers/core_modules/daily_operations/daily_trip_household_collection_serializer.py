@@ -7,6 +7,7 @@ from app.models.core_modules.daily_operations.daily_trip_household_collection im
 )
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.serializers.evidence_image import EvidenceImageField, absolute_image_url
 
 
 class DailyTripHouseholdCollectionSerializer(
@@ -27,6 +28,10 @@ class DailyTripHouseholdCollectionSerializer(
     panchayat = serializers.SerializerMethodField()
     ward = serializers.SerializerMethodField()
     waste_breakdown = serializers.SerializerMethodField()
+    status_evidence_image_url = serializers.SerializerMethodField()
+    status_evidence_image = EvidenceImageField(
+        required=False, allow_null=True, write_only=True
+    )
 
     class Meta:
         model = DailyTripHouseholdCollection
@@ -54,11 +59,20 @@ class DailyTripHouseholdCollectionSerializer(
             "collected_weight_kg",
             "status",
             "status_reason",
+            "status_latitude",
+            "status_longitude",
+            "status_evidence_image",
+            "status_evidence_image_url",
+            "customer_available_at",
+            "customer_available_note",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
             "unique_id",
+            # Set only by the citizen "I'm home now" action.
+            "customer_available_at",
+            "customer_available_note",
             "company_id",
             "company_name",
             "project_id",
@@ -86,6 +100,31 @@ class DailyTripHouseholdCollectionSerializer(
             "trip_plan_id": assignment.trip_plan_id,
             "trip_plan_display_code": getattr(trip_plan, "display_code", None),
         }
+
+    def get_status_evidence_image_url(self, obj):
+        return absolute_image_url(self, obj.status_evidence_image)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        status_value = attrs.get("status", getattr(self.instance, "status", None))
+        existing_image = getattr(self.instance, "status_evidence_image", None)
+        if status_value == DailyTripHouseholdCollection.STATUS_MISSED:
+            errors = {}
+            if not attrs.get("status_evidence_image") and not existing_image:
+                errors["status_evidence_image"] = (
+                    "A geotagged evidence image is required."
+                )
+            if attrs.get(
+                "status_latitude", getattr(self.instance, "status_latitude", None)
+            ) is None:
+                errors["status_latitude"] = "Capture latitude is required."
+            if attrs.get(
+                "status_longitude", getattr(self.instance, "status_longitude", None)
+            ) is None:
+                errors["status_longitude"] = "Capture longitude is required."
+            if errors:
+                raise serializers.ValidationError(errors)
+        return attrs
 
     def get_customer(self, obj):
         customer = obj.customer

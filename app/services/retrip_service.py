@@ -11,6 +11,8 @@ Carry-over rules differ by collection type:
   * bin       — the supervisor/admin can pick which collection points move.
 """
 
+from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -22,6 +24,15 @@ from app.models.core_modules.daily_operations.daily_trip_household_collection im
 from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 from app.models.core_modules.notifications.staff_notification import StaffNotification
 from app.services.staff_notification_service import notify_staff
+from app.services.retrip_timeout_service import (
+    deadline_for,
+    expire_retrip_if_due,
+    timeout_minutes,
+)
+
+
+class RetripRequestUnavailable(ValueError):
+    pass
 
 
 def build_pending_snapshot(assignment):
@@ -84,6 +95,7 @@ def request_retrip(assignment, *, requested_by, reason):
         pending_bin_count=len(snapshot["collection_points"]),
         pending_household_count=len(snapshot["households"]),
         pending_snapshot=snapshot,
+        expires_at=timezone.now() + timedelta(minutes=timeout_minutes()),
     )
 
     pending_total = request.pending_bin_count + request.pending_household_count
@@ -198,6 +210,11 @@ def _replace_continuation_households(continuation, pending_households):
                 sequence=stop.sequence,
                 is_collected=False,
                 status=DailyTripHouseholdCollection.STATUS_PENDING,
+                # A customer who said "I'm home now" is still waiting — the
+                # continuation crew must see it, and a miss there still
+                # raises the Missed Pickup ticket.
+                customer_available_at=stop.customer_available_at,
+                customer_available_note=stop.customer_available_note,
                 created_by_id=getattr(stop, "created_by_id", None),
             )
         )
@@ -306,6 +323,16 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
     `DailyTripCollectionPoint.unique_id` or
     `DailyTripHouseholdCollection.unique_id`. Returns the new assignment.
     """
+    if expire_retrip_if_due(request):
+        return None
+    request = TripRetripRequest.objects.select_for_update().get(pk=request.pk)
+    if not request.is_pending:
+        raise RetripRequestUnavailable(
+            f"This request was already {request.status.lower()}."
+        )
+    if timezone.now() >= deadline_for(request):
+        expire_retrip_if_due(request)
+        return None
     source = request.assignment
 
     # Resolve what carries over from LIVE data, not the snapshot — a stop may
@@ -415,6 +442,18 @@ def proceed_to_next_trip(assignment, *, actor, collection_point_ids=None, remark
 @transaction.atomic
 def reject_retrip(request, *, reviewed_by, remarks=None):
     """Decline: the trip stays open and the driver keeps going."""
+    if expire_retrip_if_due(request):
+        request.refresh_from_db()
+        return request
+    request = TripRetripRequest.objects.select_for_update().get(pk=request.pk)
+    if not request.is_pending:
+        raise RetripRequestUnavailable(
+            f"This request was already {request.status.lower()}."
+        )
+    if timezone.now() >= deadline_for(request):
+        expire_retrip_if_due(request)
+        request.refresh_from_db()
+        return request
     request.mark_reviewed(
         status=TripRetripRequest.STATUS_REJECTED,
         by=reviewed_by,

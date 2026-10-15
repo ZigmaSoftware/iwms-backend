@@ -29,9 +29,17 @@ class StaffNotification(BaseMaster):
     TYPE_RETRIP_REQUESTED = "RETRIP_REQUESTED"
     TYPE_RETRIP_APPROVED = "RETRIP_APPROVED"
     TYPE_RETRIP_REJECTED = "RETRIP_REJECTED"
+    TYPE_RETRIP_REMINDER = "RETRIP_REMINDER"
+    TYPE_RETRIP_ESCALATED = "RETRIP_ESCALATED"
+    TYPE_RETRIP_EXPIRED = "RETRIP_EXPIRED"
 
     TYPE_TICKET_ESCALATED_TO = "TICKET_ESCALATED_TO"
     TYPE_TICKET_ESCALATED = "TICKET_ESCALATED"
+
+    # Citizen tapped "I'm home now" on a Collect Later household stop.
+    TYPE_CUSTOMER_AVAILABLE = "CUSTOMER_AVAILABLE"
+    TYPE_NO_COLLECTION_TODAY = "NO_COLLECTION_TODAY"
+    TYPE_COLLECTION_RESTORED = "COLLECTION_RESTORED"
 
     TYPE_CHOICES = [
         (TYPE_VEHICLE_BREAKDOWN_REPORTED, "Vehicle Breakdown Reported"),
@@ -43,8 +51,14 @@ class StaffNotification(BaseMaster):
         (TYPE_RETRIP_REQUESTED, "Re-Trip Requested"),
         (TYPE_RETRIP_APPROVED, "Re-Trip Approved"),
         (TYPE_RETRIP_REJECTED, "Re-Trip Rejected"),
+        (TYPE_RETRIP_REMINDER, "Re-Trip Reminder"),
+        (TYPE_RETRIP_ESCALATED, "Re-Trip Escalated"),
+        (TYPE_RETRIP_EXPIRED, "Re-Trip Expired"),
         (TYPE_TICKET_ESCALATED_TO, "Ticket Escalated To You"),
         (TYPE_TICKET_ESCALATED, "Ticket Escalated"),
+        (TYPE_CUSTOMER_AVAILABLE, "Customer Available"),
+        (TYPE_NO_COLLECTION_TODAY, "No Collection Today"),
+        (TYPE_COLLECTION_RESTORED, "Collection Restored"),
     ]
 
     unique_id = models.CharField(

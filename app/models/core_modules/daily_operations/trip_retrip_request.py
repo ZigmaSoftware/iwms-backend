@@ -36,11 +36,13 @@ class TripRetripRequest(BaseMaster):
     STATUS_PENDING = "Pending"
     STATUS_APPROVED = "Approved"
     STATUS_REJECTED = "Rejected"
+    STATUS_EXPIRED = "Expired"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
         (STATUS_APPROVED, "Approved"),
         (STATUS_REJECTED, "Rejected"),
+        (STATUS_EXPIRED, "Expired"),
     ]
 
     unique_id = models.CharField(
@@ -81,6 +83,13 @@ class TripRetripRequest(BaseMaster):
 
     # The continuation trip created on approval.
     new_assignment_id = models.CharField(max_length=30, null=True, blank=True)
+
+    # A pending request is intentionally short-lived. These persisted fields
+    # make reminders and expiry idempotent even when multiple API workers run
+    # the scheduler at the same time.
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    reminder_sent_at = models.DateTimeField(null=True, blank=True)
+    escalated_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

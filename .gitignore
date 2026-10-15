@@ -19,6 +19,11 @@ __pycache__/
 # own small, committed migration instead — hence the exception below.
 **/migrations/*
 !**/migrations/__init__.py
+!app/migrations/0002_loginaudit_idle_timeout_seconds_and_more.py
+!app/migrations/0003_operational_exception_evidence.py
+!app/migrations/0004_retrip_request_timeout.py
+!app/migrations/0005_household_customer_available.py
+!app/migrations/0006_daily_service_notice.py
 
 # === Virtual environments ===
 venv/
