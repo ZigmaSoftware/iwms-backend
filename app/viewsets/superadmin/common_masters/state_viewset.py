@@ -4,9 +4,10 @@ from app.serializers.superadmin.common_masters.state_serializer import StateSeri
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class StateViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.ModelViewSet):
+class StateViewSet(BulkUploadMixin, AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.ModelViewSet):
     location_scope_field = "states"
     location_scope_lookup = "unique_id"
     queryset = State.objects.all()   # REQUIRED for DRF basename detection

@@ -39,6 +39,7 @@ from ..viewsets.superadmin.screen_management.companyuserscreenpermission_viewset
 from ..viewsets.superadmin.screen_management.app_module_viewset import AppModuleViewSet
 from ..viewsets.masters.customer_masters.customer_access_configuration_viewset import CustomerAccessConfigurationViewSet
 from ..viewsets.superadmin.screen_management.companyuserscreencolumnpermission_viewset import CompanyUserScreenColumnPermissionViewSet
+from ..viewsets.core_modules.excel_export_viewset import ExcelExportView
 from ..viewsets.superadmin.screen_management.permission_api_views import (
     CompanyPermissionsAPIView,
     PermissionAssignAPIView,
@@ -588,6 +589,8 @@ urlpatterns = [
         UserScreenColumnsAPIView.as_view(),
     ),
     path("permissions/assign/", PermissionAssignAPIView.as_view()),
+    # Server-side Excel export of any list endpoint (synchronous).
+    path("exports/excel/", ExcelExportView.as_view(), name="exports-excel"),
     path("permissions/company/<str:company_id>/", CompanyPermissionsAPIView.as_view()),
     path("", include(router.urls)),
 ]

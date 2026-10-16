@@ -43,7 +43,11 @@ Naming rules
   staff access configuration holding any grant at all — for a page that used
   to be open to every signed-in user and now needs a grant of its own.
 - `actions` limits which actions the seeder offers on a screen (default: all
-  of them). A read-only page such as a dashboard takes `("view",)`.
+  of them — view/add/edit/delete/use/import/export). A read-only page such as
+  a dashboard takes `("view",)`. "import" gates bulk uploads (POST
+  .../bulk-upload/, which also needs "add"); "export" gates Excel exports
+  (POST exports/excel/ for the list path); a screen offering them should be a
+  data list.
 - `superadmin_only=True` lists a screen in the permission tree but never
   seeds it into a company/project catalog, and its routes are refused to
   everyone but a platform super admin (PLATFORM_SUPERADMIN_ROUTES), whatever

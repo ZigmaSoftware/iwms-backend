@@ -11,9 +11,10 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class FuelViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class FuelViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     queryset = Fuel.objects.filter(is_deleted=False)
     serializer_class = FuelSerializer
     lookup_field = "unique_id"

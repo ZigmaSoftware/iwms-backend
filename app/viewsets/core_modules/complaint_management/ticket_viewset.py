@@ -37,6 +37,7 @@ from app.services.complaint_ticket_routing import (
     perform_escalation,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 
@@ -219,7 +220,7 @@ def _entry_level_ticket_scope(user):
     return models.Q()
 
 
-class ComplaintTicketViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class ComplaintTicketViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = ComplaintTicketSerializer
     lookup_field = "unique_id"
     filter_backends = [_TicketSearchFilter, filters.OrderingFilter]

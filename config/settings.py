@@ -221,6 +221,9 @@ REST_FRAMEWORK = {
 # -------------------------------------------------------
 CORS_ALLOW_CREDENTIALS = True
 
+# Let the browser read the server Excel export's row count.
+CORS_EXPOSE_HEADERS = ["Content-Disposition", "X-Row-Count"]
+
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$",
     r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",

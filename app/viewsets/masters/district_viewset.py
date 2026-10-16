@@ -5,8 +5,9 @@ from app.serializers.masters.district_serializer import DistrictSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
-class DistrictViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+class DistrictViewSet(BulkUploadMixin, AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
     location_scope_chain = [
         ("districts", "unique_id"),
         ("states", "state_id"),

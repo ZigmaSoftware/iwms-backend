@@ -4,9 +4,10 @@ from app.serializers.waste_collection_bluetooth.waste_type_serializer import (
     WasteTypeSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class WasteTypeViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class WasteTypeViewSet(BulkUploadMixin, AuditViewSetMixin,CompanyScopedViewSet):
     
     serializer_class = WasteTypeSerializer
     permission_resource = "WasteType"

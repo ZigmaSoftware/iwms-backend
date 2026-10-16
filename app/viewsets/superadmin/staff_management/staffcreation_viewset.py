@@ -26,9 +26,10 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class StaffcreationViewset(AuditViewSetMixin,CompanyScopedViewSet):
+class StaffcreationViewset(BulkUploadMixin, AuditViewSetMixin,CompanyScopedViewSet):
     pagination_class = LimitOffsetWithPage
     queryset = Staffcreation.objects.filter(is_deleted=False)
     serializer_class = StaffcreationSerializer

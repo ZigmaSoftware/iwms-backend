@@ -500,7 +500,7 @@ class PermissionSeeder(BaseSeeder):
         # 2. ACTIONS
         # --------------------------------------------------
         actions = {}
-        for name in ["add", "view", "edit", "delete", "use"]:
+        for name in ["add", "view", "edit", "delete", "use", "import", "export"]:
             action, _ = UserScreenAction.objects.get_or_create(
                 action_name=name,
                 defaults={

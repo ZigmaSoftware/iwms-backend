@@ -1,10 +1,13 @@
+import copy
+import json
 import jwt
 import re
 
 from django.conf import settings
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
-from django.http import JsonResponse
+from django.http import JsonResponse, QueryDict
+from django.urls import Resolver404, resolve
 from django.utils.deprecation import MiddlewareMixin
 
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
@@ -29,6 +32,9 @@ HTTP_ACTION_MAP = {
     "PATCH": "edit",
     "DELETE": "delete",
 }
+
+# Actions that only read data: allowed on read-only (dropdown) resources.
+READ_ACTIONS = frozenset({"view", "export"})
 
 
 # ============================================================
@@ -80,6 +86,16 @@ PLATFORM_PREFIXES = (
 
 PUBLIC_PREFIXES = (
     "/media/",
+)
+
+# POST {"path": "/masters/fuels/", ...} -> an Excel file of that list. Needs
+# "export" on the resource the body's `path` resolves to.
+EXPORT_EXCEL_PATHS = frozenset(
+    prefix + "exports/excel/"
+    for prefix in API_AUTH_PREFIXES
+) | frozenset(
+    prefix + "exports/excel"
+    for prefix in API_AUTH_PREFIXES
 )
 
 COMMON_AUDIT_CREATE_PATHS = tuple(
@@ -674,6 +690,15 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             auth_error = _authenticate_request(request)
             return auth_error
 
+        # Excel export of a list: the body's `path` names the list endpoint
+        # the export replays. Downloading it needs "export" on the resource
+        # that path resolves to (a plain GET of the list still needs "view").
+        if request.method == "POST" and request.path in EXPORT_EXCEL_PATHS:
+            auth_error = _authenticate_request(request)
+            if auth_error:
+                return auth_error
+            return self._authorize_export(request)
+
         module = _module_from_path(request.path)
         if not module:
             return None
@@ -682,6 +707,73 @@ class ModulePermissionMiddleware(MiddlewareMixin):
         if auth_error:
             return auth_error
 
+        return self._authorize(request, module, view_func)
+
+    def _authorize_export(self, request):
+        """Require "export" on the list endpoint an Excel export replays.
+
+        A `path` that does not resolve to a protected module/view is let
+        through: the export view replays it as a GET, which runs that
+        view's own checks.
+        """
+        if getattr(request.user, "is_superuser", False):
+            return None
+
+        try:
+            body = json.loads(request.body or b"{}")
+        except Exception:
+            # Unreadable/invalid body: the view rejects it itself.
+            return None
+        raw_path = body.get("path") if isinstance(body, dict) else None
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            return None
+
+        target_path, _, query = raw_path.strip().partition("?")
+        if not target_path.startswith("/"):
+            target_path = "/" + target_path
+        if not target_path.startswith("/api/"):
+            target_path = "/api/v1" + target_path
+        if not target_path.endswith("/"):
+            target_path += "/"
+
+        module = _module_from_path(target_path)
+        if not module:
+            return None
+        try:
+            match = resolve(target_path)
+        except Resolver404:
+            return None
+
+        # Authorize as if this were the replayed GET, but asking for "export".
+        # The export's list filters travel in `params`; resource hooks read
+        # them from request.GET, as they would on the replayed GET.
+        query_dict = QueryDict(query, mutable=True)
+        params = body.get("params")
+        if isinstance(params, dict):
+            for key, value in params.items():
+                values = value if isinstance(value, (list, tuple)) else [value]
+                for item in values:
+                    if item is None or isinstance(item, (dict, list, tuple)):
+                        continue
+                    if isinstance(item, bool):
+                        item = str(item).lower()
+                    query_dict.appendlist(str(key), str(item))
+        target = copy.copy(request)
+        target.method = "GET"
+        target.path = target_path
+        target.path_info = target_path
+        target.GET = query_dict
+        return self._authorize(
+            target, module, match.func, required_actions=("export",)
+        )
+
+    def _authorize(self, request, module, view_func, required_actions=None):
+        """Check the authenticated `request.user` against the grant on the
+        resource `request.path` / `view_func` resolve to.
+
+        `required_actions` overrides the action derived from the HTTP
+        method; every one of them must be granted.
+        """
         if (
             f"{module}/{_route_resource_from_path(request.path, module)}" in PLATFORM_SUPERADMIN_ROUTES
             and not _is_platform_super_admin(request.user)
@@ -754,9 +846,23 @@ class ModulePermissionMiddleware(MiddlewareMixin):
             return JsonResponse({"detail": "Invalid HTTP method"}, status=405)
         action = _permission_action_for_request(view_class, request, action)
 
+        if required_actions is None:
+            required_actions = [action]
+            # Bulk upload needs BOTH grants: "add" (writing records) and the
+            # dedicated "import" (uploading a file). Revoking either one
+            # blocks the upload.
+            if request.method == "POST" and request.path.rstrip("/").endswith(
+                "/bulk-upload"
+            ):
+                required_actions = ["import", "add"]
+        required_actions = list(required_actions)
+
         # Dropdown-only resources: readable through this module, never writable.
         readonly_resources = MODULE_READONLY_RESOURCES.get(module, set())
-        if action != "view" and readonly_resources:
+        if (
+            any(a not in READ_ACTIONS for a in required_actions)
+            and readonly_resources
+        ):
             readonly_keys = {
                 self._normalize_permission_key(resource)
                 for resource in readonly_resources
@@ -810,32 +916,32 @@ class ModulePermissionMiddleware(MiddlewareMixin):
                     route_resource,
                 )
 
-        if action not in allowed_actions:
+        for required in required_actions:
+            if required in allowed_actions:
+                continue
             # The resource may belong to another screen's page — a child the
             # page saves through, or a dropdown it fills. A grant on that
             # owning screen covers it (app/utils/screen_dependencies.py).
             dependency_actions = self._dependency_actions(
-                permissions, module, route_resource, action
+                permissions, module, route_resource, required
             )
-            if dependency_actions:
-                if action in dependency_actions:
-                    return None
-                allowed_actions = list(allowed_actions) + dependency_actions
-
-        if action not in allowed_actions:
+            if required in dependency_actions:
+                continue
             # A GET is also satisfied by "use" — a lighter-weight grant meant
             # for consuming a screen's records as reference data (e.g. a
             # dropdown option source) without exposing the full list screen.
-            if action == "view" and "use" in allowed_actions:
+            if required == "view" and (
+                "use" in allowed_actions or "use" in dependency_actions
+            ):
                 request.permission_use_only = True
-                return None
+                continue
 
             return JsonResponse(
                 {
                     "detail": "Permission denied",
                     "module": module,
                     "resource": permission_resource,
-                    "action": action,
+                    "action": required,
                 },
                 status=403,
             )

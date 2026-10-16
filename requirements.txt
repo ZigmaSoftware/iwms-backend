@@ -21,6 +21,7 @@ setuptools<81
 cryptography>=43.0.0
 python-dotenv>=1.0.0
 firebase-admin>=6.5.0
+xlsxwriter>=3.1,<4
 
 # --- Attendance face recognition (FACE_RECOGNITION_PROVIDER=insightface) ---
 # Only needed when the InsightFace provider is selected; the CompreFace

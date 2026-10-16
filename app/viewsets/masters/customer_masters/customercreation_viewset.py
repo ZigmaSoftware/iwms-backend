@@ -7,6 +7,7 @@ from django.db.models.functions import Upper
 from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from app.utils.bulk_upload_mixin import bulk_upload_response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from app.models.superadmin_masters.company import Company
@@ -541,6 +542,7 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             decoded_file = file.read().decode("utf-8")
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
+            rows = list(reader)
 
             success_count = 0
             errors = []
@@ -557,7 +559,7 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             if not project:
                 return Response({"error": "Invalid project_id"}, status=400)
 
-            for index, row in enumerate(reader, start=1):
+            for index, row in enumerate(rows, start=1):
 
                 # ✅ SUPPORT BOTH NAME & ID
                 state = get_fk(State, "name", row.get("state_id") or row.get("state_name"))
@@ -668,11 +670,13 @@ class CustomerCreationViewSet(AuditViewSetMixin, CompanyScopedViewSet):
                         "error": serializer.errors
                     })
 
-            return Response({
-                "message": "Bulk upload completed",
-                "success_count": success_count,
-                "errors": errors
-            })
+            return Response(bulk_upload_response(
+                "Bulk upload completed",
+                success_count,
+                errors,
+                file_name=getattr(file, "name", None),
+                rows=rows,
+            ))
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)

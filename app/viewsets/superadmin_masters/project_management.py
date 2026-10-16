@@ -12,8 +12,9 @@ from app.serializers.superadmin_masters.project_create_serializer import (
     ProjectUpdateSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
-class CompanyProjectCreateViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
+class CompanyProjectCreateViewSet(BulkUploadMixin, AuditViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [PlatformOrCompanyAdminFullAccess]
     # MultiPart/Form parsers accept the project_logo upload.
     parser_classes = (MultiPartParser, FormParser, JSONParser)
