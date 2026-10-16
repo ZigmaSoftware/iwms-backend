@@ -278,6 +278,11 @@ MODULE_RESOURCE_ALLOWLIST = {
         "AdminDashboard",
         "SuperadminDashboard",
     },
+    # The user dashboard's summary, granted by the user-dashboard/home-dashboard
+    # screen.
+    "dashboard": {
+        "DashboardSummary",
+    },
     "audits": {
         "StaffTemplateAuditLog",
         "LoginAudit",

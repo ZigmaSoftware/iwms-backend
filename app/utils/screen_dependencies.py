@@ -220,6 +220,31 @@ SCREEN_DEPENDENCIES = {
     ("reports", "complaints-report"): {
         "lookups": ("masters/zones", "masters/wards"),
     },
+
+    # ---------------- user dashboard ----------------
+    # Read-only pages over other screens' data: a dashboard grant reads it
+    # without the admin screens themselves.
+    ("user-dashboard", "home-dashboard"): {
+        "lookups": (
+            "complaint-ticket/tickets",
+            "waste-types/wastetypes",
+            "waste-types/bins",
+            "customer-masters/customercreations",
+            "schedule-operations/wastecollections",
+            "masters/wards",
+        ),
+    },
+    ("user-dashboard", "dashboard-grievances"): {
+        "lookups": ("complaint-ticket/tickets",),
+    },
+    ("user-dashboard", "dashboard-reports"): {
+        "lookups": (
+            "reports/daily-waste-comparisons",
+            "reports/monthly-waste-comparison",
+            "masters/panchayat",
+            "masters/zones",
+        ),
+    },
 }
 
 

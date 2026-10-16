@@ -1,6 +1,6 @@
 """Dashboard screens in the permission seeder: view-only, the Superadmin
-Dashboard never seeded into a company catalog, and the Admin Dashboard
-granted to Blue Planet's Greater Noida project."""
+Dashboard never seeded into a company catalog, and the Admin and User
+Dashboard screens left for a super admin to approve per company/project."""
 import pytest
 
 from app.management.commands.seeders.superadmin.screen_management.permissions import (
@@ -15,8 +15,7 @@ from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
-from app.models.superadmin_masters.company import Company
-from app.models.superadmin_masters.project import Project
+from app.utils.permission_catalog import APPROVAL_REQUIRED_SCREENS
 
 
 def _actions(model, screen_name, **scope):
@@ -30,59 +29,59 @@ def _actions(model, screen_name, **scope):
     )
 
 
+DASHBOARDS = (
+    "admin-dashboard",
+    "home-dashboard",
+    "dashboard-grievances",
+    "dashboard-reports",
+    "dashboard-weighbridge",
+)
+
+
+def _approve(company, project, screen_name, action_name="view"):
+    screen = UserScreen.objects.get(userscreen_name=screen_name, is_deleted=False)
+    CompanyUserScreenPermission.objects.create(
+        company_id=company.unique_id, project_id=project.unique_id,
+        mainscreen_id=screen.mainscreen_id, userscreen_id=screen.unique_id,
+        userscreenaction_id=UserScreenAction.objects.get(action_name=action_name).unique_id,
+        order_no=1,
+    )
+
+
+def test_dashboards_need_super_admin_approval():
+    assert set(DASHBOARDS) <= APPROVAL_REQUIRED_SCREENS
+
+
 @pytest.mark.django_db
-def test_dashboards_are_view_only_and_superadmin_dashboard_is_not_seeded(company, project):
+def test_seeder_lists_dashboards_but_enables_none(company, project):
+    config = StaffAccessConfiguration.objects.create(
+        staff_id="STC-1", company_id=company.unique_id, project_ids=project.unique_id,
+    )
     PermissionSeeder().run()
 
-    assert _actions(CompanyUserScreenPermission, "admin-dashboard") == {"view"}
-    assert UserScreen.objects.filter(
-        userscreen_name="superadmin-dashboard", is_active=True, is_deleted=False,
-    ).exists()
-    assert _actions(CompanyUserScreenPermission, "superadmin-dashboard") == set()
+    for name in DASHBOARDS + ("superadmin-dashboard",):
+        assert UserScreen.objects.filter(
+            userscreen_name=name, is_active=True, is_deleted=False,
+        ).exists(), name
+        assert _actions(CompanyUserScreenPermission, name) == set(), name
+        assert _actions(
+            StaffAccessConfigurationPermission, name,
+            staff_access_configuration_id=config.unique_id,
+        ) == set(), name
 
 
 @pytest.mark.django_db
-def test_existing_extra_dashboard_grants_are_retired(company, project):
+def test_approved_dashboard_survives_reseeding_view_only(company, project):
     seeder = PermissionSeeder()
     seeder.run()
-    screen = UserScreen.objects.get(userscreen_name="admin-dashboard")
-    superadmin_screen = UserScreen.objects.get(userscreen_name="superadmin-dashboard")
-    edit = UserScreenAction.objects.get(action_name="edit")
-    view = UserScreenAction.objects.get(action_name="view")
-    for scr, action in ((screen, edit), (superadmin_screen, view)):
-        CompanyUserScreenPermission.objects.create(
-            company_id=company.unique_id, project_id=project.unique_id,
-            mainscreen_id=scr.mainscreen_id, userscreen_id=scr.unique_id,
-            userscreenaction_id=action.unique_id, order_no=99,
-        )
+    _approve(company, project, "admin-dashboard", "view")
+    _approve(company, project, "admin-dashboard", "edit")
+    _approve(company, project, "home-dashboard", "view")
+    _approve(company, project, "superadmin-dashboard", "view")
 
     seeder.run()
 
     assert _actions(CompanyUserScreenPermission, "admin-dashboard") == {"view"}
+    assert _actions(CompanyUserScreenPermission, "home-dashboard") == {"view"}
+    assert _actions(CompanyUserScreenPermission, "dashboard-reports") == set()
     assert _actions(CompanyUserScreenPermission, "superadmin-dashboard") == set()
-
-
-@pytest.mark.django_db
-def test_noida_project_gets_the_admin_dashboard():
-    company = Company.objects.create(name=PermissionSeeder.NOIDA_COMPANY)
-    # Created first, so the baseline catalog lands on this project, not Noida.
-    Project.objects.create(name="Other Project", company_id=company.unique_id)
-    noida = Project.objects.create(
-        name=PermissionSeeder.NOIDA_PROJECT, company_id=company.unique_id,
-    )
-    config = StaffAccessConfiguration.objects.create(
-        staff_id="STC-NOIDA", company_id=company.unique_id, project_ids=noida.unique_id,
-    )
-
-    seeder = PermissionSeeder()
-    seeder.run()
-    seeder.run()
-
-    assert _actions(
-        CompanyUserScreenPermission, "admin-dashboard",
-        company_id=company.unique_id, project_id=noida.unique_id,
-    ) == {"view"}
-    assert _actions(
-        StaffAccessConfigurationPermission, "admin-dashboard",
-        staff_access_configuration_id=config.unique_id,
-    ) == {"view"}

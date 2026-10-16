@@ -1,6 +1,10 @@
 """API tests for the company/project-scoped dashboard summary endpoint."""
-import pytest
+from types import SimpleNamespace
 
+import pytest
+from rest_framework.test import APIRequestFactory
+
+from app.middleware import module_permission_middleware as mpm
 from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.waste_masters.property import Property
 from app.models.masters.waste_masters.subproperty import SubProperty
@@ -47,9 +51,14 @@ def company_user(db, company, project):
 
 
 @pytest.fixture
-def company_auth_client(api_client, company_user):
-    """APIClient authenticated as a non-superadmin, company-scoped user."""
+def company_auth_client(api_client, company_user, monkeypatch):
+    """APIClient authenticated as a non-superadmin, company-scoped user
+    holding the user-dashboard/home-dashboard grant."""
     from rest_framework_simplejwt.tokens import AccessToken
+    monkeypatch.setattr(
+        mpm, "_resolve_permissions_for_request",
+        lambda req: {"user-dashboard": {"home-dashboard": ["view"]}},
+    )
     token = AccessToken.for_user(company_user)
     token["unique_id"] = company_user.unique_id
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
@@ -87,6 +96,42 @@ class TestDashboardSummaryAuth:
     def test_unauthenticated_returns_401(self, api_client):
         resp = api_client.get(BASE)
         assert resp.status_code in (401, 403)
+
+
+def _middleware(monkeypatch, path, permissions, view_name):
+    request = APIRequestFactory().get(path)
+
+    def _auth(req):
+        req.user = SimpleNamespace(is_authenticated=True, is_superuser=False, company_id="CMP-1")
+
+    monkeypatch.setattr(mpm, "_authenticate_request", _auth)
+    monkeypatch.setattr(mpm, "_resolve_permissions_for_request", lambda req: permissions)
+    view = SimpleNamespace(cls=type(view_name, (), {}), actions={"get": "list"})
+    return mpm.ModulePermissionMiddleware(lambda r: None).process_view(request, view, (), {})
+
+
+def test_summary_needs_the_home_dashboard_grant(monkeypatch):
+    granted = {"user-dashboard": {"home-dashboard": ["view"]}}
+    assert _middleware(monkeypatch, BASE, granted, "DashboardSummaryViewSet") is None
+    for permissions in (
+        {},
+        {"customers": {"customercreations": ["view"]}},
+        {"user-dashboard": {"dashboard-grievances": ["view"]}},
+    ):
+        denied = _middleware(monkeypatch, BASE, permissions, "DashboardSummaryViewSet")
+        assert denied.status_code == 403, permissions
+
+
+@pytest.mark.parametrize("screen, path, view_name", [
+    ("dashboard-grievances", "/api/v1/complaint-ticket/tickets/", "ComplaintTicketViewSet"),
+    ("dashboard-reports", "/api/v1/reports/daily-waste-comparisons/", "DailyWasteComparisonViewSet"),
+    ("dashboard-reports", "/api/v1/reports/monthly-waste-comparison/", "MonthlyWasteComparisonReportViewSet"),
+    ("home-dashboard", "/api/v1/complaint-ticket/tickets/", "ComplaintTicketViewSet"),
+])
+def test_dashboard_tabs_read_the_data_they_show(monkeypatch, screen, path, view_name):
+    granted = {"user-dashboard": {screen: ["view"]}}
+    assert _middleware(monkeypatch, path, granted, view_name) is None
+    assert _middleware(monkeypatch, path, {}, view_name).status_code == 403
 
 
 @pytest.mark.django_db
