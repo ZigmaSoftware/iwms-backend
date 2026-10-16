@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
@@ -5,6 +6,7 @@ from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
 from app.services.retrip_service import build_pending_snapshot
+from app.services.retrip_timeout_service import deadline_for
 
 
 class TripRetripRequestSerializer(serializers.ModelSerializer):
@@ -30,6 +32,8 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
         source="reviewed_by.employee_name", read_only=True, default=None
     )
     live_pending = serializers.SerializerMethodField()
+    time_remaining_seconds = serializers.SerializerMethodField()
+    urgency = serializers.SerializerMethodField()
 
     class Meta:
         model = TripRetripRequest
@@ -71,3 +75,18 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
         if assignment is None:
             return None
         return build_pending_snapshot(assignment)
+
+    def get_time_remaining_seconds(self, obj):
+        if not obj.is_pending:
+            return 0
+        return max(0, int((deadline_for(obj) - timezone.now()).total_seconds()))
+
+    def get_urgency(self, obj):
+        if not obj.is_pending:
+            return "expired" if obj.status == obj.STATUS_EXPIRED else "decided"
+        seconds = self.get_time_remaining_seconds(obj)
+        if seconds <= 10 * 60:
+            return "urgent"
+        if seconds <= 20 * 60:
+            return "reminder"
+        return "normal"

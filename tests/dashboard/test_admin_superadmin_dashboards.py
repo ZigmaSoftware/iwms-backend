@@ -1,5 +1,5 @@
 """Admin Dashboard (dashboards/admin) and Superadmin Dashboard (dashboards/superadmin)."""
-from datetime import date, time
+from datetime import date, datetime, time
 from types import SimpleNamespace
 
 import pytest
@@ -221,6 +221,51 @@ def test_superadmin_dashboard_lists_companies_and_projects(auth_client, trips, c
     assert rows["Test Company"]["trips"] == 3
     assert rows["Other Company"]["trips"] == 1
     assert {"catalog", "company_grants", "staff_grants", "changes"} <= set(data["permissions"])
+
+
+@pytest.mark.django_db
+def test_superadmin_dashboard_serializes_attendance_day_keys(
+    auth_client, company, project,
+):
+    from django.utils import timezone
+
+    from app.models.core_modules.attendance.attendance import Recognized
+    from app.models.superadmin.staff_management.staffcreation import (
+        StaffcreationOfficeDetails,
+    )
+
+    staff = StaffcreationOfficeDetails.objects.create(
+        employee_name="Attendance Staff",
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+    )
+    punched_at = timezone.make_aware(datetime(2026, 10, 15, 9, 0))
+    Recognized.objects.create(
+        staff_id=staff.staff_unique_id,
+        emp_id=staff.emp_id,
+        name=staff.employee_name,
+        records=punched_at,
+        captured_image_path="attendance/test.jpg",
+        similarity_score=99.0,
+        latitude="13.0827",
+        longitude="80.2707",
+        recognition_date=date(2026, 10, 15),
+        recognition_time=time(9, 0),
+        punch_type="IN",
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+    )
+
+    response = auth_client.get(
+        SUPERADMIN,
+        {"from_date": "2026-09-16", "to_date": "2026-10-15"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["operations"]["attendance"]["per_day"] == {"2026-10-15": 1}
+    assert data["operations"]["attendance"]["present_last_day"] == 1
+    assert data["daily"][-1]["present"] == 1
 
 
 @pytest.mark.django_db

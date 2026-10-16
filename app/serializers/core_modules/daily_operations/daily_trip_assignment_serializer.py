@@ -190,6 +190,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     trip_count = serializers.SerializerMethodField(read_only=True)
     trip_log_summary = serializers.SerializerMethodField(read_only=True)
     trip_events = serializers.SerializerMethodField(read_only=True)
+    service_notice = serializers.SerializerMethodField(read_only=True)
     collection_points_input = serializers.ListField(
         child=serializers.DictField(),
         write_only=True,
@@ -239,6 +240,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "actual_end_at",
             "trip_log_summary",
             "trip_events",
+            "service_notice",
             "total_trip_time_seconds",
             "trip_count",
             "status",
@@ -261,6 +263,16 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "created_at",
             "updated_at",
         ]
+
+    def get_service_notice(self, obj):
+        from app.services.daily_service_notice import (
+            active_notice_for_plan,
+            serialize_notice,
+        )
+
+        return serialize_notice(
+            active_notice_for_plan(obj.trip_plan_id, obj.trip_date)
+        )
 
     def get_trip_events(self, obj):
         from app.models.core_modules.daily_operations.trip_delay_report import TripDelayReport
@@ -331,6 +343,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "unique_id": latest.unique_id,
             "status": latest.status,
             "new_assignment_id": latest.new_assignment_id,
+            "expires_at": latest.expires_at,
         }
 
     def get_breakdown_info(self, obj):
@@ -598,6 +611,10 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
                 "sanitary_waste": getattr(waste_collection, "sanitary_waste", None),
                 "status": stop.status,
                 "status_reason": stop.status_reason,
+                "customer_available_at": (
+                    stop.customer_available_at.isoformat() if stop.customer_available_at else None
+                ),
+                "customer_available_note": stop.customer_available_note,
             })
         return result
 

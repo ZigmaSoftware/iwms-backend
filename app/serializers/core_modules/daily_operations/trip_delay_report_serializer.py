@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from app.models.core_modules.daily_operations.trip_delay_report import TripDelayReport
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
+from app.serializers.evidence_image import EvidenceImageField, absolute_image_url
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 
 
@@ -41,6 +42,8 @@ class TripDelayReportSerializer(serializers.ModelSerializer):
     trip_date = serializers.DateField(
         source="trip_assignment.trip_date", read_only=True, default=None
     )
+    evidence_image = EvidenceImageField(required=False, allow_null=True)
+    evidence_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = TripDelayReport
@@ -61,6 +64,8 @@ class TripDelayReportSerializer(serializers.ModelSerializer):
             "delay_lat",
             "delay_lng",
             "delay_location",
+            "evidence_image",
+            "evidence_image_url",
             "status",
             "status_display",
             "acknowledged_by",
@@ -95,6 +100,23 @@ class TripDelayReportSerializer(serializers.ModelSerializer):
             .values_list("employee_name", flat=True)
             .first()
         )
+
+    def get_evidence_image_url(self, obj):
+        return absolute_image_url(self, obj.evidence_image)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if self.instance is None:
+            errors = {}
+            if not attrs.get("evidence_image"):
+                errors["evidence_image"] = "A geotagged evidence image is required."
+            if attrs.get("delay_lat") is None:
+                errors["delay_lat"] = "Capture latitude is required."
+            if attrs.get("delay_lng") is None:
+                errors["delay_lng"] = "Capture longitude is required."
+            if errors:
+                raise serializers.ValidationError(errors)
+        return attrs
 
     def validate_trip_assignment_id(self, value):
         # Admin web form can pick any trip; a delay on a closed trip is noise.
