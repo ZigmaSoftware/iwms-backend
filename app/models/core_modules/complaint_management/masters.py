@@ -421,12 +421,11 @@ class ComplaintSlaEscalationLevel(BaseMaster):
     """Resolution window for one hop of a project's staff hierarchy.
 
     `level` matches `ProjectStaffHierarchy.level` for the ticket's project.
-    Only `is_enabled` rows participate in escalation: a ticket is first
-    assigned to the lowest-numbered enabled level's staff, and on breach hops
-    to the next enabled level above it — disabled levels (e.g. Driver,
-    Operator) are skipped entirely, both as an entry point and as a hop
-    target. Kept as its own table (not fixed l1/l2/l3 columns) because
-    hierarchy depth is configured per project and can vary.
+    Which levels take part is decided by the project's staff hierarchy
+    itself (`ProjectStaffHierarchy.escalation_enabled`); these rows only give
+    each level its time limit for the SLA rule's category / sub-category.
+    Kept as its own table (not fixed l1/l2/l3 columns) because hierarchy
+    depth is configured per project and can vary.
     """
 
     unique_id = models.CharField(
@@ -439,10 +438,6 @@ class ComplaintSlaEscalationLevel(BaseMaster):
     sla_rule_id = models.CharField(max_length=30, null=True, blank=True)
     level = models.PositiveIntegerField(
         help_text="Hierarchy level this window applies to (matches ProjectStaffHierarchy.level).",
-    )
-    is_enabled = models.BooleanField(
-        default=True,
-        help_text="Whether this hierarchy level participates in escalation for this SLA rule.",
     )
     resolve_within_minutes = models.IntegerField(
         help_text="Minutes this level has to resolve the ticket before it escalates further.",

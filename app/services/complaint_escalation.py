@@ -1,15 +1,17 @@
 """Hierarchy-driven auto-escalation for complaint tickets.
 
-A ticket starts at whichever hierarchy level is the SLA rule's lowest
-*enabled* `ComplaintSlaEscalationLevel` (see `complaint_ticket_routing.
-_entry_level_number`) — a project's hierarchy may include Driver/Operator/
-Supervisor/Project Admin/Company Admin, but a rule can disable the lower
-ones so tickets start at Supervisor instead. If it isn't resolved by
-`next_escalation_due_at`, it hops to the next *enabled* level above it in
-that project's `ProjectStaffHierarchy` — disabled levels are skipped
+Which levels take part is decided by the project's staff hierarchy: rows
+with `ProjectStaffHierarchy.escalation_enabled` off (e.g. Driver, Operator)
+are skipped. Each SLA rule — per category / sub-category — only gives every
+enabled level its resolve window (`ComplaintSlaEscalationLevel`).
+
+A ticket starts at the lowest enabled level (see `complaint_ticket_routing.
+_entry_level_number`). If it isn't resolved by `next_escalation_due_at`, it
+hops to the next enabled level above it — disabled levels are skipped
 entirely, not just as an entry point but as hop targets too. Reaching the
 top of the hierarchy (or running out of enabled levels above the current
-one) simply stops escalating.
+one) simply stops escalating; a level the SLA rule has no window for holds
+the ticket without a deadline.
 
 At each level, which staff member the ticket actually goes to is narrowed by
 geography (see `complaint_ticket_routing._staff_for_hierarchy_level`) — a
@@ -49,21 +51,11 @@ def _resolve_window_minutes(ticket, level):
 
 
 def _enabled_levels_above(ticket, current_level):
-    """Enabled `ComplaintSlaEscalationLevel.level` numbers above
-    `current_level` for the ticket's best-matching SLA rule, ascending."""
-    from app.services.complaint_ticket_routing import _best_sla_rule
+    """Escalation-enabled hierarchy levels of the ticket's project above
+    `current_level`, ascending."""
+    from app.services.complaint_ticket_routing import escalation_levels
 
-    sla_rule = _best_sla_rule(ticket)
-    if not sla_rule:
-        return []
-
-    return list(
-        sla_rule.escalation_levels.filter(
-            is_enabled=True, is_deleted=False, level__gt=current_level,
-        )
-        .order_by("level")
-        .values_list("level", flat=True)
-    )
+    return [level for level in escalation_levels(ticket.project_id) if level > current_level]
 
 
 def get_next_level_staff(ticket):

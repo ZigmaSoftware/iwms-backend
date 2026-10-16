@@ -107,8 +107,13 @@ class ComplaintSubcategorySerializer(AutoSortOrderSerializerMixin, serializers.M
 class ComplaintSlaEscalationLevelSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComplaintSlaEscalationLevel
-        fields = ["unique_id", "level", "is_enabled", "resolve_within_minutes"]
+        fields = ["unique_id", "level", "resolve_within_minutes"]
         read_only_fields = ["unique_id"]
+
+    def validate_resolve_within_minutes(self, value):
+        if value is None or value <= 0:
+            raise serializers.ValidationError("Must be greater than 0.")
+        return value
 
 
 class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
@@ -138,10 +143,11 @@ class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
 
     def get_source_code(self, obj):
         return getattr(obj.source, "source_code", None)
-    # Per-hierarchy-level resolve windows (level 0 = first assignee, level 1 =
-    # one hop up, ...). Written wholesale on every save: the incoming list
-    # replaces whatever rows existed before, same as how the ticket
-    # serializer's `extra_details` are handled.
+    # Resolve window per escalation-enabled level of the project's staff
+    # hierarchy (which levels take part is set on ProjectStaffHierarchy, not
+    # here). Written wholesale on every save: the incoming list replaces
+    # whatever rows existed before, same as how the ticket serializer's
+    # `extra_details` are handled.
     escalation_levels = ComplaintSlaEscalationLevelSerializer(many=True, required=False)
 
     class Meta:
@@ -189,6 +195,12 @@ class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
                 )
         return attrs
 
+    def validate_escalation_levels(self, value):
+        levels = [row["level"] for row in value]
+        if len(levels) != len(set(levels)):
+            raise serializers.ValidationError("Each hierarchy level can appear only once.")
+        return value
+
     def create(self, validated_data):
         levels = validated_data.pop("escalation_levels", None)
         rule = super().create(validated_data)
@@ -209,6 +221,5 @@ class ComplaintSlaRuleSerializer(serializers.ModelSerializer):
             ComplaintSlaEscalationLevel.objects.create(
                 sla_rule_id=rule.unique_id,
                 level=row["level"],
-                is_enabled=row.get("is_enabled", True),
                 resolve_within_minutes=row["resolve_within_minutes"],
             )

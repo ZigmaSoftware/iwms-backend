@@ -134,22 +134,19 @@ def _is_entry_level_staff(user):
     a higher level (Project Admin, Company Admin, ...) only sees tickets
     that have actually escalated up to them.
 
-    The effective entry level isn't a fixed project setting — a project's
-    `ProjectStaffHierarchy` might define Driver/Operator/Supervisor/Project
-    Admin/Company Admin, but different SLA rules (per category/priority) can
-    each disable a different subset of the lower levels. This takes the
-    lowest level that is enabled on ANY of the project's SLA rules as the
-    project's overall entry point — the same level `apply_routing_and_sla`
-    would use for a ticket whose SLA rule doesn't narrow it further.
+    The entry level is the lowest escalation-enabled level of the project's
+    `ProjectStaffHierarchy` (Driver/Operator rows can be switched off so
+    tickets start at Supervisor) — the same level `apply_routing_and_sla`
+    assigns new tickets to.
 
     A staff record with no `staffusertype_id`/`project_id`, or a project
-    with no `ProjectStaffHierarchy`/enabled `ComplaintSlaEscalationLevel` at
-    all, is treated as entry-level (fails open to "sees everything in their
-    scope") so a deployment that hasn't configured hierarchy/SLA levels yet
-    keeps working as before rather than hiding tickets from everyone.
+    with no `ProjectStaffHierarchy` at all, is treated as entry-level (fails
+    open to "sees everything in their scope") so a deployment that hasn't
+    configured a hierarchy yet keeps working as before rather than hiding
+    tickets from everyone.
     """
-    from app.models.core_modules.complaint_management.masters import ComplaintSlaEscalationLevel, ComplaintSlaRule
     from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
+    from app.services.complaint_ticket_routing import escalation_levels
 
     staffusertype_id = getattr(user, "staffusertype_id", None)
     project_id = getattr(user, "project_id", None)
@@ -168,22 +165,13 @@ def _is_entry_level_staff(user):
     if own_level is None:
         return True
 
-    matching_sla_rule_ids = ComplaintSlaRule.objects.filter(
-        project_id=project_id, is_deleted=False,
-    ).values_list("unique_id", flat=True)
-    enabled_levels = set(
-        ComplaintSlaEscalationLevel.objects.filter(
-            is_enabled=True,
-            is_deleted=False,
-            sla_rule_id__in=matching_sla_rule_ids,
-        ).values_list("level", flat=True)
-    )
+    enabled_levels = escalation_levels(project_id)
     if not enabled_levels:
-        # No SLA rule has any escalation level configured for this project
-        # yet — fall back to the raw hierarchy's lowest level.
+        # Every level has escalation switched off — fall back to the raw
+        # hierarchy's lowest level.
         entry_level = min(hierarchy_levels.values())
     else:
-        entry_level = min(enabled_levels)
+        entry_level = enabled_levels[0]
 
     return own_level == entry_level
 
