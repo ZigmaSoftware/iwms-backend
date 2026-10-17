@@ -36,9 +36,10 @@ from rest_framework import filters
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     """
     CRUD + state-machine actions for daily trip assignments.
 

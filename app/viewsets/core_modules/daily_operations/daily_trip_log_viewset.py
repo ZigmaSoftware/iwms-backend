@@ -18,9 +18,10 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class DailyTripLogViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class DailyTripLogViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     # NOTE: no select_related()/prefetch_related() here — every *_id field on
     # this model (company_id, trip_assignment_id, driver_id, etc.) is this
     # codebase's plain "string-pseudo-FK" CharField, not a real Django

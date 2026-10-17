@@ -7,9 +7,10 @@ from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.serializers.superadmin.role_management.staffusertype_serializer import StaffUserTypeSerializer
 from rest_framework.decorators import action
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class StaffUserTypeViewSet(AuditViewSetMixin,viewsets.ModelViewSet):
+class StaffUserTypeViewSet(BulkUploadMixin, AuditViewSetMixin,viewsets.ModelViewSet):
     pagination_class = None
     queryset = StaffUserType.objects.filter(is_deleted=False)
     serializer_class = StaffUserTypeSerializer

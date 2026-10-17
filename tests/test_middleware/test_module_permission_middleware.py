@@ -431,3 +431,107 @@ def test_route_static_post_only_needs_view(monkeypatch):
         DailyTripCollectionPointViewSet,
     )
     assert status == 200
+
+
+# ------------------------------------------------------------------
+# import / export actions
+# ------------------------------------------------------------------
+
+FUEL_PATH = "/api/v1/transport-masters/fuels/"
+
+
+def test_bulk_upload_needs_import_and_add(monkeypatch):
+    upload = f"{FUEL_PATH}bulk-upload/"
+    for actions, expected in (
+        (["view", "add", "import"], 200),
+        (["view", "add"], 403),
+        (["view", "import"], 403),
+    ):
+        status, _ = _run_as(
+            monkeypatch,
+            {"transport-masters": {"fuels": actions}},
+            "post", upload, _view("Fuel"),
+        )
+        assert status == expected, actions
+
+    # A plain create still only needs "add".
+    status, _ = _run_as(
+        monkeypatch,
+        {"transport-masters": {"fuels": ["add"]}},
+        "post", FUEL_PATH, _view("Fuel"),
+    )
+    assert status == 200
+
+
+def _export_as(monkeypatch, permissions, body, superuser=False):
+    import json
+    from types import SimpleNamespace
+    from django.test import RequestFactory
+    import app.middleware.module_permission_middleware as middleware_module
+
+    def fake_authenticate_request(request):
+        request.user = SimpleNamespace(is_superuser=superuser)
+        return None
+
+    monkeypatch.setattr(middleware_module, "_authenticate_request", fake_authenticate_request)
+    monkeypatch.setattr(
+        middleware_module, "_resolve_permissions_for_request", lambda request: permissions
+    )
+    request = RequestFactory().post(
+        "/api/v1/exports/excel/", data=json.dumps(body), content_type="application/json"
+    )
+    result = ModulePermissionMiddleware(lambda r: None).process_view(
+        request, lambda r: None, (), {}
+    )
+    return 200 if result is None else result.status_code, result
+
+
+def test_excel_export_needs_export_on_the_listed_resource(monkeypatch):
+    body = {"path": "/transport-masters/fuels/"}
+    status, _ = _export_as(
+        monkeypatch, {"transport-masters": {"fuels": ["view", "export"]}}, body
+    )
+    assert status == 200
+
+    status, result = _export_as(
+        monkeypatch, {"transport-masters": {"fuels": ["view"]}}, body
+    )
+    assert status == 403
+    assert b'"action": "export"' in result.content
+
+    # Full /api/v1 paths work the same way.
+    status, _ = _export_as(
+        monkeypatch,
+        {"transport-masters": {"fuels": ["view"]}},
+        {"path": FUEL_PATH, "params": {"is_active": True}},
+    )
+    assert status == 403
+
+
+def test_excel_export_superuser_and_unprotected_paths_pass(monkeypatch):
+    status, _ = _export_as(
+        monkeypatch, {}, {"path": "/transport-masters/fuels/"}, superuser=True
+    )
+    assert status == 200
+    # Not a protected module: the replayed GET's own checks apply.
+    status, _ = _export_as(monkeypatch, {}, {"path": "/not-a-module/things/"})
+    assert status == 200
+    status, _ = _export_as(monkeypatch, {}, {})
+    assert status == 200
+
+
+def test_list_get_still_needs_only_view(monkeypatch):
+    status, _ = _run_as(
+        monkeypatch,
+        {"transport-masters": {"fuels": ["view"]}},
+        "get", FUEL_PATH, _view("Fuel"),
+    )
+    assert status == 200
+
+
+def test_permission_payload_has_import_and_export_flags():
+    from app.utils.permission_response import ACTION_KEYS, base_action_map
+
+    assert {"import", "export"} <= set(ACTION_KEYS)
+    assert base_action_map()["import"] is False
+    assert base_action_map()["export"] is False

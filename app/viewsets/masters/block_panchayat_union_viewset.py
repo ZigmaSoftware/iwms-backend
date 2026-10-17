@@ -4,9 +4,10 @@ from app.serializers.masters.block_panchayat_union_serializer import BlockPancha
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class BlockPanchayatUnionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class BlockPanchayatUnionViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = BlockPanchayatUnionSerializer
     lookup_field = "unique_id"
     permission_resource = "BlockPanchayatUnion"

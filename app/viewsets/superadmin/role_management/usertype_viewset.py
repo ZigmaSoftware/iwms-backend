@@ -6,9 +6,10 @@ from app.models.superadmin.role_management.userType import UserType
 from app.serializers.superadmin.role_management.usertype_serializer import UserTypeSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class UserTypeViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class UserTypeViewSet(BulkUploadMixin, AuditViewSetMixin,CompanyScopedViewSet):
     queryset = UserType.objects.filter(is_deleted=False)
     serializer_class = UserTypeSerializer
     lookup_field = "unique_id"

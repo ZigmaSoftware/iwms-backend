@@ -40,7 +40,9 @@ def test_megha_gets_staff_management_but_no_platform_modules(company, project):
     modules = _granted_modules(staff)
     super_admin = set(SECTION_MODULES["super-admin"])
     assert modules & super_admin == {"staff-creations"}
-    assert {"dashboard", "masters", "schedule-setup", "reports"} <= modules
+    assert {"masters", "schedule-setup", "reports"} <= modules
+    # Dashboards wait for a super admin to approve them for the project.
+    assert not modules & {"dashboard", "user-dashboard"}
 
     # A re-run removes super-admin grants she was given earlier.
     config = StaffAccessConfiguration.objects.get(staff_id=staff.staff_unique_id)

@@ -3,6 +3,7 @@ import logging
 
 from django.forms.models import model_to_dict
 from django.db.models.fields.files import FieldFile
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from app.utils.common_audit import CommonAudit
 from app.utils.audit_context import resolve_actor, resolve_tenancy
@@ -239,9 +240,27 @@ class DeleteReasonMixin:
 
     def _record_delete_reason(self, request, reason):
         instance = self._deleted_instance()
-        if instance is not None and hasattr(instance, DELETE_REASON_FIELD):
-            type(instance)._base_manager.filter(pk=instance.pk).update(delete_reason=reason)
-            instance.delete_reason = reason
+        if instance is not None:
+            stamp = {}
+            if hasattr(instance, DELETE_REASON_FIELD):
+                stamp["delete_reason"] = reason
+            # Manual destroy paths flip is_deleted by hand instead of calling
+            # delete(): BaseMaster.save() already stamped deleted_at on the
+            # save, but the actor and updated_at are only known here.
+            fields = {f.name for f in type(instance)._meta.fields}
+            now = timezone.now()
+            if "deleted_at" in fields and not instance.deleted_at:
+                stamp["deleted_at"] = now
+            actor_fn = getattr(self, "_audit_actor_id", None)
+            actor_id = actor_fn() if callable(actor_fn) else None
+            if actor_id and "deleted_by_id" in fields:
+                stamp["deleted_by_id"] = actor_id
+            if "updated_at" in fields:
+                stamp["updated_at"] = now
+            if stamp:
+                type(instance)._base_manager.filter(pk=instance.pk).update(**stamp)
+                for name, value in stamp.items():
+                    setattr(instance, name, value)
 
         if not getattr(request, "_delete_audit_logged", False):
             write_common_audit(

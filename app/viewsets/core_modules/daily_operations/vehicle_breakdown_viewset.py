@@ -26,9 +26,10 @@ from app.viewsets.superadmin_masters.company_scoped_viewset import (
     CompanyScopedViewSet,
     _tenant_value,
 )
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class VehicleBreakdownViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     STAFF_ROLE_ALIASES = {
         "driver": "Company Driver",
         "company driver": "Company Driver",

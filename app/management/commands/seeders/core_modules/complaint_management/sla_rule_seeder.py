@@ -130,7 +130,6 @@ class ComplaintSlaRuleSeeder(BaseSeeder):
                 sla_rule_id=rule.unique_id,
                 level=level,
                 defaults={
-                    "is_enabled": True,
                     "resolve_within_minutes": minutes,
                     "is_active": True,
                     "is_deleted": False,

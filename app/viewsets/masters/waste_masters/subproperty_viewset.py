@@ -4,8 +4,9 @@ from app.models.masters.waste_masters.subproperty import SubProperty
 from app.serializers.masters.waste_masters.subproperty_serializer import SubPropertySerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
-class SubPropertyViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class SubPropertyViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     queryset = SubProperty.objects.filter(is_deleted=False).order_by("sub_property_name")
 
     serializer_class = SubPropertySerializer

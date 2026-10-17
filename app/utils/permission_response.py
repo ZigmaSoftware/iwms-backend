@@ -27,7 +27,7 @@ from app.utils.app_feature_grants import (
 )
 
 
-ACTION_KEYS = ("view", "add", "edit", "delete", "use")
+ACTION_KEYS = ("view", "add", "edit", "delete", "use", "import", "export")
 
 APP_SURFACE_CONFIG = _APP_SURFACE_CONFIG
 

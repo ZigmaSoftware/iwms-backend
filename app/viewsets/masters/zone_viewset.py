@@ -8,9 +8,10 @@ from app.models.masters.zone import Zone
 from app.serializers.masters.zone_serializer import ZoneSerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class ZoneViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+class ZoneViewSet(BulkUploadMixin, AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
     location_scope_chain = [
         ("zones", "unique_id"),
         ("cities", "city_id"),

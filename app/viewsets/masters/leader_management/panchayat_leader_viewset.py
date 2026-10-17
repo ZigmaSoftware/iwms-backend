@@ -6,9 +6,10 @@ from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
 from app.serializers.masters.leader_management.panchayat_leader_serializer import PanchayatLeaderLoginSerializer
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class PanchayatLeaderLoginViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class PanchayatLeaderLoginViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     queryset = PanchayatLeaderLogin.objects.filter(is_deleted=False)
 
     serializer_class = PanchayatLeaderLoginSerializer

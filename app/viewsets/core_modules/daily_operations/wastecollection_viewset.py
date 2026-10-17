@@ -10,8 +10,9 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
-class WasteCollectionViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class WasteCollectionViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     # `customer`/`ward` are no longer real FKs (converted to plain CharFields),
     # so there is nothing left here for select_related to traverse.
     queryset = WasteCollection.objects.filter(is_deleted=False).order_by(
