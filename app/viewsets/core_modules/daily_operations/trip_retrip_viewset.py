@@ -51,9 +51,10 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.audit_mixin import ActionAuditMixin
 
 
-class TripRetripRequestViewSet(CompanyScopedViewSet):
+class TripRetripRequestViewSet(ActionAuditMixin, CompanyScopedViewSet):
     queryset = (
         TripRetripRequest.objects.filter(is_deleted=False)
         .order_by("-created_at")

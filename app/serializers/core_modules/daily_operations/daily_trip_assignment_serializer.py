@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from app.serializers.evidence_image import absolute_image_url
+
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
@@ -282,9 +284,13 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         for report in TripDelayReport.objects.filter(
             trip_assignment_id=obj.unique_id, is_deleted=False
         ):
+            # unique_id + image let the supervisor app open this exact
+            # report (photo, acknowledge/resolve) from the trip card alerts.
             events.append({"label": "Delay: " + report.get_delay_reason_display(),
                            "detail": report.delay_remarks, "at": report.created_at,
-                           "status": report.status})
+                           "status": report.status, "kind": "delay",
+                           "unique_id": report.unique_id,
+                           "image": absolute_image_url(self, report.evidence_image)})
         for request in TripRetripRequest.objects.filter(assignment_id=obj.unique_id):
             if request.is_deleted:
                 continue
@@ -347,7 +353,10 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         }
 
     def get_breakdown_info(self, obj):
-        from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown
+        from app.models.core_modules.daily_operations.vehicle_breakdown import (
+            VehicleBreakdown,
+            VehicleBreakdownPhoto,
+        )
 
         bd = VehicleBreakdown.objects.filter(
             trip_assignment_id=obj.unique_id, is_deleted=False,
@@ -366,6 +375,11 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "replacement_driver": getattr(bd.replacement_driver, "employee_name", None),
             "replacement_operator": getattr(bd.replacement_operator, "employee_name", None),
             "new_assignment_id": bd.new_assignment,
+            "photos": [
+                url
+                for photo in VehicleBreakdownPhoto.objects.filter(breakdown_id=bd.unique_id)
+                if (url := absolute_image_url(self, photo.photo))
+            ],
         }
 
     def get_trip_plan(self, obj):

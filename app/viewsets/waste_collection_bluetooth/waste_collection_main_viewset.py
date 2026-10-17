@@ -1,4 +1,4 @@
-from app.utils.audit_mixin import DeleteReasonMixin
+from app.utils.audit_mixin import ActionAuditMixin, DeleteReasonMixin
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteCollectionMain
 from app.serializers.waste_collection_bluetooth.waste_collection_main_serializer import (
@@ -6,7 +6,7 @@ from app.serializers.waste_collection_bluetooth.waste_collection_main_serializer
 )
 
 
-class WasteCollectionMainViewSet(DeleteReasonMixin, CompanyScopedViewSet):
+class WasteCollectionMainViewSet(ActionAuditMixin, DeleteReasonMixin, CompanyScopedViewSet):
     queryset = WasteCollectionMain.objects.filter(is_deleted=False)
     serializer_class = WasteCollectionMainSerializer
     lookup_field = "unique_id"

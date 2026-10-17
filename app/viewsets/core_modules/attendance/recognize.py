@@ -26,6 +26,7 @@ from drf_yasg import openapi
 
 from app.models.core_modules.attendance.attendance import Employee, Recognized
 from app.services import face_recognition
+from app.utils.audit_mixin import ActionAuditMixin
 
 
 def _safe_filename(value: str) -> str:
@@ -34,7 +35,7 @@ def _safe_filename(value: str) -> str:
     return value[:80] if value else "capture"
 
 
-class RecognizeViewSet(ViewSet):
+class RecognizeViewSet(ActionAuditMixin, ViewSet):
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser]
 

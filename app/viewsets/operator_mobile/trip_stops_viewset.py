@@ -20,6 +20,7 @@ from app.models.core_modules.daily_operations.daily_trip_household_collection im
     DailyTripHouseholdCollection,
 )
 from app.permissions.operator_permission import IsOperatorRole
+from app.utils.audit_mixin import ActionAuditMixin
 from app.serializers.operator_mobile.trip_today_serializer import (
     HouseholdCollectionSerializer,
     STOPS_PAGE_SIZE,
@@ -47,7 +48,7 @@ STOP_TYPES = {
 }
 
 
-class TripStopsViewSet(viewsets.ViewSet):
+class TripStopsViewSet(ActionAuditMixin, viewsets.ViewSet):
     """GET /api/v1/operator-mobile/trip-stops/
 
     Query params: `assignment_id` (required), `type` ("bin" or "household",
