@@ -25,6 +25,7 @@ from app.viewsets.core_modules.complaint_management.citizen_ticket_viewset impor
     _as_customer,
 )
 from app.services.daily_service_notice import notice_for_customer, serialize_notice
+from app.utils.audit_mixin import ActionAuditMixin
 
 
 def _waste_breakdown(collection):
@@ -92,7 +93,7 @@ def _payload(stop, request=None, customer=None):
     }
 
 
-class CitizenPickupViewSet(viewsets.ViewSet):
+class CitizenPickupViewSet(ActionAuditMixin, viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def list(self, request):

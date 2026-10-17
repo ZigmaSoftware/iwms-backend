@@ -115,6 +115,9 @@ def write_common_audit(
         delete_reason = delete_reason or read_delete_reason(request) or None
         # Lets DeleteReasonMixin skip its fallback audit row.
         request._delete_audit_logged = True
+    # Lets ActionAuditMixin skip its catch-all row for this request. Set on
+    # the underlying HttpRequest so a DRF Request wrapper shares it.
+    getattr(request, "_request", request)._common_audit_logged = True
 
     user = getattr(request, "user", None)
     is_authenticated = getattr(user, "is_authenticated", False)
@@ -177,6 +180,163 @@ def format_audit_error(exc):
     _walk(detail)
     message = "; ".join(parts) if parts else str(exc)
     return message[:255]
+
+
+_WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+_AUDIT_SECRET_KEYS = frozenset({
+    "password", "new_password", "old_password", "confirm_password",
+    "otp", "pin", "token", "access", "refresh", "fcm_token", "secret",
+})
+_AUDIT_MAX_PAYLOAD_CHARS = 20000
+_AUDIT_OBJECT_ID_KEYS = (
+    "unique_id", "assignment_id", "trip_assignment_id", "customer_id",
+    "bin_id", "trip_plan_id",
+)
+
+
+def _redact_secrets(value):
+    if isinstance(value, dict):
+        return {
+            key: "[REDACTED]"
+            if str(key).lower() in _AUDIT_SECRET_KEYS and item
+            else _redact_secrets(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_secrets(item) for item in value]
+    return value
+
+
+def _audit_path_names(path):
+    """("operator-mobile", "trip-lifecycle") from
+    /api/v1/operator-mobile/trip-lifecycle/start/ — the same module/resource
+    naming the web's audited viewsets use."""
+    parts = [p for p in path.split("/") if p]
+    parts = [
+        p for p in parts
+        if p not in ("api", "mobile", "desktop")
+        and not (p.startswith("v") and p[1:].isdigit())
+    ]
+    module = parts[0] if parts else "api"
+    endpoint = parts[1] if len(parts) > 1 else module
+    return module, endpoint
+
+
+class ActionAuditMixin:
+    """Writes a CommonAudit row for any write request (POST/PUT/PATCH/DELETE)
+    that nothing else audited: mobile endpoints on plain ViewSets (start trip,
+    scan bin, collect, mark household status, punch…) and custom @actions on
+    audited viewsets (approve, resolve, generate…). Rows written by
+    AuditViewSetMixin's CRUD hooks or by explicit write_common_audit() calls
+    are not duplicated.
+
+    Records the action name, sanitized request payload, object id, and
+    success/failure with the server's error message. Never breaks the
+    response if the audit insert fails.
+    """
+
+    AUDIT_MODULE = None
+    AUDIT_ENDPOINT = None
+    # Write requests that are not data changes. register_fcm_token runs on
+    # every app launch and would bury real changes.
+    AUDIT_SKIP_ACTIONS = frozenset({"register_fcm_token"})
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        if (
+            request.method in _WRITE_METHODS
+            and not getattr(
+                getattr(request, "_request", request),
+                "_common_audit_logged",
+                False,
+            )
+            and getattr(self, "action", None) not in self.AUDIT_SKIP_ACTIONS
+            # 401/403/404/405: rejected before reaching any data.
+            and response.status_code not in (401, 403, 404, 405)
+        ):
+            try:
+                self._write_action_audit(request, response)
+            except Exception:
+                logger.exception(
+                    "Failed to write action CommonAudit for %s",
+                    self.__class__.__name__,
+                )
+        return response
+
+    def _write_action_audit(self, request, response):
+        module, endpoint = _audit_path_names(request.path)
+        action = getattr(self, "action", None)
+        if action and action not in ("create", "update", "partial_update", "destroy"):
+            endpoint = f"{endpoint}/{action}"
+        try:
+            payload = _redact_secrets(_to_json_safe(request.data))
+        except Exception:
+            payload = None
+        if payload is not None and len(str(payload)) > _AUDIT_MAX_PAYLOAD_CHARS:
+            payload = {"truncated": True, "keys": sorted(map(str, payload))
+                       if isinstance(payload, dict) else None}
+
+        success = 200 <= response.status_code < 300
+        reason = None
+        if not success:
+            data = getattr(response, "data", None)
+            if isinstance(data, dict):
+                reason = data.get("message") or data.get("detail") or data.get("error")
+            if not reason:
+                reason = format_audit_error(ValidationError(data)) if data else None
+            reason = reason or f"HTTP {response.status_code}"
+
+        write_common_audit(
+            request,
+            module_name=(self.AUDIT_MODULE or module)[:150],
+            endpoint_name=(
+                f"{self.AUDIT_ENDPOINT}/{action}"
+                if self.AUDIT_ENDPOINT and action and endpoint.endswith(f"/{action}")
+                else (self.AUDIT_ENDPOINT or endpoint)
+            )[:150],
+            instance=_ObjectRef(self._action_audit_object_id(request, response)),
+            new_data=payload,
+            success=success,
+            reason=reason,
+        )
+
+    def _action_audit_object_id(self, request, response):
+        lookup = getattr(self, "lookup_url_kwarg", None) or getattr(
+            self, "lookup_field", None
+        )
+        kwargs = getattr(self, "kwargs", {}) or {}
+        if lookup and kwargs.get(lookup):
+            return str(kwargs[lookup])
+        for value in kwargs.values():
+            if value:
+                return str(value)
+        sources = [getattr(request, "data", None)]
+        data = getattr(response, "data", None)
+        if isinstance(data, dict):
+            sources += [data, data.get("data")]
+        for source in sources:
+            if hasattr(source, "get"):
+                for key in _AUDIT_OBJECT_ID_KEYS:
+                    try:
+                        value = source.get(key)
+                    except Exception:
+                        value = None
+                    if value and not isinstance(value, (dict, list)):
+                        return str(value)
+        return None
+
+
+class _ObjectRef:
+    """Stands in for a model instance in write_common_audit: carries only the
+    id, so tenancy falls back to the acting user."""
+
+    pk = None
+
+    def __init__(self, unique_id):
+        self.unique_id = unique_id
+
+    def __bool__(self):
+        return self.unique_id is not None
 
 
 class DeleteReasonMixin:
@@ -273,7 +433,7 @@ class DeleteReasonMixin:
             )
 
 
-class AuditViewSetMixin(DeleteReasonMixin):
+class AuditViewSetMixin(ActionAuditMixin, DeleteReasonMixin):
 
     AUDIT_REDACT_FIELDS = set()
 

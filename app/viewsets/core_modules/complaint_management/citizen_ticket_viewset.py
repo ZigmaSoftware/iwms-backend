@@ -38,6 +38,7 @@ from app.serializers.core_modules.complaint_management.ticket_serializers import
     ComplaintTicketSerializer,
 )
 from app.services.complaint_ticket_routing import apply_routing_and_sla
+from app.utils.audit_mixin import ActionAuditMixin
 
 # Statuses that count as "final" for feedback purposes - a citizen should be
 # able to rate a ticket as soon as it is resolved, not only once staff
@@ -56,7 +57,7 @@ def _as_customer(request):
     return user if isinstance(user, CustomerCreation) else None
 
 
-class CitizenComplaintTicketViewSet(viewsets.ViewSet):
+class CitizenComplaintTicketViewSet(ActionAuditMixin, viewsets.ViewSet):
     """My-tickets API for citizens (mobile app)."""
 
     permission_classes = [IsAuthenticated]
