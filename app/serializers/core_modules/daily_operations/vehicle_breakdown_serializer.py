@@ -1,3 +1,4 @@
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -7,6 +8,23 @@ from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+
+
+class CoordinateField(serializers.DecimalField):
+    """Latitude/longitude rounded to 7 decimal places before validation."""
+
+    def __init__(self, **kwargs):
+        super().__init__(max_digits=10, decimal_places=7, **kwargs)
+
+    def to_internal_value(self, data):
+        if data not in (None, ""):
+            try:
+                data = Decimal(str(data).strip()).quantize(
+                    Decimal("0.0000001"), rounding=ROUND_HALF_UP
+                )
+            except (InvalidOperation, ValueError):
+                pass  # let DecimalField report "A valid number is required."
+        return super().to_internal_value(data)
 
 
 class VehicleBreakdownSerializer(serializers.ModelSerializer):
@@ -57,6 +75,10 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
 
     # Read-only detail fields
     trip_assignment_detail = serializers.SerializerMethodField(read_only=True)
+    # Phone GPS reports 12+ decimal places; round to what the column stores
+    # instead of rejecting the report.
+    breakdown_lat = CoordinateField(required=False, allow_null=True)
+    breakdown_lng = CoordinateField(required=False, allow_null=True)
     breakdown_vehicle_detail = serializers.SerializerMethodField(read_only=True)
     replacement_vehicle_detail = serializers.SerializerMethodField(read_only=True)
     replacement_driver_detail = serializers.SerializerMethodField(read_only=True)

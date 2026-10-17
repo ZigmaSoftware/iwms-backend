@@ -16,9 +16,10 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class UserScreenActionViewSet(CompanyScopedViewSet):
+class UserScreenActionViewSet(BulkUploadMixin, CompanyScopedViewSet):
     serializer_class = UserScreenActionSerializer
     queryset = UserScreenAction.objects.filter(is_deleted=False).exclude(
         Q(action_name__iexact="show") | Q(variable_name__iexact="show")

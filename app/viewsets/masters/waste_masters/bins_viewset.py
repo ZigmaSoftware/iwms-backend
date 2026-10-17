@@ -9,6 +9,7 @@ import datetime
 from django.conf import settings
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 def save_uploaded_file(file, folder_name):
     """
@@ -40,7 +41,7 @@ def save_uploaded_file(file, folder_name):
 
 
 
-class BinsViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class BinsViewSet(BulkUploadMixin, AuditViewSetMixin,CompanyScopedViewSet):
 
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 

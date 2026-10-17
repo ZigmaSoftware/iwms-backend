@@ -4,9 +4,10 @@ from app.models.masters.city import City
 from app.serializers.masters.city_serializer import CitySerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class CityViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+class CityViewSet(BulkUploadMixin, AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
     location_scope_chain = [
         ("cities", "unique_id"),
         ("districts", "district_id"),

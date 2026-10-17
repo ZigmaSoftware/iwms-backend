@@ -14,6 +14,7 @@ from app.utils.app_feature_grants import (
 from app.models.superadmin.screen_management.userscreenaction import UserScreenAction
 from app.utils.permission_catalog import (
     ANY_GRANT,
+    APPROVAL_REQUIRED_SCREENS,
     INHERITS_GRANTS_FROM,
     SCREEN_ACTIONS,
     SCREEN_STRUCTURE,
@@ -36,10 +37,6 @@ from app.models.superadmin.screen_management.companyuserscreencolumnpermission i
 
 class PermissionSeeder(BaseSeeder):
     name = "permission_full"
-
-    # Blue Planet's Greater Noida project (see BluePlanetSeeder).
-    NOIDA_COMPANY = "Blue Planet"
-    NOIDA_PROJECT = "Blue Planet Integrated Waste Management"
 
     @staticmethod
     def _seedable_actions(screen_name, actions):
@@ -86,7 +83,7 @@ class PermissionSeeder(BaseSeeder):
             .order_by("mainscreen_id", "order_no", "unique_id")
         )
         created = 0
-        for screen in active_screens:
+        for screen in active_screens.exclude(userscreen_name__in=APPROVAL_REQUIRED_SCREENS):
             screen_actions = self._seedable_actions(screen.userscreen_name, active_actions)
             for order_no, action in enumerate(screen_actions, start=1):
                 _, made = CompanyUserScreenPermission.objects.get_or_create(
@@ -307,66 +304,6 @@ class PermissionSeeder(BaseSeeder):
         if retired:
             self.log(f"Retired {retired} grants the permission catalog does not offer.")
 
-    def _grant_noida_admin_dashboard(self):
-        """`view` on the Admin Dashboard for the Greater Noida project's
-        catalog and every staff access configuration scoped to it."""
-        from app.models.superadmin.staff_management.staff_access_configuration import (
-            StaffAccessConfiguration,
-        )
-
-        company = Company.objects.filter(name=self.NOIDA_COMPANY, is_deleted=False).first()
-        project = company and Project.objects.filter(
-            company_id=company.unique_id, name=self.NOIDA_PROJECT, is_deleted=False,
-        ).first()
-        screen = UserScreen.objects.filter(
-            userscreen_name="admin-dashboard", is_deleted=False,
-        ).first()
-        view = UserScreenAction.objects.filter(action_name="view", is_deleted=False).first()
-        if not (project and screen and view):
-            return
-
-        if not CompanyUserScreenPermission.objects.filter(
-            company_id=company.unique_id,
-            project_id=project.unique_id,
-            userscreen_id=screen.unique_id,
-            userscreenaction_id=view.unique_id,
-            is_deleted=False,
-        ).exists():
-            CompanyUserScreenPermission.objects.create(
-                company_id=company.unique_id,
-                project_id=project.unique_id,
-                mainscreen_id=screen.mainscreen_id,
-                userscreen_id=screen.unique_id,
-                userscreenaction_id=view.unique_id,
-                order_no=1,
-                description=f"view {screen.userscreen_name}",
-            )
-
-        staff = 0
-        for config in StaffAccessConfiguration.objects.filter(
-            company_id=company.unique_id, is_active=True, is_deleted=False,
-        ):
-            if project.unique_id not in config.get_project_ids():
-                continue
-            if StaffAccessConfigurationPermission.objects.filter(
-                staff_access_configuration_id=config.unique_id,
-                userscreen_id=screen.unique_id,
-                userscreenaction_id=view.unique_id,
-                is_deleted=False,
-            ).exists():
-                continue
-            StaffAccessConfigurationPermission.objects.create(
-                staff_access_configuration_id=config.unique_id,
-                mainscreen_id=screen.mainscreen_id,
-                userscreen_id=screen.unique_id,
-                userscreenaction_id=view.unique_id,
-            )
-            staff += 1
-        self.log(
-            f"Admin Dashboard granted to {self.NOIDA_PROJECT} "
-            f"(+{staff} staff access configurations)."
-        )
-
     def _move_mainscreen_orders_out_of_range(self, mainscreentype, reserved_count):
         """Free the target 1..N order range without tripping MySQL unique checks."""
         screens = list(
@@ -500,7 +437,7 @@ class PermissionSeeder(BaseSeeder):
         # 2. ACTIONS
         # --------------------------------------------------
         actions = {}
-        for name in ["add", "view", "edit", "delete", "use"]:
+        for name in ["add", "view", "edit", "delete", "use", "import", "export"]:
             action, _ = UserScreenAction.objects.get_or_create(
                 action_name=name,
                 defaults={
@@ -838,7 +775,10 @@ class PermissionSeeder(BaseSeeder):
                     screen_actions = list(actions.values())
 
                 main_id = main.unique_id if hasattr(main, 'unique_id') else main
-                for screen in UserScreen.objects.filter(mainscreen_id=main_id, is_deleted=False):
+                # Screens needing approval wait for a super admin to enable them.
+                for screen in UserScreen.objects.filter(
+                    mainscreen_id=main_id, is_deleted=False,
+                ).exclude(userscreen_name__in=APPROVAL_REQUIRED_SCREENS):
                     for order_no, action in enumerate(
                         self._seedable_actions(screen.userscreen_name, screen_actions),
                         start=1,
@@ -893,6 +833,5 @@ class PermissionSeeder(BaseSeeder):
 
         self._retire_unseedable_grants()
         self._grant_palakkad_project_admin_access()
-        self._grant_noida_admin_dashboard()
 
         self.log("--- Baseline permission seeding completed successfully ---")

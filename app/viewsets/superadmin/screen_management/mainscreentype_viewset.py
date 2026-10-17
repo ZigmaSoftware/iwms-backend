@@ -15,8 +15,9 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
-class MainScreenTypeViewSet(CompanyScopedViewSet):
+class MainScreenTypeViewSet(BulkUploadMixin, CompanyScopedViewSet):
     serializer_class = MainScreenTypeSerializer
     queryset = MainScreenType.objects.filter(is_deleted=False)
     lookup_field = "unique_id"

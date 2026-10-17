@@ -13,9 +13,10 @@ from app.utils.filters import (
     ModelFieldSearchFilter,
     SerializerOrderingFilter,
 )
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class UserScreenViewSet(CompanyScopedViewSet):
+class UserScreenViewSet(BulkUploadMixin, CompanyScopedViewSet):
     serializer_class = UserScreenSerializer
     queryset = UserScreen.objects.filter(is_deleted=False)
     lookup_field = "unique_id"

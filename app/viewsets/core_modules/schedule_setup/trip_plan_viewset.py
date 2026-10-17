@@ -17,9 +17,10 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class TripPlanViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class TripPlanViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     # Every field above (company_id, staff_template_id, wards, etc.) is now a
     # plain CharField/TextField id column, not a real ForeignKey/M2M, so
     # select_related/prefetch_related can no longer follow them — the

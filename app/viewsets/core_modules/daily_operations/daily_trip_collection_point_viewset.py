@@ -28,9 +28,10 @@ from app.serializers.core_modules.daily_operations.daily_trip_collection_point_s
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class DailyTripCollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class DailyTripCollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = DailyTripCollectionPointSerializer
     lookup_field = "unique_id"
     permission_resource = "DailyTripCollectionPoint"

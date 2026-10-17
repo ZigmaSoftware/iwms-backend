@@ -206,17 +206,32 @@ def _staff_for_hierarchy_level(project_id, level_num, ticket):
     return None
 
 
+def escalation_levels(project_id):
+    """Level numbers of `project_id`'s staff hierarchy that take part in
+    complaint escalation (`ProjectStaffHierarchy.escalation_enabled`),
+    ascending. Rows switched off (e.g. Driver, Operator) are skipped both as
+    the entry point and as hop targets."""
+    from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
+
+    if not project_id:
+        return []
+    return sorted(set(
+        ProjectStaffHierarchy.objects.filter(
+            project_id=project_id, escalation_enabled=True, is_active=True, is_deleted=False,
+        ).values_list("level", flat=True)
+    ))
+
+
 def get_entry_level_staff(ticket):
     """The geo-matching active staff member holding the lowest-numbered
     *enabled* escalation level of `ticket.project_id`'s staff hierarchy, or
     None if the project has no enabled level configured or nobody at that
     level covers this ticket's zone/panchayat/ward.
 
-    Which levels are "enabled" is per-SLA-rule (`ComplaintSlaEscalationLevel.
-    is_enabled`) — a project's hierarchy may define Driver/Operator/Supervisor/
-    Project Admin/Company Admin, but a given SLA rule can disable the lower
-    ones so tickets start at Supervisor instead. Falls back to the project's
-    raw level 0 if no SLA rule (and so no escalation_levels) matches yet.
+    Which levels are "enabled" is decided by the project's staff hierarchy
+    (`ProjectStaffHierarchy.escalation_enabled`) — a hierarchy may define
+    Driver/Operator/Supervisor/Project Admin/Company Admin, but the lower
+    ones can be switched off so tickets start at Supervisor instead.
     """
     if not ticket.project_id:
         return None
@@ -229,20 +244,11 @@ def get_entry_level_staff(ticket):
 
 
 def _entry_level_number(ticket):
-    """Lowest-numbered enabled `ComplaintSlaEscalationLevel.level` for the
-    ticket's best-matching SLA rule, or 0 if no SLA rule/no enabled levels are
-    configured yet (falls back to the hierarchy's raw level 0)."""
-    sla_rule = _best_sla_rule(ticket)
-    if not sla_rule:
-        return 0
-
-    lowest_enabled = (
-        sla_rule.escalation_levels.filter(is_enabled=True, is_deleted=False)
-        .order_by("level")
-        .values_list("level", flat=True)
-        .first()
-    )
-    return lowest_enabled if lowest_enabled is not None else 0
+    """Lowest escalation-enabled level of the ticket's project staff
+    hierarchy, or 0 if none is configured yet (falls back to the hierarchy's
+    raw level 0)."""
+    levels = escalation_levels(ticket.project_id)
+    return levels[0] if levels else 0
 
 
 def apply_routing_and_sla(ticket, save=True):

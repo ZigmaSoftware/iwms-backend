@@ -32,6 +32,7 @@ from app.models.core_modules.attendance.attendance import Employee
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.services import face_recognition
 from app.utils.qr import generate_qr
+from app.utils.audit_mixin import ActionAuditMixin
 
 
 def _clean_text(value, fallback=""):
@@ -39,7 +40,7 @@ def _clean_text(value, fallback=""):
     return str(value).strip()
 
 
-class RegisterViewSet(ViewSet):
+class RegisterViewSet(ActionAuditMixin, ViewSet):
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser]
 

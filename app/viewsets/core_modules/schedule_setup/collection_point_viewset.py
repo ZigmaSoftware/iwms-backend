@@ -7,9 +7,10 @@ from rest_framework.decorators import action
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class CollectionPointViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class CollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = CollectionPointSerializer
     lookup_field = "unique_id"
 

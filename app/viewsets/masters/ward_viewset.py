@@ -6,9 +6,10 @@ from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScoped
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class WardViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
+class WardViewSet(BulkUploadMixin, AuditViewSetMixin, LocationScopedViewSetMixin, CompanyScopedViewSet):
     location_scope_field = "wards"
     location_scope_lookup = "unique_id"
 

@@ -14,7 +14,7 @@ from app.utils.screen_dependencies import INCLUDED_BY, LOOKUP_FOR, SCREEN_DEPEND
 
 SIDEBAR = (
     Path(__file__).resolve().parents[3]
-    / "iwms-frontend/src/layouts/admin/components/AppSidebar.tsx"
+    / "iwms-frontend/src/layouts/admin/sidebarMenu.tsx"
 )
 
 
@@ -145,7 +145,7 @@ def test_sidebar_names_permissions_only_through_the_catalog():
     assert not raw, f"use permissionFor(...) instead of raw module names: {raw}"
 
     calls = re.findall(r'permissionFor\(([^)]*)\)', source)
-    assert calls, "no permissionFor(...) calls found in AppSidebar.tsx"
+    assert calls, "no permissionFor(...) calls found in sidebarMenu.tsx"
     for call in calls:
         names = re.findall(r'"([^"]+)"', call)
         if not names:  # the mention in a comment

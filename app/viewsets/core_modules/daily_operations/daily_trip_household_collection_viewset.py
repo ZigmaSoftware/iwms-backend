@@ -13,9 +13,10 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class DailyTripHouseholdCollectionViewSet(CompanyScopedViewSet):
+class DailyTripHouseholdCollectionViewSet(BulkUploadMixin, CompanyScopedViewSet):
     serializer_class = DailyTripHouseholdCollectionSerializer
     lookup_field = "unique_id"
     permission_resource = "DailyTripHouseholdCollection"

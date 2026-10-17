@@ -26,10 +26,21 @@ class DailyWasteComparisonViewSet(CompanyScopedViewSet):
 
         date_value = request.query_params.get("date")
         month_value = request.query_params.get("month")
+        # date_from / date_to: optional inclusive range (either end may be open)
+        date_from = request.query_params.get("date_from")
+        date_to = request.query_params.get("date_to")
         date_filter = None
         if date_value:
             queryset = queryset.filter(trip_date=date_value)
             date_filter = {"collection_date": date_value}
+        elif date_from or date_to:
+            date_filter = {}
+            if date_from:
+                queryset = queryset.filter(trip_date__gte=date_from)
+                date_filter["collection_date__gte"] = date_from
+            if date_to:
+                queryset = queryset.filter(trip_date__lte=date_to)
+                date_filter["collection_date__lte"] = date_to
         elif month_value:
             try:
                 year, month = month_value.split("-")

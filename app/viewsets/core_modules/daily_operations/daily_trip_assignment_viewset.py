@@ -36,9 +36,10 @@ from rest_framework import filters
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     """
     CRUD + state-machine actions for daily trip assignments.
 
@@ -532,7 +533,19 @@ class DailyTripAssignmentViewSet(AuditViewSetMixin, CompanyScopedViewSet):
         }
         blocking_reason = None
         state = "NEEDS_ASSIGNMENT"
-        assignment = assignments.first()
+        # A plan can hold several trips today (a cancelled run, a Re-Trip
+        # continuation). Report the one that is live, not simply the oldest
+        # row, so the supervisor's card follows the trip being collected.
+        rank = {
+            DailyTripAssignment.STATUS_IN_PROGRESS: 0,
+            DailyTripAssignment.STATUS_SCHEDULED: 1,
+            DailyTripAssignment.STATUS_COMPLETED: 2,
+        }
+        assignment = min(
+            assignments,
+            key=lambda a: (rank.get(a.status, 3), -a.created_at.timestamp()),
+            default=None,
+        )
         if notice:
             state = "NO_COLLECTION"
         elif assignment:

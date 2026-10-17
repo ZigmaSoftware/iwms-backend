@@ -7,9 +7,10 @@ from app.utils.audit_mixin import DeleteReasonMixin
 
 from app.models.superadmin.screen_management.mainscreen import MainScreen
 from app.serializers.superadmin.screen_management.mainscreen_serializer import MainScreenSerializer
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class MainScreenViewSet(DeleteReasonMixin, viewsets.ModelViewSet):
+class MainScreenViewSet(BulkUploadMixin, DeleteReasonMixin, viewsets.ModelViewSet):
     serializer_class = MainScreenSerializer
     queryset = MainScreen.objects.filter(is_deleted=False)
     lookup_field = "unique_id"

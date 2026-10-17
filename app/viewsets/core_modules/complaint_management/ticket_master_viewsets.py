@@ -33,6 +33,7 @@ from app.serializers.core_modules.complaint_management.ticket_serializers import
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
 class _BaseComplaintMasterViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
@@ -64,21 +65,21 @@ class ComplaintModuleViewSet(_BaseComplaintMasterViewSet):
     AUDIT_ENDPOINT = "modules"
 
 
-class ComplaintPriorityViewSet(_BaseComplaintMasterViewSet):
+class ComplaintPriorityViewSet(BulkUploadMixin, _BaseComplaintMasterViewSet):
     queryset = ComplaintPriority.objects.all()
     serializer_class = ComplaintPrioritySerializer
     permission_resource = "ComplaintPriority"
     AUDIT_ENDPOINT = "priorities"
 
 
-class ComplaintStatusViewSet(_BaseComplaintMasterViewSet):
+class ComplaintStatusViewSet(BulkUploadMixin, _BaseComplaintMasterViewSet):
     queryset = ComplaintStatus.objects.all()
     serializer_class = ComplaintStatusSerializer
     permission_resource = "ComplaintStatus"
     AUDIT_ENDPOINT = "statuses"
 
 
-class ComplaintSourceViewSet(_BaseComplaintMasterViewSet):
+class ComplaintSourceViewSet(BulkUploadMixin, _BaseComplaintMasterViewSet):
     queryset = ComplaintSource.objects.all()
     serializer_class = ComplaintSourceSerializer
     permission_resource = "ComplaintSource"
@@ -116,14 +117,14 @@ class _ScopedComplaintMasterViewSet(AuditViewSetMixin, CompanyScopedViewSet):
             instance.save(update_fields=["is_active"])
 
 
-class ComplaintTicketCategoryViewSet(_ScopedComplaintMasterViewSet):
+class ComplaintTicketCategoryViewSet(BulkUploadMixin, _ScopedComplaintMasterViewSet):
     queryset = ComplaintCategory.objects.all()
     serializer_class = ComplaintCategorySerializer
     permission_resource = "ComplaintCategory"
     AUDIT_ENDPOINT = "ticket-categories"
 
 
-class ComplaintTicketSubcategoryViewSet(_ScopedComplaintMasterViewSet):
+class ComplaintTicketSubcategoryViewSet(BulkUploadMixin, _ScopedComplaintMasterViewSet):
     queryset = ComplaintSubcategory.objects.all()
     serializer_class = ComplaintSubcategorySerializer
     permission_resource = "ComplaintSubcategory"

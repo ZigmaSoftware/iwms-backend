@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
+from app.utils.bulk_upload_mixin import bulk_upload_response
 
 from app.models.superadmin.screen_management.companyuserscreenpermission import CompanyUserScreenPermission
 from app.models.superadmin.screen_management.companyuserscreencolumnpermission import CompanyUserScreenColumnPermission
@@ -750,6 +751,7 @@ class CompanyUserScreenPermissionViewSet(CompanyPermissionAuditMixin, AuditViewS
         reader = csv.DictReader(io_string)
         if reader.fieldnames:
             reader.fieldnames = [(name or "").strip().lower() for name in reader.fieldnames]
+        rows = list(reader)
 
         success_count = 0
         errors: list[dict[str, object]] = []
@@ -759,7 +761,7 @@ class CompanyUserScreenPermissionViewSet(CompanyPermissionAuditMixin, AuditViewS
 
         order_counters: dict[tuple, int] = {}
 
-        for index, row in enumerate(reader, start=1):
+        for index, row in enumerate(rows, start=1):
             row = {(key or "").strip().lower(): value for key, value in row.items()}
             try:
                 company_id_value = (
@@ -944,8 +946,10 @@ class CompanyUserScreenPermissionViewSet(CompanyPermissionAuditMixin, AuditViewS
 
         cache.clear()
 
-        return Response({
-            "message": "Permission bulk upload completed",
-            "success_count": success_count,
-            "errors": errors,
-        })
+        return Response(bulk_upload_response(
+            "Permission bulk upload completed",
+            success_count,
+            errors,
+            file_name=getattr(file, "name", None),
+            rows=rows,
+        ))

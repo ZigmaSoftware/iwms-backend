@@ -37,6 +37,14 @@ class ProjectStaffHierarchy(BaseMaster):
     level = models.PositiveIntegerField(
         help_text="Display/ordering rank within the project (1 = lowest level).",
     )
+    # Whether this role holds complaints on the project's escalation chain.
+    # Field roles such as Driver and Operator are left out, so tickets start
+    # at the first enabled level and escalate past them. SLA rules only set
+    # the time limit per enabled level.
+    escalation_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether this level takes part in complaint escalation.",
+    )
 
     CASCADE_SOFT_DELETE = ()
     CACHE_SCOPES = ("project_staff_hierarchy_list", "project_staff_hierarchy_detail")

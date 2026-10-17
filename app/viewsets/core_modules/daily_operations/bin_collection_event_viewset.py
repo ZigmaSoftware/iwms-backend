@@ -17,9 +17,10 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class BinCollectionEventViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class BinCollectionEventViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     serializer_class = BinCollectionEventSerializer
     lookup_field = "unique_id"
     permission_resource = "BinCollectionEvent"

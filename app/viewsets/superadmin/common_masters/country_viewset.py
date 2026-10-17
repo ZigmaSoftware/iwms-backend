@@ -4,8 +4,9 @@ from app.serializers.superadmin.common_masters.country_serializer import Country
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
-class CountryViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.ModelViewSet):
+class CountryViewSet(BulkUploadMixin, AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.ModelViewSet):
     # Country isn't independently assignable — it's derived from whichever
     # states are in scope. "states__country_id" is a
     # LocationScopedViewSetMixin special case: it resolves the scoped
