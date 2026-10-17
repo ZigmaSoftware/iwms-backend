@@ -918,6 +918,9 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
         previous_data = None
         super().perform_create(serializer)
         instance = serializer.instance
+        from app.services.trip_assignment_notification import notify_trip_assigned
+
+        notify_trip_assigned(instance)
         new_data = self._serialize_instance(instance)
         self.log_audit(
             self.request,
