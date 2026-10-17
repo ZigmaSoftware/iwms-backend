@@ -204,7 +204,7 @@ class ComplaintsReportViewSet(CompanyScopedViewSet):
         resolved_by_day = defaultdict(int)
         category_counts = defaultdict(int)
         age_counts = defaultdict(int)
-        ward_stats = defaultdict(lambda: {"received": 0, "resolved": 0, "pending": 0, "sla_total": 0, "sla_met": 0})
+        ward_stats = defaultdict(lambda: {"received": 0, "resolved": 0, "pending": 0, "escalated": 0, "sla_total": 0, "sla_met": 0})
         sla_total = sla_met = 0
         resolution_hours = []
 
@@ -228,6 +228,8 @@ class ComplaintsReportViewSet(CompanyScopedViewSet):
 
             ward = ward_stats[(row["ward_id"], row["zone_id"])]
             ward["received"] += 1
+            if row["is_escalated"]:
+                ward["escalated"] += 1
 
             if bucket == "resolved":
                 ward["resolved"] += 1
@@ -285,6 +287,7 @@ class ComplaintsReportViewSet(CompanyScopedViewSet):
                     "received": stats["received"],
                     "resolved": stats["resolved"],
                     "pending": stats["pending"],
+                    "escalated": stats["escalated"],
                     "sla_compliance_percent": _percent(stats["sla_met"], stats["sla_total"]),
                 }
                 for (ward_id, zone_id), stats in ward_stats.items()

@@ -4,8 +4,9 @@ from app.models.masters.waste_masters.property import Property
 from app.serializers.masters.waste_masters.property_serializer import PropertySerializer
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
-class PropertyViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class PropertyViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     queryset = Property.objects.filter(is_deleted=False)
     serializer_class = PropertySerializer
     lookup_field = "unique_id"

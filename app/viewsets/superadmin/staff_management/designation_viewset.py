@@ -5,9 +5,10 @@ from app.serializers.superadmin.staff_management.designation_serializer import D
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class DesignationViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
+class DesignationViewSet(BulkUploadMixin, AuditViewSetMixin, viewsets.ModelViewSet):
     queryset = Designation.objects.filter(is_deleted=False)
     serializer_class = DesignationSerializer
     lookup_field = "unique_id"

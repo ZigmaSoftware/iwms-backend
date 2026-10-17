@@ -21,7 +21,7 @@ from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
 
 
-SUPPORTED_ACTION_NAMES = {"add", "edit", "delete", "view"}
+SUPPORTED_ACTION_NAMES = {"add", "edit", "delete", "view", "use", "import", "export"}
 
 
 class CompanyUserScreenPermissionSerializer(serializers.ModelSerializer):

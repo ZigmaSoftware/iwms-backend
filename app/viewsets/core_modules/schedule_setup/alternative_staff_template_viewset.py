@@ -16,10 +16,11 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
 
-class AlternativeStaffTemplateViewSet(AuditViewSetMixin,CompanyScopedViewSet):
+class AlternativeStaffTemplateViewSet(BulkUploadMixin, AuditViewSetMixin,CompanyScopedViewSet):
     pagination_class = LimitOffsetWithPage
     """
     API Contract:

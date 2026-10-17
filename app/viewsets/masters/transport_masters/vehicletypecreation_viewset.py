@@ -10,9 +10,10 @@ from app.utils.filters import (
     SerializerOrderingFilter,
 )
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class VehicleTypeCreationViewSet(AuditViewSetMixin, viewsets.ModelViewSet):
+class VehicleTypeCreationViewSet(BulkUploadMixin, AuditViewSetMixin, viewsets.ModelViewSet):
     queryset = VehicleTypeCreation.objects.filter(is_deleted=False)
     serializer_class = VehicleTypeCreationSerializer
     lookup_field = "unique_id"

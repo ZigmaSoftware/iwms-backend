@@ -43,7 +43,15 @@ Naming rules
   staff access configuration holding any grant at all — for a page that used
   to be open to every signed-in user and now needs a grant of its own.
 - `actions` limits which actions the seeder offers on a screen (default: all
-  of them). A read-only page such as a dashboard takes `("view",)`.
+  of them — view/add/edit/delete/use/import/export). A read-only page such as
+  a dashboard takes `("view",)`. "import" gates bulk uploads (POST
+  .../bulk-upload/, which also needs "add"); "export" gates Excel exports
+  (POST exports/excel/ for the list path); a screen offering them should be a
+  data list.
+- `requires_approval=True` keeps the seeder from enabling a screen for any
+  company/project on its own: it shows in Companywise User Screen Permission,
+  and reaches Staff Access Configuration only once a super admin enables it
+  there for that company/project. Never combine it with inherits_grants_from.
 - `superadmin_only=True` lists a screen in the permission tree but never
   seeds it into a company/project catalog, and its routes are refused to
   everyone but a platform super admin (PLATFORM_SUPERADMIN_ROUTES), whatever
@@ -56,8 +64,10 @@ ANY_GRANT = "*"
 
 def screen(
     name, label, *, routes=None, group=None, inherits_grants_from=None,
-    actions=None, superadmin_only=False,
+    actions=None, superadmin_only=False, requires_approval=False,
 ):
+    if requires_approval and inherits_grants_from:
+        raise ValueError(f"{name}: a screen needing approval inherits no grants")
     return {
         "name": name,
         "label": label,
@@ -66,6 +76,7 @@ def screen(
         "inherits_grants_from": inherits_grants_from,
         "actions": actions,
         "superadmin_only": superadmin_only,
+        "requires_approval": requires_approval,
     }
 
 
@@ -93,12 +104,10 @@ GROUP_LABELS = {
 SECTIONS = (
     ("dashboard", (
         module("dashboard", "Dashboard", (
-            # The sidebar "Dashboard" page. It used to be shown to anyone
-            # holding any permission, hence ANY_GRANT.
+            # The sidebar "Dashboard" page.
             screen(
                 "admin-dashboard", "Admin Dashboard",
-                routes=("admin",), inherits_grants_from=ANY_GRANT,
-                actions=("view",),
+                routes=("admin",), actions=("view",), requires_approval=True,
             ),
             # Every company and project on the platform: listed so it shows
             # in the permission tree, but only a platform super admin opens it.
@@ -107,6 +116,28 @@ SECTIONS = (
                 routes=("superadmin",), actions=("view",), superadmin_only=True,
             ),
         ), url_module="dashboards"),
+        # The user dashboard (/dashboard) and its tabs, one screen each. Each
+        # tab reads other screens' APIs (SCREEN_DEPENDENCIES lookups), so the
+        # one tick shows the page with its data.
+        module("user-dashboard", "User Dashboard", (
+            screen(
+                "home-dashboard", "Dashboard",
+                routes=("summary",), actions=("view",), requires_approval=True,
+            ),
+            screen(
+                "dashboard-grievances", "Grievances",
+                routes=(), actions=("view",), requires_approval=True,
+            ),
+            screen(
+                "dashboard-reports", "Reports",
+                routes=(), actions=("view",), requires_approval=True,
+            ),
+            # Served by the external weighbridge API: no backend routes.
+            screen(
+                "dashboard-weighbridge", "Weighbridge",
+                routes=(), actions=("view",), requires_approval=True,
+            ),
+        ), url_module="dashboard"),
     )),
     ("super-admin", (
         # Platform routes ("superadmin/...") are not module-gated.
@@ -383,6 +414,12 @@ SUPERADMIN_ONLY_ROUTES = _SUPERADMIN_ONLY_ROUTES | PLATFORM_SUPERADMIN_ROUTES
 # Screens never seeded into a company/project catalog.
 SUPERADMIN_ONLY_SCREENS = frozenset(
     s["name"] for m in MODULES.values() for s in m["screens"] if s["superadmin_only"]
+)
+
+# Screens the seeder never enables for a company/project: a super admin
+# approves each one in Companywise User Screen Permission.
+APPROVAL_REQUIRED_SCREENS = frozenset(
+    s["name"] for m in MODULES.values() for s in m["screens"] if s["requires_approval"]
 )
 
 # userscreen -> the only actions the seeder offers on it (others: all).

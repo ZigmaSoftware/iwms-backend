@@ -9,6 +9,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from app.utils.bulk_upload_mixin import bulk_upload_response
 
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
@@ -168,6 +169,7 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
         io_string = io.StringIO(decoded_file)
         reader = csv.DictReader(io_string)
+        rows = list(reader)
 
         success_count = 0
         errors: list[dict[str, object]] = []
@@ -175,7 +177,7 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
         company_override = self.request.data.get("company_id") or self.request.data.get("company_id_input")
         project_override = self.request.data.get("project_id") or self.request.data.get("project_id_input")
 
-        for index, row in enumerate(reader, start=1):
+        for index, row in enumerate(rows, start=1):
             vehicle_no = (row.get("vehicle_no") or "").strip()
 
             if not vehicle_no:
@@ -268,8 +270,10 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
             else:
                 errors.append({"row": index, "error": serializer.errors})
 
-        return Response({
-            "message": "Vehicle bulk upload completed",
-            "success_count": success_count,
-            "errors": errors,
-        })
+        return Response(bulk_upload_response(
+            "Vehicle bulk upload completed",
+            success_count,
+            errors,
+            file_name=getattr(file, "name", None),
+            rows=rows,
+        ))

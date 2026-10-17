@@ -14,6 +14,7 @@ from app.serializers.core_modules.complaint_management.ticket_serializers import
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
 class _SoftDeleteMixin:
@@ -34,7 +35,7 @@ class ComplaintRoutingRuleViewSet(_SoftDeleteMixin, AuditViewSetMixin, viewsets.
     AUDIT_ENDPOINT = "routing-rules"
 
 
-class ComplaintFeedbackViewSet(_SoftDeleteMixin, AuditViewSetMixin, viewsets.ModelViewSet):
+class ComplaintFeedbackViewSet(BulkUploadMixin, _SoftDeleteMixin, AuditViewSetMixin, viewsets.ModelViewSet):
     serializer_class = ComplaintFeedbackSerializer
     lookup_field = "unique_id"
     filter_backends = [filters.OrderingFilter]

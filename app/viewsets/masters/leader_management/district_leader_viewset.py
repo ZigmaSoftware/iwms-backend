@@ -6,9 +6,10 @@ from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.models.masters.leader_management.district_leader_login import DistrictLeaderLogin
 from app.serializers.masters.leader_management.district_leader_serializer import DistrictLeaderLoginSerializer
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 
-class DistrictLeaderLoginViewSet(AuditViewSetMixin, CompanyScopedViewSet):
+class DistrictLeaderLoginViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
     queryset = DistrictLeaderLogin.objects.filter(is_deleted=False)
 
     serializer_class = DistrictLeaderLoginSerializer

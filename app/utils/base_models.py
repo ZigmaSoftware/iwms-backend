@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
+
 from app.utils.cascade_soft_delete import cascade_soft_delete
 
 class Account(models.Model):
@@ -52,6 +54,16 @@ class BaseMaster(models.Model):
     created_by_id = models.CharField(max_length=50, null=True, blank=True)
     updated_by_id = models.CharField(max_length=50, null=True, blank=True)
 
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    # When the row was soft-deleted and who deleted it. deleted_at is
+    # stamped automatically by save() on any is_deleted flip (covers the
+    # model-level delete() overrides and the viewsets that flip the flags
+    # by hand); deleted_by_id is stamped by cascade_soft_delete() and by
+    # DeleteReasonMixin for request-driven deletes.
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by_id = models.CharField(max_length=50, null=True, blank=True, db_index=True)
+
     class Meta:
         abstract = True
 
@@ -67,5 +79,21 @@ class BaseMaster(models.Model):
             return Account.objects.filter(account_id=self.updated_by_id).first()
         return None
 
-    def delete(self, *args, updated_by=None, delete_reason=None, **kwargs):
-        cascade_soft_delete(self, updated_by=updated_by, delete_reason=delete_reason)
+    @property
+    def deleted_by(self):
+        if self.deleted_by_id:
+            return Account.objects.filter(account_id=self.deleted_by_id).first()
+        return None
+
+    def save(self, *args, **kwargs):
+        if getattr(self, "is_deleted", False) and getattr(self, "deleted_at", None) is None:
+            self.deleted_at = timezone.now()
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and "deleted_at" not in update_fields:
+                kwargs["update_fields"] = [*update_fields, "deleted_at"]
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, updated_by=None, delete_reason=None, deleted_by=None, **kwargs):
+        cascade_soft_delete(
+            self, updated_by=updated_by, delete_reason=delete_reason, deleted_by=deleted_by
+        )

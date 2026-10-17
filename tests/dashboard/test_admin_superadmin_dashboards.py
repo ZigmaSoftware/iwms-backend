@@ -287,7 +287,7 @@ def test_superadmin_dashboard_refuses_company_users(api_client, company, project
 # --------------------------------------------------------------- seeder
 
 @pytest.mark.django_db
-def test_seeder_gives_admin_dashboard_to_every_grant_holder(company):
+def test_any_grant_inheritance_gives_view_to_every_grant_holder(company):
     from app.management.commands.seeders.superadmin.screen_management.permissions import (
         PermissionSeeder,
     )

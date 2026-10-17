@@ -115,6 +115,8 @@ class CompanyPermissionsAPIView(APIView):
             "add": False,
             "edit": False,
             "delete": False,
+            "import": False,
+            "export": False,
         })
         for permission in action_qs:
             userscreenaction = permission.userscreenaction

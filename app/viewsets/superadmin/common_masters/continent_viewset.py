@@ -4,8 +4,9 @@ from app.serializers.superadmin.common_masters.continent_serializer import Conti
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.location_scope_mixin import LocationScopedViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
+from app.utils.bulk_upload_mixin import BulkUploadMixin
 
-class ContinentViewSet(AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.ModelViewSet):
+class ContinentViewSet(BulkUploadMixin, AuditViewSetMixin, LocationScopedViewSetMixin, viewsets.ModelViewSet):
     # Continent isn't independently assignable — it's derived from whichever
     # states are in scope. "states__continent_id" is a
     # LocationScopedViewSetMixin special case: it resolves the scoped
