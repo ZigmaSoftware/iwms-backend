@@ -31,6 +31,9 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
     reviewed_by_name = serializers.CharField(
         source="reviewed_by.employee_name", read_only=True, default=None
     )
+    reason_code_label = serializers.CharField(
+        source="get_reason_code_display", read_only=True, default=None
+    )
     live_pending = serializers.SerializerMethodField()
     time_remaining_seconds = serializers.SerializerMethodField()
     urgency = serializers.SerializerMethodField()

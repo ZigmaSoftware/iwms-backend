@@ -178,6 +178,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
     wards = serializers.SerializerMethodField()
     staff_template = serializers.SerializerMethodField()
     vehicle = serializers.SerializerMethodField()
+    vehicle_substitution = serializers.SerializerMethodField()
     supervisor = serializers.SerializerMethodField()
     property = serializers.SerializerMethodField()
     sub_property = serializers.SerializerMethodField()
@@ -217,6 +218,7 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             "wards",
             "staff_template",
             "vehicle",
+            "vehicle_substitution",
             "supervisor",
             "property",
             "sub_property",
@@ -290,6 +292,32 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             "unique_id": vehicle.unique_id,
             "vehicle_no": vehicle.vehicle_no,
             "capacity": vehicle.capacity,
+            "operational_status": vehicle.operational_status,
+        }
+
+    def get_vehicle_substitution(self, obj):
+        """The replacement vehicle this plan runs on while its own vehicle
+        is under breakdown (see app/services/vehicle_substitution.py)."""
+        from app.services.vehicle_substitution import active_substitutions
+
+        substitution = (
+            active_substitutions()
+            .filter(trip_plan_id=obj.unique_id, original_vehicle_id=obj.vehicle_id)
+            .order_by("-created_at")
+            .first()
+        )
+        if substitution is None:
+            return None
+        replacement = VehicleCreation.objects.filter(
+            unique_id=substitution.replacement_vehicle_id,
+        ).first()
+        return {
+            "unique_id": substitution.unique_id,
+            "replacement_vehicle_id": substitution.replacement_vehicle_id,
+            "replacement_vehicle_no": getattr(replacement, "vehicle_no", None),
+            "from_date": str(substitution.from_date),
+            "to_date": str(substitution.to_date) if substitution.to_date else None,
+            "vehicle_breakdown_id": substitution.vehicle_breakdown_id,
         }
 
     def get_supervisor(self, obj):
@@ -662,6 +690,11 @@ class TripPlanSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             if vehicle_changed or template_changed:
                 trip_plan.display_code = trip_plan._generate_display_code()
                 trip_plan.save(update_fields=["display_code"])
+            if vehicle_changed:
+                from app.services.vehicle_substitution import end_for_plan_vehicle_change
+
+                # The plan's new vehicle takes over from any breakdown stand-in.
+                end_for_plan_vehicle_change(trip_plan)
             self._sync_wards(trip_plan, ward_ids)
             self._sync_stops(trip_plan, stops)
             self._resync_daily_assignments(trip_plan)

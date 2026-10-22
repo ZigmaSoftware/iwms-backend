@@ -8,6 +8,7 @@ from app.models.core_modules.daily_operations.daily_trip_collection_point import
 from app.models.core_modules.daily_operations.daily_trip_household_collection import DailyTripHouseholdCollection
 from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
 from app.models.core_modules.daily_operations.daily_service_notice import DailyServiceNotice
+from app.services import vehicle_substitution
 
 
 def run_for_date(target_date=None, logger=None, force=False):
@@ -51,6 +52,9 @@ def run_for_date(target_date=None, logger=None, force=False):
     created_count = 0
     skipped_count = 0
     details = []
+    # Plans whose vehicle is under breakdown and have no usable replacement
+    # vehicle (see app/services/vehicle_substitution.py).
+    skipped_breakdown = []
 
     for plan in plans.all():
         if DailyServiceNotice.objects.filter(
@@ -80,10 +84,28 @@ def run_for_date(target_date=None, logger=None, force=False):
                 skipped_count += 1
                 continue
 
+        # Under breakdown: the replacement vehicle with the plan's own crew,
+        # or no trip at all (and the supervisor is told) when there is none.
+        vehicle_id, not_runnable = vehicle_substitution.vehicle_for_plan(plan, today)
+        if not_runnable and not DailyTripAssignment.objects.filter(
+            trip_plan_id=plan.unique_id, trip_date=today, is_deleted=False,
+        ).exists():
+            log(f"TripPlan {plan.unique_id} skipped: {not_runnable}")
+            skipped_count += 1
+            skipped_breakdown.append({
+                "trip_plan_id": plan.unique_id,
+                "vehicle_id": plan.vehicle_id,
+                "reason": not_runnable,
+            })
+            vehicle_substitution.alert_plan_not_scheduled(plan, today, not_runnable)
+            continue
+        alt_crew = vehicle_substitution.alternative_crew_for(plan.staff_template_id, today)
+
         plan_waste_type_ids = plan.waste_type_ids or ([plan.waste_type_id] if plan.waste_type_id else [])
         defaults = {
             "staff_template_id": plan.staff_template_id,
-            "vehicle_id": plan.vehicle_id,
+            "alt_staff_template_id": alt_crew.unique_id if alt_crew else None,
+            "vehicle_id": vehicle_id or plan.vehicle_id,
             "panchayat_id": plan.panchayat_id,
             "scheduled_time": plan.scheduled_time,
             "waste_type_ids": plan_waste_type_ids,
@@ -175,6 +197,7 @@ def run_for_date(target_date=None, logger=None, force=False):
         "weekday": weekday,
         "created": created_count,
         "skipped": skipped_count,
+        "skipped_breakdown": skipped_breakdown,
         "details": details,
     }
     log(f"Finished. assignments_created={created_count} skipped={skipped_count}")

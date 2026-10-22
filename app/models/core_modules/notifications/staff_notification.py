@@ -21,6 +21,7 @@ class StaffNotification(BaseMaster):
     TYPE_VEHICLE_BREAKDOWN_REPORTED = "VEHICLE_BREAKDOWN_REPORTED"
     TYPE_VEHICLE_REPLACEMENT_APPROVED = "VEHICLE_REPLACEMENT_APPROVED"
     TYPE_VEHICLE_REPLACEMENT_REJECTED = "VEHICLE_REPLACEMENT_REJECTED"
+    TYPE_TRIP_NOT_SCHEDULED = "TRIP_NOT_SCHEDULED"
     TYPE_TEAM_CHANGED = "TEAM_CHANGED"
     TYPE_TEAM_SUBSTITUTED = "TEAM_SUBSTITUTED"
     # Re-Trip: driver asks to close a trip with stops left; supervisor decides.
@@ -46,6 +47,7 @@ class StaffNotification(BaseMaster):
         (TYPE_TRIP_DELAY_REPORTED, "Trip Delay Reported"),
         (TYPE_VEHICLE_REPLACEMENT_APPROVED, "Vehicle Replacement Approved"),
         (TYPE_VEHICLE_REPLACEMENT_REJECTED, "Vehicle Replacement Rejected"),
+        (TYPE_TRIP_NOT_SCHEDULED, "Trip Not Scheduled"),
         (TYPE_TEAM_CHANGED, "Team Changed"),
         (TYPE_TEAM_SUBSTITUTED, "Team Substituted"),
         (TYPE_RETRIP_REQUESTED, "Re-Trip Requested"),

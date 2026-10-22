@@ -47,6 +47,8 @@ class _VehicleBriefSerializer(serializers.Serializer):
     unique_id = serializers.CharField()
     vehicle_no = serializers.CharField()
     capacity = serializers.DecimalField(max_digits=10, decimal_places=2)
+    # BREAKDOWN = the trip cannot be started (see trip_lifecycle start).
+    operational_status = serializers.CharField()
 
 
 class _TripPlanBriefSerializer(serializers.Serializer):

@@ -47,6 +47,10 @@ Everything else below explains why, and how.
 
 10. **[10-static-routes.md](10-static-routes.md)** — Static routes: edited on the trip plan, auto-copied to daily trips, flow charts, DB tables and JSON shapes.
 
+11. **[11-vehicle-breakdown.md](11-vehicle-breakdown.md)** — Vehicle breakdown: every scenario with UI steps (report, approve, move trips, replacement vehicle for next days, repair) and flow charts.
+
+12. **[12-re-trip.md](12-re-trip.md)** — Re-Trip: ending a trip with stops left — request, approve/reject, carry-over, timers, end-of-day handling, every scenario with UI steps and flow charts.
+
 ## The one-paragraph map of the whole project
 
 ```text

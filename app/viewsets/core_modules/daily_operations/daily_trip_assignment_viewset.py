@@ -14,6 +14,8 @@ from app.models.core_modules.daily_operations.trip_retrip_request import TripRet
 from app.models.core_modules.daily_operations.scheduler_config import SchedulerConfig
 from app.models.core_modules.daily_operations.daily_service_notice import DailyServiceNotice
 from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.services import vehicle_substitution
 from app.services.daily_trip_generation import generate_assignment_for_plan
 from app.services.daily_service_notice import (
     DailyServiceNoticeError,
@@ -622,6 +624,7 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
                     unique_id=plan.unique_id
                 )
                 reason = None
+                _, not_runnable = vehicle_substitution.vehicle_for_plan(plan, service_date)
                 if plan.status != TripPlan.Status.ACTIVE:
                     reason = "Trip Plan is inactive"
                 elif plan.approval_status != TripPlan.ApprovalStatus.APPROVED:
@@ -630,6 +633,12 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
                     reason = "A team and vehicle are required"
                 elif active_notice_for_plan(plan.unique_id, service_date):
                     reason = "No collection has been declared for this date"
+                elif not_runnable and not DailyTripAssignment.objects.filter(
+                    trip_plan_id=plan.unique_id, trip_date=service_date, is_deleted=False,
+                ).exists():
+                    # Same rule as run_for_date: broken-down vehicle and no
+                    # usable replacement vehicle.
+                    reason = not_runnable
                 repeat_days = plan.repeat_days or []
                 if not reason and repeat_days and service_date.weekday() not in {int(value) for value in repeat_days if str(value).isdigit()}:
                     reason = "Trip Plan is not scheduled for this weekday"
@@ -714,6 +723,74 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
         )
 
     # ----------------------------------------------------------
+    # ACTION: CHANGE VEHICLE
+    # PATCH /trip-assignments/{unique_id}/change-vehicle/  {"vehicle_id"}
+    # Moves a trip that has not started onto another vehicle — e.g. off a
+    # vehicle that is under breakdown. The crew stays as it is.
+    # ----------------------------------------------------------
+
+    @action(detail=True, methods=["patch"], url_path="change-vehicle")
+    @transaction.atomic
+    def change_vehicle(self, request, unique_id=None):
+        from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+        from app.serializers.core_modules.daily_operations.vehicle_breakdown_serializer import (
+            move_trips_to_vehicle,
+        )
+
+        instance = self.get_object()
+        instance = DailyTripAssignment.objects.select_for_update().get(pk=instance.pk)
+        if instance.status != DailyTripAssignment.STATUS_SCHEDULED or instance.actual_start_at:
+            return Response(
+                {"detail": "Only a trip that has not started can change vehicle."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        vehicle_id = str(request.data.get("vehicle_id") or "").strip()
+        vehicle = VehicleCreation.objects.filter(
+            unique_id=vehicle_id,
+            company_id=instance.company_id,
+            project_id=instance.project_id,
+            is_deleted=False,
+            is_active=True,
+        ).first()
+        if vehicle is None:
+            return Response(
+                {"vehicle_id": "Select an active vehicle of this project."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if vehicle.unique_id == instance.vehicle_id:
+            return Response(
+                {"vehicle_id": "The trip is already on this vehicle."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if vehicle.operational_status == VehicleCreation.OperationalStatus.BREAKDOWN:
+            return Response(
+                {"vehicle_id": "This vehicle is under breakdown."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        previous_data = self._serialize_instance(instance)
+        _, skipped = move_trips_to_vehicle(
+            [instance], vehicle.unique_id, exclude_ids=[], now=timezone.now(),
+        )
+        if skipped:
+            return Response(
+                {"vehicle_id": skipped[0]["reason"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        instance.refresh_from_db()
+        self.log_audit(
+            request,
+            instance=instance,
+            previous_data=previous_data,
+            new_data=self._serialize_instance(instance),
+        )
+        return Response(
+            DailyTripAssignmentSerializer(instance, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    # ----------------------------------------------------------
     # ACTION: STATUS TRANSITION
     # PATCH /trip-assignments/{unique_id}/status/
     # ----------------------------------------------------------
@@ -734,6 +811,19 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
         serializer.is_valid(raise_exception=True)
 
         new_status = serializer.validated_data["status"]
+        if (
+            new_status == DailyTripAssignment.STATUS_IN_PROGRESS
+            and instance.blocked_by_vehicle_breakdown()
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "This vehicle is under breakdown. Move the trip to another "
+                        "vehicle or mark the vehicle repaired first."
+                    )
+                },
+                status=409,
+            )
         previous_data = self._serialize_instance(instance)
         reason = str(request.data.get("reason") or "").strip()
         if reason:
@@ -803,7 +893,7 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
     # ----------------------------------------------------------
     # ACTION: RE-TRIP — close this trip early, open a continuation
     # POST /trip-assignments/{unique_id}/proceed-next-trip/
-    # body: { collection_point_ids?: string[], remarks: string }
+    # body: { collection_point_ids?: string[], reason_code?: string, remarks?: string }
     # ----------------------------------------------------------
 
     @action(detail=True, methods=["post"], url_path="proceed-next-trip")
@@ -825,8 +915,11 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
 
         instance = self.get_object()
 
+        # `reason_code` + `remarks` follow retrip_service.resolve_reason: a
+        # listed category needs no remarks; "Other" (or no code) needs them.
         remarks = (request.data.get("remarks") or "").strip()
-        if not remarks:
+        reason_code = (request.data.get("reason_code") or "").strip()
+        if not remarks and not reason_code:
             return Response(
                 {"remarks": "Remarks are required."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -860,7 +953,10 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
                 actor=actor,
                 collection_point_ids=collection_point_ids,
                 remarks=remarks,
+                reason_code=reason_code,
             )
+        except retrip_service.RetripReasonInvalid as exc:
+            return Response({"remarks": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
 

@@ -23,6 +23,10 @@ class VehicleCreation(BaseMaster):
         NEW = "NEW", "New"
         SECOND_HAND = "SECOND_HAND", "Second Hand"
 
+    class OperationalStatus(models.TextChoices):
+        ACTIVE = "ACTIVE", "Active"
+        BREAKDOWN = "BREAKDOWN", "Breakdown"
+
     unique_id = models.CharField(
         max_length=40,
         primary_key=True,
@@ -48,6 +52,15 @@ class VehicleCreation(BaseMaster):
         max_length=20,
         choices=ConditionChoices.choices,
         default=ConditionChoices.NEW,
+    )
+    # Driven by VehicleBreakdown (see sync_vehicle_operational_status): goes
+    # to BREAKDOWN when a breakdown is reported and back to ACTIVE once it is
+    # rejected, deleted or the vehicle is marked repaired.
+    operational_status = models.CharField(
+        max_length=20,
+        choices=OperationalStatus.choices,
+        default=OperationalStatus.ACTIVE,
+        db_index=True,
     )
     fuel_tank_capacity = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True

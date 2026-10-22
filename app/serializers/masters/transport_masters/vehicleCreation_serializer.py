@@ -77,6 +77,7 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
             "vehicle_insurance",
             "insurance_expiry_date",
             "vehicle_condition",
+            "operational_status",
             "fuel_tank_capacity",
             "rc_upload",
             "vehicle_insurance_file",
@@ -88,7 +89,8 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
             "updated_at",
             "is_assigned_today",
         ]
-        read_only_fields = ["unique_id"]
+        # operational_status follows the vehicle's breakdowns, never set by hand.
+        read_only_fields = ["unique_id", "operational_status"]
         validators = []
 
     def get_company_id(self, obj):

@@ -174,6 +174,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     )
     waste_types_detail = serializers.SerializerMethodField(read_only=True)
     vehicle = serializers.SerializerMethodField(read_only=True)
+    vehicle_under_breakdown = serializers.SerializerMethodField(read_only=True)
     collection_types = serializers.SerializerMethodField(read_only=True)
     collection_points = serializers.SerializerMethodField(read_only=True)
     household_collection_points = serializers.SerializerMethodField(read_only=True)
@@ -227,6 +228,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "zone",
             "waste_types",
             "vehicle",
+            "vehicle_under_breakdown",
             "collection_types",
             "collection_points",
             "household_collection_points",
@@ -541,11 +543,33 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             if waste_type_id in by_id
         ]
 
+    def _vehicle(self, obj):
+        # `obj.vehicle` queries on every access; both fields below need it.
+        if not hasattr(obj, "_vehicle_row"):
+            obj._vehicle_row = obj.vehicle
+        return obj._vehicle_row
+
     def get_vehicle(self, obj):
-        vehicle = obj.vehicle
+        vehicle = self._vehicle(obj)
         if not vehicle:
             return None
-        return {"unique_id": vehicle.unique_id, "vehicle_no": vehicle.vehicle_no}
+        return {
+            "unique_id": vehicle.unique_id,
+            "vehicle_no": vehicle.vehicle_no,
+            "operational_status": vehicle.operational_status,
+        }
+
+    def get_vehicle_under_breakdown(self, obj):
+        """Not started yet and its vehicle is broken down — it cannot start
+        until it is moved to another vehicle or the vehicle is repaired.
+        Same rule as DailyTripAssignment.blocked_by_vehicle_breakdown()."""
+        vehicle = self._vehicle(obj)
+        return bool(
+            vehicle
+            and not obj.actual_start_at
+            and obj.status == DailyTripAssignment.STATUS_SCHEDULED
+            and vehicle.operational_status == VehicleCreation.OperationalStatus.BREAKDOWN
+        )
 
     def get_household_waste_types(self, obj):
         ids = obj.get_household_waste_type_ids()
@@ -764,7 +788,15 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
 
         if trip_plan:
             attrs.setdefault("staff_template_id", trip_plan.staff_template_id)
-            attrs.setdefault("vehicle_id", trip_plan.vehicle)
+            if "vehicle_id" not in attrs:
+                from app.services.vehicle_substitution import vehicle_for_plan
+
+                # The plan's breakdown replacement vehicle, if it has one;
+                # otherwise its own (refused below when under breakdown).
+                substitute_id, _ = (
+                    vehicle_for_plan(trip_plan, trip_date) if trip_date else (None, None)
+                )
+                attrs["vehicle_id"] = substitute_id or trip_plan.vehicle
             attrs.setdefault("panchayat_id", trip_plan.panchayat)
             if "ward_ids" not in attrs:
                 plan_ward_ids = trip_plan.get_ward_ids()
@@ -838,6 +870,26 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "vehicle_id",
             getattr(instance, "vehicle_id", None),
         )
+
+        vehicle_id = vehicle.unique_id if hasattr(vehicle, "unique_id") else vehicle
+        # Only on create or a vehicle change — the trip the vehicle broke down
+        # on must stay editable so it can be closed out.
+        if (
+            vehicle_id
+            and (instance is None or vehicle_id != instance.vehicle_id)
+            and VehicleCreation.objects.filter(
+                unique_id=vehicle_id,
+                operational_status=VehicleCreation.OperationalStatus.BREAKDOWN,
+            ).exists()
+        ):
+            raise serializers.ValidationError(
+                {
+                    "vehicle_id": (
+                        "This vehicle is under breakdown. Set a replacement "
+                        "vehicle on the trip plan, or mark it repaired first."
+                    )
+                }
+            )
 
         if trip_date and (staff_template or vehicle):
             busy_qs = DailyTripAssignment.objects.filter(

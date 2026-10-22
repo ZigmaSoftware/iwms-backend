@@ -167,6 +167,7 @@ from .core_modules.attendance.attendance_new import AttendanceNew
 from .masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from .masters.transport_masters.vehicleCreation import VehicleCreation
 from .core_modules.schedule_setup.trip_plan import TripPlan
+from .core_modules.schedule_setup.trip_plan_vehicle_substitution import TripPlanVehicleSubstitution
 from .core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
 from .core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from .core_modules.daily_operations.daily_trip_log import DailyTripLog

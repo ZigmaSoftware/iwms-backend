@@ -277,6 +277,7 @@ MODULE_RESOURCE_ALLOWLIST = {
     "dashboards": {
         "AdminDashboard",
         "SuperadminDashboard",
+        "VehicleStatusDashboard",
     },
     # The user dashboard's summary, granted by the user-dashboard/home-dashboard
     # screen.

@@ -45,6 +45,24 @@ class TripRetripRequest(BaseMaster):
         (STATUS_EXPIRED, "Expired"),
     ]
 
+    REASON_VEHICLE_FULL = "VEHICLE_FULL"
+    REASON_SHIFT_END = "SHIFT_END"
+    REASON_ROAD_BLOCKED = "ROAD_BLOCKED"
+    REASON_WEIGHMENT = "WEIGHMENT"
+    REASON_OTHER = "OTHER"
+
+    REASON_CODE_CHOICES = [
+        (REASON_VEHICLE_FULL, "Vehicle full"),
+        (REASON_SHIFT_END, "Shift ending"),
+        (REASON_ROAD_BLOCKED, "Road blocked"),
+        (REASON_WEIGHMENT, "Going for weighment"),
+        (REASON_OTHER, "Other"),
+    ]
+
+    # "Other" must be explained in words; this is the floor, so "." or "ok"
+    # no longer passes as a reason.
+    OTHER_REASON_MIN_LENGTH = 10
+
     unique_id = models.CharField(
         max_length=30,
         primary_key=True,
@@ -60,7 +78,12 @@ class TripRetripRequest(BaseMaster):
     requested_by_id = models.CharField(max_length=30, null=True, blank=True)
 
     # Mandatory — the whole point of the gate is that the requester has to
-    # say why the trip is being cut short.
+    # say why the trip is being cut short. `reason_code` is the category
+    # (null on rows from before it existed); `reason` is the readable text —
+    # the category label plus any note, or the free text for "Other".
+    reason_code = models.CharField(
+        max_length=20, choices=REASON_CODE_CHOICES, null=True, blank=True
+    )
     reason = models.TextField()
 
     status = models.CharField(

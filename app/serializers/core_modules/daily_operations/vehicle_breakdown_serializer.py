@@ -1,12 +1,95 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown
+from app.models.core_modules.daily_operations.vehicle_breakdown import (
+    VehicleBreakdown,
+    sync_vehicle_operational_status,
+)
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+
+
+def _ensure_vehicle_in_service(vehicle):
+    """A vehicle that is itself broken down cannot be the replacement."""
+    vehicle_id = vehicle if isinstance(vehicle, str) else getattr(vehicle, "unique_id", None)
+    if VehicleCreation.objects.filter(
+        unique_id=vehicle_id,
+        operational_status=VehicleCreation.OperationalStatus.BREAKDOWN,
+    ).exists():
+        raise serializers.ValidationError(
+            {"replacement_vehicle_id": "Replacement vehicle is under breakdown."}
+        )
+
+
+def upcoming_trips_of_broken_vehicle(breakdown):
+    """The broken vehicle's other trips that have not started yet — from the
+    breakdown's trip date onwards (later trips today, and any already created
+    for later dates). These are what /verify/ can move to the replacement."""
+    source = breakdown.trip_assignment
+    from_date = source.trip_date if source else timezone.localdate()
+    qs = DailyTripAssignment.objects.filter(
+        vehicle_id=breakdown.breakdown_vehicle_id,
+        status=DailyTripAssignment.STATUS_SCHEDULED,
+        actual_start_at__isnull=True,
+        trip_date__gte=from_date,
+        is_deleted=False,
+    )
+    if source:
+        qs = qs.exclude(pk=source.pk)
+    return qs.order_by("trip_date", "scheduled_time", "created_at")
+
+
+def original_crew_template(breakdown):
+    """The crew on the trip when it broke down: the trip's alternative crew
+    if one was substituted in, else the plan's / trip's own staff template."""
+    assignment = breakdown.trip_assignment
+    if not assignment:
+        return None
+    trip_plan = assignment.trip_plan
+    return (
+        assignment.alt_staff_template
+        or (trip_plan.staff_template if trip_plan else None)
+        or assignment.staff_template
+    )
+
+
+def move_trips_to_vehicle(trips, replacement_vehicle_id, *, exclude_ids, now):
+    """Point each trip at the replacement vehicle unless that vehicle already
+    has another unfinished trip at the same date and time. Returns
+    (moved_ids, skipped) where skipped is [{"trip_id", "reason"}]."""
+    moved, skipped = [], []
+    for trip in trips:
+        clash = (
+            DailyTripAssignment.objects.filter(
+                vehicle_id=replacement_vehicle_id,
+                trip_date=trip.trip_date,
+                scheduled_time=trip.scheduled_time,
+                status__in=[
+                    DailyTripAssignment.STATUS_SCHEDULED,
+                    DailyTripAssignment.STATUS_IN_PROGRESS,
+                ],
+                is_deleted=False,
+            )
+            .exclude(unique_id__in=[trip.unique_id, *exclude_ids])
+            .first()
+        )
+        if clash:
+            skipped.append({
+                "trip_id": trip.unique_id,
+                "reason": (
+                    f"Replacement vehicle already has trip {clash.unique_id} "
+                    f"on {trip.trip_date} at {trip.scheduled_time}."
+                ),
+            })
+            continue
+        DailyTripAssignment.objects.filter(pk=trip.pk).update(
+            vehicle_id=replacement_vehicle_id, updated_at=now,
+        )
+        moved.append(trip.unique_id)
+    return moved, skipped
 
 
 class VehicleBreakdownSerializer(serializers.ModelSerializer):
@@ -65,9 +148,12 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     original_operator_detail = serializers.SerializerMethodField(read_only=True)
     alt_staff_template_detail = serializers.SerializerMethodField(read_only=True)
     approved_by_detail = serializers.SerializerMethodField(read_only=True)
+    repaired_by_detail = serializers.SerializerMethodField(read_only=True)
+    breakdown_vehicle_operational_status = serializers.SerializerMethodField(read_only=True)
     photos = serializers.SerializerMethodField(read_only=True)
     new_assignment_id = serializers.SerializerMethodField(read_only=True)
     pending_stops = serializers.SerializerMethodField(read_only=True)
+    upcoming_trips = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = VehicleBreakdown
@@ -104,9 +190,16 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
             "approved_by_detail",
             "approved_at",
             "rejection_remarks",
+            "repaired_at",
+            "repaired_by",
+            "repaired_by_detail",
+            "repair_remarks",
+            "breakdown_vehicle_operational_status",
             "photos",
             "new_assignment_id",
             "pending_stops",
+            "upcoming_trips",
+            "moved_assignment_ids",
             "created_at",
             "updated_at",
         ]
@@ -121,8 +214,13 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
             "approved_by",
             "approved_at",
             "rejection_remarks",
+            "repaired_at",
+            "repaired_by",
+            "repair_remarks",
             "new_assignment_id",
             "pending_stops",
+            "upcoming_trips",
+            "moved_assignment_ids",
             "created_at",
             "updated_at",
         ]
@@ -178,6 +276,8 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"replacement_vehicle_id": "Replacement vehicle must be different from the broken vehicle."}
             )
+        if repl:
+            _ensure_vehicle_in_service(repl)
 
         if assignment and repl:
             conflict = DailyTripAssignment.objects.filter(
@@ -237,18 +337,7 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     # TripPlan are plain id strings — the model properties resolve the rows.
 
     def _crew_template(self, obj):
-        """The crew actually on the trip at breakdown time: the assignment's
-        own alternative staff template (if one was already substituted in)
-        takes precedence over the trip plan's / assignment's base template."""
-        assignment = obj.trip_assignment
-        if not assignment:
-            return None
-        trip_plan = assignment.trip_plan
-        return (
-            assignment.alt_staff_template
-            or (trip_plan.staff_template if trip_plan else None)
-            or assignment.staff_template
-        )
+        return original_crew_template(obj)
 
     def get_trip_assignment_detail(self, obj):
         a = obj.trip_assignment
@@ -291,8 +380,34 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     def get_approved_by_detail(self, obj):
         return self._staff_dict(obj.approved_by_user)
 
+    def get_repaired_by_detail(self, obj):
+        if not obj.repaired_by:
+            return None
+        return self._staff_dict(
+            Staffcreation.objects.filter(staff_unique_id=obj.repaired_by).first()
+        )
+
+    def get_breakdown_vehicle_operational_status(self, obj):
+        vehicle = obj.breakdown_vehicle
+        return vehicle.operational_status if vehicle else None
+
     def get_new_assignment_id(self, obj):
         return obj.new_assignment or None
+
+    def get_upcoming_trips(self, obj):
+        """Only while the breakdown awaits approval — that is when the
+        supervisor picks which of these move to the replacement vehicle."""
+        if obj.approval_status != VehicleBreakdown.APPROVAL_PENDING:
+            return []
+        return [
+            {
+                "unique_id": trip.unique_id,
+                "trip_date": str(trip.trip_date),
+                "scheduled_time": str(trip.scheduled_time) if trip.scheduled_time else None,
+                "trip_plan_display_code": getattr(trip.trip_plan, "display_code", None),
+            }
+            for trip in upcoming_trips_of_broken_vehicle(obj)
+        ]
 
     def get_pending_stops(self, obj):
         """What's still outstanding on the trip being broken down — bin
@@ -349,6 +464,19 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
     collection_point_ids = serializers.ListField(
         child=serializers.CharField(), required=False, allow_empty=True
     )
+    # Which of the broken vehicle's upcoming trips also move to the
+    # replacement. Omitted = none of them: the mobile sheet has no picker,
+    # and moving blindly could overload the replacement — the trips stay
+    # flagged on the broken vehicle for the supervisor to move on the web.
+    move_assignment_ids = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_empty=True
+    )
+    # Which of the broken vehicle's trip plans run on the replacement from
+    # the next day until it is repaired. Omitted = every plan the
+    # replacement has no clashing regular work for (see verify_preview).
+    substitute_plan_ids = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_empty=True
+    )
 
     @staticmethod
     def _staff_id(value):
@@ -368,6 +496,15 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
 
         driver_id = self._staff_id(attrs.get("replacement_driver_id"))
         operator_id = self._staff_id(attrs.get("replacement_operator_id"))
+        # Nobody picked (here or when reporting): the same crew carries on
+        # with the replacement vehicle.
+        crew = original_crew_template(instance)
+        if not driver_id and not instance.replacement_driver_id and crew:
+            driver_id = crew.driver_id
+            attrs["replacement_driver_id"] = driver_id
+        if not operator_id and not instance.replacement_operator_id and crew:
+            operator_id = crew.operator_id
+            attrs["replacement_operator_id"] = operator_id
         selected_ids = {staff_id for staff_id in [driver_id, operator_id] if staff_id}
 
         role_name = (getattr(getattr(user, "staffusertype", None), "name", "") or "").lower()
@@ -421,7 +558,12 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
                 DailyTripAssignment.STATUS_IN_PROGRESS,
             ],
             is_deleted=False,
-        ).exclude(pk=assignment.pk)
+        ).exclude(pk=assignment.pk).exclude(
+            # The broken vehicle's own later trips are this crew's next jobs,
+            # done one after another — they don't stop the same crew from
+            # carrying on with the replacement vehicle.
+            pk__in=upcoming_trips_of_broken_vehicle(instance).values("pk"),
+        )
         busy_driver_ids = set()
         busy_operator_ids = set()
         for busy_assignment in busy_assignments:
@@ -479,6 +621,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Select a replacement vehicle, driver, and operator before approving this breakdown."
             )
+        _ensure_vehicle_in_service(replacement_vehicle)
 
         from django.db import transaction
         from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
@@ -499,6 +642,34 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"collection_point_ids": "Selected collection point is not pending on this trip."}
                 )
+
+        from app.services import vehicle_substitution
+
+        upcoming = list(upcoming_trips_of_broken_vehicle(instance))
+        move_ids = set(self.validated_data.get("move_assignment_ids") or [])
+        unknown = move_ids - {trip.unique_id for trip in upcoming}
+        if unknown:
+            raise serializers.ValidationError(
+                {"move_assignment_ids": "Selected trip is not an upcoming trip of the broken vehicle."}
+            )
+        trips_to_move = [trip for trip in upcoming if trip.unique_id in move_ids]
+
+        preview = vehicle_substitution.verify_preview(instance, replacement_vehicle)
+        plan_ids = self.validated_data.get("substitute_plan_ids")
+        if plan_ids is None:
+            plan_ids = {p["trip_plan_id"] for p in preview["plans"] if p["default_substitute"]}
+        else:
+            plan_ids = set(plan_ids)
+            unknown = plan_ids - {p["trip_plan_id"] for p in preview["plans"]}
+            if unknown:
+                raise serializers.ValidationError(
+                    {"substitute_plan_ids": "Selected trip plan does not use the broken vehicle."}
+                )
+        plans_to_substitute = list(
+            vehicle_substitution.plans_of_vehicle(instance.breakdown_vehicle_id).filter(
+                unique_id__in=plan_ids,
+            )
+        )
 
         with transaction.atomic():
             # Always create a fresh AlternativeStaffTemplate for this
@@ -530,6 +701,27 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
             except ValueError as exc:
                 raise serializers.ValidationError(str(exc)) from exc
 
+            # The broken vehicle's later trips keep their own crew — only
+            # the vehicle changes.
+            moved_ids, skipped_moves = move_trips_to_vehicle(
+                trips_to_move,
+                replacement_vehicle,
+                exclude_ids=[continuation.unique_id],
+                now=now,
+            )
+
+            # From the next day until repaired, the broken vehicle's plans
+            # run on the replacement with their own crew.
+            substitutions = [
+                vehicle_substitution.create_substitution(
+                    plan,
+                    replacement_vehicle,
+                    preview["substitute_from_date"],
+                    breakdown_id=instance.unique_id,
+                )
+                for plan in plans_to_substitute
+            ]
+
             # Update the breakdown record
             approved_by_staff = None
             if account:
@@ -547,6 +739,7 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
                 replacement_operator_id=replacement_operator,
                 alt_staff_template_id=alt_template.unique_id,
                 new_assignment=continuation.unique_id,
+                moved_assignment_ids=moved_ids,
                 status=VehicleBreakdown.STATUS_REPLACEMENT_ARRANGED,
                 approval_status=VehicleBreakdown.APPROVAL_APPROVED,
                 approved_by=getattr(approved_by_staff, "staff_unique_id", None),
@@ -554,6 +747,9 @@ class VehicleBreakdownVerifySerializer(serializers.Serializer):
                 updated_at=now,
             )
             instance.refresh_from_db()
+            # Not stored — returned once by the /verify/ response.
+            instance.skipped_moves = skipped_moves
+            instance.substituted_plan_ids = [s.trip_plan_id for s in substitutions]
 
             from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
 
@@ -610,6 +806,8 @@ class VehicleBreakdownRejectSerializer(serializers.Serializer):
             updated_at=now,
         )
         instance.refresh_from_db()
+        # Not a real breakdown — the vehicle is back in service.
+        sync_vehicle_operational_status(instance.breakdown_vehicle_id)
 
         from app.models.core_modules.notifications.staff_notification import StaffNotification
         from app.services.staff_notification_service import notify_staff
@@ -639,4 +837,40 @@ class VehicleBreakdownRejectSerializer(serializers.Serializer):
                 },
             )
 
+        return instance
+
+
+class VehicleBreakdownMarkRepairedSerializer(serializers.Serializer):
+    """Used for PATCH /{id}/mark-repaired/ — the broken vehicle is fixed and
+    goes back to ACTIVE. Only an approved breakdown can be closed this way;
+    a pending one is closed by /verify/ or /reject/."""
+    repair_remarks = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def save(self):
+        instance = self.context["instance"]
+        account = self.context.get("account")
+        now = timezone.now()
+
+        if instance.approval_status != VehicleBreakdown.APPROVAL_APPROVED:
+            raise serializers.ValidationError(
+                "Only approved breakdowns can be marked as repaired."
+            )
+        if instance.repaired_at:
+            raise serializers.ValidationError("Vehicle has already been marked as repaired.")
+
+        repaired_by = (
+            Staffcreation.objects.filter(account=account)
+            .values_list("staff_unique_id", flat=True)
+            .first()
+            if account
+            else None
+        )
+        VehicleBreakdown.objects.filter(pk=instance.pk).update(
+            repaired_at=now,
+            repaired_by=repaired_by,
+            repair_remarks=self.validated_data.get("repair_remarks") or None,
+            updated_at=now,
+        )
+        instance.refresh_from_db()
+        sync_vehicle_operational_status(instance.breakdown_vehicle_id)
         return instance

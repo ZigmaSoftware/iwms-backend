@@ -154,6 +154,7 @@ from ..viewsets.dashboard.dashboard_summary_viewset import DashboardSummaryViewS
 # Admin / Superadmin dashboards (sidebar "Dashboard" and "Superadmin Dashboard")
 from ..viewsets.dashboard.admin_dashboard_viewset import AdminDashboardViewSet
 from ..viewsets.dashboard.superadmin_dashboard_viewset import SuperadminDashboardViewSet
+from ..viewsets.dashboard.vehicle_status_dashboard_viewset import VehicleStatusDashboardViewSet
 
 # Operator mobile
 from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet, MyTripsTodayViewSet
@@ -412,6 +413,7 @@ router.register_group("dashboard", "summary", DashboardSummaryViewSet, basename=
 # ============================================================
 router.register_group("dashboards", "admin", AdminDashboardViewSet, basename="admin-dashboard")
 router.register_group("dashboards", "superadmin", SuperadminDashboardViewSet, basename="superadmin-dashboard")
+router.register_group("dashboards", "fleet-status", VehicleStatusDashboardViewSet, basename="vehicle-status-dashboard")
 
 # ============================================================
 # GROUP: OPERATOR MOBILE

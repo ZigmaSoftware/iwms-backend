@@ -109,6 +109,14 @@ class TripLifecycleViewSet(viewsets.ViewSet):
                 {"code": "TRIP_CANCELLED", "detail": "This trip was cancelled."},
                 status=http_status.HTTP_409_CONFLICT,
             )
+        if assignment.blocked_by_vehicle_breakdown():
+            return Response(
+                {
+                    "code": "VEHICLE_BREAKDOWN",
+                    "detail": "This vehicle is under breakdown. Contact your supervisor.",
+                },
+                status=http_status.HTTP_409_CONFLICT,
+            )
 
         # Idempotent by design: re-starting an already-running trip is a
         # success, not an error, so a flaky network can't strand the driver.
@@ -165,22 +173,55 @@ class TripLifecycleViewSet(viewsets.ViewSet):
             )
 
         # Stops remain → the driver must justify cutting the trip short, and a
-        # supervisor decides what happens to the leftovers.
-        reason = str(request.data.get("reason") or "").strip()
-        if not reason:
+        # supervisor decides what happens to the leftovers. Both "no reason
+        # yet" and "reason not good enough" answer REASON_REQUIRED, which
+        # older app builds already prompt on; `reason_codes` lets newer ones
+        # offer the categories.
+        def reason_required(detail):
             return Response(
                 {
                     "code": "REASON_REQUIRED",
-                    "detail": "Enter a reason to request the next trip for the remaining stops.",
+                    "detail": detail,
                     "pending_bin_count": pending_bins,
                     "pending_household_count": pending_households,
+                    "reason_codes": retrip_service.reason_code_options(),
                 },
                 status=http_status.HTTP_400_BAD_REQUEST,
             )
 
-        retrip = retrip_service.request_retrip(
-            assignment, requested_by=operator, reason=reason
-        )
+        reason = str(request.data.get("reason") or "").strip()
+        reason_code = str(request.data.get("reason_code") or "").strip()
+        if not reason and not reason_code:
+            return reason_required(
+                "Enter a reason to request the next trip for the remaining stops."
+            )
+
+        try:
+            retrip = retrip_service.request_retrip(
+                assignment, requested_by=operator, reason=reason, reason_code=reason_code
+            )
+        except retrip_service.RetripReasonInvalid as exc:
+            return reason_required(str(exc))
+        except retrip_service.RetripAlreadyPending as exc:
+            # Lost a race with a second tap / a web request raised just now.
+            return Response(
+                {
+                    "code": "RETRIP_PENDING",
+                    "detail": str(exc),
+                    "retrip_request": _serialize_request(exc.request),
+                },
+                status=http_status.HTTP_409_CONFLICT,
+            )
+        except retrip_service.RetripNotAllowed as exc:
+            code = (
+                "TRIP_NOT_STARTED"
+                if assignment.status == DailyTripAssignment.STATUS_SCHEDULED
+                else "TRIP_CLOSED"
+            )
+            return Response(
+                {"code": code, "detail": str(exc)},
+                status=http_status.HTTP_409_CONFLICT,
+            )
         return Response(
             {
                 "ended": False,
@@ -196,6 +237,7 @@ def _serialize_request(retrip):
     return {
         "unique_id": retrip.unique_id,
         "status": retrip.status,
+        "reason_code": retrip.reason_code,
         "reason": retrip.reason,
         "pending_bin_count": retrip.pending_bin_count,
         "pending_household_count": retrip.pending_household_count,

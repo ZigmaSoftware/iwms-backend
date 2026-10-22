@@ -112,11 +112,17 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
     implicit .get() would raise MultipleObjectsReturned once that happens.
     Treat the oldest row as "the" assignment for this plan/date instead."""
     from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
+    from app.services import vehicle_substitution
 
+    # Callers refuse a plan that cannot run (vehicle_for_plan reason); here
+    # the vehicle is the plan's own or its breakdown replacement.
+    vehicle_id, _ = vehicle_substitution.vehicle_for_plan(plan, target_date)
+    alt_crew = vehicle_substitution.alternative_crew_for(plan.staff_template_id, target_date)
     plan_waste_type_ids = plan.waste_type_ids or ([plan.waste_type_id] if plan.waste_type_id else [])
     defaults = {
         "staff_template_id": plan.staff_template_id,
-        "vehicle_id": plan.vehicle_id,
+        "alt_staff_template_id": alt_crew.unique_id if alt_crew else None,
+        "vehicle_id": vehicle_id or plan.vehicle_id,
         "waste_type_ids": plan_waste_type_ids,
         "panchayat_id": plan.panchayat_id,
         "scheduled_time": plan.scheduled_time,

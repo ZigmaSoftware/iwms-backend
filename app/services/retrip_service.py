@@ -35,6 +35,146 @@ class RetripRequestUnavailable(ValueError):
     pass
 
 
+class RetripAlreadyPending(RetripRequestUnavailable):
+    """The trip already has a live Pending request; `.request` is that one."""
+
+    def __init__(self, request):
+        super().__init__("A Re-Trip request for this trip is already awaiting approval.")
+        self.request = request
+
+
+class RetripNotAllowed(ValueError):
+    """The trip is in a state a Re-Trip cannot start from."""
+
+
+class RetripReasonInvalid(ValueError):
+    """The reason code / text does not meet the reason rules."""
+
+
+def reason_code_options():
+    """The reason categories, for clients to render a picker."""
+    return [
+        {"value": value, "label": label}
+        for value, label in TripRetripRequest.REASON_CODE_CHOICES
+    ]
+
+
+def resolve_reason(reason_code, note):
+    """Validate a reason and return `(reason_code, reason_text)`.
+
+    A listed category needs no further words — the text becomes its label,
+    plus the note when one is given. "Other" must be described in at least
+    `OTHER_REASON_MIN_LENGTH` characters. A caller that sends no code (an
+    older driver app with only a free-text box) is treated as "Other", so
+    its text has to meet the same bar.
+    """
+    code = str(reason_code or "").strip().upper() or TripRetripRequest.REASON_OTHER
+    note = str(note or "").strip()
+    labels = dict(TripRetripRequest.REASON_CODE_CHOICES)
+    if code not in labels:
+        raise RetripReasonInvalid("Choose a valid reason.")
+    if code == TripRetripRequest.REASON_OTHER:
+        minimum = TripRetripRequest.OTHER_REASON_MIN_LENGTH
+        if len(note) < minimum:
+            raise RetripReasonInvalid(
+                f"Describe the reason in at least {minimum} characters."
+            )
+        return code, note
+    return code, f"{labels[code]}: {note}" if note else labels[code]
+
+
+_CLOSED_STATUSES = (
+    DailyTripAssignment.STATUS_COMPLETED,
+    DailyTripAssignment.STATUS_CANCELLED,
+)
+
+UNSELECTED_STOP_REASON = "Not carried over in {source}: left out of the next trip."
+
+
+def _lock_assignment(assignment_or_id):
+    """Re-read the trip under a row lock.
+
+    Lock order everywhere in the Re-Trip flow is trip -> request -> stops
+    (the scan paths take trip -> stop), so concurrent callers queue on the
+    trip row instead of deadlocking. Returns None if the trip is gone.
+    """
+    assignment_id = getattr(assignment_or_id, "unique_id", assignment_or_id)
+    return (
+        DailyTripAssignment.objects.select_for_update()
+        .filter(unique_id=assignment_id)
+        .first()
+    )
+
+
+def _live_pending_request(assignment):
+    """The trip's Pending request that is still inside its window, or None.
+
+    A locking read, so it sees a request another transaction just committed
+    even under MySQL's REPEATABLE READ snapshot. Overdue ones are expired on
+    the way past.
+    """
+    pending = TripRetripRequest.objects.select_for_update().filter(
+        assignment_id=assignment.unique_id,
+        status=TripRetripRequest.STATUS_PENDING,
+        is_deleted=False,
+    )
+    for request in pending:
+        if not expire_retrip_if_due(request):
+            return request
+    return None
+
+
+def _supersede_pending_requests(source, *, reviewed_by, continuation, reason):
+    """Close every other Pending request on `source` once it has been closed
+    some other way — left Pending, one could later be approved and copy the
+    same stops into a second continuation."""
+    for request in TripRetripRequest.objects.select_for_update().filter(
+        assignment_id=source.unique_id,
+        status=TripRetripRequest.STATUS_PENDING,
+        is_deleted=False,
+    ):
+        request.mark_reviewed(
+            status=TripRetripRequest.STATUS_REJECTED,
+            by=reviewed_by,
+            remarks=f"Superseded: {reason} ({continuation.unique_id}).",
+        )
+
+
+def _close_unselected_stops(source, *, bins, households, reason):
+    """Mark stops the reviewer chose NOT to carry over as Missed.
+
+    The source trip is about to be closed, so a stop left Pending on it would
+    be stranded: never collected, never missed, invisible to the end-of-day
+    closer. Customers who said "I'm home now" get a Missed Pickup ticket,
+    same as every other path that ends their stop Not Available.
+    """
+    now = timezone.now()
+    if bins:
+        DailyTripCollectionPoint.objects.filter(
+            unique_id__in=[stop.unique_id for stop in bins]
+        ).update(
+            status=DailyTripCollectionPoint.STATUS_MISSED,
+            status_reason=reason,
+            is_collected=False,
+            updated_at=now,
+        )
+    if households:
+        DailyTripHouseholdCollection.objects.filter(
+            unique_id__in=[stop.unique_id for stop in households]
+        ).update(
+            status=DailyTripHouseholdCollection.STATUS_MISSED,
+            status_reason=reason,
+            is_collected=False,
+            updated_at=now,
+        )
+        flagged = [stop.unique_id for stop in households if stop.customer_available_at]
+        if flagged:
+            from app.services.customer_availability import raise_missed_pickup_ticket
+
+            for stop in DailyTripHouseholdCollection.objects.filter(unique_id__in=flagged):
+                raise_missed_pickup_ticket(stop)
+
+
 def build_pending_snapshot(assignment):
     """What is still outstanding, in a shape the supervisor screen can render."""
     bins = [
@@ -82,8 +222,28 @@ def _supervisors_for(assignment):
 
 
 @transaction.atomic
-def request_retrip(assignment, *, requested_by, reason):
-    """Ask to close `assignment` early. Trip stays In Progress."""
+def request_retrip(assignment, *, requested_by, reason, reason_code=None):
+    """Ask to close `assignment` early. Trip stays In Progress.
+
+    `reason_code`/`reason` follow `resolve_reason` (raises
+    `RetripReasonInvalid`). Only a running trip qualifies: cutting short one
+    that never started would close it as a zero-duration "Completed" trip
+    and hand all of its work to a new one. At most one Pending request per
+    trip — enforced here under the trip's row lock, not a DB constraint,
+    because MySQL ignores conditional unique constraints.
+    """
+    reason_code, reason = resolve_reason(reason_code, reason)
+    assignment = _lock_assignment(assignment)
+    if assignment is None or assignment.status in _CLOSED_STATUSES:
+        raise RetripNotAllowed("This trip is already closed.")
+    if assignment.status != DailyTripAssignment.STATUS_IN_PROGRESS:
+        raise RetripNotAllowed(
+            "This trip has not started yet, so it cannot be cut short."
+        )
+    existing = _live_pending_request(assignment)
+    if existing is not None:
+        raise RetripAlreadyPending(existing)
+
     snapshot = build_pending_snapshot(assignment)
 
     request = TripRetripRequest.objects.create(
@@ -91,6 +251,7 @@ def request_retrip(assignment, *, requested_by, reason):
         project_id=assignment.project_id,
         assignment_id=assignment.unique_id,
         requested_by_id=getattr(requested_by, "staff_unique_id", None),
+        reason_code=reason_code,
         reason=reason,
         pending_bin_count=len(snapshot["collection_points"]),
         pending_household_count=len(snapshot["households"]),
@@ -257,8 +418,12 @@ def create_breakdown_continuation(
     directly to the continuation. For bin trips, `collection_point_ids`
     restricts which bin stops move; household stops carry when present.
     """
-    pending_bins = list(source.pending_bin_stops())
-    pending_households = list(source.pending_household_stops())
+    source = _lock_assignment(source)
+    if source is None or source.status in _CLOSED_STATUSES:
+        raise ValueError("This trip is already closed.")
+    pending_bins = list(source.pending_bin_stops().select_for_update())
+    pending_households = list(source.pending_household_stops().select_for_update())
+    unselected_bins = []
 
     if collection_point_ids is not None:
         selected = set(collection_point_ids)
@@ -266,6 +431,7 @@ def create_breakdown_continuation(
         unknown = selected - pending_bin_ids
         if unknown:
             raise ValueError("Selected collection point is not pending on this trip.")
+        unselected_bins = [stop for stop in pending_bins if stop.unique_id not in selected]
         pending_bins = [stop for stop in pending_bins if stop.unique_id in selected]
 
     if not pending_bins and not pending_households:
@@ -289,6 +455,18 @@ def create_breakdown_continuation(
     DailyTripHouseholdCollection.objects.filter(
         unique_id__in=[stop.unique_id for stop in pending_households]
     ).update(carried_to_assignment=continuation.unique_id)
+    _close_unselected_stops(
+        source,
+        bins=unselected_bins,
+        households=[],
+        reason=UNSELECTED_STOP_REASON.format(source=f"breakdown of {source.unique_id}"),
+    )
+    _supersede_pending_requests(
+        source,
+        reviewed_by=None,
+        continuation=continuation,
+        reason="trip closed by vehicle breakdown replacement",
+    )
 
     # The broken vehicle can no longer execute the source assignment. Closing
     # it also releases its existing crew so they may continue on the
@@ -321,8 +499,17 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
 
     `collection_point_ids` are selected pending stop ids. They may refer to
     `DailyTripCollectionPoint.unique_id` or
-    `DailyTripHouseholdCollection.unique_id`. Returns the new assignment.
+    `DailyTripHouseholdCollection.unique_id`. Returns the new assignment, or
+    None when the request expired first (its window lapsed, or the trip's
+    day ended — a continuation dated on a past day would never reach the
+    crew's today list).
+
+    Stops the reviewer leaves out are marked Missed on the source, since the
+    source is closed here and could never resolve them.
     """
+    # Trip first, then request — the same order as request_retrip, so a
+    # driver raising a request while a supervisor approves cannot deadlock.
+    source = _lock_assignment(request.assignment_id)
     if expire_retrip_if_due(request):
         return None
     request = TripRetripRequest.objects.select_for_update().get(pk=request.pk)
@@ -333,12 +520,30 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
     if timezone.now() >= deadline_for(request):
         expire_retrip_if_due(request)
         return None
-    source = request.assignment
+    # Closed some other way while this request waited (Proceed Next Trip, a
+    # breakdown replacement, the end-of-day closer). Its carried stops still
+    # read Pending on the source, so approving now would copy them into a
+    # second continuation.
+    if source is None or source.status in _CLOSED_STATUSES:
+        raise RetripRequestUnavailable("This trip is already closed.")
+    from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+
+    if VehicleCreation.objects.filter(
+        unique_id=source.vehicle_id,
+        operational_status=VehicleCreation.OperationalStatus.BREAKDOWN,
+    ).exists():
+        raise ValueError(
+            "This trip's vehicle is under breakdown. Use the vehicle breakdown "
+            "replacement instead of a re-trip."
+        )
 
     # Resolve what carries over from LIVE data, not the snapshot — a stop may
-    # have been collected between the request and this approval.
-    pending_bins = list(source.pending_bin_stops())
-    pending_households = list(source.pending_household_stops())
+    # have been collected between the request and this approval. Locked, so
+    # a scan landing right now waits for this decision and then sees the stop
+    # as carried over, instead of collecting it on the source as well.
+    pending_bins = list(source.pending_bin_stops().select_for_update())
+    pending_households = list(source.pending_household_stops().select_for_update())
+    unselected_bins, unselected_households = [], []
 
     if collection_point_ids is not None:
         selected = set(collection_point_ids)
@@ -349,6 +554,10 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
         unknown = selected - pending_stop_ids
         if unknown:
             raise ValueError("Selected stop is not pending on this trip.")
+        unselected_bins = [stop for stop in pending_bins if stop.unique_id not in selected]
+        unselected_households = [
+            stop for stop in pending_households if stop.unique_id not in selected
+        ]
         pending_bins = [stop for stop in pending_bins if stop.unique_id in selected]
         pending_households = [
             stop for stop in pending_households if stop.unique_id in selected
@@ -371,9 +580,15 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
     DailyTripHouseholdCollection.objects.filter(
         unique_id__in=[stop.unique_id for stop in pending_households]
     ).update(carried_to_assignment=continuation.unique_id)
+    _close_unselected_stops(
+        source,
+        bins=unselected_bins,
+        households=unselected_households,
+        reason=UNSELECTED_STOP_REASON.format(source=f"Re-Trip {request.unique_id}"),
+    )
 
-    # The original trip is done. Its stops are deliberately left exactly as
-    # they are — most stay Pending, since a carried-over stop was genuinely
+    # The original trip is done. Its carried-over stops are deliberately left
+    # exactly as they are — they stay Pending, since a carried-over stop was genuinely
     # neither collected nor missed today, it moved to the continuation. Do
     # NOT force them to Missed/Not Available: that status feeds the progress
     # count, so bulk-closing them would falsely show the source trip as
@@ -415,27 +630,40 @@ def approve_retrip(request, *, reviewed_by, collection_point_ids=None, remarks=N
 
 
 @transaction.atomic
-def proceed_to_next_trip(assignment, *, actor, collection_point_ids=None, remarks):
+def proceed_to_next_trip(
+    assignment, *, actor, collection_point_ids=None, remarks, reason_code=None
+):
     """Web one-step version: a supervisor/admin closes `assignment` and opens
     the continuation directly, instead of a request/approve round trip.
 
     Reuses `request_retrip`/`approve_retrip` so the audit trail (a Pending
     TripRetripRequest, immediately Approved) and the carry-over rules stay
     in exactly one place. Returns (request, continuation_assignment).
+
+    If the driver already has a Pending request on this trip, that request is
+    the one approved (its reason stands; `remarks` become the review
+    remarks) — raising a second beside it would leave the driver's Pending,
+    and approving it later would duplicate the continuation.
     """
-    if assignment.status in (
-        DailyTripAssignment.STATUS_COMPLETED,
-        DailyTripAssignment.STATUS_CANCELLED,
-    ):
+    assignment = _lock_assignment(assignment)
+    if assignment is None or assignment.status in _CLOSED_STATUSES:
         raise ValueError("This trip is already closed.")
 
-    request = request_retrip(assignment, requested_by=actor, reason=remarks)
+    request = _live_pending_request(assignment)
+    if request is None:
+        request = request_retrip(
+            assignment, requested_by=actor, reason=remarks, reason_code=reason_code
+        )
     continuation = approve_retrip(
         request,
         reviewed_by=actor,
         collection_point_ids=collection_point_ids,
         remarks=remarks,
     )
+    if continuation is None:
+        raise ValueError(
+            "This trip's day has ended, so its stops can no longer move to a new trip."
+        )
     return request, continuation
 
 

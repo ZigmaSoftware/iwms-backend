@@ -98,22 +98,28 @@ def test_leaves_today_scheduled_and_completed_trips_alone(company, project):
 
 
 @pytest.mark.django_db
-def test_skips_trip_with_pending_retrip_request(company, project):
+def test_expires_leftover_retrip_request_then_closes_trip(company, project):
+    """A request still Pending on a past day (the timeout cron never ran)
+    must not keep the trip open forever: its window ended with the day."""
     trip = _trip(company, project, days_ago=1)
     _bin_stop(trip, company, project, DailyTripCollectionPoint.STATUS_PENDING, 1)
-    TripRetripRequest.objects.create(
+    request = TripRetripRequest.objects.create(
         assignment_id=trip.unique_id,
         reason="Vehicle full",
         status=TripRetripRequest.STATUS_PENDING,
         company_id=company.unique_id,
         project_id=project.unique_id,
+        expires_at=timezone.now() + timedelta(minutes=30),
     )
 
     result = close_stale_trips()
 
-    assert result["skipped_pending_decision"] == [trip.unique_id]
+    assert result["skipped_pending_decision"] == []
+    assert result["closed"] == [trip.unique_id]
+    request.refresh_from_db()
+    assert request.status == TripRetripRequest.STATUS_EXPIRED
     trip.refresh_from_db()
-    assert trip.status == "In Progress"
+    assert trip.status == "Completed"
 
 
 @pytest.mark.django_db

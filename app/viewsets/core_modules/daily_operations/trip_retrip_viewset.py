@@ -2,6 +2,9 @@
 
     GET  /api/v1/schedule-operations/retrip-requests/?status=Pending
     GET  /api/v1/schedule-operations/retrip-requests/?mine=true
+    GET  /api/v1/schedule-operations/retrip-requests/pending-stops/?assignment_id=…
+    GET  /api/v1/schedule-operations/retrip-requests/reason-codes/
+    POST /api/v1/schedule-operations/retrip-requests/   {assignment_id, reason_code, reason}
     POST /api/v1/schedule-operations/retrip-requests/{id}/approve/
     POST /api/v1/schedule-operations/retrip-requests/{id}/reject/
 
@@ -10,10 +13,12 @@
 `collection_point_ids` (the stops ticked); for a household trip every
 remaining household carries over automatically.
 
-Creation only ever happens via `app.services.retrip_service` (currently only
-`proceed_to_next_trip`, called from `DailyTripAssignmentViewSet.proceed_next_trip`)
-— create/update/destroy on this resource are disabled so nothing bypasses the
-service's snapshot-building and notification logic.
+Creation only ever happens via `app.services.retrip_service` — the driver
+app's `trip-lifecycle/{id}/end/`, the web one-step `proceed-next-trip`, or
+`create` below (the web form raising a Pending request on a driver's behalf).
+`create` is overridden to call `request_retrip` rather than the serializer,
+and update/destroy are disabled, so nothing bypasses the service's
+snapshot-building and notification logic.
 
 `mine=true` scopes to requests raised against a trip plan THIS supervisor
 owns (`TripPlan.supervisor_id == requester`) — the same identity-based
@@ -35,9 +40,10 @@ superadmin).
 
 from rest_framework import status as http_status
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
@@ -128,8 +134,21 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
         supervisor (or a platform superadmin) — since `get_object()` for
         these detail routes deliberately skips the home-project filter
         above, this is the real authorization check for those two actions.
+
+        The role-level `edit` grant only reaches requests inside the caller's
+        own company/project: the home-project filter is skipped for these
+        routes, so without that check anyone holding `edit` in one company
+        could decide another company's requests by id.
         """
         if self._is_platform_super_admin():
+            return
+        assignment = retrip.assignment
+        plan_id = getattr(assignment, "trip_plan_id", None) if assignment else None
+        plan = TripPlan.objects.filter(unique_id=plan_id).first() if plan_id else None
+        supervisor = getattr(plan, "supervisor_id", None) if plan else None
+        if supervisor is not None and str(supervisor) == str(getattr(
+            self.request.user, "staff_unique_id", None
+        )):
             return
         permissions = getattr(self.request, "resolved_permissions", {}) or {}
         retrip_actions = (
@@ -137,16 +156,11 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
             .get("schedule-operations", {})
             .get("retrip-requests", [])
         )
-        if "edit" in retrip_actions:
+        if "edit" in retrip_actions and self._scope_to_tenant(
+            TripRetripRequest.objects.filter(pk=retrip.pk)
+        ).exists():
             return
-        assignment = retrip.assignment
-        plan_id = getattr(assignment, "trip_plan_id", None) if assignment else None
-        plan = TripPlan.objects.filter(unique_id=plan_id).first() if plan_id else None
-        supervisor = getattr(plan, "supervisor_id", None) if plan else None
-        if supervisor is None or str(supervisor) != str(getattr(
-            self.request.user, "staff_unique_id", None
-        )):
-            raise PermissionDenied("You do not supervise this trip plan.")
+        raise PermissionDenied("You do not supervise this trip plan.")
 
     def retrieve(self, request, *args, **kwargs):
         # filter_queryset() skips the home-project narrowing for this
@@ -158,13 +172,94 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
         serializer = self.get_serializer(retrip)
         return Response(serializer.data)
 
-    # ── writes disabled — go through retrip_service instead ───────────
+    # ── web form: raise a request on a driver's behalf ────────────────
+
+    def _resolve_open_assignment(self, assignment_id):
+        """The trip, scoped to the caller's company/project, still open."""
+        if not assignment_id:
+            raise ValidationError({"assignment_id": "Select a trip."})
+        assignment = (
+            self._scope_to_tenant(
+                DailyTripAssignment.objects.filter(is_deleted=False)
+            )
+            .filter(unique_id=assignment_id)
+            .first()
+        )
+        if assignment is None:
+            raise NotFound("Trip not found.")
+        if assignment.status in (
+            DailyTripAssignment.STATUS_COMPLETED,
+            DailyTripAssignment.STATUS_CANCELLED,
+        ):
+            raise ValidationError({"assignment_id": "This trip is already closed."})
+        return assignment
+
+    @action(detail=False, methods=["get"], url_path="reason-codes")
+    def reason_codes(self, request):
+        """The reason categories a request can be raised with."""
+        return Response(retrip_service.reason_code_options())
+
+    @action(detail=False, methods=["get"], url_path="pending-stops")
+    def pending_stops(self, request):
+        """What a request raised now would carry — previewed by the web form."""
+        assignment = self._resolve_open_assignment(
+            request.query_params.get("assignment_id")
+        )
+        return Response(retrip_service.build_pending_snapshot(assignment))
 
     def create(self, request, *args, **kwargs):
-        return Response(
-            {"detail": "Use proceed-next-trip on the trip assignment to open a Re-Trip request."},
-            status=http_status.HTTP_405_METHOD_NOT_ALLOWED,
+        """Web counterpart of the driver app's `trip-lifecycle/{id}/end/` —
+        same rules (open trip, stops left, mandatory reason, one pending
+        request per trip), same `request_retrip` service, so the supervisor
+        reviews it exactly like a driver-raised one.
+        """
+        assignment = self._resolve_open_assignment(
+            str(request.data.get("assignment_id") or "").strip()
         )
+
+        existing = TripRetripRequest.objects.filter(
+            assignment_id=assignment.unique_id,
+            status=TripRetripRequest.STATUS_PENDING,
+            is_deleted=False,
+        ).first()
+        if existing is not None:
+            retrip_service.expire_retrip_if_due(existing)
+            existing.refresh_from_db()
+            if existing.is_pending:
+                return Response(
+                    {"detail": "A Re-Trip request for this trip is already awaiting approval."},
+                    status=http_status.HTTP_409_CONFLICT,
+                )
+
+        if (
+            not assignment.pending_bin_stops().exists()
+            and not assignment.pending_household_stops().exists()
+        ):
+            return Response(
+                {"detail": "This trip has no pending stops left to carry over."},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+
+        requester = request.user if isinstance(request.user, Staffcreation) else None
+        try:
+            retrip = retrip_service.request_retrip(
+                assignment,
+                requested_by=requester,
+                reason=request.data.get("reason"),
+                reason_code=request.data.get("reason_code"),
+            )
+        except retrip_service.RetripReasonInvalid as exc:
+            return Response({"reason": str(exc)}, status=http_status.HTTP_400_BAD_REQUEST)
+        except retrip_service.RetripAlreadyPending as exc:
+            return Response({"detail": str(exc)}, status=http_status.HTTP_409_CONFLICT)
+        except retrip_service.RetripNotAllowed as exc:
+            return Response({"detail": str(exc)}, status=http_status.HTTP_400_BAD_REQUEST)
+        return Response(
+            TripRetripRequestSerializer(retrip, context={"request": request}).data,
+            status=http_status.HTTP_201_CREATED,
+        )
+
+    # ── edits disabled — decide via approve/reject ────────────────────
 
     def update(self, request, *args, **kwargs):
         return Response(
@@ -213,6 +308,10 @@ class TripRetripRequestViewSet(CompanyScopedViewSet):
         except retrip_service.RetripRequestUnavailable as exc:
             return Response(
                 {"detail": str(exc)}, status=http_status.HTTP_409_CONFLICT
+            )
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)}, status=http_status.HTTP_400_BAD_REQUEST
             )
         if continuation is None:
             return Response(
