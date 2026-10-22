@@ -41,6 +41,7 @@ class StaffNotification(BaseMaster):
     TYPE_CUSTOMER_AVAILABLE = "CUSTOMER_AVAILABLE"
     TYPE_NO_COLLECTION_TODAY = "NO_COLLECTION_TODAY"
     TYPE_COLLECTION_RESTORED = "COLLECTION_RESTORED"
+    TYPE_TRIP_ASSIGNED = "TRIP_ASSIGNED"
 
     TYPE_CHOICES = [
         (TYPE_VEHICLE_BREAKDOWN_REPORTED, "Vehicle Breakdown Reported"),
@@ -61,6 +62,7 @@ class StaffNotification(BaseMaster):
         (TYPE_CUSTOMER_AVAILABLE, "Customer Available"),
         (TYPE_NO_COLLECTION_TODAY, "No Collection Today"),
         (TYPE_COLLECTION_RESTORED, "Collection Restored"),
+        (TYPE_TRIP_ASSIGNED, "Trip Assigned"),
     ]
 
     unique_id = models.CharField(

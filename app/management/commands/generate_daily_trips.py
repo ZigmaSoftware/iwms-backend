@@ -147,6 +147,11 @@ def run_for_date(target_date=None, logger=None, force=False):
                     trip_date=today,
                     **defaults,
                 )
+                from app.services.trip_assignment_notification import (
+                    notify_trip_assigned,
+                )
+
+                notify_trip_assigned(assignment)
 
             if not created:
                 # Duplicate prevention: assignment already exists for this

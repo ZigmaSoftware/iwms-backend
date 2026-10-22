@@ -17,9 +17,10 @@ from app.utils.filters import (
 )
 from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
+from app.utils.audit_mixin import ActionAuditMixin
 
 
-class TripDelayReportViewSet(CompanyScopedViewSet):
+class TripDelayReportViewSet(ActionAuditMixin, CompanyScopedViewSet):
     """Driver-reported trip delays (puncture, traffic, minor repair, ...).
 
     Deliberately thin compared with VehicleBreakdownViewSet: a delay changes

@@ -27,6 +27,7 @@ from app.models.core_modules.daily_operations.trip_retrip_request import TripRet
 from app.permissions.operator_permission import IsOperatorRole
 from app.serializers.operator_mobile.trip_today_serializer import MyTripTodaySerializer
 from app.services import retrip_service
+from app.utils.audit_mixin import ActionAuditMixin
 from app.viewsets.operator_mobile.helpers import (
     OperatorFlowError,
     _effective_extra_operator_ids,
@@ -35,7 +36,7 @@ from app.viewsets.operator_mobile.helpers import (
 )
 
 
-class TripLifecycleViewSet(viewsets.ViewSet):
+class TripLifecycleViewSet(ActionAuditMixin, viewsets.ViewSet):
     """Driver-initiated start / end for one of *their own* trips today."""
 
     permission_classes = [IsOperatorRole]

@@ -535,7 +535,19 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
         }
         blocking_reason = None
         state = "NEEDS_ASSIGNMENT"
-        assignment = assignments.first()
+        # A plan can hold several trips today (a cancelled run, a Re-Trip
+        # continuation). Report the one that is live, not simply the oldest
+        # row, so the supervisor's card follows the trip being collected.
+        rank = {
+            DailyTripAssignment.STATUS_IN_PROGRESS: 0,
+            DailyTripAssignment.STATUS_SCHEDULED: 1,
+            DailyTripAssignment.STATUS_COMPLETED: 2,
+        }
+        assignment = min(
+            assignments,
+            key=lambda a: (rank.get(a.status, 3), -a.created_at.timestamp()),
+            default=None,
+        )
         if notice:
             state = "NO_COLLECTION"
         elif assignment:
@@ -1002,6 +1014,9 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
         previous_data = None
         super().perform_create(serializer)
         instance = serializer.instance
+        from app.services.trip_assignment_notification import notify_trip_assigned
+
+        notify_trip_assigned(instance)
         new_data = self._serialize_instance(instance)
         self.log_audit(
             self.request,

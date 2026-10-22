@@ -12,6 +12,7 @@ from app.models.core_modules.daily_operations.daily_trip_collection_point import
 )
 from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 from app.permissions.operator_permission import IsOperatorRole
+from app.utils.audit_mixin import ActionAuditMixin
 from app.serializers.operator_mobile.scan_serializers import (
     ScanBinRequestSerializer,
 )
@@ -29,7 +30,7 @@ from app.viewsets.operator_mobile.helpers import (
 )
 
 
-class ScanBinViewSet(viewsets.ViewSet):
+class ScanBinViewSet(ActionAuditMixin, viewsets.ViewSet):
     """POST /api/v1/operator-mobile/scan-bin/"""
 
     permission_classes = [IsOperatorRole]

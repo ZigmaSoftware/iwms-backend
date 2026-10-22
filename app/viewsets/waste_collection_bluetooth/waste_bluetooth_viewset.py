@@ -17,10 +17,11 @@ from app.models.masters.customer_masters.customercreation import CustomerCreatio
 from app.models.core_modules.daily_operations.wastecollection import WasteCollection
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.serializers.evidence_image import EvidenceImageField
+from app.utils.audit_mixin import ActionAuditMixin
 
 
 
-class WasteCollectionBluetoothViewSet(viewsets.ViewSet):
+class WasteCollectionBluetoothViewSet(ActionAuditMixin, viewsets.ViewSet):
     parser_classes = [JSONParser, FormParser, MultiPartParser]
         # ----------------- API ROOT FOR /waste/ -----------------
     def list(self, request):

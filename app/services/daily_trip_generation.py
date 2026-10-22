@@ -175,6 +175,10 @@ def generate_assignment_for_plan(plan: TripPlan, target_date, created_by=None):
         assignment,
         created_by=created_by,
     )
+    if created:
+        from app.services.trip_assignment_notification import notify_trip_assigned
+
+        notify_trip_assigned(assignment)
     return assignment, created, cp_created
 
 
