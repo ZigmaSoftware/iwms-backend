@@ -93,17 +93,15 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
     )
     display_code = serializers.CharField(read_only=True)
 
+    # driver_id / operator_id hold the staff unique id (not FKs); the model's
+    # driver / operator properties look the staff record up.
     def get_driver_name(self, obj):
-        staff = getattr(obj, "driver_id", None)
-        if staff and hasattr(staff, 'employee_name') and staff.employee_name:
-            return staff.employee_name
-        return getattr(staff, "staff_unique_id", None)
+        staff = obj.driver
+        return staff.employee_name if staff and staff.employee_name else obj.driver_id
 
     def get_operator_name(self, obj):
-        staff = getattr(obj, "operator_id", None)
-        if staff and hasattr(staff, 'employee_name') and staff.employee_name:
-            return staff.employee_name
-        return getattr(staff, "staff_unique_id", None)
+        staff = obj.operator
+        return staff.employee_name if staff and staff.employee_name else obj.operator_id
 
     def get_extra_operator_names(self, obj):
         extra_ids = getattr(obj, "extra_operator_id", None) or []

@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.masters.transport_masters.vehicleCreation import (
+    VehicleCreation,
+    VehicleDocumentHistory,
+)
 from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.models.masters.transport_masters.fuel import Fuel
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
@@ -79,6 +82,7 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
             "vehicle_condition",
             "operational_status",
             "fuel_tank_capacity",
+            "rc_expiry_date",
             "rc_upload",
             "vehicle_insurance_file",
             "vehicle_type_name",
@@ -129,3 +133,25 @@ class VehicleCreationSerializer(serializers.ModelSerializer):
             Model=VehicleCreation,
             name_field="vehicle_no",
         )(self, attrs)
+
+
+class VehicleDocumentHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleDocumentHistory
+        fields = [
+            "unique_id",
+            "vehicle_id",
+            "vehicle_no",
+            "document_type",
+            "previous_document_number",
+            "new_document_number",
+            "previous_expiry_date",
+            "new_expiry_date",
+            "previous_file",
+            "new_file",
+            "changed_by_id",
+            "changed_by_name",
+            "changed_by_type",
+            "changed_at",
+        ]
+        read_only_fields = fields

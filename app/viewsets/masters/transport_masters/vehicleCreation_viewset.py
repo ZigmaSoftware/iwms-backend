@@ -2,6 +2,7 @@
 import csv
 import io
 
+from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -12,14 +13,21 @@ from rest_framework.response import Response
 from app.utils.bulk_upload_mixin import bulk_upload_response
 
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
-from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.masters.transport_masters.vehicleCreation import (
+    VehicleCreation,
+    VehicleDocumentHistory,
+)
 from app.models.masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
 from app.models.masters.transport_masters.fuel import Fuel
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
-from app.serializers.masters.transport_masters.vehicleCreation_serializer import VehicleCreationSerializer
+from app.serializers.masters.transport_masters.vehicleCreation_serializer import (
+    VehicleCreationSerializer,
+    VehicleDocumentHistorySerializer,
+)
 from app.utils.audit_mixin import AuditViewSetMixin
+from app.utils.audit_context import resolve_actor
 from app.utils.filters import (
     ModelFieldQueryFilter,
     ModelFieldSearchFilter,
@@ -75,6 +83,105 @@ class VehicleCreationViewSet(AuditViewSetMixin,CompanyScopedViewSet):
 
         self.check_object_permissions(self.request, obj)
         return obj
+
+    def perform_update(self, serializer):
+        previous_documents = self._document_snapshot(serializer.instance)
+        with transaction.atomic():
+            super().perform_update(serializer)
+            self._record_document_history(
+                previous_documents,
+                self._document_snapshot(serializer.instance),
+            )
+
+    # -------------------------------------------------------------
+    # RC / insurance document history
+    # -------------------------------------------------------------
+
+    @staticmethod
+    def _file_name(value):
+        return getattr(value, "name", None) or str(value or "") or None
+
+    def _document_snapshot(self, vehicle):
+        return {
+            "vehicle_id": vehicle.unique_id,
+            "vehicle_no": vehicle.vehicle_no,
+            "rc": {
+                "document_number": vehicle.vehicle_no,
+                "expiry_date": vehicle.rc_expiry_date,
+                "file": self._file_name(vehicle.rc_upload),
+            },
+            "insurance": {
+                "document_number": vehicle.vehicle_insurance,
+                "expiry_date": vehicle.insurance_expiry_date,
+                "file": self._file_name(vehicle.vehicle_insurance_file),
+            },
+        }
+
+    @staticmethod
+    def _document_changed(previous, current, *, include_document_number=True):
+        if include_document_number and previous["document_number"] != current["document_number"]:
+            return True
+        return previous["expiry_date"] != current["expiry_date"] or previous["file"] != current["file"]
+
+    @staticmethod
+    def _has_document_data(snapshot):
+        return bool(
+            snapshot["document_number"]
+            or snapshot["expiry_date"]
+            or snapshot["file"]
+        )
+
+    def _record_document_history(self, previous, current):
+        actor_id, actor_name, actor_type = resolve_actor(getattr(self.request, "user", None))
+        rows = []
+        # RC's "number" is the vehicle_no itself, so a plate edit alone is
+        # not an RC renewal — only its expiry/file count for RC.
+        document_map = (
+            ("rc", VehicleDocumentHistory.DocumentType.RC, False),
+            ("insurance", VehicleDocumentHistory.DocumentType.INSURANCE, True),
+        )
+
+        for key, document_type, include_document_number in document_map:
+            previous_doc = previous[key]
+            current_doc = current[key]
+            if not self._document_changed(
+                previous_doc,
+                current_doc,
+                include_document_number=include_document_number,
+            ):
+                continue
+            if not (self._has_document_data(previous_doc) or self._has_document_data(current_doc)):
+                continue
+
+            rows.append(
+                VehicleDocumentHistory(
+                    vehicle_id=current["vehicle_id"],
+                    vehicle_no=current["vehicle_no"],
+                    document_type=document_type,
+                    previous_document_number=previous_doc["document_number"],
+                    new_document_number=current_doc["document_number"],
+                    previous_expiry_date=previous_doc["expiry_date"],
+                    new_expiry_date=current_doc["expiry_date"],
+                    previous_file=previous_doc["file"],
+                    new_file=current_doc["file"],
+                    changed_by_id=actor_id,
+                    changed_by_name=actor_name,
+                    changed_by_type=actor_type,
+                )
+            )
+
+        if rows:
+            VehicleDocumentHistory.objects.bulk_create(rows)
+
+    @action(detail=True, methods=["get"], url_path="document-history")
+    def document_history(self, request, unique_id=None):
+        vehicle = self.get_object()
+        queryset = VehicleDocumentHistory.objects.filter(vehicle_id=vehicle.unique_id)
+        document_type = request.query_params.get("document_type")
+        if document_type:
+            queryset = queryset.filter(document_type=document_type.upper())
+        serializer = VehicleDocumentHistorySerializer(queryset, many=True)
+        return Response(serializer.data)
 
     # -------------------------------------------------------------
     # Bulk vehicle creation helpers

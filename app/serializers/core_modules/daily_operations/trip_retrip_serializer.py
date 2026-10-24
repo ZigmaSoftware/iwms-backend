@@ -25,6 +25,9 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
     collection_type = serializers.SerializerMethodField()
     vehicle_no = serializers.SerializerMethodField()
     area_name = serializers.SerializerMethodField()
+    panchayat_name = serializers.SerializerMethodField()
+    zone_name = serializers.SerializerMethodField()
+    ward_name = serializers.SerializerMethodField()
     requested_by_name = serializers.CharField(
         source="requested_by.employee_name", read_only=True, default=None
     )
@@ -72,6 +75,31 @@ class TripRetripRequestSerializer(serializers.ModelSerializer):
             else None
         )
         return getattr(panchayat, "panchayat_name", None)
+
+    # Location split by level (area_name above collapses ward/panchayat into one
+    # unlabeled name) — same zone lookup order as DailyTripAssignmentSerializer.
+    def get_panchayat_name(self, obj):
+        assignment = obj.assignment
+        panchayat = assignment.panchayat if assignment else None
+        return getattr(panchayat, "panchayat_name", None)
+
+    def get_zone_name(self, obj):
+        assignment = obj.assignment
+        if assignment is None:
+            return None
+        plan = assignment.trip_plan
+        zone = plan.zone if plan else None
+        if zone is None:
+            ward = assignment.wards.first() or (plan.wards.first() if plan else None)
+            zone = ward.zone if ward else None
+        return getattr(zone, "zone_name", None)
+
+    def get_ward_name(self, obj):
+        assignment = obj.assignment
+        if assignment is None:
+            return None
+        names = [ward.ward_name for ward in assignment.wards.all()]
+        return ", ".join(names) or None
 
     def get_live_pending(self, obj):
         assignment = obj.assignment

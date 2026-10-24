@@ -1,4 +1,7 @@
-from django.db.models import Q
+from django.db.models import Count, Q, Sum
+from django.utils import timezone
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from app.models.core_modules.daily_operations.daily_trip_household_collection import (
     DailyTripHouseholdCollection,
@@ -86,3 +89,24 @@ class DailyTripHouseholdCollectionViewSet(BulkUploadMixin, CompanyScopedViewSet)
             )
 
         return queryset
+
+    # GET .../daily-trip-household-collections/summary/
+    @action(detail=False, methods=["get"], url_path="summary")
+    def summary(self, request):
+        """Overall and today's collected weight over every row matching the
+        list's own filters, not just the page on screen."""
+        qs = (
+            self.filter_queryset(self.get_queryset())
+            .filter(collected_weight_kg__isnull=False)
+            .order_by()
+        )
+        overall = qs.aggregate(weight=Sum("collected_weight_kg"), count=Count("pk"))
+        today = qs.filter(collected_at__date=timezone.localdate()).aggregate(
+            weight=Sum("collected_weight_kg"), count=Count("pk")
+        )
+        return Response({
+            "total_weight_kg": round(float(overall["weight"] or 0), 2),
+            "total_count": overall["count"],
+            "today_weight_kg": round(float(today["weight"] or 0), 2),
+            "today_count": today["count"],
+        })
