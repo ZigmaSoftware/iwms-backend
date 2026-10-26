@@ -459,7 +459,9 @@ def _route_resource_from_path(path, module):
         return None
 
     resource = parts[module_index + 1]
-    if resource and not resource.startswith("v"):
+    # Skip an API version segment ("v1"), not every route starting with "v"
+    # (vehicle-creation, vehicle-type, ...).
+    if resource and not re.fullmatch(r"v\d+", resource):
         return resource
     return None
 
