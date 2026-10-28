@@ -34,6 +34,9 @@ _CLIENT_META_KEYS = (
     "HTTP_X_FORWARDED_FOR",
     "HTTP_USER_AGENT",
     "HTTP_ACCEPT_LANGUAGE",
+    # Web portals authenticate with a cookie named by this header.
+    "HTTP_COOKIE",
+    "HTTP_X_IWMS_PORTAL",
 )
 
 # Pagination params from the caller's current table view are dropped: the

@@ -224,6 +224,12 @@ CORS_ALLOW_CREDENTIALS = True
 # Let the browser read the server Excel export's row count.
 CORS_EXPOSE_HEADERS = ["Content-Disposition", "X-Row-Count"]
 
+# The web portals name themselves in X-IWMS-Portal so the backend knows which
+# auth cookie to read (app/authentication/cookies.py).
+from corsheaders.defaults import default_headers as _cors_default_headers
+
+CORS_ALLOW_HEADERS = (*_cors_default_headers, "x-iwms-portal")
+
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$",
     r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",

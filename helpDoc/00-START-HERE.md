@@ -51,6 +51,8 @@ Everything else below explains why, and how.
 
 12. **[12-re-trip.md](12-re-trip.md)** — Re-Trip: ending a trip with stops left — request, approve/reject, carry-over, timers, end-of-day handling, every scenario with UI steps and flow charts.
 
+13. **[13-cookie-authentication.md](13-cookie-authentication.md)** — Web login with HttpOnly cookies: per-portal cookies, `/login/me/` session restore, before/after comparison with localStorage, usage rules, local dev setup and troubleshooting.
+
 ## The one-paragraph map of the whole project
 
 ```text

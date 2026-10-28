@@ -3,7 +3,7 @@
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action as drf_action
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import AccessToken
 from datetime import datetime, timedelta, timezone as dt_timezone
@@ -18,6 +18,12 @@ from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.customer_masters.customer_access_configuration import CustomerAccessConfiguration
 from app.serializers.login.login_serializer import LoginSerializer
+from app.authentication.cookies import (
+    clear_auth_cookie,
+    request_portal,
+    request_token,
+    set_auth_cookie,
+)
 from app.utils.permission_response import resolve_permission_payload
 from app.services.login_session import (
     close_session,
@@ -38,15 +44,15 @@ def _client_ip(request):
 
 
 def _session_payload(request):
-    """Decode the caller's bearer token for logout/heartbeat.
+    """Decode the caller's token (Bearer header or portal cookie) for
+    logout/heartbeat.
 
     Signature is verified but expiry is not: an expired token must still be
     able to close its own session.
     """
-    auth = request.headers.get("Authorization") or ""
-    if not auth.lower().startswith("bearer "):
+    token = request_token(request)
+    if not token:
         return None
-    token = "".join(auth.split(" ", 1)[1].split())
     try:
         return jwt.decode(
             token,
@@ -58,6 +64,14 @@ def _session_payload(request):
         return None
 
 
+def _clear_portal_cookie(request, response):
+    """Logout always drops the portal's cookie, even if no session matched."""
+    portal = request_portal(request)
+    if portal:
+        clear_auth_cookie(response, portal)
+    return response
+
+
 def _parse_client_time(value, upper_bound):
     """Parse a client-reported ISO timestamp, never trusting it past now."""
     parsed = parse_datetime(value) if isinstance(value, str) else None
@@ -66,6 +80,276 @@ def _parse_client_time(value, upper_bound):
     if timezone.is_naive(parsed):
         parsed = timezone.make_aware(parsed)
     return min(parsed, upper_bound)
+
+
+def _describe_login(data):
+    """Resolve who signed in (role, name, profile, scope) from the login
+    serializer's data. Shared by login and /login/me/ so a page reload
+    rebuilds exactly the session the login response gave.
+    """
+    user = data["user"]
+    permissions = data["permissions"]
+    app_surfaces = data.get("app_surfaces", [])
+    app_modules = data.get("app_modules", [])
+    app_screens = data.get("app_screens", {})
+    landing = data.get("landing")
+    permission_version = data.get("permission_version")
+    generated_at = data.get("generated_at")
+    user_type = data.get("user_type", "staff")
+    profile_object = data.get("profile_object")
+    company_unique_id = data.get("company_unique_id")
+    password_expired = data.get("password_expired", False)
+    staffusertype_unique_id = data.get("staffusertype_id")
+    contractorusertype_unique_id = data.get("contractorusertype_id")
+    projects = data.get("projects", [])
+    continents = data.get("continents", [])
+    countries = data.get("countries", [])
+    states = data.get("states", [])
+    districts = data.get("districts", [])
+    cities = data.get("cities", [])
+    zones = data.get("zones", [])
+    panchayats = data.get("panchayats", [])
+    wards = data.get("wards", [])
+
+    # -------------------------
+    # ROLE RESOLUTION
+    # -------------------------
+    email = None
+    emp_id = None
+    employee_id = None
+    name = None
+    role = None
+
+    if user_type == "customer":
+        target = profile_object or user
+        name = getattr(target, "customer_name", None) or getattr(user, "customer_name", None)
+        role = "customer"
+        email = getattr(target, "email", None) or getattr(user, "email", None)
+    elif user_type == "platform":
+        name = (
+            getattr(profile_object, "employee_name", None)
+            or getattr(profile_object, "username", None)
+            or getattr(user, "employee_name", None)
+            or getattr(user, "username", None)
+            or getattr(user, "email", None)
+            or "platform"
+        )
+        role = "superadmin" if getattr(user, "is_superuser", False) else "platform"
+        email = getattr(user, "email", None)
+    elif user_type in ["staff", "contractor"]:
+        # Staff/contractor login
+        target = profile_object or user
+        name = getattr(target, "employee_name", None) or getattr(user, "username", None)
+        if user_type == "contractor":
+            role_type = getattr(target, "contractorusertype", None) or getattr(user, "contractorusertype", None)
+        else:
+            role_type = getattr(target, "staffusertype", None) or getattr(user, "staffusertype", None)
+
+        if role_type:
+            role = role_type.name
+        else:
+            role = user_type
+        if hasattr(target, "personal_details") and getattr(target, "personal_details"):
+            email = target.personal_details.contact_email
+        emp_id = getattr(target, "staff_unique_id", None)
+        employee_id = getattr(target, "emp_id", None) or getattr(user, "emp_id", None)
+        if not employee_id:
+            staff_unique = (
+                getattr(target, "staff_unique_id", None)
+                or getattr(user, "staff_unique_id", None)
+            )
+            if staff_unique:
+                employee_id = Staffcreation._derive_emp_id(staff_unique)
+    elif user_type == "panchayat_leader":
+        target = profile_object or user
+        name = (
+            getattr(target, "leader_name", None)
+            or getattr(target, "username", None)
+        )
+        role = "panchayat_leader"
+        email = getattr(target, "email", None)
+    elif user_type == "district_member":
+        target = profile_object or user
+        name = (
+            getattr(target, "leader_name", None)
+            or getattr(target, "employee_name", None)
+            or getattr(target, "username", None)
+        )
+        role = "district_member"
+        email = (
+            getattr(target, "email", None)
+            or getattr(getattr(target, "personal_details", None), "contact_email", None)
+            or getattr(user, "email", None)
+        )
+        emp_id = getattr(target, "staff_unique_id", None)
+        employee_id = getattr(target, "emp_id", None) or getattr(user, "emp_id", None)
+        if not employee_id and emp_id:
+            employee_id = Staffcreation._derive_emp_id(emp_id)
+
+    # -------------------------
+    # PROFILE
+    # -------------------------
+    # Get the correct unique identifier based on user type
+    user_unique_id = getattr(user, "unique_id", None) or getattr(user, "staff_unique_id", None)
+    if not user_unique_id and getattr(user, "pk", None) is not None:
+        user_unique_id = str(user.pk)
+
+    company = None
+    if profile_object:
+        company = getattr(profile_object, "company", None)
+    if not company:
+        company = getattr(user, "company", None)
+
+    if company:
+        company_name = getattr(company, "name", None)
+        company_unique_id = company_unique_id or getattr(company, "unique_id", None)
+    else:
+        company_name = None
+
+    # Resolve company logo relative URL (e.g. /media/company_logos/xxx.jpg)
+    company_logo_url = None
+    if company:
+        logo_field = getattr(company, "company_logo", None)
+        if logo_field and getattr(logo_field, "name", None):
+            try:
+                company_logo_url = logo_field.url
+            except Exception:
+                company_logo_url = None
+
+    profile_payload = {
+        "user_type": user_type,
+        "unique_id": user_unique_id,
+        "name": name,
+        "role": role,
+        "email": email,
+        "company_unique_id": company_unique_id,
+        "company_name": company_name,
+        "company_logo": company_logo_url,
+    }
+
+    if user_type == "staff":
+        staff_source = profile_object or user
+        _staff_project = getattr(staff_source, "project", None)
+        _staff_district = getattr(staff_source, "district", None)
+        profile_payload.update(
+            {
+                "staff_unique_id": emp_id,
+                "employee_id": employee_id,
+                "employee_name": getattr(staff_source, "employee_name", None) or name,
+                "emp_id": emp_id,
+                "staffusertype_unique_id": staffusertype_unique_id,
+                "district_unique_id": getattr(_staff_district, "unique_id", None),
+                "district_name": getattr(_staff_district, "name", None),
+                # Expose the staff's assigned project so authStorage saves it to
+                # localStorage["project_id"], enabling the frontend to scope dropdowns.
+                "project_unique_id": getattr(_staff_project, "unique_id", None),
+                "project_name": getattr(_staff_project, "name", None),
+            }
+        )
+    elif user_type == "customer":
+        customer_source = profile_object or user
+        profile_payload.update(
+            {
+                "customer_unique_id": getattr(customer_source, "unique_id", None),
+                "customer_name": getattr(customer_source, "customer_name", None) or name,
+                "contact_no": getattr(customer_source, "contact_no", None),
+            }
+        )
+    elif user_type == "platform":
+        profile_payload.update(
+            {
+                "platform_username": getattr(user, "username", None),
+                "is_superuser": getattr(user, "is_superuser", False),
+            }
+        )
+    elif user_type == "contractor":
+        contractor_source = profile_object or user
+        profile_payload.update(
+            {
+                "staff_unique_id": emp_id,
+                "employee_id": employee_id,
+                "employee_name": getattr(contractor_source, "employee_name", None) or name,
+                "emp_id": emp_id,
+                "contractorusertype_unique_id": contractorusertype_unique_id,
+            }
+        )
+    elif user_type == "panchayat_leader":
+        leader_source = profile_object or user
+        panchayat = getattr(leader_source, "panchayat", None)
+        profile_payload.update(
+            {
+                "panchayat_leader_unique_id": getattr(leader_source, "unique_id", None),
+                "leader_name": getattr(leader_source, "leader_name", None) or name,
+                "panchayat_unique_id": getattr(panchayat, "unique_id", None) if panchayat else None,
+                "panchayat_name": getattr(panchayat, "panchayat_name", None) if panchayat else None,
+            }
+        )
+    elif user_type == "district_member":
+        district_source = profile_object or user
+        district = getattr(district_source, "district", None)
+        profile_payload.update(
+            {
+                "staff_unique_id": emp_id,
+                "employee_id": employee_id,
+                "employee_name": (
+                    getattr(district_source, "employee_name", None)
+                    or getattr(district_source, "leader_name", None)
+                    or name
+                ),
+                "district_leader_unique_id": getattr(district_source, "unique_id", None),
+                "leader_name": getattr(district_source, "leader_name", None) or name,
+                "emp_id": emp_id,
+                "district_unique_id": getattr(district, "unique_id", None),
+                "district_name": getattr(district, "name", None),
+            }
+        )
+
+    return {
+        "user": user,
+        "profile_object": profile_object,
+        "unique_id": user_unique_id,
+        "user_type": user_type,
+        "name": name,
+        "role": role,
+        "permissions": permissions,
+        "app_surfaces": app_surfaces,
+        "app_modules": app_modules,
+        "app_screens": app_screens,
+        "landing": landing,
+        "permission_version": permission_version,
+        "generated_at": generated_at,
+        "email": email,
+        "emp_id": emp_id,
+        "employee_id": employee_id,
+        "company_unique_id": company_unique_id,
+        "company_name": company_name,
+        "projects": projects,
+        "continents": continents,
+        "countries": countries,
+        "states": states,
+        "districts": districts,
+        "cities": cities,
+        "zones": zones,
+        "panchayats": panchayats,
+        "wards": wards,
+        "profile": profile_payload,
+        "password_expired": password_expired,
+    }
+
+
+# Login fields the client gets back; `user` / `profile_object` are models.
+_SESSION_FIELDS = (
+    "unique_id", "user_type", "name", "role", "permissions", "app_surfaces",
+    "app_modules", "app_screens", "landing", "permission_version",
+    "generated_at", "email", "emp_id", "employee_id", "company_unique_id",
+    "company_name", "projects", "continents", "countries", "states",
+    "districts", "cities", "zones", "panchayats", "wards", "profile",
+    "password_expired",
+)
+
+
+def _session_body(info):
+    return {key: info[key] for key in _SESSION_FIELDS}
 
 
 class LoginViewSet(ViewSet):
@@ -95,222 +379,19 @@ class LoginViewSet(ViewSet):
             )
             raise
 
-        user = serializer.validated_data["user"]
-        permissions = serializer.validated_data["permissions"]
-        app_surfaces = serializer.validated_data.get("app_surfaces", [])
-        app_modules = serializer.validated_data.get("app_modules", [])
-        app_screens = serializer.validated_data.get("app_screens", {})
-        landing = serializer.validated_data.get("landing")
-        permission_version = serializer.validated_data.get("permission_version")
-        generated_at = serializer.validated_data.get("generated_at")
-        user_type = serializer.validated_data.get("user_type", "staff")
-        profile_object = serializer.validated_data.get("profile_object")
-        company_unique_id = serializer.validated_data.get("company_unique_id")
-        password_expired = serializer.validated_data.get("password_expired", False)
-        staffusertype_unique_id = serializer.validated_data.get("staffusertype_id")
-        contractorusertype_unique_id = serializer.validated_data.get("contractorusertype_id")
-        projects = serializer.validated_data.get("projects", [])
-        continents = serializer.validated_data.get("continents", [])
-        countries = serializer.validated_data.get("countries", [])
-        states = serializer.validated_data.get("states", [])
-        districts = serializer.validated_data.get("districts", [])
-        cities = serializer.validated_data.get("cities", [])
-        zones = serializer.validated_data.get("zones", [])
-        panchayats = serializer.validated_data.get("panchayats", [])
-        wards = serializer.validated_data.get("wards", [])
-
-        # -------------------------
-        # ROLE RESOLUTION
-        # -------------------------
-        email = None
-        emp_id = None
-        employee_id = None
-        name = None
-        role = None
-
-        if user_type == "customer":
-            target = profile_object or user
-            name = getattr(target, "customer_name", None) or getattr(user, "customer_name", None)
-            role = "customer"
-            email = getattr(target, "email", None) or getattr(user, "email", None)
-        elif user_type == "platform":
-            name = (
-                getattr(profile_object, "employee_name", None)
-                or getattr(profile_object, "username", None)
-                or getattr(user, "employee_name", None)
-                or getattr(user, "username", None)
-                or getattr(user, "email", None)
-                or "platform"
-            )
-            role = "superadmin" if getattr(user, "is_superuser", False) else "platform"
-            email = getattr(user, "email", None)
-        elif user_type in ["staff", "contractor"]:
-            # Staff/contractor login
-            target = profile_object or user
-            name = getattr(target, "employee_name", None) or getattr(user, "username", None)
-            if user_type == "contractor":
-                role_type = getattr(target, "contractorusertype", None) or getattr(user, "contractorusertype", None)
-            else:
-                role_type = getattr(target, "staffusertype", None) or getattr(user, "staffusertype", None)
-
-            if role_type:
-                role = role_type.name
-            else:
-                role = user_type
-            if hasattr(target, "personal_details") and getattr(target, "personal_details"):
-                email = target.personal_details.contact_email
-            emp_id = getattr(target, "staff_unique_id", None)
-            employee_id = getattr(target, "emp_id", None) or getattr(user, "emp_id", None)
-            if not employee_id:
-                staff_unique = (
-                    getattr(target, "staff_unique_id", None)
-                    or getattr(user, "staff_unique_id", None)
-                )
-                if staff_unique:
-                    employee_id = Staffcreation._derive_emp_id(staff_unique)
-        elif user_type == "panchayat_leader":
-            target = profile_object or user
-            name = (
-                getattr(target, "leader_name", None)
-                or getattr(target, "username", None)
-            )
-            role = "panchayat_leader"
-            email = getattr(target, "email", None)
-        elif user_type == "district_member":
-            target = profile_object or user
-            name = (
-                getattr(target, "leader_name", None)
-                or getattr(target, "employee_name", None)
-                or getattr(target, "username", None)
-            )
-            role = "district_member"
-            email = (
-                getattr(target, "email", None)
-                or getattr(getattr(target, "personal_details", None), "contact_email", None)
-                or getattr(user, "email", None)
-            )
-            emp_id = getattr(target, "staff_unique_id", None)
-            employee_id = getattr(target, "emp_id", None) or getattr(user, "emp_id", None)
-            if not employee_id and emp_id:
-                employee_id = Staffcreation._derive_emp_id(emp_id)
-
-        # -------------------------
-        # JWT CREATION
-        # -------------------------
-        # Get the correct unique identifier based on user type
-        user_unique_id = getattr(user, "unique_id", None) or getattr(user, "staff_unique_id", None)
-        if not user_unique_id and getattr(user, "pk", None) is not None:
-            user_unique_id = str(user.pk)
-
-        company = None
-        if profile_object:
-            company = getattr(profile_object, "company", None)
-        if not company:
-            company = getattr(user, "company", None)
-
-        if company:
-            company_name = getattr(company, "name", None)
-            company_unique_id = company_unique_id or getattr(company, "unique_id", None)
-        else:
-            company_name = None
-
-        # Resolve company logo relative URL (e.g. /media/company_logos/xxx.jpg)
-        company_logo_url = None
-        if company:
-            logo_field = getattr(company, "company_logo", None)
-            if logo_field and getattr(logo_field, "name", None):
-                try:
-                    company_logo_url = logo_field.url
-                except Exception:
-                    company_logo_url = None
-
-        profile_payload = {
-            "user_type": user_type,
-            "unique_id": user_unique_id,
-            "name": name,
-            "role": role,
-            "email": email,
-            "company_unique_id": company_unique_id,
-            "company_name": company_name,
-            "company_logo": company_logo_url,
-        }
-
-        if user_type == "staff":
-            staff_source = profile_object or user
-            _staff_project = getattr(staff_source, "project", None)
-            _staff_district = getattr(staff_source, "district", None)
-            profile_payload.update(
-                {
-                    "staff_unique_id": emp_id,
-                    "employee_id": employee_id,
-                    "employee_name": getattr(staff_source, "employee_name", None) or name,
-                    "emp_id": emp_id,
-                    "staffusertype_unique_id": staffusertype_unique_id,
-                    "district_unique_id": getattr(_staff_district, "unique_id", None),
-                    "district_name": getattr(_staff_district, "name", None),
-                    # Expose the staff's assigned project so authStorage saves it to
-                    # localStorage["project_id"], enabling the frontend to scope dropdowns.
-                    "project_unique_id": getattr(_staff_project, "unique_id", None),
-                    "project_name": getattr(_staff_project, "name", None),
-                }
-            )
-        elif user_type == "customer":
-            customer_source = profile_object or user
-            profile_payload.update(
-                {
-                    "customer_unique_id": getattr(customer_source, "unique_id", None),
-                    "customer_name": getattr(customer_source, "customer_name", None) or name,
-                    "contact_no": getattr(customer_source, "contact_no", None),
-                }
-            )
-        elif user_type == "platform":
-            profile_payload.update(
-                {
-                    "platform_username": getattr(user, "username", None),
-                    "is_superuser": getattr(user, "is_superuser", False),
-                }
-            )
-        elif user_type == "contractor":
-            contractor_source = profile_object or user
-            profile_payload.update(
-                {
-                    "staff_unique_id": emp_id,
-                    "employee_id": employee_id,
-                    "employee_name": getattr(contractor_source, "employee_name", None) or name,
-                    "emp_id": emp_id,
-                    "contractorusertype_unique_id": contractorusertype_unique_id,
-                }
-            )
-        elif user_type == "panchayat_leader":
-            leader_source = profile_object or user
-            panchayat = getattr(leader_source, "panchayat", None)
-            profile_payload.update(
-                {
-                    "panchayat_leader_unique_id": getattr(leader_source, "unique_id", None),
-                    "leader_name": getattr(leader_source, "leader_name", None) or name,
-                    "panchayat_unique_id": getattr(panchayat, "unique_id", None) if panchayat else None,
-                    "panchayat_name": getattr(panchayat, "panchayat_name", None) if panchayat else None,
-                }
-            )
-        elif user_type == "district_member":
-            district_source = profile_object or user
-            district = getattr(district_source, "district", None)
-            profile_payload.update(
-                {
-                    "staff_unique_id": emp_id,
-                    "employee_id": employee_id,
-                    "employee_name": (
-                        getattr(district_source, "employee_name", None)
-                        or getattr(district_source, "leader_name", None)
-                        or name
-                    ),
-                    "district_leader_unique_id": getattr(district_source, "unique_id", None),
-                    "leader_name": getattr(district_source, "leader_name", None) or name,
-                    "emp_id": emp_id,
-                    "district_unique_id": getattr(district, "unique_id", None),
-                    "district_name": getattr(district, "name", None),
-                }
-            )
+        info = _describe_login(serializer.validated_data)
+        user = info["user"]
+        profile_object = info["profile_object"]
+        user_unique_id = info["unique_id"]
+        user_type = info["user_type"]
+        name = info["name"]
+        role = info["role"]
+        email = info["email"]
+        emp_id = info["emp_id"]
+        employee_id = info["employee_id"]
+        company_unique_id = info["company_unique_id"]
+        company_name = info["company_name"]
+        projects = info["projects"]
 
         access = AccessToken.for_user(user)
 
@@ -385,43 +466,23 @@ class LoginViewSet(ViewSet):
 
         close_stale_sessions_throttled()
 
-        return Response(
-            {
-                "unique_id": user_unique_id,
-                "user_type": user_type,
-                "name": name,
-                "role": role,
-                "permissions": permissions,
-                "app_surfaces": app_surfaces,
-                "app_modules": app_modules,
-                "app_screens": app_screens,
-                "landing": landing,
-                "permission_version": permission_version,
-                "generated_at": generated_at,
-                "access_token": token,
-                "token_type": "Bearer",
-                "expires_in": exp - iat,
-                "login_audit_id": login_audit_id,
-                "idle_timeout_seconds": session_idle_timeout,
-                "email": email,
-                "emp_id": emp_id,
-                "employee_id": employee_id,
-                "company_unique_id": company_unique_id,
-                "company_name": company_name,
-                "projects": projects,
-                "continents": continents,
-                "countries": countries,
-                "states": states,
-                "districts": districts,
-                "cities": cities,
-                "zones": zones,
-                "panchayats": panchayats,
-                "wards": wards,
-                "profile": profile_payload,
-                "password_expired": password_expired,
-            },
-            status=status.HTTP_200_OK
-        )
+        body = {
+            **_session_body(info),
+            "token_type": "Bearer",
+            "expires_in": exp - iat,
+            "expires_at": exp,
+            "login_audit_id": login_audit_id,
+            "idle_timeout_seconds": session_idle_timeout,
+        }
+        portal = request_portal(request)
+        if portal is None:
+            # Mobile / API clients keep using the token directly.
+            body["access_token"] = token
+        response = Response(body, status=status.HTTP_200_OK)
+        if portal:
+            # Browsers get the token only as an HttpOnly cookie, never in JS.
+            set_auth_cookie(response, portal, token, max_age=exp - iat)
+        return response
 
     # ----------------------------------------------------------
     # POST /api/v1/login/logout/
@@ -445,7 +506,9 @@ class LoginViewSet(ViewSet):
         if not audit_id:
             # No token, or no matching login row: nothing to close, and the
             # client clears its own storage regardless.
-            return Response({"detail": "No active session"}, status=status.HTTP_200_OK)
+            return _clear_portal_cookie(
+                request, Response({"detail": "No active session"}, status=status.HTTP_200_OK)
+            )
 
         reason = request.data.get("reason") or LoginAudit.LOGOUT_MANUAL
         if reason not in dict(LoginAudit.LOGOUT_TYPE_CHOICES):
@@ -467,9 +530,11 @@ class LoginViewSet(ViewSet):
 
         audit = close_session(audit_id, reason, logout_at)
         if audit is None:
-            return Response({"detail": "No active session"}, status=status.HTTP_200_OK)
+            return _clear_portal_cookie(
+                request, Response({"detail": "No active session"}, status=status.HTTP_200_OK)
+            )
 
-        return Response(
+        return _clear_portal_cookie(request, Response(
             {
                 "login_audit_id": audit.unique_id,
                 "login_at": audit.timestamp,
@@ -479,7 +544,7 @@ class LoginViewSet(ViewSet):
                 "used_hours": audit.used_hours,
             },
             status=status.HTTP_200_OK,
-        )
+        ))
 
     # ----------------------------------------------------------
     # POST /api/v1/login/heartbeat/
@@ -509,6 +574,42 @@ class LoginViewSet(ViewSet):
             _parse_client_time(request.data.get("last_activity_at"), now) or now,
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # ----------------------------------------------------------
+    # GET /api/v1/login/me/
+    # ----------------------------------------------------------
+    @drf_action(detail=False, methods=["get"], url_path="me")
+    def me(self, request):
+        """Return the caller's session bundle — the login response minus the
+        token. The web portals keep no user data in the browser, so they
+        call this on every page load to restore who is signed in."""
+        user = getattr(request, "user", None)
+        claims = getattr(request, "jwt_payload", None)
+        if not user or not getattr(user, "is_authenticated", False) or not claims:
+            return Response(
+                {"detail": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        try:
+            data = LoginSerializer().build_for_user(user, claims.get("user_type"))
+        except serializers.ValidationError as exc:
+            return Response({"detail": exc.detail}, status=status.HTTP_401_UNAUTHORIZED)
+        if not data:
+            return Response(
+                {"detail": "Session no longer valid"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        return Response(
+            {
+                **_session_body(_describe_login(data)),
+                "expires_at": claims.get("exp"),
+                "login_audit_id": claims.get("login_audit_id"),
+                "idle_timeout_seconds": claims.get("idle_timeout"),
+            },
+            status=status.HTTP_200_OK,
+        )
 
     # ----------------------------------------------------------
     # GET /api/v1/login/my-permissions/

@@ -199,6 +199,7 @@ SECTIONS = (
             screen("permission-audit", "User Access Audit"),
             screen("static-route-audit", "Static Route Audit"),
             screen("complaint-audit", "Complaint Audit"),
+            screen("db-change-audit", "DB Change Audit"),
         )),
     )),
     ("masters", (
