@@ -84,8 +84,8 @@ class DailyTripAssignment(BaseMaster):
     # TENANCY
     # ------------------------------------------------------------------
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # ------------------------------------------------------------------
     # TRIP PLAN & STAFF
@@ -289,34 +289,22 @@ class DailyTripAssignment(BaseMaster):
         continuation owns it. Counting it here would let a second approval
         copy it into another continuation.
         """
-        from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
-        return (
-            self.trip_collection_points.filter(is_deleted=False)
-            .filter(Q(carried_to_assignment__isnull=True) | Q(carried_to_assignment=""))
-            .exclude(
-                status__in=(
-                    DailyTripCollectionPoint.STATUS_COLLECTED,
-                    DailyTripCollectionPoint.STATUS_MISSED,
-                )
-            )
-        )
+        return self.pending_stops(self.trip_collection_points)
 
     def pending_household_stops(self):
         """Household stops still awaiting the driver (carried-over ones
         excluded — see `pending_bin_stops`)."""
-        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
-            DailyTripHouseholdCollection,
-        )
+        return self.pending_stops(self.trip_household_collections)
 
+    @staticmethod
+    def pending_stops(queryset):
+        """Narrow a bin- or household-stop queryset to the stops still
+        awaiting the driver. Also used on multi-trip querysets for batching."""
+        stop_model = queryset.model
         return (
-            self.trip_household_collections.filter(is_deleted=False)
+            queryset.filter(is_deleted=False)
             .filter(Q(carried_to_assignment__isnull=True) | Q(carried_to_assignment=""))
-            .exclude(
-                status__in=(
-                    DailyTripHouseholdCollection.STATUS_COLLECTED,
-                    DailyTripHouseholdCollection.STATUS_MISSED,
-                )
-            )
+            .exclude(status__in=(stop_model.STATUS_COLLECTED, stop_model.STATUS_MISSED))
         )
 
     def has_pending_stops(self):

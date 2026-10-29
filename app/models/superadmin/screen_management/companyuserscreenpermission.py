@@ -14,7 +14,7 @@ class PermissionType(models.TextChoices):
 
 
 class CompanyUserScreenPermission(BaseMaster):
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     unique_id = models.CharField(
         max_length=60,
@@ -38,9 +38,9 @@ class CompanyUserScreenPermission(BaseMaster):
     state_id = models.CharField(max_length=30, null=True, blank=True)
     district_id = models.CharField(max_length=30, null=True, blank=True)
     city_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     order_no = models.IntegerField()
     description = models.CharField(max_length=255, blank=True, null=True)

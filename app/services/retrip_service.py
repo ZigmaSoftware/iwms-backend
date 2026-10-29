@@ -24,6 +24,7 @@ from app.models.core_modules.daily_operations.daily_trip_household_collection im
 from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 from app.models.core_modules.notifications.staff_notification import StaffNotification
 from app.services.staff_notification_service import notify_staff
+from app.utils.related_prefetch import prefetch_related_rows, related
 from app.services.retrip_timeout_service import (
     deadline_for,
     expire_retrip_if_due,
@@ -177,28 +178,47 @@ def _close_unselected_stops(source, *, bins, households, reason):
 
 def build_pending_snapshot(assignment):
     """What is still outstanding, in a shape the supervisor screen can render."""
-    bins = [
-        {
+    return build_pending_snapshots([assignment])[assignment.unique_id]
+
+
+def build_pending_snapshots(assignments):
+    """`build_pending_snapshot` for many trips at once, with their pending
+    stops and the stops' collection points / customers read in one query per
+    table: {assignment unique_id: snapshot}."""
+    from app.models.core_modules.schedule_setup.collection_point import Collection_point
+    from app.models.masters.customer_masters.customercreation import CustomerCreation
+
+    ids = [a.unique_id for a in assignments if a is not None]
+    snapshots = {uid: {"collection_points": [], "households": []} for uid in ids}
+    if not ids:
+        return snapshots
+    # Each model's Meta ordering keeps every trip's stops in sequence order.
+    bins = list(DailyTripAssignment.pending_stops(
+        DailyTripCollectionPoint.objects.filter(trip_assignment_id__in=ids)
+    ))
+    households = list(DailyTripAssignment.pending_stops(
+        DailyTripHouseholdCollection.objects.filter(trip_assignment_id__in=ids)
+    ))
+    prefetch_related_rows(bins, {"collection_point": (Collection_point, "collection_point_id")})
+    prefetch_related_rows(households, {"customer": (CustomerCreation, "customer_id")})
+    for stop in bins:
+        snapshots[stop.trip_assignment_id]["collection_points"].append({
             "unique_id": stop.unique_id,
             "sequence": stop.sequence,
             "status": stop.status,
             "collection_point_id": stop.collection_point_id,
-            "name": getattr(stop.collection_point, "cp_name", None),
+            "name": getattr(related(stop, "collection_point"), "cp_name", None),
             "bin_id": stop.bin_id,
-        }
-        for stop in assignment.pending_bin_stops()
-    ]
-    households = [
-        {
+        })
+    for stop in households:
+        snapshots[stop.trip_assignment_id]["households"].append({
             "unique_id": stop.unique_id,
             "sequence": stop.sequence,
             "status": stop.status,
             "customer_id": stop.customer_id,
-            "name": getattr(stop.customer, "customer_name", None),
-        }
-        for stop in assignment.pending_household_stops()
-    ]
-    return {"collection_points": bins, "households": households}
+            "name": getattr(related(stop, "customer"), "customer_name", None),
+        })
+    return snapshots
 
 
 def _crew_of(assignment):

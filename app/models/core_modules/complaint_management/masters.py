@@ -186,7 +186,7 @@ class ComplaintCategory(BaseMaster):
     )
 
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     module_id = models.CharField(max_length=30, null=True, blank=True)
     category_code = models.CharField(max_length=80)
@@ -265,8 +265,8 @@ class ComplaintSubcategory(BaseMaster):
         editable=False,
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     category_id = models.CharField(max_length=30, null=True, blank=True)
     subcategory_code = models.CharField(max_length=80)
@@ -334,8 +334,8 @@ class ComplaintSlaRule(BaseMaster):
         editable=False,
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     category_id = models.CharField(max_length=30, null=True, blank=True)
     subcategory_id = models.CharField(max_length=30, null=True, blank=True)

@@ -41,8 +41,8 @@ class VehicleCreation(BaseMaster):
     fuel_type_id = models.CharField(max_length=30, null=True, blank=True)
     vehicle_type_id = models.CharField(max_length=30, null=True, blank=True)
     supervisor_id = models.CharField(max_length=30, null=True, blank=True)
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     vehicle_no = models.CharField(max_length=50)
     capacity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

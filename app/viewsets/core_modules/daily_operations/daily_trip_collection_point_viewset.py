@@ -21,14 +21,37 @@ from app.models.core_modules.daily_operations.bin_collection_event import BinCol
 from app.models.core_modules.schedule_setup.collection_point import Collection_point
 from app.models.masters.waste_masters.bins import Bins
 from app.services.openroute_service import OpenRouteServiceError, optimize_stops, route_stops
-from app.services.static_route import assignment_static_route
+from app.services.static_route import assignment_static_route, assignment_static_routes
 from app.serializers.core_modules.daily_operations.daily_trip_collection_point_serializer import (
     DailyTripCollectionPointSerializer,
+    prefetch_stop_rows,
 )
+from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+from app.models.masters.ward import Ward
+from app.models.masters.zone import Zone
+from app.utils.related_prefetch import prefetch_related_rows, related
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScopedViewSet
 from app.utils.bulk_upload_mixin import BulkUploadMixin
+
+
+HOUSEHOLD_LOOKUPS = {
+    "customer": (CustomerCreation, "customer_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+    "ward": (Ward, "ward_id"),
+    "zone": (Zone, "zone_id"),
+}
+VEHICLE_LOOKUPS = {"vehicle": (VehicleCreation, "vehicle_id")}
+
+
+def _group_by(rows, key):
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(getattr(row, key), []).append(row)
+    return grouped
 
 
 class DailyTripCollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
@@ -94,6 +117,44 @@ class DailyTripCollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, Compan
             )
         return assignment
 
+    def _ensure_stops_for_assignments(self, assignments):
+        """`_ensure_assignment_stops` for many assignments, reading existing
+        stops and plan stops once for all of them."""
+        planned = [a for a in assignments if a.trip_plan_id]
+        if not planned:
+            return
+        existing_cp_ids = {}
+        for assignment_id, cp_id in DailyTripCollectionPoint.objects.filter(
+            trip_assignment_id__in=[a.unique_id for a in planned],
+            is_deleted=False,
+        ).values_list("trip_assignment_id", "collection_point_id"):
+            existing_cp_ids.setdefault(assignment_id, set()).add(cp_id)
+        plan_stops = _group_by(
+            TripPlanCollectionPoint.objects.filter(
+                trip_plan_id__in={a.trip_plan_id for a in planned},
+                is_active=True,
+                is_deleted=False,
+            ).order_by("trip_plan_id", "sequence", "pk"),
+            "trip_plan_id",
+        )
+        for assignment in planned:
+            existing = existing_cp_ids.get(assignment.unique_id, set())
+            for stop in plan_stops.get(assignment.trip_plan_id, []):
+                # Same rules as _ensure_assignment_stops.
+                if not stop.collection_point_id or not stop.bin_id:
+                    continue
+                if stop.collection_point_id in existing:
+                    continue
+                DailyTripCollectionPoint.objects.create(
+                    trip_assignment_id=assignment.unique_id,
+                    collection_point_id=stop.collection_point_id,
+                    bin_id=stop.bin_id,
+                    sequence=stop.sequence,
+                    is_collected=False,
+                    status=DailyTripCollectionPoint.STATUS_PENDING,
+                    created_by_id=getattr(assignment, "created_by_id", None),
+                )
+
     def _ensure_current_stop(self, assignment):
         if not assignment or assignment.status != DailyTripAssignment.STATUS_IN_PROGRESS:
             return
@@ -134,18 +195,19 @@ class DailyTripCollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, Compan
             .filter(trip_assignment_id=assignment.unique_id, is_deleted=False)
             .order_by("sequence")
         )
+        prefetch_related_rows(stops, HOUSEHOLD_LOOKUPS)
+        trip_plan = assignment.trip_plan if stops else None
         rows = []
         for stop in stops:
-            customer = stop.customer
+            customer = related(stop, "customer")
             if not customer:
                 continue
             mapped_status = self._HOUSEHOLD_STATUS_MAP.get(
                 stop.status, DailyTripCollectionPoint.STATUS_PENDING
             )
-            trip_plan = assignment.trip_plan
-            panchayat = stop.panchayat
-            ward = stop.ward
-            zone = stop.zone
+            panchayat = related(stop, "panchayat")
+            ward = related(stop, "ward")
+            zone = related(stop, "zone")
             rows.append({
                 "unique_id": stop.unique_id,
                 "trip_assignment_id": assignment.unique_id,
@@ -580,18 +642,30 @@ class DailyTripCollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, Compan
             assignments = assignments.filter(project_id=project)
         if trip_date:
             assignments = assignments.filter(trip_date=trip_date)
-        assignments = assignments.order_by("-trip_date", "-scheduled_time")[:30]
+        assignments = list(assignments.order_by("-trip_date", "-scheduled_time")[:30])
+
+        self._ensure_stops_for_assignments(assignments)
+        for assignment in assignments:
+            self._ensure_current_stop(assignment)
+
+        # Every trip's stops and their relations in one go instead of per trip.
+        stops_by_assignment = _group_by(
+            DailyTripCollectionPoint.objects
+            .filter(
+                trip_assignment_id__in=[a.unique_id for a in assignments],
+                is_deleted=False,
+            )
+            .order_by("trip_assignment_id", "sequence", "pk"),
+            "trip_assignment_id",
+        ) if assignments else {}
+        prefetch_stop_rows([s for group in stops_by_assignment.values() for s in group])
+        prefetch_related_rows(assignments, VEHICLE_LOOKUPS)
+        plants = {}
 
         trips = []
         aggregate = {"total": 0, "completed": 0, "in_progress": 0, "pending": 0, "missed": 0}
         for assignment in assignments:
-            self._ensure_assignment_stops(assignment.unique_id)
-            self._ensure_current_stop(assignment)
-            stops = list(
-                DailyTripCollectionPoint.objects
-                .filter(trip_assignment_id=assignment.unique_id, is_deleted=False)
-                .order_by("sequence")
-            )
+            stops = stops_by_assignment.get(assignment.unique_id, [])
             if not stops:
                 continue
 
@@ -611,16 +685,19 @@ class DailyTripCollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, Compan
             aggregate["pending"] += pending
             aggregate["missed"] += missed
 
-            plant = self._plant_for(assignment.project_id)
+            if assignment.project_id not in plants:
+                plants[assignment.project_id] = self._plant_for(assignment.project_id)
+            plant = plants[assignment.project_id]
+            stop_cps = [related(stop, "collection_point") for stop in stops]
             route_input = [
                 {
                     "id": stop.unique_id,
                     "location": [
-                        float(stop.collection_point.longitude),
-                        float(stop.collection_point.latitude),
+                        float(cp.longitude),
+                        float(cp.latitude),
                     ],
                 }
-                for stop in stops
+                for stop, cp in zip(stops, stop_cps)
             ]
             if plant:
                 route_input.append({
@@ -639,8 +716,8 @@ class DailyTripCollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, Compan
                     assignment.unique_id,
                     str(vehicle_start),
                     *[
-                        f"{stop.unique_id}:{stop.sequence}:{stop.collection_point.latitude}:{stop.collection_point.longitude}"
-                        for stop in stops
+                        f"{stop.unique_id}:{stop.sequence}:{cp.latitude}:{cp.longitude}"
+                        for stop, cp in zip(stops, stop_cps)
                     ],
                     f"plant:{plant.unique_id}" if plant else "plant:none",
                 ]
@@ -654,7 +731,7 @@ class DailyTripCollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, Compan
                 "assignment_id": assignment.unique_id,
                 "trip_date": assignment.trip_date,
                 "status": assignment.status,
-                "vehicle_no": getattr(assignment.vehicle, "vehicle_no", None),
+                "vehicle_no": getattr(related(assignment, "vehicle"), "vehicle_no", None),
                 "summary": {
                     "total": len(stops),
                     "completed": completed,
@@ -725,9 +802,9 @@ class DailyTripCollectionPointViewSet(BulkUploadMixin, AuditViewSetMixin, Compan
             assignments = assignments.filter(project_id=project)
         if trip_date:
             assignments = assignments.filter(trip_date=trip_date)
-        assignments = assignments.order_by("-trip_date", "-scheduled_time")[:30]
+        assignments = list(assignments.order_by("-trip_date", "-scheduled_time")[:30])
 
-        routes = [assignment_static_route(assignment) for assignment in assignments]
+        routes = assignment_static_routes(assignments)
         return Response({"routes": [route for route in routes if route["stops"]]})
 
     @action(detail=False, methods=["post"], url_path="route-static")

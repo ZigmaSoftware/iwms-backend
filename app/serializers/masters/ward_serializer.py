@@ -5,9 +5,36 @@ from app.models.masters.district import District
 from app.models.masters.zone import Zone
 from app.models.masters.panchayat import Panchayat
 from app.models.superadmin.common_masters.state import State
+from app.models.superadmin.common_masters.country import Country
+from app.models.superadmin.common_masters.continent import Continent
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.utils.related_prefetch import prefetch_related_rows, related
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "state": (State, "state_id"),
+    "district": (District, "district_id"),
+    "city": (City, "city_id"),
+    "zone": (Zone, "zone_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+}
+STATE_LOOKUPS = {
+    "country": (Country, "country_id"),
+    "continent": (Continent, "continent_id"),
+}
+
+
+class WardListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        instances = list(data.all() if hasattr(data, "all") else data)
+        rows = prefetch_related_rows(instances, RELATED_LOOKUPS)
+        prefetch_related_rows(rows["state"].values(), STATE_LOOKUPS)
+        return super().to_representation(instances)
 
 
 class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -73,50 +100,52 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
     def get_local_body_name(self, obj):
         if obj.zone_id:
-            zone = Zone.objects.filter(unique_id=obj.zone_id).first()
-            return zone.zone_name if zone else None
+            return self.get_zone_name(obj)
         if obj.panchayat_id:
-            panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
-            return panchayat.panchayat_name if panchayat else None
+            return self.get_panchayat_name(obj)
         return None
 
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
+
     def get_state_name(self, obj):
-        state = State.objects.filter(unique_id=obj.state_id).first()
+        state = self._state(obj)
         return state.name if state else None
 
     def get_city_name(self, obj):
-        city = City.objects.filter(unique_id=obj.city_id).first()
+        city = related(obj, "city", City, "city_id")
         return city.name if city else None
 
     def get_district_name(self, obj):
-        district = District.objects.filter(unique_id=obj.district_id).first()
+        district = related(obj, "district", District, "district_id")
         return district.name if district else None
 
     def get_zone_name(self, obj):
-        zone = Zone.objects.filter(unique_id=obj.zone_id).first()
+        zone = related(obj, "zone", Zone, "zone_id")
         return zone.zone_name if zone else None
 
     def get_panchayat_name(self, obj):
-        panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
+        panchayat = related(obj, "panchayat", Panchayat, "panchayat_id")
         return panchayat.panchayat_name if panchayat else None
 
     def _state(self, obj):
-        return State.objects.filter(unique_id=obj.state_id).first()
+        return related(obj, "state", State, "state_id")
 
     def get_continent_name(self, obj):
         state = self._state(obj)
         if not state or not state.continent_id:
             return None
-        from app.models.superadmin.common_masters.continent import Continent
-        continent = Continent.objects.filter(unique_id=state.continent_id).first()
+        continent = related(state, "continent", Continent, "continent_id")
         return continent.name if continent else None
 
     def get_country_name(self, obj):
         state = self._state(obj)
         if not state or not state.country_id:
             return None
-        from app.models.superadmin.common_masters.country import Country
-        country = Country.objects.filter(unique_id=state.country_id).first()
+        country = related(state, "country", Country, "country_id")
         return country.name if country else None
 
     def get_continent_id(self, obj):
@@ -180,6 +209,7 @@ class WardSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "project_id",
             "boundary_coordinates",
         ]
+        list_serializer_class = WardListSerializer
 
     def validate(self, attrs):
 

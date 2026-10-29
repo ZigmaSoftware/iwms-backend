@@ -33,8 +33,8 @@ def complaint_upload_path(instance, filename):
 
 class Complaint(BaseMaster):
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     class StatusChoices(models.TextChoices):
         PROGRESSING = "PROGRESSING", "Progressing"
@@ -62,8 +62,8 @@ class Complaint(BaseMaster):
     
 
     customer_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     contact_no = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)

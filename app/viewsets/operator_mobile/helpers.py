@@ -225,17 +225,25 @@ def resolve_bin_from_qr(bin_qr: str) -> Bins:
     return bin_obj
 
 
-def _assignment_waste_type_ids(assignment: DailyTripAssignment) -> set:
+_UNSET = object()
+
+
+def _assignment_waste_type_ids(assignment: DailyTripAssignment, trip_plan=_UNSET) -> set:
     """Every waste-type id this trip collects, from all three storage spots.
 
     Returns an empty set when the trip declares none anywhere, which callers
     treat as "unrestricted" rather than "collects nothing" — a trip with no
     declared waste type should not reject every bin.
+
+    Pass `trip_plan` when the caller already has the assignment's plan, to
+    skip looking it up again.
     """
     ids = set(str(v) for v in (assignment.waste_type_ids or []) if v)
     if assignment.trip_plan_id:
-        from app.models.core_modules.schedule_setup.trip_plan import TripPlan
-        plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id).first()
+        plan = trip_plan
+        if plan is _UNSET:
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+            plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id).first()
         if plan and plan.waste_type_id:
             ids.add(str(plan.waste_type_id))
     return {str(i) for i in ids if i}

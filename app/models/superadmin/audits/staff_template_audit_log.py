@@ -27,8 +27,8 @@ class StaffTemplateAuditLog(models.Model):
         default=generate_staff_template_audit_id,
         editable=False,
     )
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     entity_type = models.CharField(max_length=30, choices=EntityType.choices)
     entity_id = models.CharField(max_length=60)
     action = models.CharField(max_length=10, choices=Action.choices)

@@ -25,8 +25,8 @@ class DistrictLeaderLogin(BaseMaster):
 
     district_id = models.CharField(max_length=30, null=True, blank=True)
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     username = models.CharField(
         max_length=150,

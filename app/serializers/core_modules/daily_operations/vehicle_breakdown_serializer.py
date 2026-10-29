@@ -11,6 +11,79 @@ from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
+from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+from app.models.masters.panchayat import Panchayat
+from app.utils.related_prefetch import cached_related, prefetch_related_rows, related
+
+BREAKDOWN_LOOKUPS = {
+    "trip_assignment": (DailyTripAssignment, "trip_assignment_id"),
+    "breakdown_vehicle": (VehicleCreation, "breakdown_vehicle_id"),
+    "replacement_vehicle": (VehicleCreation, "replacement_vehicle_id"),
+    "replacement_driver": (Staffcreation, "replacement_driver_id", "staff_unique_id"),
+    "replacement_operator": (Staffcreation, "replacement_operator_id", "staff_unique_id"),
+    "alt_staff_template": (AlternativeStaffTemplate, "alt_staff_template_id"),
+    "approved_by_user": (Staffcreation, "approved_by", "staff_unique_id"),
+    "repaired_by_staff": (Staffcreation, "repaired_by", "staff_unique_id"),
+}
+ASSIGNMENT_LOOKUPS = {
+    "trip_plan": (TripPlan, "trip_plan_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+    "alt_staff_template": (AlternativeStaffTemplate, "alt_staff_template_id"),
+    "staff_template": (StaffTemplate, "staff_template_id"),
+}
+TRIP_PLAN_LOOKUPS = {"staff_template": (StaffTemplate, "staff_template_id")}
+CREW_LOOKUPS = {
+    "driver": (Staffcreation, "driver_id", "staff_unique_id"),
+    "operator": (Staffcreation, "operator_id", "staff_unique_id"),
+}
+
+
+class VehicleBreakdownListSerializer(serializers.ListSerializer):
+    """Loads every relation the detail fields read once for the whole page."""
+
+    def to_representation(self, data):
+        from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdownPhoto
+
+        instances = list(data.all() if hasattr(data, "all") else data)
+        rows = prefetch_related_rows(instances, BREAKDOWN_LOOKUPS)
+        assignments = list(rows["trip_assignment"].values())
+        assignment_rows = prefetch_related_rows(assignments, ASSIGNMENT_LOOKUPS)
+        plans = list(assignment_rows["trip_plan"].values())
+        plan_rows = prefetch_related_rows(plans, TRIP_PLAN_LOOKUPS)
+        prefetch_related_rows(
+            [
+                *rows["alt_staff_template"].values(),
+                *assignment_rows["alt_staff_template"].values(),
+                *assignment_rows["staff_template"].values(),
+                *plan_rows["staff_template"].values(),
+            ],
+            CREW_LOOKUPS,
+        )
+
+        from app.serializers.core_modules.daily_operations.trip_retrip_serializer import (
+            pending_snapshots_for,
+        )
+
+        # Only trips without a replacement yet show pending stops.
+        open_assignments = [
+            assignment for obj in instances if not obj.new_assignment
+            for assignment in [obj._related_cache["trip_assignment"]] if assignment
+        ]
+        snapshots = pending_snapshots_for(open_assignments)
+        for assignment in open_assignments:
+            assignment._pending_snapshot = snapshots[assignment.unique_id]
+
+        photos = {}
+        ids = [obj.unique_id for obj in instances]
+        if ids:
+            # Keep the query's row order within each breakdown.
+            for photo in VehicleBreakdownPhoto.objects.filter(breakdown_id__in=ids):
+                photos.setdefault(photo.breakdown_id, []).append(photo)
+        for obj in instances:
+            obj._photos = photos.get(obj.unique_id, [])
+        return super().to_representation(instances)
 
 
 def _ensure_vehicle_in_service(vehicle):
@@ -244,6 +317,7 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        list_serializer_class = VehicleBreakdownListSerializer
 
     # ── Validation ───────────────────────────────────────────────────
 
@@ -346,8 +420,8 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
             "unique_id": template.unique_id,
             "display_code": template.display_code,
             "base_staff_template_id": getattr(template, "staff_template_id", None),
-            "driver": self._staff_dict(template.driver),
-            "operator": self._staff_dict(template.operator),
+            "driver": self._staff_dict(related(template, "driver")),
+            "operator": self._staff_dict(related(template, "operator")),
             "change_reason": template.change_reason,
             "change_remarks": template.change_remarks,
             "approval_status": template.approval_status,
@@ -357,14 +431,23 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
     # TripPlan are plain id strings — the model properties resolve the rows.
 
     def _crew_template(self, obj):
-        return original_crew_template(obj)
+        # Same as original_crew_template(), reading prefetched rows.
+        assignment = cached_related(obj, "trip_assignment")
+        if not assignment:
+            return None
+        trip_plan = related(assignment, "trip_plan")
+        return (
+            related(assignment, "alt_staff_template")
+            or (related(trip_plan, "staff_template") if trip_plan else None)
+            or related(assignment, "staff_template")
+        )
 
     def get_trip_assignment_detail(self, obj):
-        a = obj.trip_assignment
+        a = cached_related(obj, "trip_assignment")
         if not a:
             return None
-        panchayat = a.panchayat
-        trip_plan = a.trip_plan
+        panchayat = related(a, "panchayat")
+        trip_plan = related(a, "trip_plan")
         return {
             "unique_id": a.unique_id,
             "trip_date": str(a.trip_date),
@@ -375,40 +458,43 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
         }
 
     def get_breakdown_vehicle_detail(self, obj):
-        return self._vehicle_dict(obj.breakdown_vehicle)
+        return self._vehicle_dict(related(obj, "breakdown_vehicle"))
 
     def get_replacement_vehicle_detail(self, obj):
-        return self._vehicle_dict(obj.replacement_vehicle)
+        return self._vehicle_dict(related(obj, "replacement_vehicle"))
 
     def get_replacement_driver_detail(self, obj):
-        return self._staff_dict(obj.replacement_driver)
+        return self._staff_dict(related(obj, "replacement_driver"))
 
     def get_replacement_operator_detail(self, obj):
-        return self._staff_dict(obj.replacement_operator)
+        return self._staff_dict(related(obj, "replacement_operator"))
 
     def get_original_driver_detail(self, obj):
         template = self._crew_template(obj)
-        return self._staff_dict(template.driver) if template else None
+        return self._staff_dict(related(template, "driver")) if template else None
 
     def get_original_operator_detail(self, obj):
         template = self._crew_template(obj)
-        return self._staff_dict(template.operator) if template else None
+        return self._staff_dict(related(template, "operator")) if template else None
 
     def get_alt_staff_template_detail(self, obj):
-        return self._alt_staff_template_dict(obj.alt_staff_template)
+        return self._alt_staff_template_dict(related(obj, "alt_staff_template"))
 
     def get_approved_by_detail(self, obj):
-        return self._staff_dict(obj.approved_by_user)
+        return self._staff_dict(related(obj, "approved_by_user"))
 
     def get_repaired_by_detail(self, obj):
         if not obj.repaired_by:
             return None
+        cache = getattr(obj, "_related_cache", None) or {}
+        if "repaired_by_staff" in cache:
+            return self._staff_dict(cache["repaired_by_staff"])
         return self._staff_dict(
             Staffcreation.objects.filter(staff_unique_id=obj.repaired_by).first()
         )
 
     def get_breakdown_vehicle_operational_status(self, obj):
-        vehicle = obj.breakdown_vehicle
+        vehicle = related(obj, "breakdown_vehicle")
         return vehicle.operational_status if vehicle else None
 
     def get_new_assignment_id(self, obj):
@@ -434,19 +520,24 @@ class VehicleBreakdownSerializer(serializers.ModelSerializer):
         collection points for a bin trip (supervisor picks which carry over
         at /verify/), or un-collected houses for a household trip (all of
         them auto-carry). Not shown once a replacement trip already exists."""
-        assignment = obj.trip_assignment
+        assignment = cached_related(obj, "trip_assignment")
         if not assignment or obj.new_assignment:
             return None
-        from app.services.retrip_service import build_pending_snapshot
+        from app.serializers.core_modules.daily_operations.trip_retrip_serializer import (
+            pending_snapshot,
+        )
 
-        return build_pending_snapshot(assignment)
+        return pending_snapshot(assignment)
 
     def get_photos(self, obj):
         request = self.context.get("request")
         photos = []
         from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdownPhoto
 
-        for photo in VehicleBreakdownPhoto.objects.filter(breakdown_id=obj.unique_id):
+        rows = getattr(obj, "_photos", None)
+        if rows is None:
+            rows = VehicleBreakdownPhoto.objects.filter(breakdown_id=obj.unique_id)
+        for photo in rows:
             url = photo.photo.url if photo.photo else None
             if url and request is not None:
                 url = request.build_absolute_uri(url)

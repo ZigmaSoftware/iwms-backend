@@ -1,3 +1,4 @@
+import functools
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q
@@ -39,6 +40,33 @@ from app.viewsets.superadmin_masters.company_scoped_viewset import CompanyScoped
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.pagination import LimitOffsetWithPage
 from app.utils.bulk_upload_mixin import BulkUploadMixin
+from app.utils.related_prefetch import prefetch_related_rows, related
+
+
+@functools.lru_cache(maxsize=None)
+def _prefetched_crew_serializer():
+    """`_CrewMemberSerializer` reading role names and attendance photos from
+    maps preloaded into its context by `_prefetch_plan_options`."""
+    from django.conf import settings
+    from app.serializers.operator_mobile.trip_today_serializer import _CrewMemberSerializer
+
+    class PrefetchedCrewMemberSerializer(_CrewMemberSerializer):
+        def get_role(self, staff):
+            return self.context["staffusertype_names"].get(staff.staffusertype_id)
+
+        def get_photo_url(self, staff):
+            request = self.context.get("request")
+            if not request:
+                return None
+            emp = self.context["employees_by_staff"].get(staff.staff_unique_id)
+            image_path = getattr(emp, "image_path", None)
+            if image_path and not isinstance(image_path, (bytes, bytearray, memoryview)):
+                return request.build_absolute_uri(settings.MEDIA_URL + image_path.lstrip("/"))
+            if staff.photo:
+                return request.build_absolute_uri(staff.photo.url)
+            return None
+
+    return PrefetchedCrewMemberSerializer
 
 
 class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
@@ -510,25 +538,134 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
             _CrewMemberSerializer,
         )
 
-        members = [m for m in (template.driver, template.operator) if m]
+        members = [m for m in (related(template, "driver"), related(template, "operator")) if m]
         extra_ids = getattr(template, "extra_operator_id", None) or []
         if extra_ids:
-            members += list(
-                Staffcreation.objects.filter(
-                    staff_unique_id__in=extra_ids, is_deleted=False
-                ).select_related("personal_details")
+            prefetched = getattr(template, "_extra_operators", None)
+            members += (
+                prefetched
+                if prefetched is not None
+                else list(
+                    Staffcreation.objects.filter(
+                        staff_unique_id__in=extra_ids, is_deleted=False
+                    ).select_related("personal_details")
+                )
             )
+        crew_context = getattr(self, "_crew_context", None)
+        if crew_context is not None:
+            return _prefetched_crew_serializer()(
+                members, many=True, context={"request": self.request, **crew_context}
+            ).data
         return _CrewMemberSerializer(
             members, many=True, context={"request": self.request}
         ).data
 
+    def _prefetch_plan_options(self, plans, service_date):
+        """Load everything `_plan_option` reads for all `plans` at once."""
+        from app.models.core_modules.attendance.attendance import Employee
+        from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+        from app.models.masters.zone import Zone
+        from app.models.superadmin.role_management.staffUserType import StaffUserType
+        from app.models.superadmin.staff_management.staffcreation import Staffcreation
+        from app.serializers.core_modules.daily_operations.trip_retrip_serializer import (
+            attach_wards,
+        )
+
+        plan_ids = [plan.unique_id for plan in plans]
+        assignments = {}
+        notices = {}
+        if plan_ids:
+            # Keep the queries' row order (created_at / Meta ordering).
+            for assignment in DailyTripAssignment.objects.filter(
+                trip_plan_id__in=plan_ids, trip_date=service_date, is_deleted=False,
+            ).order_by("created_at"):
+                assignments.setdefault(assignment.trip_plan_id, []).append(assignment)
+            for notice in DailyServiceNotice.objects.filter(
+                trip_plan_id__in=plan_ids,
+                service_date=service_date,
+                status=DailyServiceNotice.STATUS_ACTIVE,
+                is_deleted=False,
+            ):
+                notices.setdefault(notice.trip_plan_id, notice)
+        for plan in plans:
+            plan._today_assignments = assignments.get(plan.unique_id, [])
+            plan._today_notice = notices.get(plan.unique_id)
+
+        rows = prefetch_related_rows(plans, {
+            "staff_template": (StaffTemplate, "staff_template_id"),
+            "vehicle": (VehicleCreation, "vehicle_id"),
+            "zone": (Zone, "zone_id"),
+        })
+        attach_wards(plans)
+
+        templates = list(rows["staff_template"].values())
+        crew_ids = {
+            staff_id for template in templates
+            for staff_id in (template.driver_id, template.operator_id) if staff_id
+        }
+        crew = (
+            {
+                staff.staff_unique_id: staff
+                for staff in Staffcreation.objects.filter(
+                    staff_unique_id__in=crew_ids
+                ).select_related("personal_details")
+            }
+            if crew_ids else {}
+        )
+        extra_ids = {
+            staff_id for template in templates
+            for staff_id in (getattr(template, "extra_operator_id", None) or [])
+        }
+        extras = (
+            list(
+                Staffcreation.objects.filter(
+                    staff_unique_id__in=extra_ids, is_deleted=False
+                ).select_related("personal_details")
+            )
+            if extra_ids else []
+        )
+        for template in templates:
+            cache = getattr(template, "_related_cache", None) or {}
+            cache["driver"] = crew.get(template.driver_id)
+            cache["operator"] = crew.get(template.operator_id)
+            template._related_cache = cache
+            wanted = set(getattr(template, "extra_operator_id", None) or [])
+            template._extra_operators = [
+                staff for staff in extras if staff.staff_unique_id in wanted
+            ]
+
+        members = [*crew.values(), *extras]
+        usertype_ids = {m.staffusertype_id for m in members if m.staffusertype_id}
+        staff_ids = {m.staff_unique_id for m in members}
+        self._crew_context = {
+            "staffusertype_names": (
+                {
+                    row.unique_id: row.name
+                    for row in StaffUserType.objects.filter(unique_id__in=usertype_ids)
+                }
+                if usertype_ids else {}
+            ),
+            "employees_by_staff": (
+                {
+                    emp.staff_id: emp
+                    for emp in Employee.objects.filter(staff_id__in=staff_ids)
+                }
+                if staff_ids else {}
+            ),
+        }
+
     def _plan_option(self, plan, service_date):
-        assignments = DailyTripAssignment.objects.filter(
-            trip_plan_id=plan.unique_id,
-            trip_date=service_date,
-            is_deleted=False,
-        ).order_by("created_at")
-        notice = active_notice_for_plan(plan.unique_id, service_date)
+        assignments = getattr(plan, "_today_assignments", None)
+        if assignments is None:
+            assignments = DailyTripAssignment.objects.filter(
+                trip_plan_id=plan.unique_id,
+                trip_date=service_date,
+                is_deleted=False,
+            ).order_by("created_at")
+        if hasattr(plan, "_today_notice"):
+            notice = plan._today_notice
+        else:
+            notice = active_notice_for_plan(plan.unique_id, service_date)
         repeat_days = plan.repeat_days or []
         scheduled_today = not repeat_days or service_date.weekday() in {
             int(value) for value in repeat_days if str(value).isdigit()
@@ -563,8 +700,8 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
         elif not plan.vehicle_id:
             state, blocking_reason = "BLOCKED", "Assign a vehicle before creating this trip"
 
-        template = plan.staff_template
-        vehicle = plan.vehicle
+        template = related(plan, "staff_template")
+        vehicle = related(plan, "vehicle")
         return {
             "trip_plan_id": plan.unique_id,
             "display_code": plan.display_code,
@@ -576,11 +713,17 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
             "assignment_status": getattr(assignment, "status", None),
             "vehicle_no": getattr(vehicle, "vehicle_no", None),
             "team_code": getattr(template, "display_code", None),
-            "driver_name": getattr(getattr(template, "driver", None), "employee_name", None),
-            "operator_name": getattr(getattr(template, "operator", None), "employee_name", None),
+            "driver_name": getattr(related(template, "driver") if template else None, "employee_name", None),
+            "operator_name": getattr(related(template, "operator") if template else None, "employee_name", None),
             "team_members": self._team_members(template),
-            "zone_name": getattr(getattr(plan, "zone", None), "zone_name", None),
-            "ward_names": [getattr(ward, "ward_name", str(ward)) for ward in plan.wards],
+            "zone_name": getattr(related(plan, "zone"), "zone_name", None),
+            "ward_names": [
+                getattr(ward, "ward_name", str(ward))
+                for ward in (
+                    plan._ward_rows if getattr(plan, "_ward_rows", None) is not None
+                    else plan.wards
+                )
+            ],
             "notice": serialize_notice(notice),
         }
 
@@ -589,7 +732,8 @@ class DailyTripAssignmentViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScop
         if not self._has_approval_role(request):
             return Response({"detail": "Supervisor access is required."}, status=status.HTTP_403_FORBIDDEN)
         service_date = self._service_date(request.query_params.get("date"))
-        plans = self._owned_plans().order_by("scheduled_time", "display_code")
+        plans = list(self._owned_plans().order_by("scheduled_time", "display_code"))
+        self._prefetch_plan_options(plans, service_date)
         options = [
             option
             for plan in plans

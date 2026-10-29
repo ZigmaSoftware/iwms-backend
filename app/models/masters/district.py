@@ -16,8 +16,8 @@ class District(BaseMaster):
         default=generate_district_id
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     country_id = models.CharField(max_length=30, null=True, blank=True)
     state_id = models.CharField(max_length=30, null=True, blank=True)

@@ -20,7 +20,7 @@ class StaffAccessConfiguration(BaseMaster):
 
     staff_id = models.CharField(max_length=30, null=True, blank=True)
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # Store project/geo IDs as comma-separated strings for API integration
     project_ids = models.TextField(blank=True, default="")

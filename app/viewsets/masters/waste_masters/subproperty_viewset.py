@@ -7,7 +7,7 @@ from app.utils.pagination import LimitOffsetWithPage
 from app.utils.bulk_upload_mixin import BulkUploadMixin
 
 class SubPropertyViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedViewSet):
-    queryset = SubProperty.objects.filter(is_deleted=False).order_by("sub_property_name")
+    queryset = SubProperty.objects.filter(is_deleted=False).select_related("property_id").order_by("sub_property_name")
 
     serializer_class = SubPropertySerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]

@@ -32,8 +32,8 @@ class TripPlanVehicleSubstitution(BaseMaster):
         editable=False,
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     trip_plan_id = models.CharField(max_length=30, db_index=True)
     original_vehicle_id = models.CharField(max_length=40, db_index=True)

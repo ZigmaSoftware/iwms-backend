@@ -71,8 +71,8 @@ class TripRetripRequest(BaseMaster):
     )
 
     # ── Tenancy (mirrors VehicleBreakdown) ────────────────────────────
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     assignment_id = models.CharField(max_length=30)
     requested_by_id = models.CharField(max_length=30, null=True, blank=True)

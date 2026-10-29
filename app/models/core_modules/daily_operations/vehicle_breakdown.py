@@ -65,7 +65,7 @@ class VehicleBreakdown(BaseMaster):
 
     # ── Tenancy ─────────────────────────────────────────────────────
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # ── Trip Reference ───────────────────────────────────────────────
     trip_assignment_id = models.CharField(max_length=50, null=True, blank=True)

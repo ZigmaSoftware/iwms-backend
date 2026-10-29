@@ -34,7 +34,7 @@ class CustomerAccessConfiguration(BaseMaster):
 
     customer_id = models.CharField(max_length=60, null=True, blank=True)
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # Apps this customer may sign into (unique_id list). No module ticked =
     # mobile login refused.

@@ -9,8 +9,138 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 from app.serializers.evidence_image import absolute_image_url
 from app.utils.name_or_id_field import NameOrUniqueIdField
-from app.utils.waste_images import capture_images_for_customer
+from app.utils.related_prefetch import cached_related, prefetch_related_rows, related
+from app.utils.waste_images import capture_images_for_customers
 from app.utils.waste_type_breakdown import bulk_waste_type_rows_for_trip_assignments
+
+
+def _log_lookups():
+    from app.models.core_modules.daily_operations.daily_trip_household_collection import (
+        DailyTripHouseholdCollection,
+    )
+    from app.models.core_modules.daily_operations.wastecollection import WasteCollection
+    from app.models.core_modules.schedule_setup.alternative_staff_template import AlternativeStaffTemplate
+    from app.models.core_modules.schedule_setup.collection_point import Collection_point
+    from app.models.core_modules.schedule_setup.staff_template import StaffTemplate
+    from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+    from app.models.masters.city import City
+    from app.models.masters.district import District
+    from app.models.masters.zone import Zone
+    from app.models.superadmin_masters.company import Company
+    from app.models.superadmin_masters.project import Project
+    from app.models.masters.customer_masters.customercreation import CustomerCreation
+    from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+    from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
+
+    staff = (Staffcreation, "driver_id", "staff_unique_id")
+    return {
+        "log": {
+            "company": (Company, "company_id"),
+            "project": (Project, "project_id"),
+            "trip_assignment": (DailyTripAssignment, "trip_assignment_id"),
+            "staff_template": (StaffTemplate, "staff_template_id"),
+            "alt_staff_template": (AlternativeStaffTemplate, "alt_staff_template_id"),
+            "driver": staff,
+            "operator": (Staffcreation, "operator_id", "staff_unique_id"),
+            "vehicle": (VehicleCreation, "vehicle_id"),
+            "collection_point": (Collection_point, "collection_point_id"),
+            "waste_type": (WasteType, "waste_type_id"),
+        },
+        "assignment": {
+            "trip_plan": (TripPlan, "trip_plan_id"),
+            "staff_template": (StaffTemplate, "staff_template_id"),
+            "alt_staff_template": (AlternativeStaffTemplate, "alt_staff_template_id"),
+        },
+        "plan": {
+            "district": (District, "district_id"),
+            "city": (City, "city_id"),
+            "zone": (Zone, "zone_id"),
+        },
+        "template": {
+            "driver": staff,
+            "operator": (Staffcreation, "operator_id", "staff_unique_id"),
+        },
+        "household": {
+            "customer": (CustomerCreation, "customer_id"),
+            "waste_collection": (WasteCollection, "waste_collection_id"),
+        },
+        "stop": {
+            "collection_point": (Collection_point, "collection_point_id"),
+        },
+        "household_model": DailyTripHouseholdCollection,
+    }
+
+
+def _attach_stops(assignments):
+    """Load the bin and household stops of `assignments` (one query each for
+    the whole batch, plus their customers / waste collections / collection
+    points) and keep them on each assignment for every field that reads them."""
+    from app.models.core_modules.daily_operations.daily_trip_collection_point import (
+        DailyTripCollectionPoint,
+    )
+
+    lookups = _log_lookups()
+    assignments = [a for a in assignments if a is not None and "_households_cache" not in a.__dict__]
+    if not assignments:
+        return
+    ids = [a.unique_id for a in assignments]
+
+    households = list(
+        lookups["household_model"].objects.filter(trip_assignment_id__in=ids, is_deleted=False)
+    )
+    prefetch_related_rows(households, lookups["household"])
+    stops = list(
+        DailyTripCollectionPoint.objects.filter(trip_assignment_id__in=ids, is_deleted=False)
+        .order_by("sequence")
+    )
+    prefetch_related_rows(stops, lookups["stop"])
+
+    for assignment in assignments:
+        assignment._households_cache = [h for h in households if h.trip_assignment_id == assignment.unique_id]
+        assignment._bin_stops_cache = [s for s in stops if s.trip_assignment_id == assignment.unique_id]
+
+
+class DailyTripLogListSerializer(serializers.ListSerializer):
+    """Resolves the relations every log reads — assignment, plan, templates,
+    staff, stops and households — in one query per table for the page."""
+
+    def to_representation(self, data):
+        logs = list(data.all() if hasattr(data, "all") else data)
+        lookups = _log_lookups()
+
+        rows = prefetch_related_rows(logs, lookups["log"])
+        assignments = list(rows["trip_assignment"].values())
+        assignment_rows = prefetch_related_rows(assignments, lookups["assignment"])
+        prefetch_related_rows(assignment_rows["trip_plan"].values(), lookups["plan"])
+        prefetch_related_rows(
+            [*rows["staff_template"].values(), *rows["alt_staff_template"].values(),
+             *assignment_rows["staff_template"].values(), *assignment_rows["alt_staff_template"].values()],
+            lookups["template"],
+        )
+        _attach_stops(assignments)
+
+        from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
+        from app.viewsets.operator_mobile.helpers import _assignment_waste_type_ids
+
+        # The breakdown helper is already bulk; call it once for the page.
+        breakdown = bulk_waste_type_rows_for_trip_assignments(
+            [a.unique_id for a in assignments], source="all",
+        )
+        waste_type_ids = {}
+        for assignment in assignments:
+            assignment._waste_breakdown_cache = [
+                row for row in breakdown if row["trip_assignment_id"] == assignment.unique_id
+            ]
+            waste_type_ids[assignment.unique_id] = _assignment_waste_type_ids(
+                assignment, trip_plan=cached_related(assignment, "trip_plan"),
+            )
+        all_ids = set().union(*waste_type_ids.values()) if waste_type_ids else set()
+        self.child._waste_types_by_id = {
+            wt.unique_id: wt
+            for wt in WasteType.objects.filter(unique_id__in=all_ids, is_deleted=False)
+        } if all_ids else {}
+
+        return super().to_representation(logs)
 
 
 class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -108,6 +238,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "created_at",
             "updated_at",
         ]
+        list_serializer_class = DailyTripLogListSerializer
         read_only_fields = [
             "unique_id",
             "staff_template_id",
@@ -129,12 +260,53 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             "updated_at",
         ]
 
+    # --------------------------------------------------
+    # Shared lookups — each field below reads the same assignment, plan,
+    # stops and wards, so they are resolved once per log (and once per page
+    # for lists, see DailyTripLogListSerializer) instead of once per field.
+    # --------------------------------------------------
+    def _assignment(self, obj):
+        return cached_related(obj, "trip_assignment")
+
+    def _trip_plan(self, assignment):
+        return cached_related(assignment, "trip_plan") if assignment else None
+
+    def _households(self, assignment):
+        _attach_stops([assignment])
+        return assignment._households_cache
+
+    def _bin_stops(self, assignment):
+        _attach_stops([assignment])
+        return assignment._bin_stops_cache
+
+    def _wards(self, assignment):
+        cached = assignment.__dict__.get("_wards_cache")
+        if cached is None:
+            from app.models.masters.ward import Ward
+            cached = list(Ward.objects.filter(unique_id__in=assignment.get_ward_ids()))
+            assignment._wards_cache = cached
+        return cached
+
+    def _lookup(self, model, unique_id):
+        """One query per distinct row for the whole response."""
+        memo = self.root.__dict__.setdefault("_lookup_memo", {})
+        key = (model, unique_id)
+        if key not in memo:
+            memo[key] = model.objects.filter(unique_id=unique_id).first()
+        return memo[key]
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
+
     def get_trip_assignment(self, obj):
-        assignment = obj.trip_assignment
+        assignment = self._assignment(obj)
         if not assignment:
             return None
-        trip_plan = getattr(assignment, "trip_plan", None)
-        zone = getattr(trip_plan, "zone", None)
+        trip_plan = self._trip_plan(assignment)
+        zone = related(trip_plan, "zone") if trip_plan else None
         return {
             "unique_id": assignment.unique_id,
             "status": assignment.status,
@@ -149,21 +321,23 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         }
 
     def get_wards_detail(self, obj):
-        assignment = obj.trip_assignment
+        assignment = self._assignment(obj)
         if not assignment:
             return []
-        from app.models.masters.ward import Ward
-        ward_ids = assignment.get_ward_ids()
         return [
             {"unique_id": ward.unique_id, "ward_name": ward.ward_name}
-            for ward in Ward.objects.filter(unique_id__in=ward_ids)
+            for ward in self._wards(assignment)
         ]
 
     def get_staff_template(self, obj):
         # Fall back to trip assignment's templates for records created before the migration
-        assignment = obj.trip_assignment
-        template = obj.staff_template or getattr(assignment, "staff_template", None)
-        alt = obj.alt_staff_template or getattr(assignment, "alt_staff_template", None)
+        assignment = self._assignment(obj)
+        template = related(obj, "staff_template") or (
+            cached_related(assignment, "staff_template") if assignment else None
+        )
+        alt = related(obj, "alt_staff_template") or (
+            cached_related(assignment, "alt_staff_template") if assignment else None
+        )
         if not template and not alt:
             return None
         result = {
@@ -174,15 +348,15 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
             result["base"] = {
                 "unique_id": template.unique_id,
                 "display_code": template.display_code,
-                "driver": self._staff_dict(getattr(template, "driver", None)),
-                "operator": self._staff_dict(getattr(template, "operator", None)),
+                "driver": self._staff_dict(related(template, "driver")),
+                "operator": self._staff_dict(related(template, "operator")),
             }
         if alt:
             result["alt"] = {
                 "unique_id": alt.unique_id,
                 "display_code": alt.display_code,
-                "driver": self._staff_dict(getattr(alt, "driver", None)),
-                "operator": self._staff_dict(getattr(alt, "operator", None)),
+                "driver": self._staff_dict(related(alt, "driver")),
+                "operator": self._staff_dict(related(alt, "operator")),
             }
         return result
 
@@ -190,16 +364,12 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         from django.db.models import Sum
         from app.models.core_modules.daily_operations.bin_collection_event import BinCollectionEvent
 
-        assignment = obj.trip_assignment
+        assignment = self._assignment(obj)
         if not assignment:
             return []
         from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 
-        cps = (
-            assignment.trip_collection_points
-            .filter(is_deleted=False)
-            .order_by("sequence")
-        )
+        cps = self._bin_stops(assignment)
         breakdown_by_stop = {}
         evidence_by_stop = {}
         stop_ids = [tcp.unique_id for tcp in cps]
@@ -244,8 +414,8 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
                     }]
         return [
             {
-                "unique_id": tcp.collection_point.unique_id,
-                "cp_name": tcp.collection_point.cp_name,
+                "unique_id": related(tcp, "collection_point").unique_id,
+                "cp_name": related(tcp, "collection_point").cp_name,
                 "sequence": tcp.sequence,
                 "is_collected": tcp.is_collected,
                 "status": tcp.status,
@@ -262,18 +432,11 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         ]
 
     def get_collection_status(self, obj):
-        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
-            DailyTripHouseholdCollection,
-        )
-        assignment = obj.trip_assignment
+        assignment = self._assignment(obj)
         if not assignment:
             return "Not Started"
-        bin_stops = [cp for cp in assignment.trip_collection_points.all() if not cp.is_deleted]
-        hh_stops = list(
-            DailyTripHouseholdCollection.objects.filter(
-                trip_assignment_id=assignment, is_deleted=False
-            )
-        )
+        bin_stops = self._bin_stops(assignment)
+        hh_stops = self._households(assignment)
         total = len(bin_stops) + len(hh_stops)
         if total == 0:
             return "Not Started"
@@ -288,21 +451,13 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         return "In Progress"
 
     def get_household_collections(self, obj):
-        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
-            DailyTripHouseholdCollection,
-        )
-        assignment = obj.trip_assignment
+        assignment = self._assignment(obj)
         if not assignment:
             return []
-        hh_list = (
-            DailyTripHouseholdCollection.objects
-            .filter(trip_assignment_id=assignment.unique_id, is_deleted=False)
-            .order_by("sequence")
-        )
         result = []
-        for hh in hh_list:
-            waste = hh.waste_collection
-            customer = hh.customer or getattr(waste, "customer", None)
+        for hh in self._households(assignment):
+            waste = related(hh, "waste_collection")
+            customer = related(hh, "customer") or getattr(waste, "customer", None)
             waste_type_breakdown = []
             if waste:
                 for column, label in (
@@ -353,36 +508,33 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         """Capture photos taken during this trip — aggregated by matching every
         household collection's customer + collection date against
         WasteCollectionSub photos (there is no direct FK to the photo)."""
-        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
-            DailyTripHouseholdCollection,
-        )
-
-        assignment = obj.trip_assignment
+        assignment = self._assignment(obj)
         if not assignment:
             return []
         request = self.context.get("request")
         images = []
         seen = set()
-        hh_list = (
-            DailyTripHouseholdCollection.objects
-            .filter(trip_assignment_id=assignment.unique_id, is_deleted=False)
-        )
-        for hh in hh_list:
-            customer = hh.customer
-            waste = hh.waste_collection
-            customer_id = getattr(customer, "unique_id", None)
-            collection_date = getattr(waste, "collection_date", None)
-            for img in capture_images_for_customer(customer_id, collection_date, request):
+        pairs = [
+            (
+                getattr(related(hh, "customer"), "unique_id", None),
+                getattr(related(hh, "waste_collection"), "collection_date", None),
+            )
+            for hh in self._households(assignment)
+        ]
+        for household_images in capture_images_for_customers(pairs, request):
+            for img in household_images:
                 if img["url"] not in seen:
                     seen.add(img["url"])
                     images.append(img)
         return images
 
     def get_waste_type_breakdown(self, obj):
-        assignment = obj.trip_assignment
+        assignment = self._assignment(obj)
         if not assignment:
             return []
-        rows = bulk_waste_type_rows_for_trip_assignments([assignment.unique_id], source="all")
+        rows = assignment.__dict__.get("_waste_breakdown_cache")
+        if rows is None:
+            rows = bulk_waste_type_rows_for_trip_assignments([assignment.unique_id], source="all")
         return [
             {
                 "waste_type_name": row["waste_type_name"],
@@ -392,8 +544,8 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         ]
 
     def _resolve_panchayat(self, obj):
-        assignment = obj.trip_assignment
-        trip_plan = getattr(assignment, "trip_plan", None)
+        assignment = self._assignment(obj)
+        trip_plan = self._trip_plan(assignment)
         panchayat_id = (
             obj.panchayat_id
             or getattr(assignment, "panchayat_id", None)
@@ -402,16 +554,16 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         if not panchayat_id:
             return None
         from app.models.masters.panchayat import Panchayat
-        return Panchayat.objects.filter(unique_id=panchayat_id).first()
+        return self._lookup(Panchayat, panchayat_id)
 
     def _resolve_zone(self, obj):
-        assignment = obj.trip_assignment
-        trip_plan = getattr(assignment, "trip_plan", None)
+        assignment = self._assignment(obj)
+        trip_plan = self._trip_plan(assignment)
         zone_id = obj.zone_id or getattr(trip_plan, "zone_id", None)
         if not zone_id:
             return None
         from app.models.masters.zone import Zone
-        return Zone.objects.filter(unique_id=zone_id).first()
+        return self._lookup(Zone, zone_id)
 
     def get_panchayat(self, obj):
         p = self._resolve_panchayat(obj)
@@ -422,19 +574,17 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         return None if not z else {"unique_id": z.unique_id, "zone_name": z.zone_name}
 
     def get_ward(self, obj):
-        assignment = obj.trip_assignment
+        assignment = self._assignment(obj)
         if not assignment:
             return None
-        from app.models.masters.ward import Ward
-        ward_ids = assignment.get_ward_ids()
-        wards = Ward.objects.filter(unique_id__in=ward_ids)
+        wards = self._wards(assignment)
         return [{"unique_id": w.unique_id, "ward_name": w.ward_name} for w in wards] or None
 
     def get_location(self, obj):
-        assignment = obj.trip_assignment
-        trip_plan = getattr(assignment, "trip_plan", None)
-        district = getattr(trip_plan, "district", None)
-        city = getattr(trip_plan, "city", None)
+        assignment = self._assignment(obj)
+        trip_plan = self._trip_plan(assignment)
+        district = related(trip_plan, "district") if trip_plan else None
+        city = related(trip_plan, "city") if trip_plan else None
         panchayat = self._resolve_panchayat(obj)
         zone = self._resolve_zone(obj)
         return {
@@ -447,11 +597,11 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         }
 
     def get_collection_point(self, obj):
-        cp = obj.collection_point
+        cp = related(obj, "collection_point")
         return None if not cp else {"unique_id": cp.unique_id, "cp_name": cp.cp_name}
 
     def get_waste_type(self, obj):
-        wt = obj.waste_type
+        wt = related(obj, "waste_type")
         return None if not wt else {"unique_id": wt.unique_id, "waste_type_name": wt.waste_type_name}
 
     def get_waste_types_detail(self, obj):
@@ -467,20 +617,22 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
         from app.viewsets.operator_mobile.helpers import _assignment_waste_type_ids
 
-        assignment = obj.trip_assignment
+        assignment = self._assignment(obj)
         if not assignment:
             return []
-        ids = _assignment_waste_type_ids(assignment)
+        ids = _assignment_waste_type_ids(assignment, trip_plan=self._trip_plan(assignment))
         if not ids:
             return []
         # Preserve the order the trip declared them in, then append any that
         # only the M2M/trip-plan knows about.
         ordered = [str(v) for v in (assignment.waste_type_ids or []) if str(v) in ids]
         ordered += sorted(ids - set(ordered))
-        by_id = {
-            wt.unique_id: wt
-            for wt in WasteType.objects.filter(unique_id__in=ids, is_deleted=False)
-        }
+        by_id = getattr(self, "_waste_types_by_id", None)
+        if by_id is None:
+            by_id = {
+                wt.unique_id: wt
+                for wt in WasteType.objects.filter(unique_id__in=ids, is_deleted=False)
+            }
         return [
             {
                 "unique_id": waste_type_id,
@@ -500,10 +652,10 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         }
 
     def get_driver(self, obj):
-        return self._staff_dict(obj.driver)
+        return self._staff_dict(related(obj, "driver"))
 
     def get_operator(self, obj):
-        return self._staff_dict(obj.operator)
+        return self._staff_dict(related(obj, "operator"))
 
     def get_extra_operators(self, obj):
         if not obj.extra_operator_ids:
@@ -513,7 +665,7 @@ class DailyTripLogSerializer(TenancyReadSerializerMixin, serializers.ModelSerial
         return [self._staff_dict(staff) for staff in StaffcreationOfficeDetails.objects.filter(staff_unique_id__in=ids)]
 
     def get_vehicle(self, obj):
-        vehicle = obj.vehicle
+        vehicle = related(obj, "vehicle")
         if not vehicle:
             return None
         return {

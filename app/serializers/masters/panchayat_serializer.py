@@ -6,7 +6,15 @@ from app.models.masters.district import District
 from app.models.masters.block_panchayat_union import BlockPanchayatUnion
 from app.models.superadmin.common_masters.state import State
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+from app.utils.related_prefetch import prefetching_list_serializer, related
 from app.validators.unique_name_validator import unique_name_validator
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+}
 
 
 class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -82,7 +90,13 @@ class PanchayatSerializer(TenancyReadSerializerMixin, serializers.ModelSerialize
             "created_at",
             "updated_at",
         ]
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
 
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
 
     def validate(self, attrs):
 

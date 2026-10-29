@@ -63,8 +63,8 @@ class ComplaintTicket(BaseMaster):
         editable=False,
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     source_id = models.CharField(max_length=30, null=True, blank=True)
     customer_id = models.CharField(max_length=30, null=True, blank=True)
@@ -96,9 +96,9 @@ class ComplaintTicket(BaseMaster):
     # administrative rollup kept for reporting.
     state_id = models.CharField(max_length=30, null=True, blank=True)
     district_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     assigned_user_id = models.CharField(max_length=30, null=True, blank=True)
     assigned_staff_id = models.CharField(max_length=30, null=True, blank=True)
