@@ -92,6 +92,7 @@ from .superadmin.audits.auditlog import AuditLog
 from app.utils.common_audit import CommonAudit
 from .superadmin.audits.permission_audit import PermissionAuditLog
 from .superadmin.audits.static_route_audit import StaticRouteAuditLog
+from .superadmin.audits.db_change_audit import DbChangeAudit
 
 
 # ============================================================
@@ -165,8 +166,9 @@ from .core_modules.attendance.attendance_new import AttendanceNew
 # GROUP: TRANSPORT MASTERS & TRIPS
 # ============================================================
 from .masters.transport_masters.vehicleTypeCreation import VehicleTypeCreation
-from .masters.transport_masters.vehicleCreation import VehicleCreation
+from .masters.transport_masters.vehicleCreation import VehicleCreation, VehicleDocumentHistory
 from .core_modules.schedule_setup.trip_plan import TripPlan
+from .core_modules.schedule_setup.trip_plan_vehicle_substitution import TripPlanVehicleSubstitution
 from .core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
 from .core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from .core_modules.daily_operations.daily_trip_log import DailyTripLog
@@ -294,12 +296,14 @@ __all__ = [
     # Transport
     "VehicleTypeCreation",
     "VehicleCreation",
+    "VehicleDocumentHistory",
     "TripPlan",
     "TripPlanCollectionPoint",
 
     # Audits
     "PermissionAuditLog",
     "StaticRouteAuditLog",
+    "DbChangeAudit",
 
     # Daily Trip Assignment
     "DailyTripAssignment",

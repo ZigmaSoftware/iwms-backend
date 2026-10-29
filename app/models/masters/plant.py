@@ -23,8 +23,8 @@ class Plant(BaseMaster):
         editable=False,
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     name = models.CharField(max_length=100)
     latitude = models.DecimalField(max_digits=9, decimal_places=6)

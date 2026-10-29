@@ -50,8 +50,8 @@ def upload_image(image):
 
 
 class WasteType(BaseMaster,models.Model):
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     unique_id = models.CharField(
         max_length=100,
         primary_key=True,
@@ -77,8 +77,8 @@ class WasteType(BaseMaster,models.Model):
 
 
 class WasteCollectionSub(models.Model):
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     unique_id = models.CharField(
         max_length=100,
         primary_key=True,
@@ -113,8 +113,8 @@ class WasteCollectionSub(models.Model):
 
 
 class WasteCollectionMain(models.Model):
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     unique_id = models.CharField(
         max_length=100,
         primary_key=True,

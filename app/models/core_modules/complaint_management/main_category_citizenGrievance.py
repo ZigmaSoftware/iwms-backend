@@ -7,8 +7,8 @@ def generate_maincategory_id():
     return f"CMPMC-{generate_unique_id()}"
 
 class MainCategory(BaseMaster):
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     unique_id = models.CharField(
         max_length=30,

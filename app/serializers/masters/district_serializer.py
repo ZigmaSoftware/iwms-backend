@@ -7,7 +7,16 @@ from app.models.superadmin.common_masters.continent import Continent
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.utils.related_prefetch import prefetching_list_serializer, related
 from app.validators.unique_name_validator import unique_name_validator
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "continent": (Continent, "continent_id"),
+    "country": (Country, "country_id"),
+    "state": (State, "state_id"),
+}
+
 
 class DistrictSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     # Excel/API now take "India", "Tamil Nadu" etc. instead of the raw
@@ -59,6 +68,7 @@ class DistrictSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
         fields = "__all__"
         read_only_fields = ["unique_id"]
         validators = []
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
 
     def validate(self, attrs):
         return unique_name_validator(
@@ -66,26 +76,32 @@ class DistrictSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer
             scope_fields=["continent_id", "country_id", "state_id"]
         )(self, attrs)
 
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
+
     def get_continent_name(self, obj):
-        continent = obj.continent
+        continent = related(obj, "continent")
         return continent.name if continent else None
 
     def get_country_name(self, obj):
-        country = obj.country
+        country = related(obj, "country")
         return country.name if country else None
 
     def get_state_name(self, obj):
-        state = obj.state
+        state = related(obj, "state")
         return state.name if state else None
 
     def get_state_unique_id(self, obj):
-        state = obj.state
+        state = related(obj, "state")
         return state.unique_id if state else None
 
     def get_country_unique_id(self, obj):
-        country = obj.country
+        country = related(obj, "country")
         return country.unique_id if country else None
 
     def get_continent_unique_id(self, obj):
-        continent = obj.continent
+        continent = related(obj, "continent")
         return continent.unique_id if continent else None

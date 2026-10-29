@@ -16,6 +16,7 @@ from app.models.masters.leader_management.panchayat_leader_login import Panchaya
 from app.models.masters.leader_management.district_leader_login import DistrictLeaderLogin
 from app.utils.permission_response import resolve_permission_payload
 from app.services.login_session import validate_session
+from app.authentication.cookies import request_token
 from app.utils.permission_catalog import PLATFORM_SUPERADMIN_ROUTES, ROUTE_OWNERS
 from app.utils.screen_dependencies import INCLUDED_BY, LOOKUP_FOR
 
@@ -65,6 +66,7 @@ AUTH_ONLY_SUFFIXES = (
     "district/",         # district portal — auth only, no module permission check
     "register-fcm-token/",  # staff + citizen FCM device token self-registration
     "login/my-permissions/",
+    "login/me/",        # web session restore after a page reload
 )
 
 # Citizen-scoped grievance API — self-service, no module-permission check;
@@ -277,6 +279,7 @@ MODULE_RESOURCE_ALLOWLIST = {
     "dashboards": {
         "AdminDashboard",
         "SuperadminDashboard",
+        "VehicleStatusDashboard",
     },
     # The user dashboard's summary, granted by the user-dashboard/home-dashboard
     # screen.
@@ -290,6 +293,7 @@ MODULE_RESOURCE_ALLOWLIST = {
         "PermissionAudit",
         "StaticRouteAudit",
         "ComplaintAudit",
+        "DbChangeAudit",
         "AuditDashboard",
     },
 }
@@ -458,7 +462,9 @@ def _route_resource_from_path(path, module):
         return None
 
     resource = parts[module_index + 1]
-    if resource and not resource.startswith("v"):
+    # Skip an API version segment ("v1"), not every route starting with "v"
+    # (vehicle-creation, vehicle-type, ...).
+    if resource and not re.fullmatch(r"v\d+", resource):
         return resource
     return None
 
@@ -503,13 +509,9 @@ def _resource_allowlist_candidates(permission_resource, route_resource=None):
 
 
 def _authenticate_request(request):
-    auth = request.headers.get("Authorization")
-
-    if not auth or not auth.startswith("Bearer "):
+    token = request_token(request)
+    if not token:
         return JsonResponse({"detail": "Authorization token missing"}, status=401)
-
-    token = auth.split(" ", 1)[1]
-    token = "".join(token.split())
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])

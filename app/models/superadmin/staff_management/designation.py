@@ -15,7 +15,7 @@ class Designation(BaseMaster):
         editable=False,
     )
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     department_id = models.CharField(max_length=30, null=True, blank=True)
     designation_name = models.CharField(max_length=150)
     designation_group = models.CharField(max_length=80, blank=True, null=True)

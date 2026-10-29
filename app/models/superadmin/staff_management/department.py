@@ -15,7 +15,7 @@ class Department(BaseMaster):
         editable=False,
     )
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     department_name = models.CharField(max_length=150)
     department_code = models.CharField(max_length=30)
     description = models.TextField(blank=True, null=True)

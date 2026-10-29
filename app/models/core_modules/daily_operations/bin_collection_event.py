@@ -30,17 +30,17 @@ class BinCollectionEvent(BaseMaster):
         editable=False,
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     trip_assignment_id = models.CharField(max_length=50, null=True, blank=True)
     trip_collection_point_id = models.CharField(max_length=30, null=True, blank=True)
 
     collection_point_id = models.CharField(max_length=30, null=True, blank=True)
     bin_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     waste_type_id = models.CharField(max_length=30, null=True, blank=True)
     vehicle_id = models.CharField(max_length=30, null=True, blank=True)
     vehicle_breakdown_id = models.CharField(max_length=30, null=True, blank=True)

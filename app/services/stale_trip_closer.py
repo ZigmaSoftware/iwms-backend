@@ -17,7 +17,9 @@ Trips waiting on a supervisor decision (a pending Re-Trip request or a pending
 vehicle-breakdown review) are skipped: that decision is the supervisor's, and
 closing underneath it would discard it. They are picked up on a later run once
 decided. `Scheduled` trips are left alone — they never started, so "Completed"
-would be false.
+would be false — except a never-started Re-Trip/breakdown continuation: its
+carried stops are marked Missed and the trip is Cancelled, otherwise those
+stops would stay Pending forever.
 """
 
 import logging
@@ -49,15 +51,30 @@ TRIP_REMARK = (
     "Closed automatically by the system at end of day. "
     "{count} unresolved stop(s) were marked as missed."
 )
+CONTINUATION_STOP_REASON = (
+    "Not collected: the next trip carrying this stop was never started on its day."
+)
+CONTINUATION_REMARK = (
+    "Cancelled automatically by the system: this next trip was never started "
+    "on its day. {count} carried-over stop(s) were marked as missed."
+)
 
 
 def _has_pending_decision(assignment):
-    if TripRetripRequest.objects.filter(
+    # Expire overdue requests here rather than trusting the status column:
+    # if the `process_retrip_timeouts` cron is not running, an overdue
+    # request stays `Pending` and would keep this trip open forever. A
+    # request's window never outlives its trip's day, so for the past-dated
+    # trips this closer handles, every Pending request is already overdue.
+    from app.services.retrip_timeout_service import expire_retrip_if_due
+
+    for request in TripRetripRequest.objects.filter(
         assignment_id=assignment.unique_id,
         status=TripRetripRequest.STATUS_PENDING,
         is_deleted=False,
-    ).exists():
-        return True
+    ):
+        if not expire_retrip_if_due(request):
+            return True
     return VehicleBreakdown.objects.filter(
         trip_assignment_id=assignment.unique_id,
         approval_status=VehicleBreakdown.APPROVAL_PENDING,
@@ -69,8 +86,8 @@ def _end_of_trip_day(trip_date):
     return timezone.make_aware(datetime.combine(trip_date, time(23, 59, 59)))
 
 
-@transaction.atomic
-def _close_one(assignment):
+def _miss_unresolved_stops(assignment, reason):
+    """Mark every unresolved stop Missed / Not Available. Returns the count."""
     pending_bins = assignment.pending_bin_stops()
     pending_households = assignment.pending_household_stops()
     flagged_ids = list(
@@ -81,17 +98,17 @@ def _close_one(assignment):
 
     # QuerySet.update(): these are system closures, not driver actions, so the
     # per-stop mark_status() side effects (assignment auto-end checks) are
-    # unwanted — the trip is closed explicitly below.
+    # unwanted — the trip is closed explicitly by the caller.
     pending_bins.update(
         status=DailyTripCollectionPoint.STATUS_MISSED,
-        status_reason=STOP_REASON,
+        status_reason=reason,
         is_collected=False,
         collected_weight_kg=None,
         updated_at=timezone.now(),
     )
     pending_households.update(
         status=DailyTripHouseholdCollection.STATUS_MISSED,
-        status_reason=STOP_REASON,
+        status_reason=reason,
         is_collected=False,
         collected_weight_kg=None,
         updated_at=timezone.now(),
@@ -103,6 +120,42 @@ def _close_one(assignment):
 
         for stop in DailyTripHouseholdCollection.objects.filter(unique_id__in=flagged_ids):
             raise_missed_pickup_ticket(stop)
+    return count
+
+
+def _is_continuation(assignment):
+    """True for a trip opened by a Re-Trip approval or a breakdown
+    replacement, i.e. one carrying another trip's leftover stops."""
+    return (
+        TripRetripRequest.objects.filter(
+            new_assignment_id=assignment.unique_id,
+            status=TripRetripRequest.STATUS_APPROVED,
+            is_deleted=False,
+        ).exists()
+        or VehicleBreakdown.objects.filter(
+            new_assignment=assignment.unique_id, is_deleted=False
+        ).exists()
+    )
+
+
+@transaction.atomic
+def _cancel_unstarted_continuation(assignment):
+    """A continuation nobody started on its own day: its carried stops would
+    otherwise sit Pending forever, since a `Scheduled` trip is never closed
+    as Completed. Mark them Missed and cancel the trip — it never ran."""
+    count = _miss_unresolved_stops(assignment, CONTINUATION_STOP_REASON)
+    remark = CONTINUATION_REMARK.format(count=count)
+    assignment.remarks = (
+        f"{assignment.remarks}\n{remark}" if assignment.remarks else remark
+    )
+    assignment.status = DailyTripAssignment.STATUS_CANCELLED
+    assignment.save(update_fields=["remarks", "status", "updated_at"])
+    return count
+
+
+@transaction.atomic
+def _close_one(assignment):
+    count = _miss_unresolved_stops(assignment, STOP_REASON)
 
     remark = TRIP_REMARK.format(count=count)
     assignment.remarks = (
@@ -147,8 +200,26 @@ def close_stale_trips(today=None, log=None):
             log.exception("Could not auto-close trip %s", assignment.unique_id)
             failed.append(assignment.unique_id)
 
+    unstarted = DailyTripAssignment.objects.filter(
+        trip_date__lt=today,
+        status=DailyTripAssignment.STATUS_SCHEDULED,
+        actual_start_at__isnull=True,
+        is_deleted=False,
+    ).order_by("trip_date", "unique_id")
+    cancelled = []
+    for assignment in unstarted:
+        try:
+            if not _is_continuation(assignment):
+                continue
+            stops_missed += _cancel_unstarted_continuation(assignment)
+            cancelled.append(assignment.unique_id)
+        except Exception:
+            log.exception("Could not cancel continuation %s", assignment.unique_id)
+            failed.append(assignment.unique_id)
+
     result = {
         "closed": closed,
+        "cancelled_continuations": cancelled,
         "skipped_pending_decision": skipped,
         "failed": failed,
         "stops_marked_missed": stops_missed,

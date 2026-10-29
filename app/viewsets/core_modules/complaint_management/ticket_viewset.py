@@ -8,6 +8,8 @@ notifications go through this project's `staff_notification_service`
 (in-app only — no push-to-citizen-device yet).
 """
 
+import datetime
+
 from django.contrib.auth import get_user_model
 from django.db import models, transaction
 from django.utils import timezone
@@ -19,6 +21,7 @@ from app.models.core_modules.complaint_management import (
     ComplaintAttachment,
     ComplaintComment,
     ComplaintFeedback,
+    ComplaintPriority,
     ComplaintReopenHistory,
     ComplaintStatus,
     ComplaintStatusHistory,
@@ -261,6 +264,30 @@ class ComplaintTicketViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedVi
             source = (params.get("source") or "").strip()
             if source:
                 qs = qs.filter(source_id=source)
+
+            # Comma-separated priority codes, e.g. ?priority=P1,P2.
+            priority_codes = [c.strip() for c in (params.get("priority") or "").split(",") if c.strip()]
+            if priority_codes:
+                qs = qs.filter(
+                    priority_id__in=ComplaintPriority.objects.filter(
+                        priority_code__in=priority_codes
+                    ).values("unique_id")
+                )
+            # ?created_on=today or YYYY-MM-DD, as a local-day range. Not
+            # `created__date`: on MySQL that needs the server's tz tables
+            # loaded and silently matches nothing without them.
+            created_on = (params.get("created_on") or "").strip()
+            if created_on:
+                try:
+                    day = (
+                        timezone.localdate()
+                        if created_on == "today"
+                        else datetime.date.fromisoformat(created_on)
+                    )
+                    start = timezone.make_aware(datetime.datetime.combine(day, datetime.time.min))
+                    qs = qs.filter(created__gte=start, created__lt=start + datetime.timedelta(days=1))
+                except ValueError:
+                    pass
 
             status_code = params.get("status")
             if status_code:

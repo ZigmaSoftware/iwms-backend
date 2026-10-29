@@ -25,15 +25,15 @@ class Ward(BaseMaster):
         editable=False
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     state_id = models.CharField(max_length=30, null=True, blank=True)
     district_id = models.CharField(max_length=30, null=True, blank=True)
     city_id = models.CharField(max_length=30, null=True, blank=True)
 
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     ward_name = models.CharField(max_length=100)
     description = models.TextField(null=True, blank=True)

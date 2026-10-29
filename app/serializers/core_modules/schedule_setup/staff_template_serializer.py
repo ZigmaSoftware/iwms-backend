@@ -6,6 +6,14 @@ from app.serializers.superadmin.staff_management.user_serializer import UniqueId
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+from app.utils.related_prefetch import prefetching_list_serializer, related
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "driver": (Staffcreation, "driver_id", "staff_unique_id"),
+    "operator": (Staffcreation, "operator_id", "staff_unique_id"),
+}
 
 
 class CommaSeparatedListField(serializers.ListField):
@@ -44,8 +52,8 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     )
 
 
-    driver_name = serializers.CharField(source="driver.employee_name", read_only=True)
-    operator_name = serializers.CharField(source="operator.employee_name", read_only=True)
+    driver_name = serializers.SerializerMethodField()
+    operator_name = serializers.SerializerMethodField()
 
     extra_operator_id = CommaSeparatedListField(
         child=serializers.CharField(),
@@ -61,6 +69,18 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
 
     def get_is_assigned_today(self, obj):
         return bool(getattr(obj, "is_assigned_today", False))
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
+
+    def get_driver_name(self, obj):
+        return getattr(related(obj, "driver"), "employee_name", None)
+
+    def get_operator_name(self, obj):
+        return getattr(related(obj, "operator"), "employee_name", None)
 
     class Meta:
         model = StaffTemplate
@@ -112,3 +132,4 @@ class StaffTemplateSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "created_by_name",
             "updated_by_name",
         ]
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)

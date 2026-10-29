@@ -4,7 +4,13 @@ from app.models.superadmin.common_masters.state import State
 from app.models.superadmin.common_masters.country import Country
 from app.models.superadmin.common_masters.continent import Continent
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.utils.related_prefetch import prefetching_list_serializer, related
 from app.validators.unique_name_validator import unique_name_validator
+RELATED_LOOKUPS = {
+    "continent": (Continent, "continent_id"),
+    "country": (Country, "country_id"),
+}
+
 
 class StateSerializer( serializers.ModelSerializer):
     # Accept/return "India" rather than the country's unique_id — scoped to
@@ -30,6 +36,7 @@ class StateSerializer( serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["unique_id"]
         validators = []
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
 
     def validate(self, attrs):
         return unique_name_validator(
@@ -38,11 +45,11 @@ class StateSerializer( serializers.ModelSerializer):
         )(self, attrs)
 
     def get_continent_name(self, obj):
-        continent = Continent.objects.filter(unique_id=obj.continent_id).first()
+        continent = related(obj, "continent", Continent, "continent_id")
         return continent.name if continent else None
 
     def get_country_name(self, obj):
-        country = Country.objects.filter(unique_id=obj.country_id).first()
+        country = related(obj, "country", Country, "country_id")
         return country.name if country else None
 
     def get_continent_unique_id(self, obj):

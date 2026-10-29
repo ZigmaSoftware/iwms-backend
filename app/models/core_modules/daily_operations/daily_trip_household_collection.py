@@ -52,8 +52,8 @@ class DailyTripHouseholdCollection(BaseMaster):
         editable=False,
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     trip_assignment_id = models.CharField(max_length=50, null=True, blank=True)
 
@@ -62,9 +62,9 @@ class DailyTripHouseholdCollection(BaseMaster):
     # Filled when the WasteCollection record is saved for this customer + trip
     waste_collection_id = models.CharField(max_length=30, null=True, blank=True)
 
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     collection_type = models.CharField(
         max_length=30,

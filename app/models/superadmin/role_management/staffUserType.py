@@ -9,8 +9,8 @@ def generate_staff_usertype_id():
 
 
 class StaffUserType(BaseMaster):
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     STAFF_ROLE_CHOICES = [
         ("company_admin", "Company Admin"),

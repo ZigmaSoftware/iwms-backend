@@ -3,9 +3,42 @@ from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.core_modules.daily_operations.wastecollection import WasteCollection
 from app.models.masters.customer_masters.customercreation import CustomerCreation
 from app.models.masters.ward import Ward
+from app.models.masters.zone import Zone
+from app.models.masters.city import City
+from app.models.masters.district import District
+from app.models.masters.panchayat import Panchayat
+from app.models.superadmin.common_masters.state import State
+from app.models.superadmin.common_masters.country import Country
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.utils.related_prefetch import cached_related, prefetch_related_rows, related
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "customer": (CustomerCreation, "customer_id"),
+    "ward": (Ward, "ward_id"),
+}
+
+CUSTOMER_LOOKUPS = {
+    "zone": (Zone, "zone_id"),
+    "city": (City, "city_id"),
+    "district": (District, "district_id"),
+    "state": (State, "state_id"),
+    "country": (Country, "country_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+}
+
+
+class WasteCollectionListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        instances = list(data.all() if hasattr(data, "all") else data)
+        rows = prefetch_related_rows(instances, RELATED_LOOKUPS)
+        prefetch_related_rows(list(rows["customer"].values()), CUSTOMER_LOOKUPS)
+        return super().to_representation(instances)
 
 
 class CustomerField(serializers.Field):
@@ -82,41 +115,52 @@ class WasteCollectionSerializer(TenancyReadSerializerMixin, serializers.ModelSer
         extra_kwargs = {
             "customer": {"write_only": True},
         }
+        list_serializer_class = WasteCollectionListSerializer
+
+    def get_company_name(self, obj):
+        if not isinstance(getattr(obj, "company_id", None), str):
+            return super().get_company_name(obj)
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        if not isinstance(getattr(obj, "project_id", None), str):
+            return super().get_project_name(obj)
+        return getattr(related(obj, "project"), "name", None)
 
     def get_ward_name(self, obj):
-        ward = obj.ward
+        ward = related(obj, "ward")
         return ward.ward_name if ward else None
 
     def get_customer_name(self, obj):
-        customer = obj.customer
+        customer = cached_related(obj, "customer")
         return customer.customer_name if customer else None
 
     def get_zone_name(self, obj):
-        customer = obj.customer
-        zone = customer.zone if customer else None
+        customer = cached_related(obj, "customer")
+        zone = related(customer, "zone") if customer else None
         return zone.zone_name if zone else None
 
     def get_city_name(self, obj):
-        customer = obj.customer
-        city = customer.city if customer else None
+        customer = cached_related(obj, "customer")
+        city = related(customer, "city") if customer else None
         return city.name if city else None
 
     def get_district_name(self, obj):
-        customer = obj.customer
-        district = customer.district if customer else None
+        customer = cached_related(obj, "customer")
+        district = related(customer, "district") if customer else None
         return district.name if district else None
 
     def get_state_name(self, obj):
-        customer = obj.customer
-        state = customer.state if customer else None
+        customer = cached_related(obj, "customer")
+        state = related(customer, "state") if customer else None
         return state.name if state else None
 
     def get_country_name(self, obj):
-        customer = obj.customer
-        country = customer.country if customer else None
+        customer = cached_related(obj, "customer")
+        country = related(customer, "country") if customer else None
         return country.name if country else None
 
     def get_panchayat_name(self, obj):
-        customer = obj.customer
-        panchayat = customer.panchayat if customer else None
+        customer = cached_related(obj, "customer")
+        panchayat = related(customer, "panchayat") if customer else None
         return panchayat.panchayat_name if panchayat else None

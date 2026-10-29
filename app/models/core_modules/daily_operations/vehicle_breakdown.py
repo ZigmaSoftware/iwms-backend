@@ -65,7 +65,7 @@ class VehicleBreakdown(BaseMaster):
 
     # ── Tenancy ─────────────────────────────────────────────────────
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # ── Trip Reference ───────────────────────────────────────────────
     trip_assignment_id = models.CharField(max_length=50, null=True, blank=True)
@@ -85,6 +85,9 @@ class VehicleBreakdown(BaseMaster):
 
     # ── Continuation trip created on verify (mirrors TripRetripRequest.new_assignment) ──
     new_assignment = models.CharField(max_length=50, null=True, blank=True)
+    # The broken vehicle's other not-yet-started trips that /verify/ moved
+    # onto the replacement vehicle.
+    moved_assignment_ids = models.JSONField(default=list, blank=True)
 
     # ── Breakdown Details ─────────────────────────────────────────────
     breakdown_time = models.TimeField(null=True, blank=True)
@@ -119,6 +122,12 @@ class VehicleBreakdown(BaseMaster):
     approved_at = models.DateTimeField(null=True, blank=True)
     rejection_remarks = models.TextField(null=True, blank=True)
 
+    # ── Repair (vehicle back in service) ──────────────────────────────
+    # Set by /mark-repaired/; until then the broken vehicle stays BREAKDOWN.
+    repaired_at = models.DateTimeField(null=True, blank=True)
+    repaired_by = models.CharField(max_length=30, null=True, blank=True)
+    repair_remarks = models.TextField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -139,6 +148,16 @@ class VehicleBreakdown(BaseMaster):
 
     def __str__(self):
         return self.unique_id
+
+    @classmethod
+    def open_for_vehicle(cls, vehicle_id):
+        """Breakdowns still keeping `vehicle_id` out of service: not deleted,
+        not rejected and not yet repaired."""
+        return cls.objects.filter(
+            breakdown_vehicle_id=vehicle_id,
+            is_deleted=False,
+            repaired_at__isnull=True,
+        ).exclude(status=cls.STATUS_REJECTED)
 
     @property
     def company(self):
@@ -209,6 +228,29 @@ class VehicleBreakdown(BaseMaster):
         if self.approved_by:
             return StaffcreationOfficeDetails.objects.filter(staff_unique_id=self.approved_by).first()
         return None
+
+
+def sync_vehicle_operational_status(vehicle_id):
+    """BREAKDOWN while the vehicle has an open breakdown, ACTIVE otherwise.
+    Recomputed from the breakdown rows so several breakdowns on one vehicle
+    (or a rejected/deleted one) never leave it in the wrong state."""
+    from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+
+    if not vehicle_id:
+        return
+    new_status = (
+        VehicleCreation.OperationalStatus.BREAKDOWN
+        if VehicleBreakdown.open_for_vehicle(vehicle_id).exists()
+        else VehicleCreation.OperationalStatus.ACTIVE
+    )
+    VehicleCreation.objects.filter(unique_id=vehicle_id).exclude(
+        operational_status=new_status,
+    ).update(operational_status=new_status, updated_at=timezone.now())
+    if new_status == VehicleCreation.OperationalStatus.ACTIVE:
+        from app.services.vehicle_substitution import end_for_repaired_vehicle
+
+        # Its trip plans go back to it from the next generated trip.
+        end_for_repaired_vehicle(vehicle_id)
 
 
 def vehicle_breakdown_photo_upload_path(instance, filename):

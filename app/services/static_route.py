@@ -41,6 +41,7 @@ from app.models.core_modules.daily_operations.route_detour_waypoint import Route
 from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
 from app.models.core_modules.schedule_setup.trip_plan_static_route import TripPlanStaticRoute
 from app.services.openroute_service import OpenRouteServiceError, route_stops
+from app.utils.related_prefetch import prefetch_related_rows, related
 
 PLANT_START_KEY = "plant:start"
 PLANT_END_KEY = "plant:end"
@@ -182,18 +183,14 @@ def plan_route_stops(plan, ward_ids=None):
     return _finalize(groups, plan.project_id)
 
 
-def _daily_groups(assignment):
-    """Ordered stop groups built from the assignment's own daily rows, each
-    carrying that day's status. Used on its own for trips without a plan,
-    and as the status overlay for trips with one."""
+def _daily_groups(bin_stops, household_stops):
+    """Ordered stop groups built from an assignment's own daily rows (bin
+    stops and household stops, each in sequence order), each carrying that
+    day's status. Used on its own for trips without a plan, and as the
+    status overlay for trips with one."""
     groups = {}
-    bin_stops = (
-        DailyTripCollectionPoint.objects
-        .filter(trip_assignment_id=assignment.unique_id, is_deleted=False)
-        .order_by("sequence")
-    )
     for stop in bin_stops:
-        cp = stop.collection_point
+        cp = related(stop, "collection_point")
         location = _location(cp)
         if not location:
             continue
@@ -205,16 +202,11 @@ def _daily_groups(assignment):
             "longitude": location[1],
             "bins": [],
         })
-        bin_obj = stop.bin
+        bin_obj = related(stop, "bin")
         group["bins"].append(f"{bin_obj.bin_name if bin_obj else stop.bin_id} ({stop.status})")
 
-    household_stops = (
-        DailyTripHouseholdCollection.objects
-        .filter(trip_assignment_id=assignment.unique_id, is_deleted=False)
-        .order_by("sequence")
-    )
     for stop in household_stops:
-        customer = stop.customer
+        customer = related(stop, "customer")
         location = _location(customer)
         if not location:
             continue
@@ -672,50 +664,104 @@ def assignment_static_route(assignment):
     is returned unless the day has extra stops the plan doesn't (then the
     map re-routes through them).
     """
-    daily = _daily_groups(assignment)
+    return assignment_static_routes([assignment])[0]
 
-    plan = None
-    if assignment.trip_plan_id:
-        from app.models.core_modules.schedule_setup.trip_plan import TripPlan
 
-        plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id, is_deleted=False).first()
+def assignment_static_routes(assignments):
+    """`assignment_static_route` for many trips at once: their daily stops,
+    plans, saved copies and vehicles are read in one query per table, and a
+    plan shared by several trips has its route and detours built once."""
+    from app.models.core_modules.schedule_setup.collection_point import Collection_point
+    from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+    from app.models.masters.customer_masters.customercreation import CustomerCreation
+    from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+    from app.models.masters.waste_masters.bins import Bins
 
-    copy = DailyTripStaticRoute.objects.filter(
-        trip_assignment_id=assignment.unique_id, is_active=True, is_deleted=False,
-    ).first()
+    if not assignments:
+        return []
+    ids = [a.unique_id for a in assignments]
 
-    geometry = None
-    distance = duration = 0
-    plan_route_version = None
-    if copy:
-        source = "saved"
-        stops, has_extras = _with_day_status(copy.stops, daily)
-        plan_waypoints = copy.detour_waypoints
-        plan_route_version = copy.plan_route_version
-        if not has_extras:
-            geometry = copy.route_geojson
-            distance, duration = copy.distance_meters, copy.duration_seconds
-    elif plan:
-        source = "plan"
-        stops, _ = _with_day_status(
-            plan_route_stops(plan, ward_ids=assignment.get_ward_ids() or None), daily,
+    bin_stops = list(
+        DailyTripCollectionPoint.objects
+        .filter(trip_assignment_id__in=ids, is_deleted=False)
+        .order_by("trip_assignment_id", "sequence", "pk")
+    )
+    prefetch_related_rows(bin_stops, {
+        "collection_point": (Collection_point, "collection_point_id"),
+        "bin": (Bins, "bin_id"),
+    })
+    household_stops = list(
+        DailyTripHouseholdCollection.objects
+        .filter(trip_assignment_id__in=ids, is_deleted=False)
+        .order_by("trip_assignment_id", "sequence", "pk")
+    )
+    prefetch_related_rows(household_stops, {"customer": (CustomerCreation, "customer_id")})
+    bins_by_assignment, households_by_assignment = {}, {}
+    for stop in bin_stops:
+        bins_by_assignment.setdefault(stop.trip_assignment_id, []).append(stop)
+    for stop in household_stops:
+        households_by_assignment.setdefault(stop.trip_assignment_id, []).append(stop)
+
+    plan_ids = {a.trip_plan_id for a in assignments if a.trip_plan_id}
+    plans = {
+        plan.unique_id: plan
+        for plan in TripPlan.objects.filter(unique_id__in=plan_ids, is_deleted=False)
+    } if plan_ids else {}
+    copies = {}
+    for copy in DailyTripStaticRoute.objects.filter(
+        trip_assignment_id__in=ids, is_active=True, is_deleted=False,
+    ):
+        copies.setdefault(copy.trip_assignment_id, copy)
+    prefetch_related_rows(assignments, {"vehicle": (VehicleCreation, "vehicle_id")})
+    plan_routes = {}
+    plan_waypoints_by_plan = {}
+
+    routes = []
+    for assignment in assignments:
+        daily = _daily_groups(
+            bins_by_assignment.get(assignment.unique_id, []),
+            households_by_assignment.get(assignment.unique_id, []),
         )
-        plan_waypoints = plan_detour_waypoints(plan.unique_id)
-    else:
-        source = "trip"
-        stops = _finalize(list(daily.values()), assignment.project_id)
-        plan_waypoints = []
+        plan = plans.get(assignment.trip_plan_id) if assignment.trip_plan_id else None
+        copy = copies.get(assignment.unique_id)
 
-    return {
-        "trip_assignment_id": assignment.unique_id,
-        "trip_plan_id": assignment.trip_plan_id,
-        "trip_date": assignment.trip_date,
-        "vehicle_no": getattr(assignment.vehicle, "vehicle_no", None),
-        "route_source": source,
-        "plan_route_version": plan_route_version,
-        "stops": stops,
-        "detour_waypoints": plan_waypoints,
-        "route_geojson": geometry,
-        "distance_meters": distance,
-        "duration_seconds": duration,
-    }
+        geometry = None
+        distance = duration = 0
+        plan_route_version = None
+        if copy:
+            source = "saved"
+            stops, has_extras = _with_day_status(copy.stops, daily)
+            plan_waypoints = copy.detour_waypoints
+            plan_route_version = copy.plan_route_version
+            if not has_extras:
+                geometry = copy.route_geojson
+                distance, duration = copy.distance_meters, copy.duration_seconds
+        elif plan:
+            source = "plan"
+            ward_ids = assignment.get_ward_ids() or None
+            route_key = (plan.unique_id, tuple(ward_ids) if ward_ids else None)
+            if route_key not in plan_routes:
+                plan_routes[route_key] = plan_route_stops(plan, ward_ids=ward_ids)
+            stops, _ = _with_day_status(plan_routes[route_key], daily)
+            if plan.unique_id not in plan_waypoints_by_plan:
+                plan_waypoints_by_plan[plan.unique_id] = plan_detour_waypoints(plan.unique_id)
+            plan_waypoints = plan_waypoints_by_plan[plan.unique_id]
+        else:
+            source = "trip"
+            stops = _finalize(list(daily.values()), assignment.project_id)
+            plan_waypoints = []
+
+        routes.append({
+            "trip_assignment_id": assignment.unique_id,
+            "trip_plan_id": assignment.trip_plan_id,
+            "trip_date": assignment.trip_date,
+            "vehicle_no": getattr(related(assignment, "vehicle"), "vehicle_no", None),
+            "route_source": source,
+            "plan_route_version": plan_route_version,
+            "stops": stops,
+            "detour_waypoints": plan_waypoints,
+            "route_geojson": geometry,
+            "distance_meters": distance,
+            "duration_seconds": duration,
+        })
+    return routes

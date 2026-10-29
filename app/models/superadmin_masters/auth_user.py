@@ -62,8 +62,8 @@ class UserManager(BaseUserManager):
 
 class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # -----------------------------
     # Core User Identity
@@ -109,9 +109,9 @@ class User(BaseMaster, AbstractBaseUser, PermissionsMixin):
 
     city_id = models.CharField(max_length=30, null=True, blank=True)
 
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # -----------------------------
     # SYSTEM FIELDS

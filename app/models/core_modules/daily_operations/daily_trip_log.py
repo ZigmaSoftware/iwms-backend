@@ -50,9 +50,9 @@ class DailyTripLog(BaseMaster):
     alt_staff_template_id = models.CharField(max_length=50, null=True, blank=True)
 
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     collection_point_id = models.CharField(max_length=30, null=True, blank=True)
     waste_type_id = models.CharField(max_length=30, null=True, blank=True)
 

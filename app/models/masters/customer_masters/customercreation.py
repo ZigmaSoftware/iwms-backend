@@ -97,7 +97,7 @@ class CustomerCreation(BaseMaster):
     )
 
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # Which mobile app this customer signs in to. Customers only ever get the
     # citizen app, but the field is explicit so the creation form reads the
@@ -137,8 +137,8 @@ class CustomerCreation(BaseMaster):
     street = models.CharField(max_length=100, null=True, blank=True)
     area = models.CharField(max_length=50, null=True, blank=True)
 
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     city_id = models.CharField(max_length=30, null=True, blank=True)
     district_id = models.CharField(max_length=30, null=True, blank=True)
     state_id = models.CharField(max_length=30, null=True, blank=True)
@@ -178,7 +178,7 @@ class CustomerCreation(BaseMaster):
     # COMMON QR GROUP ID
     group_qr_id = models.CharField(max_length=100, null=True, blank=True)
 
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     sqft = models.DecimalField(
         max_digits=10,

@@ -78,7 +78,7 @@ class TripDelayReport(BaseMaster):
     )
 
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # Plain reference, NOT OneToOne: a trip can be delayed more than once.
     trip_assignment_id = models.CharField(max_length=30)

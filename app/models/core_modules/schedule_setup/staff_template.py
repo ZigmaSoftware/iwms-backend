@@ -29,8 +29,8 @@ class StaffTemplate(BaseMaster):
 
     # ---------------- OPERATOR ROLE ----------------
     operator_id = models.CharField(max_length=30, null=True, blank=True)
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     extra_operator_id = models.JSONField(
         default=list,

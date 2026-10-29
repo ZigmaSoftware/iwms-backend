@@ -27,16 +27,16 @@ class Bins(BaseMaster):
         editable=False
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     collection_point_id = models.CharField(max_length=30, null=True, blank=True)
 
     district_id = models.CharField(max_length=30, null=True, blank=True)
     city_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     wastetype_id = models.CharField(max_length=30, null=True, blank=True)
 

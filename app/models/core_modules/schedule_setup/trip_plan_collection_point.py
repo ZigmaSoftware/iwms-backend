@@ -32,8 +32,8 @@ class TripPlanCollectionPoint(BaseMaster):
 
     trip_plan_id = models.CharField(max_length=30, null=True, blank=True)
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     collection_type = models.CharField(
         max_length=30,
@@ -49,9 +49,9 @@ class TripPlanCollectionPoint(BaseMaster):
     # --- Household/Bulk Collection fields (required when collection_type == household_collection or bulk_waste_collection) ---
     customer_id = models.CharField(max_length=30, null=True, blank=True)
 
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     sequence = models.PositiveIntegerField(
         help_text="Visit order within the route.",
     )
