@@ -8,8 +8,8 @@ def generate_login_id():
 
 
 class AuditLog(models.Model):
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # -------------------------------------------------
     # PRIMARY IDENTIFIER

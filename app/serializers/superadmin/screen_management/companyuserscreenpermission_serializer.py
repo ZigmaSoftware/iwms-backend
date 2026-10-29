@@ -19,9 +19,24 @@ from app.models.masters.city import City
 from app.models.masters.zone import Zone
 from app.models.masters.panchayat import Panchayat
 from app.models.masters.ward import Ward
+from app.utils.related_prefetch import prefetching_list_serializer, related
 
 
 SUPPORTED_ACTION_NAMES = {"add", "edit", "delete", "view", "use", "import", "export"}
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "mainscreen": (MainScreen, "mainscreen_id"),
+    "userscreen": (UserScreen, "userscreen_id"),
+    "userscreenaction": (UserScreenAction, "userscreenaction_id"),
+    "state": (State, "state_id"),
+    "district": (District, "district_id"),
+    "city": (City, "city_id"),
+    "zone": (Zone, "zone_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+    "ward": (Ward, "ward_id"),
+}
 
 
 class CompanyUserScreenPermissionSerializer(serializers.ModelSerializer):
@@ -40,49 +55,50 @@ class CompanyUserScreenPermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanyUserScreenPermission
         fields = "__all__"
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
 
     def get_userscreen_name(self, obj):
-        userscreen = obj.userscreen
+        userscreen = related(obj, "userscreen")
         return userscreen.userscreen_name if userscreen else None
 
     def get_userscreenaction_name(self, obj):
-        userscreenaction = obj.userscreenaction
+        userscreenaction = related(obj, "userscreenaction")
         return userscreenaction.action_name if userscreenaction else None
 
     def get_mainscreen_name(self, obj):
-        mainscreen = obj.mainscreen
+        mainscreen = related(obj, "mainscreen")
         return mainscreen.mainscreen_name if mainscreen else None
 
     def get_company_name(self, obj):
-        company = obj.company
+        company = related(obj, "company")
         return company.name if company else None
 
     def get_project_name(self, obj):
-        project = obj.project
+        project = related(obj, "project")
         return project.name if project else None
 
     def get_state_name(self, obj):
-        state = obj.state
+        state = related(obj, "state")
         return state.name if state else None
 
     def get_district_name(self, obj):
-        district = obj.district
+        district = related(obj, "district")
         return district.name if district else None
 
     def get_city_name(self, obj):
-        city = obj.city
+        city = related(obj, "city")
         return city.name if city else None
 
     def get_zone_name(self, obj):
-        zone = obj.zone
+        zone = related(obj, "zone")
         return zone.zone_name if zone else None
 
     def get_panchayat_name(self, obj):
-        panchayat = obj.panchayat
+        panchayat = related(obj, "panchayat")
         return panchayat.panchayat_name if panchayat else None
 
     def get_ward_name(self, obj):
-        ward = obj.ward
+        ward = related(obj, "ward")
         return ward.ward_name if ward else None
 
 

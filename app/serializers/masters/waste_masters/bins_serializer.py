@@ -9,7 +9,22 @@ from app.models.masters.ward import Ward
 from app.models.masters.zone import Zone
 from app.models.core_modules.schedule_setup.collection_point import Collection_point
 from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+from app.utils.related_prefetch import prefetching_list_serializer, related
 from app.validators.unique_name_validator import unique_name_validator
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "district": (District, "district_id"),
+    "city": (City, "city_id"),
+    "wastetype": (WasteType, "wastetype_id"),
+    "collection_point": (Collection_point, "collection_point_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+    "zone": (Zone, "zone_id"),
+    "ward": (Ward, "ward_id"),
+}
 
 class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
 
@@ -94,33 +109,40 @@ class BinsSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
             "latitude": {"required": False, "allow_null": True},
             "longitude": {"required": False, "allow_null": True},
         }
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
 
     def get_district_name(self, obj):
-        district = District.objects.filter(unique_id=obj.district_id).first()
+        district = related(obj, "district", District, "district_id")
         return district.name if district else None
 
     def get_city_name(self, obj):
-        city = City.objects.filter(unique_id=obj.city_id).first()
+        city = related(obj, "city", City, "city_id")
         return city.name if city else None
 
     def get_wastetype_name(self, obj):
-        waste_type = WasteType.objects.filter(unique_id=obj.wastetype_id).first()
+        waste_type = related(obj, "wastetype", WasteType, "wastetype_id")
         return waste_type.waste_type_name if waste_type else None
 
     def get_collection_point_name(self, obj):
-        cp = Collection_point.objects.filter(unique_id=obj.collection_point_id).first()
+        cp = related(obj, "collection_point", Collection_point, "collection_point_id")
         return cp.cp_name if cp else None
 
     def get_panchayat_name(self, obj):
-        panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
+        panchayat = related(obj, "panchayat", Panchayat, "panchayat_id")
         return panchayat.panchayat_name if panchayat else None
 
     def get_zone_name(self, obj):
-        zone = Zone.objects.filter(unique_id=obj.zone_id).first()
+        zone = related(obj, "zone", Zone, "zone_id")
         return zone.zone_name if zone else None
 
     def get_ward_name(self, obj):
-        ward = Ward.objects.filter(unique_id=obj.ward_id).first()
+        ward = related(obj, "ward", Ward, "ward_id")
         return ward.ward_name if ward else None
 
 

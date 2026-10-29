@@ -19,6 +19,229 @@ from app.signals.trip_plan_signals import sync_daily_assignment_stops_from_plan
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.utils.related_prefetch import prefetch_related_rows, related
+from app.models.masters.city import City
+from app.models.masters.district import District
+from app.models.masters.zone import Zone
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+
+ASSIGNMENT_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "trip_plan": (TripPlan, "trip_plan_id"),
+    "staff_template": (StaffTemplate, "staff_template_id"),
+    "alt_staff_template": (AlternativeStaffTemplate, "alt_staff_template_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+    "vehicle": (VehicleCreation, "vehicle_id"),
+}
+PLAN_LOOKUPS = {
+    "staff_template": (StaffTemplate, "staff_template_id"),
+    "zone": (Zone, "zone_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+    "vehicle": (VehicleCreation, "vehicle_id"),
+    "waste_type": (WasteType, "waste_type_id"),
+}
+CREW_LOOKUPS = {
+    "driver": (Staffcreation, "driver_id", "staff_unique_id"),
+    "operator": (Staffcreation, "operator_id", "staff_unique_id"),
+}
+AREA_LOOKUPS = {
+    "district": (District, "district_id"),
+    "city": (City, "city_id"),
+}
+WARD_LOOKUPS = {"zone": (Zone, "zone_id")}
+STOP_LOOKUPS = {
+    "collection_point": (Collection_point, "collection_point_id"),
+    "bin": (Bins, "bin_id"),
+    "collected_by_user": (Staffcreation, "collected_by", "staff_unique_id"),
+}
+BIN_LOOKUPS = {"wastetype": (WasteType, "wastetype_id")}
+LOG_LOOKUPS = {
+    **CREW_LOOKUPS,
+    "vehicle": (VehicleCreation, "vehicle_id"),
+}
+RETRIP_LOOKUPS = {
+    "requested_by": (Staffcreation, "requested_by_id", "staff_unique_id"),
+    "reviewed_by": (Staffcreation, "reviewed_by_id", "staff_unique_id"),
+}
+BREAKDOWN_LOOKUPS = {
+    "breakdown_vehicle": (VehicleCreation, "breakdown_vehicle_id"),
+    "replacement_vehicle": (VehicleCreation, "replacement_vehicle_id"),
+    "replacement_driver": (Staffcreation, "replacement_driver_id", "staff_unique_id"),
+    "replacement_operator": (Staffcreation, "replacement_operator_id", "staff_unique_id"),
+}
+
+
+def _group(rows, key):
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(key(row), []).append(row)
+    return grouped
+
+
+def _cached(obj, name):
+    """(True, value) when the list serializer prefetched `name` for `obj`."""
+    cache = getattr(obj, "_dta_cache", None)
+    if cache is not None and name in cache:
+        return True, cache[name]
+    return False, None
+
+
+class DailyTripAssignmentListSerializer(serializers.ListSerializer):
+    """Loads every relation, stop, log, event and sibling the row serializer
+    reads in one query per table for the whole page, instead of ~50 per row."""
+
+    def to_representation(self, data):
+        from app.models.core_modules.daily_operations.daily_service_notice import DailyServiceNotice
+        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
+            DailyTripHouseholdCollection,
+        )
+        from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
+        from app.models.core_modules.daily_operations.trip_delay_report import TripDelayReport
+        from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
+        from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown
+        from app.models.core_modules.daily_operations.wastecollection import WasteCollection
+        from app.models.core_modules.schedule_setup.trip_plan_collection_point import (
+            TripPlanCollectionPoint,
+        )
+        from app.models.masters.customer_masters.customercreation import CustomerCreation
+
+        assignments = list(data.all() if hasattr(data, "all") else data)
+        if not assignments:
+            return super().to_representation(assignments)
+        ids = [a.unique_id for a in assignments]
+
+        rows = prefetch_related_rows(assignments, ASSIGNMENT_LOOKUPS)
+        plans = list(rows["trip_plan"].values())
+        plan_rows = prefetch_related_rows(plans, PLAN_LOOKUPS)
+
+        templates = list(rows["staff_template"].values()) + list(plan_rows["staff_template"].values())
+        prefetch_related_rows(templates + list(rows["alt_staff_template"].values()), CREW_LOOKUPS)
+
+        # Wards of every assignment and plan, kept in the query's row order as
+        # `obj.wards` would return them.
+        ward_ids = {wid for obj in assignments + plans for wid in obj.get_ward_ids()}
+        wards = list(Ward.objects.filter(unique_id__in=ward_ids)) if ward_ids else []
+        ward_rows = prefetch_related_rows(wards, WARD_LOOKUPS)
+        for obj in assignments + plans:
+            own = set(obj.get_ward_ids())
+            obj._wards_cache = [ward for ward in wards if ward.unique_id in own]
+
+        zones = list(plan_rows["zone"].values()) + list(ward_rows["zone"].values())
+        panchayats = list(rows["panchayat"].values()) + list(plan_rows["panchayat"].values())
+        prefetch_related_rows(zones + panchayats, AREA_LOOKUPS)
+
+        plan_ids = [plan.unique_id for plan in plans]
+        stop_types = {}
+        for plan_id, collection_type in TripPlanCollectionPoint.objects.filter(
+            trip_plan_id__in=plan_ids, is_deleted=False,
+        ).values_list("trip_plan_id", "collection_type"):
+            stop_types.setdefault(plan_id, set()).add(collection_type)
+        for plan in plans:
+            plan._stop_types_cache = stop_types.get(plan.unique_id, set())
+
+        waste_type_ids = {str(v) for a in assignments for v in (a.waste_type_ids or []) if v}
+        waste_type_ids |= {wid for a in assignments for wid in a.get_household_waste_type_ids()}
+        waste_type_ids |= {str(p.waste_type_id) for p in plans if p.waste_type_id}
+        waste_types = (
+            list(WasteType.objects.filter(unique_id__in=waste_type_ids, is_deleted=False))
+            if waste_type_ids else []
+        )
+
+        stops = list(
+            DailyTripCollectionPoint.objects.filter(
+                trip_assignment_id__in=ids, is_deleted=False,
+            ).order_by("sequence")
+        )
+        stop_rows = prefetch_related_rows(stops, STOP_LOOKUPS)
+        prefetch_related_rows(stop_rows["bin"].values(), BIN_LOOKUPS)
+        stops_by_assignment = _group(stops, lambda stop: stop.trip_assignment_id)
+
+        households = list(
+            DailyTripHouseholdCollection.objects.filter(
+                trip_assignment_id__in=ids, is_deleted=False,
+            ).order_by("sequence")
+        )
+        customer_ids = {stop.customer_id for stop in households if stop.customer_id}
+        customers = {
+            c.unique_id: c for c in CustomerCreation.objects.filter(unique_id__in=customer_ids)
+        } if customer_ids else {}
+        waste_collection_ids = {
+            stop.waste_collection_id for stop in households
+            if getattr(stop, "waste_collection_id", None)
+        }
+        waste_collections = {
+            w.unique_id: w for w in WasteCollection.objects.filter(unique_id__in=waste_collection_ids)
+        } if waste_collection_ids else {}
+        households_by_assignment = _group(households, lambda stop: stop.trip_assignment_id)
+
+        logs = list(DailyTripLog.objects.filter(trip_assignment_id__in=ids, is_deleted=False))
+        prefetch_related_rows(logs, LOG_LOOKUPS)
+        logs_by_assignment = _group(logs, lambda log: log.trip_assignment_id)
+
+        delays_by_assignment = _group(
+            TripDelayReport.objects.filter(trip_assignment_id__in=ids, is_deleted=False),
+            lambda report: report.trip_assignment_id,
+        )
+        retrips = list(TripRetripRequest.objects.filter(assignment_id__in=ids))
+        continuations = list(TripRetripRequest.objects.filter(new_assignment_id__in=ids))
+        prefetch_related_rows(retrips, RETRIP_LOOKUPS)
+        retrips_by_assignment = _group(retrips, lambda request: request.assignment_id)
+        continuations_by_assignment = _group(continuations, lambda request: request.new_assignment_id)
+
+        breakdowns = list(VehicleBreakdown.objects.filter(trip_assignment_id__in=ids, is_deleted=False))
+        prefetch_related_rows(breakdowns, BREAKDOWN_LOOKUPS)
+        breakdowns_by_assignment = _group(breakdowns, lambda bd: bd.trip_assignment_id)
+
+        # Notices and same-day siblings are keyed on trip_plan_id; a missing
+        # plan id falls back to the per-row lookup (it matches NULL there).
+        planned = [a for a in assignments if a.trip_plan_id]
+        planned_plan_ids = {a.trip_plan_id for a in planned}
+        trip_dates = {a.trip_date for a in planned}
+        notices = {}
+        siblings = {}
+        if planned:
+            for notice in DailyServiceNotice.objects.filter(
+                trip_plan_id__in=planned_plan_ids,
+                service_date__in=trip_dates,
+                status=DailyServiceNotice.STATUS_ACTIVE,
+                is_deleted=False,
+            ):
+                notices.setdefault((notice.trip_plan_id, notice.service_date), notice)
+            for plan_id, trip_date, unique_id in (
+                DailyTripAssignment.objects.filter(
+                    trip_plan_id__in=planned_plan_ids,
+                    trip_date__in=trip_dates,
+                    is_deleted=False,
+                )
+                .order_by("created_at", "unique_id")
+                .values_list("trip_plan_id", "trip_date", "unique_id")
+            ):
+                siblings.setdefault((plan_id, trip_date), []).append(unique_id)
+
+        for a in assignments:
+            first_log = logs_by_assignment.get(a.unique_id)
+            first_breakdown = breakdowns_by_assignment.get(a.unique_id)
+            cache = {
+                "waste_types": waste_types,
+                "stops": stops_by_assignment.get(a.unique_id, []),
+                "households": households_by_assignment.get(a.unique_id, []),
+                "customers": customers,
+                "waste_collections": waste_collections,
+                "trip_log": first_log[0] if first_log else None,
+                "delays": delays_by_assignment.get(a.unique_id, []),
+                "retrips": retrips_by_assignment.get(a.unique_id, []),
+                "continuations": continuations_by_assignment.get(a.unique_id, []),
+                "breakdown": first_breakdown[0] if first_breakdown else None,
+            }
+            if a.trip_plan_id:
+                key = (a.trip_plan_id, a.trip_date)
+                cache["notice"] = notices.get(key)
+                cache["siblings"] = siblings.get(key, [])
+            a._dta_cache = cache
+
+        return super().to_representation(assignments)
 
 
 class DailyTripCollectionPointInlineSerializer(serializers.ModelSerializer):
@@ -50,7 +273,7 @@ class DailyTripCollectionPointInlineSerializer(serializers.ModelSerializer):
         ]
 
     def get_collection_point(self, obj):
-        cp = obj.collection_point
+        cp = related(obj, "collection_point")
         if not cp:
             return None
         return {
@@ -61,7 +284,7 @@ class DailyTripCollectionPointInlineSerializer(serializers.ModelSerializer):
         }
 
     def get_bin(self, obj):
-        bin_obj = obj.bin
+        bin_obj = related(obj, "bin")
         if not bin_obj:
             return None
         return {
@@ -72,7 +295,7 @@ class DailyTripCollectionPointInlineSerializer(serializers.ModelSerializer):
         }
 
     def get_collected_by_staff(self, obj):
-        staff = obj.collected_by_user
+        staff = related(obj, "collected_by_user")
         if not staff:
             return None
         return {
@@ -81,8 +304,9 @@ class DailyTripCollectionPointInlineSerializer(serializers.ModelSerializer):
         }
 
     def get_waste_type_name(self, obj):
-        bin_obj = obj.bin
-        return getattr(getattr(bin_obj, "wastetype", None), "waste_type_name", None)
+        bin_obj = related(obj, "bin")
+        wastetype = related(bin_obj, "wastetype") if bin_obj else None
+        return getattr(wastetype, "waste_type_name", None)
 
 
 class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -176,6 +400,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     )
     waste_types_detail = serializers.SerializerMethodField(read_only=True)
     vehicle = serializers.SerializerMethodField(read_only=True)
+    vehicle_under_breakdown = serializers.SerializerMethodField(read_only=True)
     collection_types = serializers.SerializerMethodField(read_only=True)
     collection_points = serializers.SerializerMethodField(read_only=True)
     household_collection_points = serializers.SerializerMethodField(read_only=True)
@@ -229,6 +454,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "zone",
             "waste_types",
             "vehicle",
+            "vehicle_under_breakdown",
             "collection_types",
             "collection_points",
             "household_collection_points",
@@ -253,6 +479,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "created_at",
             "updated_at",
         ]
+        list_serializer_class = DailyTripAssignmentListSerializer
         read_only_fields = [
             "unique_id",
             "actual_start_time",
@@ -266,24 +493,41 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "updated_at",
         ]
 
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
+
     def get_service_notice(self, obj):
         from app.services.daily_service_notice import (
             active_notice_for_plan,
             serialize_notice,
         )
 
-        return serialize_notice(
-            active_notice_for_plan(obj.trip_plan_id, obj.trip_date)
-        )
+        found, notice = _cached(obj, "notice")
+        if not found:
+            notice = active_notice_for_plan(obj.trip_plan_id, obj.trip_date)
+        return serialize_notice(notice)
 
     def get_trip_events(self, obj):
         from app.models.core_modules.daily_operations.trip_delay_report import TripDelayReport
         from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 
+        found, reports = _cached(obj, "delays")
+        if not found:
+            reports = TripDelayReport.objects.filter(
+                trip_assignment_id=obj.unique_id, is_deleted=False
+            )
+        found, requests = _cached(obj, "retrips")
+        if not found:
+            requests = TripRetripRequest.objects.filter(assignment_id=obj.unique_id)
+        found, sources = _cached(obj, "continuations")
+        if not found:
+            sources = TripRetripRequest.objects.filter(new_assignment_id=obj.unique_id)
+
         events = []
-        for report in TripDelayReport.objects.filter(
-            trip_assignment_id=obj.unique_id, is_deleted=False
-        ):
+        for report in reports:
             # unique_id + image let the supervisor app open this exact
             # report (photo, acknowledge/resolve) from the trip card alerts.
             events.append({"label": "Delay: " + report.get_delay_reason_display(),
@@ -291,18 +535,18 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
                            "status": report.status, "kind": "delay",
                            "unique_id": report.unique_id,
                            "image": absolute_image_url(self, report.evidence_image)})
-        for request in TripRetripRequest.objects.filter(assignment_id=obj.unique_id):
+        for request in requests:
             if request.is_deleted:
                 continue
             events.append({"label": "Re-Trip requested", "detail": request.reason,
                            "at": request.created_at, "status": request.status,
-                           "actor": getattr(request.requested_by, "employee_name", None)})
+                           "actor": getattr(related(request, "requested_by"), "employee_name", None)})
             if request.reviewed_at:
                 events.append({"label": "Re-Trip " + request.status.lower(),
                                "detail": request.review_remarks, "at": request.reviewed_at,
-                               "actor": getattr(request.reviewed_by, "employee_name", None),
+                               "actor": getattr(related(request, "reviewed_by"), "employee_name", None),
                                "related_trip_id": request.new_assignment_id})
-        for source in TripRetripRequest.objects.filter(new_assignment_id=obj.unique_id):
+        for source in sources:
             if not source.is_deleted:
                 events.append({"label": "Continuation of " + str(source.assignment_id),
                                "detail": source.review_remarks, "at": source.reviewed_at,
@@ -312,9 +556,11 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     def get_trip_log_summary(self, obj):
         from app.models.core_modules.daily_operations.daily_trip_log import DailyTripLog
 
-        log = DailyTripLog.objects.filter(
-            trip_assignment_id=obj.unique_id, is_deleted=False,
-        ).first()
+        found, log = _cached(obj, "trip_log")
+        if not found:
+            log = DailyTripLog.objects.filter(
+                trip_assignment_id=obj.unique_id, is_deleted=False,
+            ).first()
         if not log:
             return None
         return {
@@ -324,9 +570,9 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "verified_by": str(log.verified_by) if log.verified_by else None,
             "bin_weight_kg": log.collected_weight_kg,
             "customer_weight_kg": log.household_collected_weight_kg,
-            "driver": getattr(log.driver, "employee_name", None),
-            "operator": getattr(log.operator, "employee_name", None),
-            "vehicle_no": getattr(log.vehicle, "vehicle_no", None),
+            "driver": getattr(related(log, "driver"), "employee_name", None),
+            "operator": getattr(related(log, "operator"), "employee_name", None),
+            "vehicle_no": getattr(related(log, "vehicle"), "vehicle_no", None),
             "remarks": log.remarks,
         }
 
@@ -335,14 +581,25 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         return int(duration.total_seconds()) if duration is not None else None
 
     def get_trip_count(self, obj):
-        return obj.trip_count()
+        found, siblings = _cached(obj, "siblings")
+        if not found:
+            return obj.trip_count()
+        try:
+            return siblings.index(obj.unique_id) + 1
+        except ValueError:
+            return len(siblings) + 1
 
     def get_retrip_info(self, obj):
         from app.models.core_modules.daily_operations.trip_retrip_request import TripRetripRequest
 
-        latest = TripRetripRequest.objects.filter(
-            assignment_id=obj.unique_id, is_deleted=False
-        ).order_by("-created_at").first()
+        found, requests = _cached(obj, "retrips")
+        if found:
+            # Already in -created_at order (the model's ordering).
+            latest = next((r for r in requests if not r.is_deleted), None)
+        else:
+            latest = TripRetripRequest.objects.filter(
+                assignment_id=obj.unique_id, is_deleted=False
+            ).order_by("-created_at").first()
         if not latest:
             return None
         return {
@@ -358,9 +615,11 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             VehicleBreakdownPhoto,
         )
 
-        bd = VehicleBreakdown.objects.filter(
-            trip_assignment_id=obj.unique_id, is_deleted=False,
-        ).first()
+        found, bd = _cached(obj, "breakdown")
+        if not found:
+            bd = VehicleBreakdown.objects.filter(
+                trip_assignment_id=obj.unique_id, is_deleted=False,
+            ).first()
         if not bd:
             return None
         return {
@@ -370,10 +629,10 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "breakdown_reason": bd.breakdown_reason,
             "breakdown_time": str(bd.breakdown_time) if bd.breakdown_time else None,
             "breakdown_location": bd.breakdown_location,
-            "breakdown_vehicle_no": getattr(bd.breakdown_vehicle, "vehicle_no", None),
-            "replacement_vehicle_no": getattr(bd.replacement_vehicle, "vehicle_no", None),
-            "replacement_driver": getattr(bd.replacement_driver, "employee_name", None),
-            "replacement_operator": getattr(bd.replacement_operator, "employee_name", None),
+            "breakdown_vehicle_no": getattr(related(bd, "breakdown_vehicle"), "vehicle_no", None),
+            "replacement_vehicle_no": getattr(related(bd, "replacement_vehicle"), "vehicle_no", None),
+            "replacement_driver": getattr(related(bd, "replacement_driver"), "employee_name", None),
+            "replacement_operator": getattr(related(bd, "replacement_operator"), "employee_name", None),
             "new_assignment_id": bd.new_assignment,
             "photos": [
                 url
@@ -384,32 +643,55 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
 
     def get_trip_plan(self, obj):
         from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
-        plan = obj.trip_plan
+        plan = related(obj, "trip_plan")
         if not plan:
             return None
-        stop_types = list(
-            TripPlanCollectionPoint.objects.filter(
-                trip_plan_id=plan.unique_id, is_deleted=False,
-            ).values_list("collection_type", flat=True)
-        )
+        stop_types = self._plan_stop_types(plan)
+        staff_template = related(plan, "staff_template")
         return {
             "unique_id": plan.unique_id,
             "display_code": plan.display_code,
-            "staff_template_id": getattr(plan.staff_template, "unique_id", None),
-            "staff_template": self._staff_template_payload(plan.staff_template),
+            "staff_template_id": getattr(staff_template, "unique_id", None),
+            "staff_template": self._staff_template_payload(staff_template),
             "scheduled_time": plan.scheduled_time,
-            "zone": self._zone_payload(plan.zone),
-            "panchayat": self._panchayat_payload(plan.panchayat),
-            "wards": [self._ward_payload(w) for w in plan.wards],
-            "vehicle_no": getattr(plan.vehicle, "vehicle_no", None),
-            "waste_type_name": getattr(plan.waste_type, "waste_type_name", None),
+            "zone": self._zone_payload(related(plan, "zone")),
+            "panchayat": self._panchayat_payload(related(plan, "panchayat")),
+            "wards": [self._ward_payload(w) for w in self._wards(plan)],
+            "vehicle_no": getattr(related(plan, "vehicle"), "vehicle_no", None),
+            "waste_type_name": getattr(related(plan, "waste_type"), "waste_type_name", None),
             "waste_type_ids": plan.waste_type_ids or ([plan.waste_type_id] if plan.waste_type_id else []),
             "has_bin": TripPlanCollectionPoint.COLLECTION_TYPE_BIN in stop_types,
             "has_household": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD in stop_types,
         }
 
+    @staticmethod
+    def _plan_stop_types(plan):
+        from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
+
+        cached = getattr(plan, "_stop_types_cache", None)
+        if cached is not None:
+            return cached
+        return list(
+            TripPlanCollectionPoint.objects.filter(
+                trip_plan_id=plan.unique_id, is_deleted=False,
+            ).values_list("collection_type", flat=True)
+        )
+
+    @staticmethod
+    def _wards(obj):
+        cached = getattr(obj, "_wards_cache", None)
+        return cached if cached is not None else obj.wards
+
+    @staticmethod
+    def _first_ward(obj):
+        # Same row as `obj.wards.first()` (Ward's pk is unique_id).
+        cached = getattr(obj, "_wards_cache", None)
+        if cached is None:
+            return obj.wards.first()
+        return min(cached, key=lambda ward: ward.unique_id, default=None)
+
     def get_staff_template(self, obj):
-        return self._staff_template_payload(obj.staff_template)
+        return self._staff_template_payload(related(obj, "staff_template"))
 
     def _staff_template_payload(self, staff_template):
         if not staff_template:
@@ -417,73 +699,73 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         return {
             "unique_id": staff_template.unique_id,
             "display_code": staff_template.display_code,
-            "driver": getattr(staff_template.driver, "employee_name", None),
-            "operator": getattr(staff_template.operator, "employee_name", None),
+            "driver": getattr(related(staff_template, "driver"), "employee_name", None),
+            "operator": getattr(related(staff_template, "operator"), "employee_name", None),
         }
 
     def get_alt_staff_template(self, obj):
-        alt = obj.alt_staff_template
+        alt = related(obj, "alt_staff_template")
         if not alt:
             return None
         return {
             "unique_id": alt.unique_id,
             "display_code": alt.display_code,
-            "driver": getattr(alt.driver, "employee_name", None),
-            "operator": getattr(alt.operator, "employee_name", None),
+            "driver": getattr(related(alt, "driver"), "employee_name", None),
+            "operator": getattr(related(alt, "operator"), "employee_name", None),
             "from_date": str(alt.from_date),
             "to_date": str(alt.to_date),
         }
 
     def get_effective_staff(self, obj):
-        alt = obj.alt_staff_template
+        alt = related(obj, "alt_staff_template")
         if alt:
             return {
                 "source": "alternative",
                 "unique_id": alt.unique_id,
                 "display_code": alt.display_code,
-                "driver": getattr(alt.driver, "employee_name", None),
-                "operator": getattr(alt.operator, "employee_name", None),
+                "driver": getattr(related(alt, "driver"), "employee_name", None),
+                "operator": getattr(related(alt, "operator"), "employee_name", None),
                 "from_date": str(alt.from_date),
                 "to_date": str(alt.to_date),
             }
-        st = obj.staff_template
+        st = related(obj, "staff_template")
         if not st:
             return None
         return {
             "source": "base",
             "unique_id": st.unique_id,
             "display_code": st.display_code,
-            "driver": getattr(st.driver, "employee_name", None),
-            "operator": getattr(st.operator, "employee_name", None),
+            "driver": getattr(related(st, "driver"), "employee_name", None),
+            "operator": getattr(related(st, "operator"), "employee_name", None),
         }
 
     def get_panchayat(self, obj):
-        return self._panchayat_payload(obj.panchayat)
+        return self._panchayat_payload(related(obj, "panchayat"))
 
     def get_wards(self, obj):
-        return [self._ward_payload(w) for w in obj.wards]
+        return [self._ward_payload(w) for w in self._wards(obj)]
 
     def get_zone(self, obj):
-        plan = obj.trip_plan
-        plan_zone = plan.zone if plan else None
+        plan = related(obj, "trip_plan")
+        plan_zone = related(plan, "zone") if plan else None
         if plan_zone:
             return self._zone_payload(plan_zone)
         # Fall back to zone from this assignment's own wards
-        first_ward = obj.wards.first()
+        first_ward = self._first_ward(obj)
         if first_ward:
-            return self._zone_payload(first_ward.zone)
+            return self._zone_payload(related(first_ward, "zone"))
         # Fall back to zone from the trip plan's wards
         if plan:
-            first_plan_ward = plan.wards.first()
+            first_plan_ward = self._first_ward(plan)
             if first_plan_ward:
-                return self._zone_payload(first_plan_ward.zone)
+                return self._zone_payload(related(first_plan_ward, "zone"))
         return None
 
     def _panchayat_payload(self, panchayat):
         if not panchayat:
             return None
-        district = panchayat.district
-        city = panchayat.city
+        district = related(panchayat, "district")
+        city = related(panchayat, "city")
         return {
             "unique_id": panchayat.unique_id,
             "panchayat_name": panchayat.panchayat_name,
@@ -496,7 +778,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     def _ward_payload(self, ward):
         if not ward:
             return None
-        zone = ward.zone
+        zone = related(ward, "zone")
         return {
             "unique_id": ward.unique_id,
             "ward_name": ward.ward_name,
@@ -507,8 +789,8 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
     def _zone_payload(self, zone):
         if not zone:
             return None
-        district = zone.district
-        city = zone.city
+        district = related(zone, "district")
+        city = related(zone, "city")
         return {
             "unique_id": zone.unique_id,
             "zone_name": zone.zone_name,
@@ -520,8 +802,7 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
 
     def get_waste_types(self, obj):
         ids = obj.waste_type_ids or []
-        waste_types = WasteType.objects.filter(unique_id__in=ids, is_deleted=False)
-        by_id = {item.unique_id: item for item in waste_types}
+        by_id = {item.unique_id: item for item in self._waste_types(obj, ids)}
         return [
             {"unique_id": waste_type_id, "waste_type_name": getattr(by_id[waste_type_id], "waste_type_name", None)}
             for waste_type_id in ids
@@ -537,15 +818,21 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
         """
         from app.viewsets.operator_mobile.helpers import _assignment_waste_type_ids
 
-        ids = _assignment_waste_type_ids(obj)
+        found, _ = _cached(obj, "waste_types")
+        if found:
+            # _assignment_waste_type_ids, reading the prefetched plan.
+            ids = {str(v) for v in (obj.waste_type_ids or []) if v}
+            plan = related(obj, "trip_plan")
+            if plan and plan.waste_type_id:
+                ids.add(str(plan.waste_type_id))
+            ids = {i for i in ids if i}
+        else:
+            ids = _assignment_waste_type_ids(obj)
         if not ids:
             return []
         ordered = [str(v) for v in (obj.waste_type_ids or []) if str(v) in ids]
         ordered += sorted(ids - set(ordered))
-        by_id = {
-            wt.unique_id: wt
-            for wt in WasteType.objects.filter(unique_id__in=ids, is_deleted=False)
-        }
+        by_id = {wt.unique_id: wt for wt in self._waste_types(obj, ids)}
         return [
             {
                 "unique_id": waste_type_id,
@@ -555,15 +842,46 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             if waste_type_id in by_id
         ]
 
+    @staticmethod
+    def _waste_types(obj, ids):
+        """Non-deleted waste types among `ids`, in the query's row order."""
+        found, waste_types = _cached(obj, "waste_types")
+        if not found:
+            return WasteType.objects.filter(unique_id__in=ids, is_deleted=False)
+        ids = set(ids)
+        return [wt for wt in waste_types if wt.unique_id in ids]
+
+    def _vehicle(self, obj):
+        # `obj.vehicle` queries on every access; both fields below need it.
+        if not hasattr(obj, "_vehicle_row"):
+            obj._vehicle_row = related(obj, "vehicle")
+        return obj._vehicle_row
+
     def get_vehicle(self, obj):
-        vehicle = obj.vehicle
+        vehicle = self._vehicle(obj)
         if not vehicle:
             return None
-        return {"unique_id": vehicle.unique_id, "vehicle_no": vehicle.vehicle_no}
+        return {
+            "unique_id": vehicle.unique_id,
+            "vehicle_no": vehicle.vehicle_no,
+            "operational_status": vehicle.operational_status,
+        }
+
+    def get_vehicle_under_breakdown(self, obj):
+        """Not started yet and its vehicle is broken down — it cannot start
+        until it is moved to another vehicle or the vehicle is repaired.
+        Same rule as DailyTripAssignment.blocked_by_vehicle_breakdown()."""
+        vehicle = self._vehicle(obj)
+        return bool(
+            vehicle
+            and not obj.actual_start_at
+            and obj.status == DailyTripAssignment.STATUS_SCHEDULED
+            and vehicle.operational_status == VehicleCreation.OperationalStatus.BREAKDOWN
+        )
 
     def get_household_waste_types(self, obj):
         ids = obj.get_household_waste_type_ids()
-        waste_types = WasteType.objects.filter(unique_id__in=ids, is_deleted=False)
+        waste_types = self._waste_types(obj, ids)
         return [
             {"unique_id": wt.unique_id, "waste_type_name": getattr(wt, "waste_type_name", None)}
             for wt in waste_types
@@ -571,36 +889,41 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
 
     def get_collection_types(self, obj):
         from app.models.core_modules.schedule_setup.trip_plan_collection_point import TripPlanCollectionPoint
-        plan = obj.trip_plan
+        plan = related(obj, "trip_plan")
         if not plan:
             return {"has_bin": False, "has_household": False}
-        stops = TripPlanCollectionPoint.objects.filter(
-            trip_plan_id=plan.unique_id, is_deleted=False,
-        ).values_list("collection_type", flat=True)
+        stops = self._plan_stop_types(plan)
         return {
             "has_bin": TripPlanCollectionPoint.COLLECTION_TYPE_BIN in stops,
             "has_household": TripPlanCollectionPoint.COLLECTION_TYPE_HOUSEHOLD in stops,
         }
 
     def get_collection_points(self, obj):
-        stops = obj.trip_collection_points.filter(is_deleted=False).order_by("sequence")
+        found, stops = _cached(obj, "stops")
+        if not found:
+            stops = obj.trip_collection_points.filter(is_deleted=False).order_by("sequence")
         return DailyTripCollectionPointInlineSerializer(stops, many=True).data
 
     def get_household_collection_points(self, obj):
         from app.models.masters.customer_masters.customercreation import CustomerCreation
         from app.models.core_modules.daily_operations.wastecollection import WasteCollection
 
-        stops = obj.trip_household_collections.filter(is_deleted=False).order_by("sequence")
-        customer_ids = {stop.customer_id for stop in stops if stop.customer_id}
-        customers_by_id = {
-            c.unique_id: c
-            for c in CustomerCreation.objects.filter(unique_id__in=customer_ids)
-        }
-        waste_collection_ids = {stop.waste_collection_id for stop in stops if getattr(stop, "waste_collection_id", None)}
-        waste_collections_by_id = {
-            w.unique_id: w
-            for w in WasteCollection.objects.filter(unique_id__in=waste_collection_ids)
-        }
+        found, stops = _cached(obj, "households")
+        if found:
+            customers_by_id = obj._dta_cache["customers"]
+            waste_collections_by_id = obj._dta_cache["waste_collections"]
+        else:
+            stops = obj.trip_household_collections.filter(is_deleted=False).order_by("sequence")
+            customer_ids = {stop.customer_id for stop in stops if stop.customer_id}
+            customers_by_id = {
+                c.unique_id: c
+                for c in CustomerCreation.objects.filter(unique_id__in=customer_ids)
+            }
+            waste_collection_ids = {stop.waste_collection_id for stop in stops if getattr(stop, "waste_collection_id", None)}
+            waste_collections_by_id = {
+                w.unique_id: w
+                for w in WasteCollection.objects.filter(unique_id__in=waste_collection_ids)
+            }
         result = []
         for stop in stops:
             customer = customers_by_id.get(stop.customer_id)
@@ -778,7 +1101,15 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
 
         if trip_plan:
             attrs.setdefault("staff_template_id", trip_plan.staff_template_id)
-            attrs.setdefault("vehicle_id", trip_plan.vehicle)
+            if "vehicle_id" not in attrs:
+                from app.services.vehicle_substitution import vehicle_for_plan
+
+                # The plan's breakdown replacement vehicle, if it has one;
+                # otherwise its own (refused below when under breakdown).
+                substitute_id, _ = (
+                    vehicle_for_plan(trip_plan, trip_date) if trip_date else (None, None)
+                )
+                attrs["vehicle_id"] = substitute_id or trip_plan.vehicle
             attrs.setdefault("panchayat_id", trip_plan.panchayat)
             if "ward_ids" not in attrs:
                 plan_ward_ids = trip_plan.get_ward_ids()
@@ -852,6 +1183,26 @@ class DailyTripAssignmentSerializer(TenancyReadSerializerMixin, serializers.Mode
             "vehicle_id",
             getattr(instance, "vehicle_id", None),
         )
+
+        vehicle_id = vehicle.unique_id if hasattr(vehicle, "unique_id") else vehicle
+        # Only on create or a vehicle change — the trip the vehicle broke down
+        # on must stay editable so it can be closed out.
+        if (
+            vehicle_id
+            and (instance is None or vehicle_id != instance.vehicle_id)
+            and VehicleCreation.objects.filter(
+                unique_id=vehicle_id,
+                operational_status=VehicleCreation.OperationalStatus.BREAKDOWN,
+            ).exists()
+        ):
+            raise serializers.ValidationError(
+                {
+                    "vehicle_id": (
+                        "This vehicle is under breakdown. Set a replacement "
+                        "vehicle on the trip plan, or mark it repaired first."
+                    )
+                }
+            )
 
         if trip_date and (staff_template or vehicle):
             busy_qs = DailyTripAssignment.objects.filter(

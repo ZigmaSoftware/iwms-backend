@@ -5,7 +5,11 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from app.models.core_modules.daily_operations.vehicle_breakdown import VehicleBreakdown, VehicleBreakdownPhoto
+from app.models.core_modules.daily_operations.vehicle_breakdown import (
+    VehicleBreakdown,
+    VehicleBreakdownPhoto,
+    sync_vehicle_operational_status,
+)
 from app.models.core_modules.daily_operations.daily_trip_assignment import DailyTripAssignment
 from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
 from app.models.superadmin.staff_management.staffcreation import Staffcreation
@@ -14,6 +18,7 @@ from app.serializers.core_modules.daily_operations.vehicle_breakdown_serializer 
     VehicleBreakdownSerializer,
     VehicleBreakdownVerifySerializer,
     VehicleBreakdownRejectSerializer,
+    VehicleBreakdownMarkRepairedSerializer,
 )
 from app.utils.audit_mixin import AuditViewSetMixin
 from app.utils.filters import (
@@ -156,6 +161,7 @@ class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedV
         instance.is_deleted = True
         instance.is_active = False
         instance.save(update_fields=["is_deleted", "is_active", "updated_at"])
+        sync_vehicle_operational_status(instance.breakdown_vehicle_id)
         self.log_audit(
             self.request,
             instance=instance,
@@ -188,10 +194,37 @@ class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedV
             new_data=self._serialize_instance(instance),
         )
 
-        return Response(
-            VehicleBreakdownSerializer(instance, context={"request": request}).data,
-            status=status.HTTP_200_OK,
+        data = VehicleBreakdownSerializer(instance, context={"request": request}).data
+        # Upcoming trips that could not move (replacement already booked then).
+        data["skipped_moves"] = getattr(instance, "skipped_moves", [])
+        # Trip plans that now run on the replacement until the repair.
+        data["substituted_plan_ids"] = getattr(instance, "substituted_plan_ids", [])
+        return Response(data, status=status.HTTP_200_OK)
+
+    # ── verify-preview action ─────────────────────────────────────────
+    # What Verify & Approve will offer for a replacement vehicle: the broken
+    # vehicle's not-started trips and its trip plans, each with the work the
+    # replacement already has then, plus the crew that carries on by default.
+
+    @action(detail=True, methods=["get"], url_path="verify-preview")
+    def verify_preview(self, request, unique_id=None):
+        from app.serializers.core_modules.daily_operations.vehicle_breakdown_serializer import (
+            original_crew_template,
         )
+        from app.services import vehicle_substitution
+
+        instance = self.get_object()
+        replacement_vehicle_id = (
+            request.query_params.get("replacement_vehicle_id")
+            or instance.replacement_vehicle_id
+        )
+        data = vehicle_substitution.verify_preview(instance, replacement_vehicle_id)
+        crew = original_crew_template(instance)
+        data["original_crew"] = {
+            "driver": getattr(getattr(crew, "driver", None), "employee_name", None),
+            "operator": getattr(getattr(crew, "operator", None), "employee_name", None),
+        } if crew else None
+        return Response(data)
 
     # ── reject action ─────────────────────────────────────────────────
 
@@ -204,6 +237,38 @@ class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedV
             context={
                 "instance": instance,
                 "request": request,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+
+        previous_data = self._serialize_instance(instance)
+        instance = serializer.save()
+        self.log_audit(
+            request,
+            instance=instance,
+            previous_data=previous_data,
+            new_data=self._serialize_instance(instance),
+        )
+
+        return Response(
+            VehicleBreakdownSerializer(instance, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    # ── mark-repaired action ──────────────────────────────────────────
+    # The broken vehicle is fixed: closes the breakdown and moves the
+    # vehicle from BREAKDOWN back to ACTIVE.
+
+    @swagger_auto_schema(request_body=VehicleBreakdownMarkRepairedSerializer)
+    @action(detail=True, methods=["patch"], url_path="mark-repaired")
+    def mark_repaired(self, request, unique_id=None):
+        instance = self.get_object()
+        serializer = VehicleBreakdownMarkRepairedSerializer(
+            data=request.data,
+            context={
+                "instance": instance,
+                "request": request,
+                "account": self._get_account(),
             },
         )
         serializer.is_valid(raise_exception=True)
@@ -367,6 +432,23 @@ class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedV
             ],
             is_deleted=False,
         ))
+        # ?trip_assignment_id = the trip that broke down. Its own crew is
+        # "busy" only on that trip and on its vehicle's later trips that day,
+        # so leave those out — the same crew can carry on with the
+        # replacement vehicle.
+        broken_trip = DailyTripAssignment.objects.filter(
+            unique_id=request.query_params.get("trip_assignment_id") or "",
+            is_deleted=False,
+        ).first()
+        if broken_trip:
+            active_assignments = active_assignments.exclude(
+                Q(pk=broken_trip.pk)
+                | Q(
+                    vehicle_id=broken_trip.vehicle_id,
+                    status=DailyTripAssignment.STATUS_SCHEDULED,
+                    actual_start_at__isnull=True,
+                )
+            )
 
         busy_driver_ids = set()
         busy_operator_ids = set()
@@ -464,6 +546,7 @@ class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedV
         qs = VehicleCreation.objects.filter(
             is_deleted=False,
             is_active=True,
+            operational_status=VehicleCreation.OperationalStatus.ACTIVE,
         ).exclude(unique_id__in=busy_vehicle_ids).exclude(unique_id__in=pending_replacement_ids)
 
         qs = self._scope_company_project(qs)
@@ -483,6 +566,7 @@ class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedV
     def perform_create(self, serializer):
         super().perform_create(serializer)
         instance = serializer.instance
+        sync_vehicle_operational_status(instance.breakdown_vehicle_id)
 
         photos = self.request.FILES.getlist("photos")
         for photo in photos:
@@ -520,8 +604,12 @@ class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedV
 
     def perform_update(self, serializer):
         previous_data = self._serialize_instance(serializer.instance)
+        previous_vehicle_id = serializer.instance.breakdown_vehicle_id
         super().perform_update(serializer)
         instance = serializer.instance
+        # The breakdown may have been moved to another vehicle.
+        for vehicle_id in {previous_vehicle_id, instance.breakdown_vehicle_id}:
+            sync_vehicle_operational_status(vehicle_id)
         self.log_audit(
             self.request,
             instance=instance,

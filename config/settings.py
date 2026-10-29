@@ -84,6 +84,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Compresses JSON responses (list endpoints shrink to ~5% of their size).
+    'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -142,6 +144,10 @@ DATABASES = {
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
+        # Reuse a worker's MySQL connection across requests instead of opening
+        # one per request; health checks drop it if the server closed it.
+        'CONN_MAX_AGE': int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        'CONN_HEALTH_CHECKS': True,
     }
 }
 
@@ -224,6 +230,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Let the browser read the server Excel export's row count.
 CORS_EXPOSE_HEADERS = ["Content-Disposition", "X-Row-Count"]
+
+# The web portals name themselves in X-IWMS-Portal so the backend knows which
+# auth cookie to read (app/authentication/cookies.py).
+from corsheaders.defaults import default_headers as _cors_default_headers
+
+CORS_ALLOW_HEADERS = (*_cors_default_headers, "x-iwms-portal")
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$",

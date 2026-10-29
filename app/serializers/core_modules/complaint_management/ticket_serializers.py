@@ -8,11 +8,20 @@ government's AreaType + local-body hierarchy, and the government
 absent here.
 """
 
+from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 
 from app.models.masters.customer_masters.customercreation import CustomerCreation
+from app.models.masters.district import District
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.ward import Ward
+from app.models.masters.zone import Zone
+from app.models.superadmin.common_masters.state import State
+from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.staff_management.staffcreation import StaffcreationOfficeDetails
 from app.models.core_modules.complaint_management import (
     ComplaintAddressChangeRequest,
     ComplaintAssignmentHistory,
@@ -31,8 +40,136 @@ from app.models.core_modules.complaint_management import (
 )
 from app.models.core_modules.complaint_management.masters import (
     ComplaintCategory,
+    ComplaintModule,
+    ComplaintSource,
     ComplaintSubcategory,
 )
+from app.utils.related_prefetch import prefetch_related_rows, related
+
+TICKET_LOOKUPS = {
+    "category": (ComplaintCategory, "category_id"),
+    "subcategory": (ComplaintSubcategory, "subcategory_id"),
+    "priority": (ComplaintPriority, "priority_id"),
+    "status": (ComplaintStatus, "status_id"),
+    "source": (ComplaintSource, "source_id"),
+    "customer": (CustomerCreation, "customer_id"),
+    "assigned_staff": (StaffcreationOfficeDetails, "assigned_staff_id", "staff_unique_id"),
+    "escalated_to_staff": (StaffcreationOfficeDetails, "escalated_to_staff_id", "staff_unique_id"),
+    "state": (State, "state_id"),
+    "district": (District, "district_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+    "zone": (Zone, "zone_id"),
+    "ward": (Ward, "ward_id"),
+}
+# Child rows the list renders per ticket, as (cache attr, model). Fetched
+# unfiltered in model ordering, like the ticket's own properties.
+TICKET_CHILDREN = {
+    "extra_details": ComplaintTicketExtraDetail,
+    "attachments": ComplaintAttachment,
+    "status_history": ComplaintStatusHistory,
+}
+
+
+class _RelatedView:
+    """Attribute view of a row that resolves relations through `related()`,
+    so dotted `source=` paths hit the prefetched rows."""
+
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __getattr__(self, name):
+        value = related(self._obj, name)
+        return _RelatedView(value) if isinstance(value, models.Model) else value
+
+
+class _RelatedCharField(serializers.CharField):
+    def get_attribute(self, instance):
+        return super().get_attribute(_RelatedView(instance))
+
+
+def _children(obj, name):
+    cached = getattr(obj, "_ticket_children", None)
+    if cached is not None:
+        return cached[name]
+    return list(getattr(obj, name).all())
+
+
+class ComplaintTicketListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        instances = list(data.all() if hasattr(data, "all") else data)
+        rows = prefetch_related_rows(instances, TICKET_LOOKUPS)
+        prefetch_related_rows(
+            rows["category"].values(), {"module": (ComplaintModule, "module_id")}
+        )
+
+        ticket_ids = [obj.unique_id for obj in instances]
+        children = {}
+        for name, model in TICKET_CHILDREN.items():
+            grouped = {}
+            # Keep the query's row order.
+            for row in model.objects.filter(ticket_id__in=ticket_ids):
+                grouped.setdefault(row.ticket_id, []).append(row)
+            children[name] = grouped
+        prefetch_related_rows(
+            [h for group in children["status_history"].values() for h in group],
+            {"to_status": (ComplaintStatus, "to_status_id")},
+        )
+
+        # First non-deleted hierarchy row per (project, level), as
+        # get_escalation_level_name's `.first()` would pick.
+        hierarchy = {}
+        project_ids = {obj.project_id for obj in instances if obj.project_id}
+        if project_ids:
+            for entry in ProjectStaffHierarchy.objects.filter(
+                project_id__in=project_ids, is_deleted=False
+            ):
+                hierarchy.setdefault((entry.project_id, entry.level), entry)
+            prefetch_related_rows(
+                hierarchy.values(), {"staffusertype": (StaffUserType, "staffusertype_id")}
+            )
+
+        for obj in instances:
+            obj._ticket_children = {
+                name: grouped.get(obj.unique_id, []) for name, grouped in children.items()
+            }
+            obj._hierarchy_entry = hierarchy.get((obj.project_id, obj.escalation_level))
+        self._prefill_customer_identities(instances)
+        return super().to_representation(instances)
+
+    def _prefill_customer_identities(self, instances):
+        """Fill the child's `_matched_customer_name` cache with one query."""
+        keys = {
+            ((obj.wa_phone or "").strip(), (obj.email or "").strip().lower())
+            for obj in instances
+        }
+        keys.discard(("", ""))
+        if not keys:
+            return
+        identity_filter = Q()
+        phones = {phone for phone, _ in keys if phone}
+        if phones:
+            identity_filter |= Q(contact_no__in=phones)
+        for email in {email for _, email in keys if email}:
+            identity_filter |= Q(email__iexact=email)
+        qs = CustomerCreation.objects.filter(identity_filter, is_deleted=False)
+        if not qs.ordered:
+            qs = qs.order_by("pk")  # as `.first()` would
+        candidates = list(qs.values_list("contact_no", "email", "customer_name"))
+
+        def norm(value):
+            return (value or "").rstrip().lower()
+
+        cache = getattr(self.child, "_customer_identity_cache", {})
+        for phone, email in keys:
+            cache[(phone, email)] = next(
+                (
+                    name for contact_no, row_email, name in candidates
+                    if (phone and norm(contact_no) == norm(phone))
+                    or (email and norm(row_email) == email.rstrip())
+                ),
+                None,
+            ) or ""
+        self.child._customer_identity_cache = cache
 
 
 class ComplaintTicketSerializer(serializers.ModelSerializer):
@@ -45,28 +182,28 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
         "other_reference",
     )
 
-    module = serializers.CharField(source="category.module_id", read_only=True)
-    module_code = serializers.CharField(source="category.module.module_code", read_only=True)
-    module_name = serializers.CharField(source="category.module.module_name", read_only=True)
-    category_name = serializers.CharField(source="category.category_name", read_only=True)
-    category_code = serializers.CharField(source="category.category_code", read_only=True)
-    subcategory_name = serializers.CharField(source="subcategory.subcategory_name", read_only=True)
-    priority_code = serializers.CharField(source="priority.priority_code", read_only=True)
-    priority_name = serializers.CharField(source="priority.priority_name", read_only=True)
-    status_code = serializers.CharField(source="status.status_code", read_only=True)
-    status_name = serializers.CharField(source="status.status_name", read_only=True)
-    source_code = serializers.CharField(source="source.source_code", read_only=True)
-    customer_name = serializers.CharField(source="customer.customer_name", read_only=True)
+    module = _RelatedCharField(source="category.module_id", read_only=True)
+    module_code = _RelatedCharField(source="category.module.module_code", read_only=True)
+    module_name = _RelatedCharField(source="category.module.module_name", read_only=True)
+    category_name = _RelatedCharField(source="category.category_name", read_only=True)
+    category_code = _RelatedCharField(source="category.category_code", read_only=True)
+    subcategory_name = _RelatedCharField(source="subcategory.subcategory_name", read_only=True)
+    priority_code = _RelatedCharField(source="priority.priority_code", read_only=True)
+    priority_name = _RelatedCharField(source="priority.priority_name", read_only=True)
+    status_code = _RelatedCharField(source="status.status_code", read_only=True)
+    status_name = _RelatedCharField(source="status.status_name", read_only=True)
+    source_code = _RelatedCharField(source="source.source_code", read_only=True)
+    customer_name = _RelatedCharField(source="customer.customer_name", read_only=True)
     reporter_type = serializers.SerializerMethodField()
     reporter_name = serializers.SerializerMethodField()
-    assigned_staff_name = serializers.CharField(source="assigned_staff.employee_name", read_only=True)
-    escalated_to_staff_name = serializers.CharField(source="escalated_to_staff.employee_name", read_only=True)
+    assigned_staff_name = _RelatedCharField(source="assigned_staff.employee_name", read_only=True)
+    escalated_to_staff_name = _RelatedCharField(source="escalated_to_staff.employee_name", read_only=True)
 
-    state_name = serializers.CharField(source="state.name", read_only=True)
-    district_name = serializers.CharField(source="district.name", read_only=True)
-    panchayat_name = serializers.CharField(source="panchayat.panchayat_name", read_only=True)
-    zone_name = serializers.CharField(source="zone.zone_name", read_only=True)
-    ward_name = serializers.CharField(source="ward.ward_name", read_only=True)
+    state_name = _RelatedCharField(source="state.name", read_only=True)
+    district_name = _RelatedCharField(source="district.name", read_only=True)
+    panchayat_name = _RelatedCharField(source="panchayat.panchayat_name", read_only=True)
+    zone_name = _RelatedCharField(source="zone.zone_name", read_only=True)
+    ward_name = _RelatedCharField(source="ward.ward_name", read_only=True)
 
     sla_time_remaining_seconds = serializers.SerializerMethodField()
     escalation_level_name = serializers.SerializerMethodField()
@@ -88,6 +225,7 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComplaintTicket
         fields = "__all__"
+        list_serializer_class = ComplaintTicketListSerializer
         read_only_fields = [
             "unique_id", "ticket_no", "resolved_at", "closed_at", "reopened_count",
         ]
@@ -127,7 +265,7 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
 
     def get_reporter_name(self, obj):
         return (
-            getattr(obj.customer, "customer_name", "")
+            getattr(related(obj, "customer"), "customer_name", "")
             or (obj.profile_name or "").strip()
             or self._matched_customer_name(obj)
             or "Anonymous"
@@ -234,19 +372,21 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
     def get_operational_context(self, obj):
         values = {
             row.field_key: row.field_value
-            for row in obj.extra_details.all()
+            for row in _children(obj, "extra_details")
             if not row.is_deleted and row.field_key in self.OPERATIONAL_CONTEXT_FIELDS
         }
         incident_type = (values.get("incident_type") or "").strip().lower()
         if not incident_type:
+            category = related(obj, "category")
+            module = related(category, "module") if category else None
             searchable = " ".join(
                 str(value or "").lower()
                 for value in (
                     obj.title,
                     obj.description,
-                    getattr(obj.category, "category_name", ""),
-                    getattr(obj.subcategory, "subcategory_name", ""),
-                    getattr(getattr(obj.category, "module", None), "module_name", ""),
+                    getattr(category, "category_name", ""),
+                    getattr(related(obj, "subcategory"), "subcategory_name", ""),
+                    getattr(module, "module_name", ""),
                 )
             )
             incident_type = next(
@@ -268,7 +408,7 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
 
     def _active_attachments(self, obj):
         """Attachments ordered newest-first (model default ordering)."""
-        return [a for a in obj.attachments.all() if not a.is_deleted]
+        return [a for a in _children(obj, "attachments") if not a.is_deleted]
 
     def get_image_url(self, obj):
         """URL of the original complaint photo (oldest attachment)."""
@@ -299,31 +439,34 @@ class ComplaintTicketSerializer(serializers.ModelSerializer):
     def get_escalation_level_name(self, obj):
         """Human role name (e.g. "Supervisor") for the ticket's current
         `escalation_level`, resolved from the project's staff hierarchy."""
-        from app.models.superadmin.role_management.projectStaffHierarchy import ProjectStaffHierarchy
-
         if not obj.project_id:
             return None
-        entry = ProjectStaffHierarchy.objects.filter(
-            project_id=obj.project_id, level=obj.escalation_level, is_deleted=False,
-        ).first()
-        return entry.staffusertype.get_name_display() if entry and entry.staffusertype else None
+        if hasattr(obj, "_hierarchy_entry"):
+            entry = obj._hierarchy_entry
+        else:
+            entry = ProjectStaffHierarchy.objects.filter(
+                project_id=obj.project_id, level=obj.escalation_level, is_deleted=False,
+            ).first()
+        staffusertype = related(entry, "staffusertype") if entry else None
+        return staffusertype.get_name_display() if staffusertype else None
 
     def _citizen_timeline(self, obj):
         rows = [
-            h for h in obj.status_history.all()
+            h for h in _children(obj, "status_history")
             if h.visible_to_citizen and not h.is_deleted
         ]
         rows.sort(key=lambda h: h.changed_at)
-        return [
-            {
-                "status_code": h.to_status.status_code if h.to_status_id else None,
-                "status_name": h.to_status.status_name if h.to_status_id else None,
-                "status": h.to_status.status_name if h.to_status_id else None,
+        timeline = []
+        for h in rows:
+            to_status = related(h, "to_status") if h.to_status_id else None
+            timeline.append({
+                "status_code": to_status.status_code if h.to_status_id else None,
+                "status_name": to_status.status_name if h.to_status_id else None,
+                "status": to_status.status_name if h.to_status_id else None,
                 "at": h.changed_at,
                 "remarks": h.remarks,
-            }
-            for h in rows
-        ]
+            })
+        return timeline
 
     def get_public_timeline(self, obj):
         """Citizen-safe, chronological status timeline (visible_to_citizen only)."""

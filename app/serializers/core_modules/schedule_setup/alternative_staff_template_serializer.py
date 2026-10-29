@@ -8,8 +8,39 @@ from app.serializers.superadmin.staff_management.user_serializer import UniqueId
 
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
+from app.utils.related_prefetch import prefetch_related_rows, related
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "staff_template": (StaffTemplate, "staff_template_id"),
+    "driver": (Staffcreation, "driver_id", "staff_unique_id"),
+    "operator": (Staffcreation, "operator_id", "staff_unique_id"),
+}
 
 
+def _extra_operator_ids(obj):
+    extra_ids = getattr(obj, "extra_operator_id", None) or []
+    if not isinstance(extra_ids, list):
+        return []
+    return [str(item) for item in extra_ids if item not in ("", None)]
+
+
+class AlternativeStaffTemplateListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        templates = list(data.all() if hasattr(data, "all") else data)
+        prefetch_related_rows(templates, RELATED_LOOKUPS)
+        extra_ids = {staff_id for obj in templates for staff_id in _extra_operator_ids(obj)}
+        staff_by_id = {
+            staff.staff_unique_id: staff
+            for staff in Staffcreation.objects.filter(
+                staff_unique_id__in=extra_ids,
+                is_deleted=False,
+            )
+        } if extra_ids else {}
+        for obj in templates:
+            obj._extra_staff_cache = staff_by_id
+        return super().to_representation(templates)
 
 
 class CommaSeparatedListField(serializers.ListField):
@@ -87,40 +118,42 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
     driver_name = serializers.SerializerMethodField(read_only=True)
     operator_name = serializers.SerializerMethodField(read_only=True)
     extra_operator_names = serializers.SerializerMethodField(read_only=True)
-    staff_template_display_code = serializers.CharField(
-        source="staff_template.display_code",
-        read_only=True,
-    )
+    staff_template_display_code = serializers.SerializerMethodField()
     display_code = serializers.CharField(read_only=True)
 
+    # driver_id / operator_id hold the staff unique id (not FKs); the model's
+    # driver / operator properties look the staff record up.
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
+
+    def get_staff_template_display_code(self, obj):
+        return getattr(related(obj, "staff_template"), "display_code", None)
+
     def get_driver_name(self, obj):
-        staff = getattr(obj, "driver_id", None)
-        if staff and hasattr(staff, 'employee_name') and staff.employee_name:
-            return staff.employee_name
-        return getattr(staff, "staff_unique_id", None)
+        staff = related(obj, "driver")
+        return staff.employee_name if staff and staff.employee_name else obj.driver_id
 
     def get_operator_name(self, obj):
-        staff = getattr(obj, "operator_id", None)
-        if staff and hasattr(staff, 'employee_name') and staff.employee_name:
-            return staff.employee_name
-        return getattr(staff, "staff_unique_id", None)
+        staff = related(obj, "operator")
+        return staff.employee_name if staff and staff.employee_name else obj.operator_id
 
     def get_extra_operator_names(self, obj):
-        extra_ids = getattr(obj, "extra_operator_id", None) or []
-        if not isinstance(extra_ids, list):
-            return []
-
-        normalized_ids = [str(item) for item in extra_ids if item not in ("", None)]
+        normalized_ids = _extra_operator_ids(obj)
         if not normalized_ids:
             return []
 
-        staff_by_id = {
-            staff.staff_unique_id: staff
-            for staff in Staffcreation.objects.filter(
-                staff_unique_id__in=normalized_ids,
-                is_deleted=False,
-            )
-        }
+        staff_by_id = getattr(obj, "_extra_staff_cache", None)
+        if staff_by_id is None:
+            staff_by_id = {
+                staff.staff_unique_id: staff
+                for staff in Staffcreation.objects.filter(
+                    staff_unique_id__in=normalized_ids,
+                    is_deleted=False,
+                )
+            }
 
         names = []
         for staff_id in normalized_ids:
@@ -164,6 +197,7 @@ class AlternativeStaffTemplateSerializer(TenancyReadSerializerMixin, serializers
             'staff_template_display_code',
             'created_at',
         ]
+        list_serializer_class = AlternativeStaffTemplateListSerializer
 
     def validate(self, attrs):
         """

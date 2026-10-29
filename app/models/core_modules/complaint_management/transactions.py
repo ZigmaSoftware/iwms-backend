@@ -372,16 +372,16 @@ class ComplaintRoutingRule(BaseMaster):
         editable=False,
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     category_id = models.CharField(max_length=30, null=True, blank=True)
     subcategory_id = models.CharField(max_length=30, null=True, blank=True)
     state_id = models.CharField(max_length=30, null=True, blank=True)
     district_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     priority_id = models.CharField(max_length=30, null=True, blank=True)
     user_id = models.CharField(max_length=30, null=True, blank=True)
     sla_rule_id = models.CharField(max_length=30, null=True, blank=True)

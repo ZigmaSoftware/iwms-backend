@@ -29,30 +29,30 @@ def build_media_url(image, request=None):
     return request.build_absolute_uri(path) if request is not None else path
 
 
-def capture_images_for_customer(customer_id, collection_date=None, request=None):
-    """Capture photos (``WasteCollectionSub``) for a household, linked by customer
-    and — when supplied — the collection day (± 1 day to absorb timezone skew;
-    a ``__date`` lookup is unreliable on MySQL without the tz tables loaded)."""
+def _capture_window(collection_date):
+    """The collection day ± 1 day, to absorb timezone skew (a ``__date``
+    lookup is unreliable on MySQL without the tz tables loaded)."""
+    start = _dt.datetime.combine(collection_date, _dt.time.min) - _dt.timedelta(days=1)
+    end = _dt.datetime.combine(collection_date, _dt.time.max) + _dt.timedelta(days=1)
+    if _tz.is_aware(_tz.now()):
+        start = _tz.make_aware(start)
+        end = _tz.make_aware(end)
+    return start, end
+
+
+def _capture_subs(customer_ids):
     from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteCollectionSub
 
-    if not customer_id:
-        return []
-
-    subs = (
-        WasteCollectionSub.objects.filter(customer_id=customer_id, is_deleted=False)
+    return (
+        WasteCollectionSub.objects.filter(customer_id__in=customer_ids, is_deleted=False)
         .exclude(image__isnull=True)
         .exclude(image="")
     )
-    if collection_date:
-        start = _dt.datetime.combine(collection_date, _dt.time.min) - _dt.timedelta(days=1)
-        end = _dt.datetime.combine(collection_date, _dt.time.max) + _dt.timedelta(days=1)
-        if _tz.is_aware(_tz.now()):
-            start = _tz.make_aware(start)
-            end = _tz.make_aware(end)
-        subs = subs.filter(date_time__gte=start, date_time__lte=end)
 
+
+def _image_rows(subs, request):
     images = []
-    for sub in subs.order_by("date_time"):
+    for sub in subs:
         url = build_media_url(sub.image, request)
         if url:
             images.append({
@@ -61,3 +61,35 @@ def capture_images_for_customer(customer_id, collection_date=None, request=None)
                 "weight": sub.weight,
             })
     return images
+
+
+def capture_images_for_customer(customer_id, collection_date=None, request=None):
+    """Capture photos (``WasteCollectionSub``) for a household, linked by customer
+    and — when supplied — the collection day (see ``_capture_window``)."""
+    if not customer_id:
+        return []
+
+    subs = _capture_subs([customer_id])
+    if collection_date:
+        start, end = _capture_window(collection_date)
+        subs = subs.filter(date_time__gte=start, date_time__lte=end)
+    return _image_rows(subs.order_by("date_time"), request)
+
+
+def capture_images_for_customers(pairs, request=None):
+    """Batch form of ``capture_images_for_customer``: one query for every
+    ``(customer_id, collection_date)`` pair, returning a list per pair."""
+    customer_ids = {customer_id for customer_id, _ in pairs if customer_id}
+    by_customer = {}
+    if customer_ids:
+        for sub in _capture_subs(customer_ids).order_by("date_time"):
+            by_customer.setdefault(sub.customer_id, []).append(sub)
+
+    results = []
+    for customer_id, collection_date in pairs:
+        subs = by_customer.get(customer_id, []) if customer_id else []
+        if collection_date:
+            start, end = _capture_window(collection_date)
+            subs = [sub for sub in subs if start <= sub.date_time <= end]
+        results.append(_image_rows(subs, request))
+    return results

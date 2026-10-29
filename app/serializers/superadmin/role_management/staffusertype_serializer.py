@@ -2,8 +2,17 @@ from rest_framework import serializers
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.models.superadmin.role_management.userType import UserType
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
+from app.utils.related_prefetch import prefetching_list_serializer, related
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "usertype": (UserType, "usertype_id"),
+}
 
 
 def _resolve_usertype(value):
@@ -31,14 +40,31 @@ class StaffUserTypeSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
         fields = "__all__"
         read_only_fields = ["unique_id"]
         validators = []
-    
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
+
+    def _usertype(self, obj):
+        # Prefetched by unique_id when listed; otherwise (or on a miss) the
+        # unique_id-then-name lookup. Memoized: both readers below need it.
+        cache = getattr(obj, "_related_cache", None)
+        if cache is None:
+            cache = obj._related_cache = {}
+        if cache.get("usertype") is None:
+            cache["usertype"] = _resolve_usertype(obj.usertype_id)
+        return cache["usertype"]
+
     def get_usertype_name(self, obj):
-        usertype = _resolve_usertype(obj.usertype_id)
+        usertype = self._usertype(obj)
         return usertype.name if usertype else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        usertype = _resolve_usertype(instance.usertype_id)
+        usertype = self._usertype(instance)
         if usertype:
             data["usertype_id"] = usertype.unique_id
             data["usertype_name"] = usertype.name

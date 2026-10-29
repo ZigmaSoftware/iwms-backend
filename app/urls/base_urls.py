@@ -140,6 +140,7 @@ from ..viewsets.superadmin.audits.common_audit_viewset import CommonAuditViewSet
 from ..viewsets.superadmin.audits.permission_audit_viewset import PermissionAuditLogViewSet
 from ..viewsets.superadmin.audits.static_route_audit_viewset import StaticRouteAuditLogViewSet
 from ..viewsets.superadmin.audits.complaint_audit_viewset import ComplaintAuditViewSet
+from ..viewsets.superadmin.audits.db_change_audit_viewset import DbChangeAuditViewSet
 from ..viewsets.superadmin.audits.audit_dashboard_viewset import AuditDashboardViewSet
 
 # Palakad district admin portal
@@ -154,6 +155,7 @@ from ..viewsets.dashboard.dashboard_summary_viewset import DashboardSummaryViewS
 # Admin / Superadmin dashboards (sidebar "Dashboard" and "Superadmin Dashboard")
 from ..viewsets.dashboard.admin_dashboard_viewset import AdminDashboardViewSet
 from ..viewsets.dashboard.superadmin_dashboard_viewset import SuperadminDashboardViewSet
+from ..viewsets.dashboard.vehicle_status_dashboard_viewset import VehicleStatusDashboardViewSet
 
 # Operator mobile
 from ..viewsets.operator_mobile.my_trip_today_viewset import MyTripTodayViewSet, MyTripsTodayViewSet
@@ -375,6 +377,7 @@ router.register_group("audits", "common-audit", CommonAuditViewSet)
 router.register_group("audits", "permission-audit", PermissionAuditLogViewSet, basename="permission-audit")
 router.register_group("audits", "static-route-audit", StaticRouteAuditLogViewSet, basename="static-route-audit")
 router.register_group("audits", "complaint-audit", ComplaintAuditViewSet, basename="complaint-audit")
+router.register_group("audits", "db-change-audit", DbChangeAuditViewSet, basename="db-change-audit")
 router.register_group("audits", "audit-dashboard", AuditDashboardViewSet, basename="audit-dashboard")
 
 # ============================================================
@@ -412,6 +415,7 @@ router.register_group("dashboard", "summary", DashboardSummaryViewSet, basename=
 # ============================================================
 router.register_group("dashboards", "admin", AdminDashboardViewSet, basename="admin-dashboard")
 router.register_group("dashboards", "superadmin", SuperadminDashboardViewSet, basename="superadmin-dashboard")
+router.register_group("dashboards", "fleet-status", VehicleStatusDashboardViewSet, basename="vehicle-status-dashboard")
 
 # ============================================================
 # GROUP: OPERATOR MOBILE

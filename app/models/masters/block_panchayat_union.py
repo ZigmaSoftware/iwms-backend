@@ -14,8 +14,8 @@ class BlockPanchayatUnion(BaseMaster):
         default=generate_block_panchayat_union_id,
         editable=False,
     )
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     state_id = models.CharField(max_length=30, null=True, blank=True)
     district_id = models.CharField(max_length=30, null=True, blank=True)
     block_name = models.CharField(max_length=100)

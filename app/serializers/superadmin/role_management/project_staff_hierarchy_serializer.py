@@ -5,6 +5,13 @@ from app.models.superadmin.role_management.staffUserType import StaffUserType
 from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.utils.related_prefetch import prefetching_list_serializer, related
+
+RELATED_LOOKUPS = {
+    "project": (Project, "project_id"),
+    "staffusertype": (StaffUserType, "staffusertype_id"),
+    "reports_to_staffusertype": (StaffUserType, "reports_to_staffusertype_id"),
+}
 
 
 class ProjectStaffHierarchySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -28,19 +35,20 @@ class ProjectStaffHierarchySerializer(TenancyReadSerializerMixin, serializers.Mo
         model = ProjectStaffHierarchy
         fields = "__all__"
         read_only_fields = ["unique_id"]
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
 
     def get_project_name(self, obj):
-        project = Project.objects.filter(unique_id=obj.project_id).only("name").first()
+        project = related(obj, "project", Project, "project_id")
         return project.name if project else None
 
     def get_staffusertype_name(self, obj):
-        staffusertype = StaffUserType.objects.filter(unique_id=obj.staffusertype_id).only("name").first()
+        staffusertype = related(obj, "staffusertype", StaffUserType, "staffusertype_id")
         return staffusertype.name if staffusertype else None
 
     def get_reports_to_staffusertype_name(self, obj):
-        staffusertype = StaffUserType.objects.filter(
-            unique_id=obj.reports_to_staffusertype_id,
-        ).only("name").first()
+        staffusertype = related(
+            obj, "reports_to_staffusertype", StaffUserType, "reports_to_staffusertype_id",
+        )
         return staffusertype.name if staffusertype else None
 
     def validate(self, attrs):

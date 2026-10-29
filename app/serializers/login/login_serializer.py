@@ -617,6 +617,9 @@ class LoginSerializer(serializers.Serializer):
         if not user or not self._password_matches(password, user.password):
             return None
 
+        return self._build_user_payload(user)
+
+    def _build_user_payload(self, user):
         staff_record = getattr(user, "staff", None)
         if staff_record:
             if staff_record.is_superuser and not getattr(staff_record, "company_id", None):
@@ -630,6 +633,27 @@ class LoginSerializer(serializers.Serializer):
         if user.is_superuser:
             return self._build_platform_payload(user)
 
+        return None
+
+    def build_for_user(self, user, user_type=None):
+        """Rebuild the login data for an already-authenticated user (the web
+        session restore, /login/me/). `user_type` is the token's claim, which
+        tells a district-member staff login apart from a regular staff one.
+        Returns None when the account no longer resolves to a session."""
+        if isinstance(user, DistrictLeaderLogin):
+            return self._build_district_leader_payload(user)
+        if isinstance(user, PanchayatLeaderLogin):
+            return self._build_panchayat_leader_payload(user)
+        if isinstance(user, CustomerCreation):
+            return self._build_customer_payload(user)
+        if isinstance(user, Staffcreation):
+            if user_type == "district_member":
+                return self._build_district_payload(user)
+            if user.is_superuser and not user.company_id:
+                return None
+            return self._build_staff_payload(user)
+        if isinstance(user, User):
+            return self._build_user_payload(user)
         return None
 
     def _build_panchayat_leader_payload(self, leader):

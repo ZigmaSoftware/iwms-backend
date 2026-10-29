@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.db import connection, models, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from app.utils.base_models import BaseMaster
@@ -83,8 +84,8 @@ class DailyTripAssignment(BaseMaster):
     # TENANCY
     # ------------------------------------------------------------------
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # ------------------------------------------------------------------
     # TRIP PLAN & STAFF
@@ -281,30 +282,46 @@ class DailyTripAssignment(BaseMaster):
         return DailyTripHouseholdCollection.objects.filter(trip_assignment_id=self.unique_id)
 
     def pending_bin_stops(self):
-        """Bin collection points still awaiting the driver."""
-        from app.models.core_modules.daily_operations.daily_trip_collection_point import DailyTripCollectionPoint
-        return self.trip_collection_points.filter(is_deleted=False).exclude(
-            status__in=(
-                DailyTripCollectionPoint.STATUS_COLLECTED,
-                DailyTripCollectionPoint.STATUS_MISSED,
-            )
-        )
+        """Bin collection points still awaiting the driver.
+
+        A stop carried over to a Re-Trip/breakdown continuation keeps its
+        Pending status on this trip but is no longer this trip's work — the
+        continuation owns it. Counting it here would let a second approval
+        copy it into another continuation.
+        """
+        return self.pending_stops(self.trip_collection_points)
 
     def pending_household_stops(self):
-        """Household stops still awaiting the driver."""
-        from app.models.core_modules.daily_operations.daily_trip_household_collection import (
-            DailyTripHouseholdCollection,
-        )
+        """Household stops still awaiting the driver (carried-over ones
+        excluded — see `pending_bin_stops`)."""
+        return self.pending_stops(self.trip_household_collections)
 
-        return self.trip_household_collections.filter(is_deleted=False).exclude(
-            status__in=(
-                DailyTripHouseholdCollection.STATUS_COLLECTED,
-                DailyTripHouseholdCollection.STATUS_MISSED,
-            )
+    @staticmethod
+    def pending_stops(queryset):
+        """Narrow a bin- or household-stop queryset to the stops still
+        awaiting the driver. Also used on multi-trip querysets for batching."""
+        stop_model = queryset.model
+        return (
+            queryset.filter(is_deleted=False)
+            .filter(Q(carried_to_assignment__isnull=True) | Q(carried_to_assignment=""))
+            .exclude(status__in=(stop_model.STATUS_COLLECTED, stop_model.STATUS_MISSED))
         )
 
     def has_pending_stops(self):
         return self.pending_bin_stops().exists() or self.pending_household_stops().exists()
+
+    def blocked_by_vehicle_breakdown(self):
+        """A trip that has not started yet cannot start while its vehicle is
+        under breakdown. One already running (the trip the vehicle broke down
+        on) is left alone so it can still be closed out."""
+        from app.models.masters.transport_masters.vehicleCreation import VehicleCreation
+
+        if self.status != self.STATUS_SCHEDULED or self.actual_start_at or not self.vehicle_id:
+            return False
+        return VehicleCreation.objects.filter(
+            unique_id=self.vehicle_id,
+            operational_status=VehicleCreation.OperationalStatus.BREAKDOWN,
+        ).exists()
 
     def mark_started(self, at=None):
         """Put the trip In Progress and stamp the start timestamps.

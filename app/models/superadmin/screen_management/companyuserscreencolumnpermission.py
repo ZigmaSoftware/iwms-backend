@@ -19,7 +19,7 @@ class CompanyUserScreenColumnPermission(BaseMaster):
     )
 
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     userscreen_id = models.CharField(max_length=30, null=True, blank=True)
     column_id = models.CharField(max_length=40, null=True, blank=True)
 

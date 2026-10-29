@@ -115,6 +115,13 @@ SECTIONS = (
                 "superadmin-dashboard", "Superadmin Dashboard",
                 routes=("superadmin",), actions=("view",), superadmin_only=True,
             ),
+            # Per-vehicle live status: trips, crew, breakdowns, re-trips,
+            # delays, stops and weight. Live GPS comes from the project's
+            # GPS provider in the browser.
+            screen(
+                "vehicle-status-dashboard", "Vehicle Status Dashboard",
+                routes=("fleet-status",), actions=("view",), requires_approval=True,
+            ),
         ), url_module="dashboards"),
         # The user dashboard (/dashboard) and its tabs, one screen each. Each
         # tab reads other screens' APIs (SCREEN_DEPENDENCIES lookups), so the
@@ -192,6 +199,7 @@ SECTIONS = (
             screen("permission-audit", "User Access Audit"),
             screen("static-route-audit", "Static Route Audit"),
             screen("complaint-audit", "Complaint Audit"),
+            screen("db-change-audit", "DB Change Audit"),
         )),
     )),
     ("masters", (

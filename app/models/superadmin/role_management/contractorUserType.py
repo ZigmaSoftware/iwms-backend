@@ -9,8 +9,8 @@ def generate_contractor_usertype_id():
 
 
 class ContractorUserType(BaseMaster):
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     CONTRACTOR_ROLE_CHOICES = [
         ("contractor_admin", "Contractor Admin"),

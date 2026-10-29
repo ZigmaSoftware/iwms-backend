@@ -25,8 +25,8 @@ class WasteCollection(BaseMaster):
         (STATUS_COLLECT_LATER, "Collect Later"),
     ]
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     unique_id = models.CharField(
         max_length=30,
@@ -45,7 +45,7 @@ class WasteCollection(BaseMaster):
     # blank (via copy_flat_geo), but selectable/editable so a collection can
     # be scoped independently. Mirrors TN_Iwms's WasteCollection geo block,
     # adapted to IWMS's flat zone/ward/panchayat fields.
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     #  Waste details
     wet_waste = models.FloatField(default=0.0)

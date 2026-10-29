@@ -63,7 +63,7 @@ class StaffcreationViewset(BulkUploadMixin, AuditViewSetMixin,CompanyScopedViewS
         return super().get_permissions()
 
     def get_queryset(self):
-        queryset = Staffcreation.objects.filter(is_deleted=False)
+        queryset = Staffcreation.objects.filter(is_deleted=False).select_related("personal_details")
 
         site_name = self.request.query_params.get("site_name", None)
         employee_name = self.request.query_params.get("employee_name", None)

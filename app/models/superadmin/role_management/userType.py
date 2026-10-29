@@ -8,8 +8,8 @@ def generate_usertype_id():
 
 
 class UserType(BaseMaster):
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     unique_id = models.CharField(
         max_length=30,

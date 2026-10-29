@@ -1,7 +1,7 @@
 """Deadline processing for supervisor Re-Trip decisions."""
 
 import os
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.db import transaction
 from django.utils import timezone
@@ -32,10 +32,33 @@ def escalation_minutes():
     return min(_minutes("RETRIP_ESCALATION_MINUTES", 20), timeout_minutes())
 
 
-def deadline_for(retrip):
+def _window_deadline(retrip):
     if retrip.expires_at:
         return retrip.expires_at
     return retrip.created_at + timedelta(minutes=timeout_minutes())
+
+
+def trip_day_end(retrip):
+    """Midnight after the trip's own date, or None if the trip is gone.
+
+    A request still undecided then must lapse: an approval would open a
+    continuation dated on a past day, which never reaches the crew's today
+    list and which the end-of-day closer would never pick up.
+    """
+    assignment = retrip.assignment
+    if assignment is None or not assignment.trip_date:
+        return None
+    return timezone.make_aware(
+        datetime.combine(assignment.trip_date + timedelta(days=1), time.min)
+    )
+
+
+def deadline_for(retrip):
+    """When the decision window closes: the configured timeout, cut short
+    by the end of the trip's day."""
+    deadline = _window_deadline(retrip)
+    day_end = trip_day_end(retrip)
+    return min(deadline, day_end) if day_end else deadline
 
 
 def _supervisors_for(retrip):
@@ -72,16 +95,23 @@ def _notify(recipients, notification_type, title, message, retrip, event):
 
 
 def _expire_locked(retrip, now):
-    if not retrip.is_pending or now < deadline_for(retrip):
+    deadline = deadline_for(retrip)
+    if not retrip.is_pending or now < deadline:
         return False
 
     retrip.status = TripRetripRequest.STATUS_EXPIRED
-    retrip.expires_at = deadline_for(retrip)
+    if deadline < _window_deadline(retrip):
+        retrip.review_remarks = (
+            "Expired automatically: the trip's day ended before a supervisor "
+            "decision."
+        )
+    else:
+        retrip.review_remarks = (
+            f"Expired automatically after {timeout_minutes()} minutes without "
+            "a supervisor decision."
+        )
+    retrip.expires_at = deadline
     retrip.reviewed_at = now
-    retrip.review_remarks = (
-        f"Expired automatically after {timeout_minutes()} minutes without "
-        "a supervisor decision."
-    )
     retrip.save(
         update_fields=[
             "status",

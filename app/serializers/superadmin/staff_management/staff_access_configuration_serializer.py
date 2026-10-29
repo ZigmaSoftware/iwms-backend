@@ -14,12 +14,19 @@ from app.models.superadmin.screen_management.companyuserscreenpermission import 
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.models.superadmin.screen_management.app_module import AppModule
+from app.models.superadmin.screen_management.mainscreen import MainScreen
+from app.models.superadmin.screen_management.userscreen import UserScreen
 from app.models.superadmin.staff_management.staff_access_configuration import (
     StaffAccessConfiguration,
     StaffAccessConfigurationPermission,
 )
 from app.models.superadmin.staff_management.staffcreation import StaffcreationOfficeDetails
 from app.serializers.superadmin.staff_management.staffcreation_serializer import StaffcreationSerializer
+from app.models.superadmin.role_management.staffUserType import StaffUserType
+from app.models.superadmin.common_masters.continent import Continent
+from app.models.superadmin.common_masters.country import Country
+from app.utils.password_encryption import decrypt_password
+from app.utils.related_prefetch import prefetch_related_rows, related
 
 
 # (write-payload key, model, field name storing the comma-separated ids on
@@ -76,6 +83,80 @@ class StaffAccessConfigurationPermissionInputSerializer(serializers.Serializer):
         return data
 
 
+# (representation key, model, name field) for the comma-separated geo ids.
+GEO_NAME_FIELDS = (
+    ("state_ids", State, "name"),
+    ("district_ids", District, "name"),
+    ("city_ids", City, "name"),
+    ("zone_ids", Zone, "zone_name"),
+    ("panchayat_ids", Panchayat, "panchayat_name"),
+    ("ward_ids", Ward, "ward_name"),
+)
+
+
+class StaffAccessConfigurationListSerializer(serializers.ListSerializer):
+    """Loads every per-row relation (staff, company, app module, projects,
+    geo rows, permission rows) once for the whole page and hands it to the
+    child via `child._batch`."""
+
+    def to_representation(self, data):
+        instances = list(data.all() if hasattr(data, "all") else data)
+        prefetch_related_rows(instances, {
+            "company": (Company, "company_id"),
+            "app_module": (AppModule, "app_module_id"),
+        })
+
+        staff_ids = {obj.staff_id for obj in instances if obj.staff_id}
+        staff_by_id = {}
+        if staff_ids:
+            for staff in StaffcreationOfficeDetails.objects.filter(
+                staff_unique_id__in=staff_ids,
+            ).select_related("personal_details"):
+                staff_by_id.setdefault(staff.staff_unique_id, staff)
+            prefetch_related_rows(
+                list(staff_by_id.values()),
+                {"staffusertype": (StaffUserType, "staffusertype_id")},
+            )
+        for obj in instances:
+            obj._related_cache["staff"] = staff_by_id.get(obj.staff_id) if obj.staff_id else None
+
+        # Rows kept in query order: state order drives continent/country order.
+        rows = {}
+        for model, getter in [(Project, "get_project_ids")] + [
+            (model, f"get_{key}") for key, model, _ in GEO_NAME_FIELDS
+        ]:
+            ids = {i for obj in instances for i in getattr(obj, getter)()}
+            rows[model] = list(model.objects.filter(unique_id__in=ids)) if ids else []
+        prefetch_related_rows(rows[State], {
+            "continent": (Continent, "continent_id"),
+            "country": (Country, "country_id"),
+        })
+
+        perms = {obj.unique_id: [] for obj in instances}
+        for row in StaffAccessConfigurationPermission.objects.filter(
+            staff_access_configuration_id__in=list(perms), is_deleted=False,
+        ):
+            perms[row.staff_access_configuration_id].append(row)
+        all_perms = [r for group in perms.values() for r in group]
+        mainscreen_ids = {r.mainscreen_id for r in all_perms if r.mainscreen_id}
+        userscreen_ids = {r.userscreen_id for r in all_perms if r.userscreen_id}
+
+        self.child._batch = {
+            "rows": rows,
+            "perms": perms,
+            "mainscreens": {
+                m.unique_id: m for m in MainScreen.objects.filter(unique_id__in=mainscreen_ids)
+            } if mainscreen_ids else {},
+            "userscreens": {
+                u.unique_id: u for u in UserScreen.objects.filter(unique_id__in=userscreen_ids)
+            } if userscreen_ids else {},
+        }
+        try:
+            return super().to_representation(instances)
+        finally:
+            self.child._batch = None
+
+
 class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
     staff_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     company_id = serializers.CharField()
@@ -123,6 +204,7 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffAccessConfiguration
         exclude = ()
+        list_serializer_class = StaffAccessConfigurationListSerializer
 
     # -- helpers to resolve the staff behind `staff_id` (a plain CharField
     # holding StaffcreationOfficeDetails.staff_unique_id) for the read-only
@@ -134,7 +216,7 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
             cache = {}
             self._staff_cache = cache
         if obj.unique_id not in cache:
-            cache[obj.unique_id] = obj.staff
+            cache[obj.unique_id] = related(obj, "staff")
         return cache[obj.unique_id]
 
     def get_staff_name(self, obj):
@@ -173,12 +255,28 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
 
     def get_staffusertype_name(self, obj):
         staff = self._staff_for(obj)
-        usertype = getattr(staff, "staffusertype", None) if staff else None
+        usertype = related(staff, "staffusertype") if staff else None
         return getattr(usertype, "name", None)
 
     def get_company_name(self, obj):
-        company = obj.company
+        company = related(obj, "company")
         return company.name if company else None
+
+    def _batched_rows(self, model, ids):
+        """Rows of `model` with these unique_ids, in the query's order."""
+        batch = getattr(self, "_batch", None)
+        if batch is None:
+            return list(model.objects.filter(unique_id__in=ids)) if ids else []
+        wanted = set(ids)
+        return [r for r in batch["rows"][model] if r.unique_id in wanted]
+
+    def _permission_rows(self, obj):
+        batch = getattr(self, "_batch", None)
+        if batch is not None:
+            return batch["perms"].get(obj.unique_id, [])
+        return list(StaffAccessConfigurationPermission.objects.filter(
+            staff_access_configuration_id=obj.unique_id, is_deleted=False,
+        ))
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -186,7 +284,7 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         data["staff_unique_id"] = instance.staff_id
         data["company_id"] = instance.company_id
 
-        module = instance.app_module if instance.app_module_id else None
+        module = related(instance, "app_module") if instance.app_module_id else None
         if module and module.is_deleted:
             module = None
         data["app_module_id"] = module.unique_id if module else None
@@ -194,25 +292,17 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         data["app_module_label"] = module.label if module else None
 
         project_ids = instance.get_project_ids()
-        projects = list(Project.objects.filter(unique_id__in=project_ids)) if project_ids else []
+        projects = self._batched_rows(Project, project_ids)
         projects_by_id = {p.unique_id: p for p in projects}
         data["project_ids"] = project_ids
         data["project_names"] = [
             projects_by_id[pid].name for pid in project_ids if pid in projects_by_id
         ]
 
-        name_fields = {
-            "state_ids": (State, "name"),
-            "district_ids": (District, "name"),
-            "city_ids": (City, "name"),
-            "zone_ids": (Zone, "zone_name"),
-            "panchayat_ids": (Panchayat, "panchayat_name"),
-            "ward_ids": (Ward, "ward_name"),
-        }
         resolved_states = []
-        for field_key, (model, name_field) in name_fields.items():
+        for field_key, model, name_field in GEO_NAME_FIELDS:
             ids = getattr(instance, f"get_{field_key}")()
-            rows = list(model.objects.filter(unique_id__in=ids)) if ids else []
+            rows = self._batched_rows(model, ids)
             rows_by_id = {r.unique_id: r for r in rows}
             singular = field_key[:-4] if field_key != "city_ids" else "city"
             data[f"{singular}_ids"] = ids
@@ -227,11 +317,11 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         country_ids = []
         country_names = []
         for state in resolved_states:
-            continent = state.continent
+            continent = related(state, "continent")
             if continent and continent.unique_id not in continent_ids:
                 continent_ids.append(continent.unique_id)
                 continent_names.append(continent.name)
-            country = state.country
+            country = related(state, "country")
             if country and country.unique_id not in country_ids:
                 country_ids.append(country.unique_id)
                 country_names.append(country.name)
@@ -261,10 +351,10 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         data["scope_level"] = scope_level
 
         if instance.staff_id:
-            staff = instance.staff
+            staff = self._staff_for(instance)
             if staff:
-                staff_data = StaffcreationSerializer(staff, context=self.context).data
-                data["password"] = staff_data.get("password", "")
+                # What StaffcreationSerializer(staff).data["password"] gives.
+                data["password"] = decrypt_password(staff.password or "")
         return data
 
     def _nested_value(self, *keys, default=None):
@@ -353,22 +443,20 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         return serializer.save(company_id=company.unique_id, project_id=project_id)
 
     def get_granted_permissions(self, obj):
-        rows = StaffAccessConfigurationPermission.objects.filter(
-            staff_access_configuration_id=obj.unique_id, is_deleted=False,
-        )
-        rows = list(rows)
+        rows = self._permission_rows(obj)
 
-        from app.models.superadmin.screen_management.mainscreen import MainScreen
-        from app.models.superadmin.screen_management.userscreen import UserScreen
-
-        mainscreen_ids = {r.mainscreen_id for r in rows if r.mainscreen_id}
-        userscreen_ids = {r.userscreen_id for r in rows if r.userscreen_id}
-        mainscreens = {
-            m.unique_id: m for m in MainScreen.objects.filter(unique_id__in=mainscreen_ids)
-        }
-        userscreens = {
-            u.unique_id: u for u in UserScreen.objects.filter(unique_id__in=userscreen_ids)
-        }
+        batch = getattr(self, "_batch", None)
+        if batch is not None:
+            mainscreens, userscreens = batch["mainscreens"], batch["userscreens"]
+        else:
+            mainscreen_ids = {r.mainscreen_id for r in rows if r.mainscreen_id}
+            userscreen_ids = {r.userscreen_id for r in rows if r.userscreen_id}
+            mainscreens = {
+                m.unique_id: m for m in MainScreen.objects.filter(unique_id__in=mainscreen_ids)
+            }
+            userscreens = {
+                u.unique_id: u for u in UserScreen.objects.filter(unique_id__in=userscreen_ids)
+            }
 
         grouped = {}
         for row in rows:
@@ -388,6 +476,8 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         return list(grouped.values())
 
     def get_main_screen_count(self, obj):
+        if getattr(self, "_batch", None) is not None:
+            return len({r.mainscreen_id for r in self._permission_rows(obj)})
         return (
             StaffAccessConfigurationPermission.objects.filter(
                 staff_access_configuration_id=obj.unique_id, is_deleted=False,
@@ -398,6 +488,8 @@ class StaffAccessConfigurationSerializer(serializers.ModelSerializer):
         )
 
     def get_screen_count(self, obj):
+        if getattr(self, "_batch", None) is not None:
+            return len({r.userscreen_id for r in self._permission_rows(obj)})
         return (
             StaffAccessConfigurationPermission.objects.filter(
                 staff_access_configuration_id=obj.unique_id, is_deleted=False,

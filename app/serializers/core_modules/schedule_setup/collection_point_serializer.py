@@ -7,7 +7,44 @@ from app.models.masters.panchayat import Panchayat
 from app.models.masters.zone import Zone
 from app.models.superadmin.common_masters.state import State
 from app.models.masters.ward import Ward
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+from app.utils.related_prefetch import prefetch_related_rows, related
 from app.validators.unique_name_validator import unique_name_validator
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "state": (State, "state_id"),
+    "city": (City, "city_id"),
+    "district": (District, "district_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+    "zone": (Zone, "zone_id"),
+}
+WARD_LOOKUPS = {
+    "zone": (Zone, "zone_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+}
+
+
+class CollectionPointListSerializer(serializers.ListSerializer):
+    """Resolves each CP's relations and wards (comma-separated ward_ids) in
+    one query per table for the whole page."""
+
+    def to_representation(self, data):
+        instances = list(data.all() if hasattr(data, "all") else data)
+        prefetch_related_rows(instances, RELATED_LOOKUPS)
+
+        ward_ids = {wid for obj in instances for wid in obj.get_ward_ids()}
+        wards = list(Ward.objects.filter(unique_id__in=ward_ids).order_by("pk")) if ward_ids else []
+        prefetch_related_rows(wards, WARD_LOOKUPS)
+
+        for obj in instances:
+            # Keep the query's row order, as obj.wards would.
+            own_ids = set(obj.get_ward_ids())
+            obj._wards_cache = [ward for ward in wards if ward.unique_id in own_ids]
+
+        return super().to_representation(instances)
 
 
 class WardMinimalSerializer(serializers.ModelSerializer):
@@ -15,11 +52,11 @@ class WardMinimalSerializer(serializers.ModelSerializer):
     panchayat_name = serializers.SerializerMethodField()
 
     def get_zone_name(self, obj):
-        zone = Zone.objects.filter(unique_id=obj.zone_id).first()
+        zone = related(obj, "zone", Zone, "zone_id")
         return zone.zone_name if zone else None
 
     def get_panchayat_name(self, obj):
-        panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
+        panchayat = related(obj, "panchayat", Panchayat, "panchayat_id")
         return panchayat.panchayat_name if panchayat else None
 
     class Meta:
@@ -50,7 +87,7 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
         write_only=True,
         required=False,
     )
-    wards = WardMinimalSerializer(many=True, read_only=True)
+    wards = serializers.SerializerMethodField()
 
     # zone_id is now a direct FK on the model; expose name as read-only
     zone_name = serializers.SerializerMethodField()
@@ -59,32 +96,45 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
     ward_id = serializers.SerializerMethodField()
     ward_name = serializers.SerializerMethodField()
 
+    def _wards(self, obj):
+        cached = getattr(obj, "_wards_cache", None)
+        return cached if cached is not None else list(obj.wards.order_by("pk"))
+
+    def get_wards(self, obj):
+        return WardMinimalSerializer(self._wards(obj), many=True).data
+
     def get_ward_id(self, obj):
-        w = obj.wards.first()
-        return w.unique_id if w else None
+        wards = self._wards(obj)
+        return wards[0].unique_id if wards else None
 
     def get_ward_name(self, obj):
-        w = obj.wards.first()
-        return w.ward_name if w else None
+        wards = self._wards(obj)
+        return wards[0].ward_name if wards else None
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
 
     def get_state_name(self, obj):
-        state = State.objects.filter(unique_id=obj.state_id).first()
+        state = related(obj, "state", State, "state_id")
         return state.name if state else None
 
     def get_city_name(self, obj):
-        city = City.objects.filter(unique_id=obj.city_id).first()
+        city = related(obj, "city", City, "city_id")
         return city.name if city else None
 
     def get_district_name(self, obj):
-        district = District.objects.filter(unique_id=obj.district_id).first()
+        district = related(obj, "district", District, "district_id")
         return district.name if district else None
 
     def get_panchayat_name(self, obj):
-        panchayat = Panchayat.objects.filter(unique_id=obj.panchayat_id).first()
+        panchayat = related(obj, "panchayat", Panchayat, "panchayat_id")
         return panchayat.panchayat_name if panchayat else None
 
     def get_zone_name(self, obj):
-        zone = Zone.objects.filter(unique_id=obj.zone_id).first()
+        zone = related(obj, "zone", Zone, "zone_id")
         return zone.zone_name if zone else None
 
     class Meta:
@@ -125,6 +175,7 @@ class CollectionPointSerializer(TenancyReadSerializerMixin, serializers.ModelSer
             "created_at",
             "updated_at",
         ]
+        list_serializer_class = CollectionPointListSerializer
 
     def validate(self, attrs):
         # ── Resolve effective values (payload overrides instance) ──────────────

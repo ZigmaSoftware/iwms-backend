@@ -49,14 +49,14 @@ class TripPlan(BaseMaster):
     )
 
     # ---- tenancy ---------------------------------------------------
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     # ---- WHERE -----------------------------------------------------
     district_id = models.CharField(max_length=30, null=True, blank=True)
     city_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     block_panchayat_union_id = models.CharField(max_length=30, null=True, blank=True)
     
     # Store ward IDs as comma-separated string

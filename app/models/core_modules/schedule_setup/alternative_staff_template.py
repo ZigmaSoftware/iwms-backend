@@ -37,8 +37,8 @@ class AlternativeStaffTemplate(BaseMaster):
 
     staff_template_id = models.CharField(max_length=20, null=True, blank=True)
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     from_date = models.DateField(null=True, blank=True)
     to_date = models.DateField(null=True, blank=True)

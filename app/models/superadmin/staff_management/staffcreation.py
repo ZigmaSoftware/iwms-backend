@@ -152,11 +152,11 @@ class StaffcreationOfficeDetails(BaseMaster):
     # -----------------------------
     district_id = models.CharField(max_length=30, null=True, blank=True)
     city_id = models.CharField(max_length=30, null=True, blank=True)
-    zone_id = models.CharField(max_length=30, null=True, blank=True)
-    ward_id = models.CharField(max_length=30, null=True, blank=True)
+    zone_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    ward_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -386,8 +386,8 @@ class StaffPersonalDetails(models.Model):
         primary_key=True,
         editable=False
     )
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     marital_status = models.CharField(max_length=50, blank=True, null=True)
     dob = models.DateField(blank=True, null=True)
     age = models.PositiveSmallIntegerField(blank=True, null=True)
