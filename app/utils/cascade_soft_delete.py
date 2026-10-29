@@ -214,6 +214,8 @@ def cascade_soft_delete(instance, updated_by=None, delete_reason=None, deleted_b
             rows = rows.exclude(pk__in=child_pks)
         rows.update(**update_fields)
 
+    _resync_broken_down_vehicles(all_models)
+
     instance.is_deleted = True
     if _model_has_field(type(instance), "is_active"):
         instance.is_active = False
@@ -230,6 +232,27 @@ def cascade_soft_delete(instance, updated_by=None, delete_reason=None, deleted_b
     if delete_reason and _model_has_field(type(instance), "delete_reason"):
         type(instance)._base_manager.filter(pk=instance.pk).update(delete_reason=delete_reason)
         instance.delete_reason = delete_reason
+
+
+def _resync_broken_down_vehicles(all_models):
+    """The bulk update above skips the hook that keeps a vehicle's
+    BREAKDOWN/ACTIVE status in step with its breakdowns — without this,
+    deleting a trip (or its plan) leaves the vehicle stuck in BREAKDOWN."""
+    breakdown_model = _lazy_model(_VEHICLE_BREAKDOWN)
+    pks = all_models.get(breakdown_model)
+    if not pks:
+        return
+    from app.models.core_modules.daily_operations.vehicle_breakdown import (
+        sync_vehicle_operational_status,
+    )
+
+    vehicle_ids = set(
+        breakdown_model._base_manager.filter(pk__in=pks).values_list(
+            "breakdown_vehicle_id", flat=True,
+        )
+    )
+    for vehicle_id in vehicle_ids:
+        sync_vehicle_operational_status(vehicle_id)
 
 
 def _account_id(updated_by):

@@ -127,6 +127,9 @@ def test_summary_needs_the_home_dashboard_grant(monkeypatch):
     ("dashboard-reports", "/api/v1/reports/daily-waste-comparisons/", "DailyWasteComparisonViewSet"),
     ("dashboard-reports", "/api/v1/reports/monthly-waste-comparison/", "MonthlyWasteComparisonReportViewSet"),
     ("home-dashboard", "/api/v1/complaint-ticket/tickets/", "ComplaintTicketViewSet"),
+    # Weighbridge Log's unknown-vehicle check. Also guards the route parser,
+    # which once dropped every "v..." route.
+    ("dashboard-weighbridge", "/api/v1/transport-masters/vehicle-creation/", "VehicleCreationViewSet"),
 ])
 def test_dashboard_tabs_read_the_data_they_show(monkeypatch, screen, path, view_name):
     granted = {"user-dashboard": {screen: ["view"]}}

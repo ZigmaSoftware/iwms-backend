@@ -167,3 +167,28 @@ def test_breakdown_approval_carries_all_bins_and_closes_source_assignment(
     continuation = DailyTripAssignment.objects.get(unique_id=approved.new_assignment)
     assert continuation.status == DailyTripAssignment.STATUS_SCHEDULED
     assert continuation.trip_collection_points.count() == 1
+
+
+def test_available_staff_templates_offers_the_broken_trips_own_crew(
+    company, project, supervisor, bin_plan, staff_template,
+):
+    source = _assignment(bin_plan)
+    later = _assignment(bin_plan)
+    DailyTripAssignment.objects.filter(pk=later.pk).update(
+        status=DailyTripAssignment.STATUS_SCHEDULED, scheduled_time=time(14, 0),
+    )
+
+    def template_ids(params):
+        request = APIRequestFactory().get(
+            "/vehicle-breakdowns/available-staff-templates/",
+            {"date": timezone.localdate().isoformat(), **params},
+        )
+        force_authenticate(request, user=supervisor)
+        response = VehicleBreakdownViewSet.as_view({"get": "available_staff_templates"})(request)
+        assert response.status_code == 200, response.data
+        return {row["unique_id"] for row in response.data}
+
+    # Without the trip the crew looks busy (it is on that trip).
+    assert staff_template.unique_id not in template_ids({})
+    # For the trip that broke down, the same crew can carry on.
+    assert staff_template.unique_id in template_ids({"trip_assignment_id": source.unique_id})

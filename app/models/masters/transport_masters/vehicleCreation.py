@@ -10,6 +10,10 @@ def generate_vehicle_creation_id():
     return f"VEHCRE-{generate_unique_id()}"
 
 
+def generate_vehicle_document_history_id():
+    return f"VEHDOC-{generate_unique_id()}"
+
+
 def vehicle_rc_upload_path(instance, filename):
     return f"uploads/vehicles/rc/{instance.unique_id}_{filename}"
 
@@ -23,6 +27,10 @@ class VehicleCreation(BaseMaster):
         NEW = "NEW", "New"
         SECOND_HAND = "SECOND_HAND", "Second Hand"
 
+    class OperationalStatus(models.TextChoices):
+        ACTIVE = "ACTIVE", "Active"
+        BREAKDOWN = "BREAKDOWN", "Breakdown"
+
     unique_id = models.CharField(
         max_length=40,
         primary_key=True,
@@ -33,8 +41,8 @@ class VehicleCreation(BaseMaster):
     fuel_type_id = models.CharField(max_length=30, null=True, blank=True)
     vehicle_type_id = models.CharField(max_length=30, null=True, blank=True)
     supervisor_id = models.CharField(max_length=30, null=True, blank=True)
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     vehicle_no = models.CharField(max_length=50)
     capacity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -49,9 +57,19 @@ class VehicleCreation(BaseMaster):
         choices=ConditionChoices.choices,
         default=ConditionChoices.NEW,
     )
+    # Driven by VehicleBreakdown (see sync_vehicle_operational_status): goes
+    # to BREAKDOWN when a breakdown is reported and back to ACTIVE once it is
+    # rejected, deleted or the vehicle is marked repaired.
+    operational_status = models.CharField(
+        max_length=20,
+        choices=OperationalStatus.choices,
+        default=OperationalStatus.ACTIVE,
+        db_index=True,
+    )
     fuel_tank_capacity = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )
+    rc_expiry_date = models.DateField(blank=True, null=True)
     rc_upload = models.FileField(
         upload_to=vehicle_rc_upload_path, null=True, blank=True
     )
@@ -110,3 +128,43 @@ class VehicleCreation(BaseMaster):
         if self.project_id:
             return Project.objects.filter(unique_id=self.project_id).first()
         return None
+
+
+class VehicleDocumentHistory(models.Model):
+    """One row per RC / insurance change on a vehicle, so renewed documents
+    keep their previous file and expiry instead of being overwritten."""
+
+    class DocumentType(models.TextChoices):
+        RC = "RC", "Registration Certificate"
+        INSURANCE = "INSURANCE", "Insurance"
+
+    unique_id = models.CharField(
+        max_length=40,
+        primary_key=True,
+        default=generate_vehicle_document_history_id,
+        editable=False,
+    )
+    vehicle_id = models.CharField(max_length=40, db_index=True)
+    vehicle_no = models.CharField(max_length=50, db_index=True)
+    document_type = models.CharField(max_length=20, choices=DocumentType.choices)
+    previous_document_number = models.CharField(max_length=100, blank=True, null=True)
+    new_document_number = models.CharField(max_length=100, blank=True, null=True)
+    previous_expiry_date = models.DateField(blank=True, null=True)
+    new_expiry_date = models.DateField(blank=True, null=True)
+    previous_file = models.CharField(max_length=255, blank=True, null=True)
+    new_file = models.CharField(max_length=255, blank=True, null=True)
+    changed_by_id = models.CharField(max_length=50, blank=True, null=True)
+    changed_by_name = models.CharField(max_length=150, blank=True, null=True)
+    changed_by_type = models.CharField(max_length=50, blank=True, null=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-changed_at"]
+        verbose_name = "Vehicle Document History"
+        verbose_name_plural = "Vehicle Document Histories"
+        indexes = [
+            models.Index(fields=["vehicle_id", "document_type", "-changed_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.vehicle_no} - {self.document_type} - {self.changed_at}"

@@ -23,8 +23,8 @@ class City(BaseMaster):
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     CASCADE_SOFT_DELETE = (
         "zone_set",

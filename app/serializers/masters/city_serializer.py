@@ -8,7 +8,17 @@ from app.models.superadmin.common_masters.continent import Continent
 from app.models.superadmin_masters.company import Company
 from app.models.superadmin_masters.project import Project
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.utils.related_prefetch import prefetching_list_serializer, related
 from app.validators.unique_name_validator import unique_name_validator
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "continent": (Continent, "continent_id"),
+    "country": (Country, "country_id"),
+    "state": (State, "state_id"),
+    "district": (District, "district_id"),
+}
+
 
 class CitySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
     continent_id = NameOrUniqueIdField(
@@ -57,6 +67,7 @@ class CitySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["unique_id"]    
         validators = []
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
 
     def validate(self, attrs):
         return unique_name_validator(
@@ -65,27 +76,27 @@ class CitySerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
         )(self, attrs)
 
     def get_continent_name(self, obj):
-        item = Continent.objects.filter(unique_id=obj.continent_id).first()
+        item = related(obj, "continent", Continent, "continent_id")
         return item.name if item else None
 
     def get_country_name(self, obj):
-        item = Country.objects.filter(unique_id=obj.country_id).first()
+        item = related(obj, "country", Country, "country_id")
         return item.name if item else None
 
     def get_state_name(self, obj):
-        item = State.objects.filter(unique_id=obj.state_id).first()
+        item = related(obj, "state", State, "state_id")
         return item.name if item else None
 
     def get_district_name(self, obj):
-        item = District.objects.filter(unique_id=obj.district_id).first()
+        item = related(obj, "district", District, "district_id")
         return item.name if item else None
 
     def get_company_name(self, obj):
-        item = Company.objects.filter(unique_id=obj.company_id).first()
+        item = related(obj, "company", Company, "company_id")
         return item.name if item else None
 
     def get_project_name(self, obj):
-        item = Project.objects.filter(unique_id=obj.project_id).first()
+        item = related(obj, "project", Project, "project_id")
         return item.name if item else None
 
     def get_continent_unique_id(self, obj):

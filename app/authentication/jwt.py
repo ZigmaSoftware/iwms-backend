@@ -8,11 +8,12 @@ from app.models.masters.customer_masters.customercreation import CustomerCreatio
 from app.models.masters.leader_management.panchayat_leader_login import PanchayatLeaderLogin
 from app.models.masters.leader_management.district_leader_login import DistrictLeaderLogin
 from app.services.login_session import validate_session
+from app.authentication.cookies import bearer_token, request_token
 
 
 class JWTUserAuthentication(BaseAuthentication):
     """
-    Resolve a user from the Bearer token.
+    Resolve a user from the Bearer token or the web portal's auth cookie.
     Supports both Staff (Staffcreation) and Customer (CustomerCreation) authentication.
     """
 
@@ -35,16 +36,22 @@ class JWTUserAuthentication(BaseAuthentication):
         if hasattr(existing_user, 'unique_id') and hasattr(existing_user, 'customer_name'):
             return (existing_user, None)
 
-        auth = request.headers.get("Authorization")
-        if not auth or not auth.lower().startswith("bearer "):
-            return None
+        token = bearer_token(request)
+        if token:
+            return self._authenticate_token(request, token)
 
-        token = auth.split(" ", 1)[1].strip()
-        # Remove all whitespace characters including newlines from the token
-        token = ''.join(token.split())
+        # Web portal's HttpOnly cookie. A stale one (expired, logged out)
+        # just means "not signed in": raising here would also fail public
+        # endpoints like login, which DRF authenticates eagerly.
+        token = request_token(request)
         if not token:
             return None
+        try:
+            return self._authenticate_token(request, token)
+        except AuthenticationFailed:
+            return None
 
+    def _authenticate_token(self, request, token):
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         except jwt.ExpiredSignatureError as exc:

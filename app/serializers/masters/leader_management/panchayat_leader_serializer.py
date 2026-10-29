@@ -5,6 +5,15 @@ from app.models.masters.leader_management.panchayat_leader_login import Panchaya
 from app.models.masters.panchayat import Panchayat
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+from app.utils.related_prefetch import prefetching_list_serializer, related
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+}
 
 
 class PanchayatLeaderLoginSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -42,9 +51,16 @@ class PanchayatLeaderLoginSerializer(TenancyReadSerializerMixin, serializers.Mod
             "updated_at",
         ]
         read_only_fields = ["unique_id", "created_at", "updated_at"]
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
 
     def get_panchayat_name(self, obj):
-        return getattr(obj.panchayat, "panchayat_name", None)
+        return getattr(related(obj, "panchayat"), "panchayat_name", None)
 
     def validate_panchayat_id(self, value):
         """One panchayat can have at most one (non-deleted) leader."""

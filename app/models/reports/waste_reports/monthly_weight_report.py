@@ -14,8 +14,8 @@ class MonthlyWeightReport(models.Model):
         default=generate_monthlyweightreport_id,
         editable=False,
     )
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     panchayat_id = models.CharField(max_length=30, null=True, blank=True)
     month = models.CharField(max_length=20)
     waste_type_id = models.CharField(max_length=100, null=True, blank=True)

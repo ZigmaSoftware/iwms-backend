@@ -7,11 +7,55 @@ from app.models.superadmin.staff_management.department import Department
 from app.models.superadmin.staff_management.designation import Designation
 from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.models.superadmin_masters.company import Company
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.utils.related_prefetch import prefetching_list_serializer, related
+from app.models.superadmin.screen_management.app_module import AppModule
+from app.models.superadmin.staff_management.staff_access_configuration import StaffAccessConfiguration
 
 from app.models.superadmin.staff_management.staffcreation import Staffcreation, StaffPersonalDetails
 
 from app.utils.password_encryption import encrypt_password, decrypt_password
+
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "staffusertype": (StaffUserType, "staffusertype_id"),
+    "contractorusertype": (ContractorUserType, "contractorusertype_id"),
+    "department_obj": (Department, "department_id"),
+    "designation_obj": (Designation, "designation_id"),
+}
+
+
+class StaffcreationListSerializer(prefetching_list_serializer(RELATED_LOOKUPS)):
+    """Also batches the `app_module` property (active access config -> its
+    AppModule's surface_key), which is one query per row otherwise."""
+
+    def to_representation(self, data):
+        instances = list(data.all() if hasattr(data, "all") else data)
+        staff_ids = {obj.staff_unique_id for obj in instances if obj.staff_unique_id}
+        configs = {}
+        if staff_ids:
+            # Same filter/ordering as the property; keep the first per staff.
+            for config in StaffAccessConfiguration.objects.filter(
+                staff_id__in=staff_ids, is_active=True, is_deleted=False,
+            ):
+                configs.setdefault(config.staff_id, config)
+        module_ids = {c.app_module_id for c in configs.values() if c.app_module_id}
+        modules = (
+            {m.unique_id: m for m in AppModule.objects.filter(unique_id__in=module_ids)}
+            if module_ids else {}
+        )
+        for obj in instances:
+            if not obj.staff_unique_id:
+                continue
+            config = configs.get(obj.staff_unique_id)
+            module = modules.get(config.app_module_id) if config and config.app_module_id else None
+            obj._app_module = (
+                module.surface_key if module and module.is_active and not module.is_deleted else None
+            )
+        return super().to_representation(instances)
 
 
 class StaffApprovalActionSerializer(serializers.Serializer):
@@ -28,6 +72,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     # --------------------------------------------------
     unique_id = serializers.CharField(source="staff_unique_id",read_only=True)
     emp_id = serializers.CharField(read_only=True)
+    app_module = serializers.SerializerMethodField()
     staffusertype_id = NameOrUniqueIdField(
     name_field="name",
     queryset=StaffUserType.objects.all(),
@@ -74,27 +119,27 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     designation_group = serializers.SerializerMethodField()
 
     def get_staffusertype_name(self, obj):
-        staffusertype = obj.staffusertype
+        staffusertype = related(obj, "staffusertype")
         return staffusertype.name if staffusertype else None
 
     def get_contractorusertype_name(self, obj):
-        contractorusertype = obj.contractorusertype
+        contractorusertype = related(obj, "contractorusertype")
         return contractorusertype.name if contractorusertype else None
 
     def get_department_name(self, obj):
-        department = obj.department_obj
+        department = related(obj, "department_obj")
         return department.department_name if department else None
 
     def get_department_code(self, obj):
-        department = obj.department_obj
+        department = related(obj, "department_obj")
         return department.department_code if department else None
 
     def get_designation_name(self, obj):
-        designation = obj.designation_obj
+        designation = related(obj, "designation_obj")
         return designation.designation_name if designation else None
 
     def get_designation_group(self, obj):
-        designation = obj.designation_obj
+        designation = related(obj, "designation_obj")
         return designation.designation_group if designation else None
 
     # --------------------------------------------------
@@ -263,7 +308,7 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
     user_type_id = serializers.SerializerMethodField()
 
     def get_user_type_id(self, obj):
-        staffusertype = obj.staffusertype
+        staffusertype = related(obj, "staffusertype")
         return staffusertype.usertype_id if staffusertype else None
 
     
@@ -379,6 +424,18 @@ class StaffcreationSerializer(TenancyReadSerializerMixin, serializers.ModelSeria
             "created_at",
             "updated_at",
         ]
+        list_serializer_class = StaffcreationListSerializer
+
+    def get_app_module(self, obj):
+        if hasattr(obj, "_app_module"):
+            return obj._app_module
+        return obj.app_module
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

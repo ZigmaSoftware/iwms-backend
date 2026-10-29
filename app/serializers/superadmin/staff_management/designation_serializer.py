@@ -2,8 +2,17 @@ from rest_framework import serializers
 
 from app.models.superadmin.staff_management.department import Department
 from app.models.superadmin.staff_management.designation import Designation
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.utils.related_prefetch import prefetching_list_serializer, related
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "department": (Department, "department_id"),
+}
 
 
 class DesignationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -42,15 +51,20 @@ class DesignationSerializer(TenancyReadSerializerMixin, serializers.ModelSeriali
             "updated_at",
         ]
         read_only_fields = ["unique_id", "id", "created_at", "updated_at", "is_deleted"]
+        list_serializer_class = prefetching_list_serializer(RELATED_LOOKUPS)
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
 
     def get_status_label(self, obj):
         return "active" if obj.is_active else "inactive"
 
     def get_department_name(self, obj):
-        if obj.department_id:
-            department = Department.objects.filter(unique_id=obj.department_id).first()
-            return department.department_name if department else None
-        return None
+        department = related(obj, "department", Department, "department_id")
+        return department.department_name if department else None
 
     def validate(self, attrs):
         status = attrs.pop("status", None)

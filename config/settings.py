@@ -53,6 +53,7 @@ ALLOWED_HOSTS = [
     '10.152.141.197',
     '192.168.3.112',
     '10.255.70.197',
+    '192.168.6.44',
     "aura-haustorial-elayne.ngrok-free.dev",
 ]
 
@@ -83,6 +84,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Compresses JSON responses (list endpoints shrink to ~5% of their size).
+    'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -141,6 +144,10 @@ DATABASES = {
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
+        # Reuse a worker's MySQL connection across requests instead of opening
+        # one per request; health checks drop it if the server closed it.
+        'CONN_MAX_AGE': int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        'CONN_HEALTH_CHECKS': True,
     }
 }
 
@@ -224,6 +231,12 @@ CORS_ALLOW_CREDENTIALS = True
 # Let the browser read the server Excel export's row count.
 CORS_EXPOSE_HEADERS = ["Content-Disposition", "X-Row-Count"]
 
+# The web portals name themselves in X-IWMS-Portal so the backend knows which
+# auth cookie to read (app/authentication/cookies.py).
+from corsheaders.defaults import default_headers as _cors_default_headers
+
+CORS_ALLOW_HEADERS = (*_cors_default_headers, "x-iwms-portal")
+
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$",
     r"^http://192\.168\.4\.\d{1,3}(:\d+)?$",
@@ -240,14 +253,15 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://10\.244\.208\.158(:\d+)?$",  
     r"^http://10\.183\.250\.158(:\d+)?$",
     r"^http://192\.168\.7\.176(:\d+)?$",
-    r"^http://192\.168\.5\.\.77(:d+)?$",
-    r"^http://192\.168\.5\.20(:d+)?$",
-    r"^http://192\.168\.6\.198(:d+)?$",
-    r"^http://192\.168\.1\.156(:d+)?$",
-    r"^http://92\.168\.3\.120(:d+)?$",
-    r"^http://10\.152\.141\.197(:d+)?$",
-    r"^http://192\.168\.3\.112(:d+)?$",
-    r"^http://10\.255\.70\.197(:d+)?$",
+    r"^http://192\.168\.5\.77(:\d+)?$",
+    r"^http://192\.168\.5\.20(:\d+)?$",
+    r"^http://192\.168\.6\.198(:\d+)?$",
+    r"^http://192\.168\.1\.156(:\d+)?$",
+    r"^http://192\.168\.3\.120(:\d+)?$",
+    r"^http://10\.152\.141\.197(:\d+)?$",
+    r"^http://192\.168\.3\.112(:\d+)?$",
+    r"^http://10\.255\.70\.197(:\d+)?$",
+    r"^http://192\.168\.6\.44(:\d+)?$",
     "https://aura-haustorial-elayne.ngrok-free.dev",
 ]
 

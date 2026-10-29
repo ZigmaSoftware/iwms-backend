@@ -19,6 +19,7 @@ from app.serializers.operator_mobile.scan_serializers import (
 from app.viewsets.operator_mobile.helpers import (
     OperatorFlowError,
     build_scan_context,
+    lock_stop_for_write,
     progress_payload,
     require_trip_started,
     resolve_operator_staff,
@@ -76,6 +77,9 @@ class ScanBinViewSet(ActionAuditMixin, viewsets.ViewSet):
 
         try:
             with transaction.atomic():
+                # Re-check under row locks: a Re-Trip approval may have
+                # carried this stop over since the context was built.
+                ctx.trip_cp = lock_stop_for_write(ctx.assignment, ctx.trip_cp)
                 # Driver must have pressed "Start Trip" first — see
                 # trip_lifecycle_viewset.py. Replaces the old implicit
                 # auto-start-on-first-scan behaviour.

@@ -225,17 +225,25 @@ def resolve_bin_from_qr(bin_qr: str) -> Bins:
     return bin_obj
 
 
-def _assignment_waste_type_ids(assignment: DailyTripAssignment) -> set:
+_UNSET = object()
+
+
+def _assignment_waste_type_ids(assignment: DailyTripAssignment, trip_plan=_UNSET) -> set:
     """Every waste-type id this trip collects, from all three storage spots.
 
     Returns an empty set when the trip declares none anywhere, which callers
     treat as "unrestricted" rather than "collects nothing" — a trip with no
     declared waste type should not reject every bin.
+
+    Pass `trip_plan` when the caller already has the assignment's plan, to
+    skip looking it up again.
     """
     ids = set(str(v) for v in (assignment.waste_type_ids or []) if v)
     if assignment.trip_plan_id:
-        from app.models.core_modules.schedule_setup.trip_plan import TripPlan
-        plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id).first()
+        plan = trip_plan
+        if plan is _UNSET:
+            from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+            plan = TripPlan.objects.filter(unique_id=assignment.trip_plan_id).first()
         if plan and plan.waste_type_id:
             ids.add(str(plan.waste_type_id))
     return {str(i) for i in ids if i}
@@ -331,8 +339,57 @@ def validate_bin_against_assignment(
             "This collection point has already been marked collected.",
             http_status=409,
         )
+    raise_if_stop_unwritable(assignment, trip_cp)
 
     return trip_cp
+
+
+def raise_if_stop_unwritable(assignment, stop):
+    """Refuse a driver write on a closed trip, or on a stop a Re-Trip /
+    breakdown moved to a continuation.
+
+    An app that has not refreshed since the approval still shows the source
+    trip; without this, a collect there would land on the source row while
+    the continuation's copy stays Pending, and the stop gets visited twice.
+    """
+    if assignment.status in (
+        DailyTripAssignment.STATUS_COMPLETED,
+        DailyTripAssignment.STATUS_CANCELLED,
+    ):
+        raise OperatorFlowError(
+            "TRIP_CLOSED",
+            "This trip has ended. Refresh your trip list.",
+            http_status=409,
+        )
+    if stop.carried_to_assignment:
+        raise OperatorFlowError(
+            "STOP_CARRIED_OVER",
+            f"This stop moved to your next trip ({stop.carried_to_assignment}). "
+            "Refresh your trip list.",
+            http_status=409,
+        )
+
+
+def lock_stop_for_write(assignment, stop):
+    """Re-read the trip and the stop under row locks and re-check them.
+
+    Call inside the write's transaction. Trip first, then stop — the order
+    Re-Trip approval uses — so a scan racing an approval waits for it and
+    then sees the stop as carried over instead of collecting it on the
+    source too. Returns the locked stop.
+    """
+    locked_assignment = DailyTripAssignment.objects.select_for_update().get(
+        pk=assignment.pk
+    )
+    locked_stop = type(stop).objects.select_for_update().get(pk=stop.pk)
+    if locked_stop.is_collected:
+        raise OperatorFlowError(
+            "ALREADY_COLLECTED",
+            "This stop has already been marked collected.",
+            http_status=409,
+        )
+    raise_if_stop_unwritable(locked_assignment, locked_stop)
+    return locked_stop
 
 
 def require_trip_started(assignment: DailyTripAssignment) -> None:
@@ -652,6 +709,10 @@ def validate_customer_against_assignment(customer, assignment):
             "CUSTOMER_NOT_IN_TRIP",
             "This household is not on your current trip.",
         )
+    # An already-collected stop keeps the callers' own "already collected"
+    # answer; only a write that would actually change the stop is refused.
+    if not stop.is_collected:
+        raise_if_stop_unwritable(assignment, stop)
     return stop
 
 

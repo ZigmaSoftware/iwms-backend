@@ -57,13 +57,18 @@ def _period(row, monthly):
     return f"{date.year}-{date.month:02d}" if monthly else str(date)
 
 
-def _location_from_row(row):
+def _location_from_row(row, panchayat_names=None, zone_names=None):
     """Bin-collection trips are panchayat-scoped; household/zone trips carry
     zone_id instead (DailyTripLog.autofill_from_assignment falls back to the
     ward's zone when there's no panchayat — see daily_trip_log.py). Reports
     used to key everything off panchayat_id alone and silently dropped every
-    zone-only row; resolve whichever the row actually has so nothing is lost."""
+    zone-only row; resolve whichever the row actually has so nothing is lost.
+
+    `panchayat_names`/`zone_names` ({unique_id: name}, preloaded for the whole
+    report) skip the per-row lookup for ids they contain."""
     panchayat_id = row.get("panchayat_id")
+    if panchayat_id and panchayat_names is not None and panchayat_id in panchayat_names:
+        return ("panchayat", panchayat_id, panchayat_names[panchayat_id])
     if panchayat_id:
         from app.models.masters.panchayat import Panchayat
         panchayat = Panchayat.objects.filter(unique_id=panchayat_id).first()
@@ -73,6 +78,8 @@ def _location_from_row(row):
             panchayat.panchayat_name if panchayat else panchayat_id,
         )
     zone_id = row.get("zone_id")
+    if zone_id and zone_names is not None and zone_id in zone_names:
+        return ("zone", zone_id, zone_names[zone_id])
     if zone_id:
         from app.models.masters.zone import Zone
         zone = Zone.objects.filter(unique_id=zone_id).first()
@@ -154,7 +161,7 @@ def build_waste_collection_report(
 
     locations = {}
     for raw in location_qs:
-        location = _location_from_row(raw)
+        location = _location_from_row(raw, panchayats, zones)
         if location is None:
             continue
         location_type, location_id, location_name = location
@@ -252,7 +259,7 @@ def build_waste_collection_report(
     def add_type_row(info, wt_id, wt_name, weight, assignment_id):
         if not info:
             return
-        location = _location_from_row(info)
+        location = _location_from_row(info, panchayats, zones)
         if location is None:
             return
         location_type, location_id, location_name = location

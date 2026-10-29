@@ -15,6 +15,7 @@ from app.models.masters.waste_masters.subproperty import SubProperty
 from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.utils.name_or_id_field import NameOrUniqueIdField
+from app.utils.related_prefetch import prefetching_list_serializer, related
 from app.validators.unique_name_validator import unique_name_validator
 
 from app.utils.password_encryption import encrypt_password, decrypt_password
@@ -30,6 +31,41 @@ RESIDENTIAL_SUB_PROPERTY_KEYWORDS = (
     "villa",
     "townhouse",
 )
+
+# The model's accessors (`obj.ward`, `obj.project`, ...) each run their own
+# query — ~12 per row; lists resolve them in one query per table instead.
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "ward": (Ward, "ward_id"),
+    "zone": (Zone, "zone_id"),
+    "city": (City, "city_id"),
+    "district": (District, "district_id"),
+    "state": (State, "state_id"),
+    "country": (Country, "country_id"),
+    "panchayat": (Panchayat, "panchayat_id"),
+    "property_obj": (Property, "property_id"),
+    "sub_property_obj": (SubProperty, "sub_property_id"),
+}
+
+
+class CustomerCreationListSerializer(prefetching_list_serializer(RELATED_LOOKUPS)):
+    def to_representation(self, data):
+        instances = list(data.all() if hasattr(data, "all") else data)
+
+        # waste_type_ids is a comma-separated TextField, so it needs its own pass.
+        waste_type_ids = {wid for obj in instances for wid in obj.get_waste_type_ids()}
+        waste_types = (
+            {row.unique_id: row for row in WasteType.objects.filter(unique_id__in=waste_type_ids)}
+            if waste_type_ids else {}
+        )
+
+        for obj in instances:
+            # Keep the query's row order, as obj.waste_types_queryset would.
+            own_ids = set(obj.get_waste_type_ids())
+            obj._waste_types_cache = [row for wid, row in waste_types.items() if wid in own_ids]
+
+        return super().to_representation(instances)
 
 
 class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSerializer):
@@ -113,15 +149,15 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
     waste_types = serializers.SerializerMethodField(read_only=True)
     # Local-body emblem for the project, printed on the customer QR sticker.
     project_logo = serializers.SerializerMethodField(read_only=True)
-    panchayat_name = serializers.CharField(source="panchayat.panchayat_name", read_only=True, default=None)
-    ward_name = serializers.CharField(source="ward.ward_name", read_only=True, default=None)
-    zone_name = serializers.CharField(source="zone.zone_name", read_only=True, default=None)
-    city_name = serializers.CharField(source="city.name", read_only=True, default=None)
-    district_name = serializers.CharField(source="district.name", read_only=True, default=None)
-    state_name = serializers.CharField(source="state.name", read_only=True, default=None)
-    country_name = serializers.CharField(source="country.name", read_only=True, default=None)
-    property_name = serializers.CharField(source="property_obj.property_name", read_only=True, default=None)
-    sub_property_name = serializers.CharField(source="sub_property_obj.sub_property_name", read_only=True, default=None)
+    panchayat_name = serializers.SerializerMethodField(read_only=True)
+    ward_name = serializers.SerializerMethodField(read_only=True)
+    zone_name = serializers.SerializerMethodField(read_only=True)
+    city_name = serializers.SerializerMethodField(read_only=True)
+    district_name = serializers.SerializerMethodField(read_only=True)
+    state_name = serializers.SerializerMethodField(read_only=True)
+    country_name = serializers.SerializerMethodField(read_only=True)
+    property_name = serializers.SerializerMethodField(read_only=True)
+    sub_property_name = serializers.SerializerMethodField(read_only=True)
 
     apartment_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     block_no = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -222,6 +258,7 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
         ]
         read_only_fields = ["unique_id", "customer_id", "password_crt_date", "created_at"]
         validators = []
+        list_serializer_class = CustomerCreationListSerializer
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -375,18 +412,54 @@ class CustomerCreationSerializer(TenancyReadSerializerMixin, serializers.ModelSe
                 )
         return value
 
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
+
+    def get_panchayat_name(self, obj):
+        return getattr(related(obj, "panchayat"), "panchayat_name", None)
+
+    def get_ward_name(self, obj):
+        return getattr(related(obj, "ward"), "ward_name", None)
+
+    def get_zone_name(self, obj):
+        return getattr(related(obj, "zone"), "zone_name", None)
+
+    def get_city_name(self, obj):
+        return getattr(related(obj, "city"), "name", None)
+
+    def get_district_name(self, obj):
+        return getattr(related(obj, "district"), "name", None)
+
+    def get_state_name(self, obj):
+        return getattr(related(obj, "state"), "name", None)
+
+    def get_country_name(self, obj):
+        return getattr(related(obj, "country"), "name", None)
+
+    def get_property_name(self, obj):
+        return getattr(related(obj, "property_obj"), "property_name", None)
+
+    def get_sub_property_name(self, obj):
+        return getattr(related(obj, "sub_property_obj"), "sub_property_name", None)
+
     def get_project_logo(self, obj):
-        logo = getattr(getattr(obj, "project", None), "project_logo", None)
+        logo = getattr(related(obj, "project"), "project_logo", None)
         if not logo:
             return None
         request = self.context.get("request")
         return request.build_absolute_uri(logo.url) if request else logo.url
 
     def get_waste_types(self, obj):
+        waste_types = getattr(obj, "_waste_types_cache", None)
+        if waste_types is None:
+            waste_types = obj.waste_types_queryset
         return [
             {
                 "unique_id": waste_type.unique_id,
                 "waste_type_name": waste_type.waste_type_name,
             }
-            for waste_type in obj.waste_types_queryset
+            for waste_type in waste_types
         ]

@@ -24,3 +24,10 @@ SIMPLE_JWT = {
 # activity (mouse / keyboard / touch). The value is sent to the browser in the
 # login response and also enforced server-side on every authenticated request.
 LOGIN_IDLE_TIMEOUT_SECONDS = int(os.getenv("LOGIN_IDLE_TIMEOUT_MINUTES", "40")) * 60
+
+# Web portals keep their access token in an HttpOnly cookie (see
+# app/authentication/cookies.py). Set AUTH_COOKIE_SECURE=true once the site
+# is served over HTTPS; browsers drop Secure cookies on plain HTTP.
+AUTH_COOKIE_SECURE = os.getenv("AUTH_COOKIE_SECURE", "false").lower() == "true"
+AUTH_COOKIE_SAMESITE = os.getenv("AUTH_COOKIE_SAMESITE", "Lax")
+AUTH_COOKIE_DOMAIN = os.getenv("AUTH_COOKIE_DOMAIN") or None

@@ -7,8 +7,8 @@ def generate_daily_waste_comparison_id():
 class DailyWasteComparison(models.Model):
     unique_id = models.CharField(max_length=30, primary_key=True, default=generate_daily_waste_comparison_id, editable=False)
     company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
     collection_date = models.DateField()
     waste_type_id = models.CharField(max_length=100, null=True, blank=True)
     agreed_weight_kg = models.DecimalField(max_digits=14, decimal_places=2, default=0)

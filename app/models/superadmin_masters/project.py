@@ -15,7 +15,7 @@ class Project(BaseMaster):
         default=generate_project_id,
     )
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)

@@ -235,7 +235,13 @@ SCREEN_DEPENDENCIES = {
         ),
     },
     ("user-dashboard", "dashboard-grievances"): {
-        "lookups": ("complaint-ticket/tickets",),
+        "lookups": (
+            "complaint-ticket/tickets",
+            # Priority filter dropdown + the analytics panel (same aggregates
+            # as the admin Complaints Report).
+            "complaint-ticket/priorities",
+            "reports/complaints-report",
+        ),
     },
     ("user-dashboard", "dashboard-reports"): {
         "lookups": (
@@ -244,6 +250,11 @@ SCREEN_DEPENDENCIES = {
             "masters/panchayat",
             "masters/zones",
         ),
+    },
+    # Weighbridge Log: flags entries whose vehicle is not in the vehicle
+    # master. Weighbridge data itself is read from the vendor API.
+    ("user-dashboard", "dashboard-weighbridge"): {
+        "lookups": ("transport-masters/vehicle-creation",),
     },
 }
 

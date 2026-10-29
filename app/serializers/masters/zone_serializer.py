@@ -5,9 +5,34 @@ from app.models.masters.zone import Zone
 from app.models.masters.city import City
 from app.models.masters.district import District
 from app.models.superadmin.common_masters.state import State
+from app.models.superadmin.common_masters.country import Country
+from app.models.superadmin.common_masters.continent import Continent
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
+from app.utils.related_prefetch import prefetch_related_rows, related
 from app.utils.name_or_id_field import NameOrUniqueIdField
 from app.validators.unique_name_validator import unique_name_validator
+
+RELATED_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "state": (State, "state_id"),
+    "district": (District, "district_id"),
+    "city": (City, "city_id"),
+}
+STATE_LOOKUPS = {
+    "country": (Country, "country_id"),
+    "continent": (Continent, "continent_id"),
+}
+
+
+class ZoneListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        instances = list(data.all() if hasattr(data, "all") else data)
+        rows = prefetch_related_rows(instances, RELATED_LOOKUPS)
+        prefetch_related_rows(rows["state"].values(), STATE_LOOKUPS)
+        return super().to_representation(instances)
 
 
 class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
@@ -85,49 +110,56 @@ class ZoneSerializer(TenancyReadSerializerMixin,serializers.ModelSerializer):
             "company_id",
             "project_id",
         ]
+        list_serializer_class = ZoneListSerializer
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
 
     def get_state_name(self, obj):
-        state = obj.state
+        state = related(obj, "state")
         return state.name if state else None
 
     def get_state_unique_id(self, obj):
-        state = obj.state
+        state = related(obj, "state")
         return state.unique_id if state else None
 
     def get_country_name(self, obj):
-        state = obj.state
-        country = state.country if state else None
+        state = related(obj, "state")
+        country = related(state, "country") if state else None
         return country.name if country else None
 
     def get_country_unique_id(self, obj):
-        state = obj.state
-        country = state.country if state else None
+        state = related(obj, "state")
+        country = related(state, "country") if state else None
         return country.unique_id if country else None
 
     def get_continent_name(self, obj):
-        state = obj.state
-        continent = state.continent if state else None
+        state = related(obj, "state")
+        continent = related(state, "continent") if state else None
         return continent.name if continent else None
 
     def get_continent_unique_id(self, obj):
-        state = obj.state
-        continent = state.continent if state else None
+        state = related(obj, "state")
+        continent = related(state, "continent") if state else None
         return continent.unique_id if continent else None
 
     def get_city_name(self, obj):
-        city = obj.city
+        city = related(obj, "city")
         return city.name if city else None
 
     def get_city_unique_id(self, obj):
-        city = obj.city
+        city = related(obj, "city")
         return city.unique_id if city else None
 
     def get_district_name(self, obj):
-        district = obj.district
+        district = related(obj, "district")
         return district.name if district else None
 
     def get_district_unique_id(self, obj):
-        district = obj.district
+        district = related(obj, "district")
         return district.unique_id if district else None
 
     def validate(self, attrs):

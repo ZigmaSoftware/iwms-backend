@@ -6,9 +6,67 @@ from app.models.core_modules.daily_operations.daily_trip_assignment import Daily
 from app.models.core_modules.daily_operations.daily_trip_collection_point import (
     DailyTripCollectionPoint,
 )
-from app.models.superadmin.staff_management.staffcreation import Staffcreation
+from app.models.masters.panchayat import Panchayat
+from app.models.masters.ward import Ward
+from app.models.masters.zone import Zone
+from app.models.superadmin.staff_management.staffcreation import (
+    Staffcreation,
+    StaffcreationOfficeDetails,
+)
+from app.models.superadmin_masters.company import Company
+from app.models.superadmin_masters.project import Project
+from app.models.waste_collection_bluetooth.waste_collection_bluetooth import WasteType
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
+from app.utils.related_prefetch import prefetch_related_rows, related
+
+STOP_LOOKUPS = {
+    "company": (Company, "company_id"),
+    "project": (Project, "project_id"),
+    "trip_assignment": (DailyTripAssignment, "trip_assignment_id"),
+    "collection_point": (Collection_point, "collection_point_id"),
+    "bin": (Bins, "bin_id"),
+    "collected_by_user": (StaffcreationOfficeDetails, "collected_by", "staff_unique_id"),
+}
+CP_LOOKUPS = {"panchayat": (Panchayat, "panchayat_id")}
+BIN_LOOKUPS = {"wastetype": (WasteType, "wastetype_id")}
+WARD_LOOKUPS = {"zone": (Zone, "zone_id")}
+
+
+def prefetch_stop_rows(stops):
+    """Load everything DailyTripCollectionPointSerializer reads for `stops`
+    in one query per table. Stops already prefetched are skipped, so callers
+    can batch a whole response up front and still serialize per group."""
+    stops = [
+        stop for stop in stops
+        if stop is not None and not getattr(stop, "_stop_prefetched", False)
+    ]
+    if not stops:
+        return
+    rows = prefetch_related_rows(stops, STOP_LOOKUPS)
+    prefetch_related_rows(list(rows["bin"].values()), BIN_LOOKUPS)
+    cps = [cp for cp in rows["collection_point"].values() if not hasattr(cp, "_first_ward")]
+    prefetch_related_rows(cps, CP_LOOKUPS)
+
+    # `cp.wards.first()`: Ward has no Meta ordering, so first() orders by pk.
+    ward_ids = {wid for cp in cps for wid in cp.get_ward_ids()}
+    wards = (
+        list(Ward.objects.filter(unique_id__in=ward_ids).order_by("pk"))
+        if ward_ids else []
+    )
+    prefetch_related_rows(wards, WARD_LOOKUPS)
+    for cp in cps:
+        own = set(cp.get_ward_ids())
+        cp._first_ward = next((ward for ward in wards if ward.unique_id in own), None)
+    for stop in stops:
+        stop._stop_prefetched = True
+
+
+class DailyTripCollectionPointListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        instances = list(data.all() if hasattr(data, "all") else data)
+        prefetch_stop_rows(instances)
+        return super().to_representation(instances)
 
 
 class DailyTripCollectionPointSerializer(
@@ -89,9 +147,16 @@ class DailyTripCollectionPointSerializer(
             "updated_at",
         ]
         validators = []
+        list_serializer_class = DailyTripCollectionPointListSerializer
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
 
     def get_trip_assignment(self, obj):
-        assignment = obj.trip_assignment
+        assignment = related(obj, "trip_assignment")
         if not assignment:
             return None
         trip_plan = getattr(assignment, "trip_plan_id", None)
@@ -106,12 +171,15 @@ class DailyTripCollectionPointSerializer(
         }
 
     def get_collection_point(self, obj):
-        cp = obj.collection_point
+        cp = related(obj, "collection_point")
         if not cp:
             return None
-        first_ward = cp.wards.first()
-        zone = getattr(first_ward, "zone", None)
-        panchayat = cp.panchayat
+        if hasattr(cp, "_first_ward"):
+            first_ward = cp._first_ward
+        else:
+            first_ward = cp.wards.first()
+        zone = related(first_ward, "zone") if first_ward else None
+        panchayat = related(cp, "panchayat")
         return {
             "unique_id": cp.unique_id,
             "cp_name": cp.cp_name,
@@ -126,10 +194,10 @@ class DailyTripCollectionPointSerializer(
         }
 
     def get_bin(self, obj):
-        bin_obj = obj.bin
+        bin_obj = related(obj, "bin")
         if not bin_obj:
             return None
-        waste_type = getattr(bin_obj, "wastetype", None)
+        waste_type = related(bin_obj, "wastetype")
         return {
             "unique_id": bin_obj.unique_id,
             "bin_name": bin_obj.bin_name,
@@ -143,7 +211,7 @@ class DailyTripCollectionPointSerializer(
         }
 
     def get_collected_by_staff(self, obj):
-        staff = obj.collected_by_user
+        staff = related(obj, "collected_by_user")
         if not staff:
             return None
         return {

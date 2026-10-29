@@ -2,6 +2,7 @@ from rest_framework import serializers, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from rest_framework.response import Response
+from django.db import transaction
 from django.utils import timezone
 from django.db.models import Case, IntegerField, Q, Sum, Value, When
 from datetime import datetime, timedelta
@@ -70,6 +71,7 @@ class WasteCollectionBluetoothViewSet(ActionAuditMixin, viewsets.ViewSet):
         from app.viewsets.operator_mobile.helpers import (
             OperatorFlowError,
             find_active_assignment_for_operator,
+            lock_stop_for_write,
             require_trip_started,
             resolve_customer_from_id,
             resolve_operator_staff,
@@ -185,18 +187,28 @@ class WasteCollectionBluetoothViewSet(ActionAuditMixin, viewsets.ViewSet):
                 status=409,
             )
 
-        dthc.mark_status(
-            normalized_status,
-            reason=reason,
-            latitude=latitude,
-            longitude=longitude,
-            evidence_image=evidence_image,
-        )
-        # "Not Available" resolves the stop for the day same as a real
-        # collection does (see pending_household_stops); "Collect Later"
-        # doesn't, so this is a safe no-op when stops are still pending.
-        # auto_end=False: driver app write path — see that method's docstring.
-        assignment.mark_completed_if_all_household_stops_collected(auto_end=False)
+        try:
+            with transaction.atomic():
+                # Re-check under row locks: a Re-Trip approval may have
+                # carried this stop over since it was validated above.
+                dthc = lock_stop_for_write(assignment, dthc)
+                dthc.mark_status(
+                    normalized_status,
+                    reason=reason,
+                    latitude=latitude,
+                    longitude=longitude,
+                    evidence_image=evidence_image,
+                )
+                # "Not Available" resolves the stop for the day same as a real
+                # collection does (see pending_household_stops); "Collect Later"
+                # doesn't, so this is a safe no-op when stops are still pending.
+                # auto_end=False: driver app write path — see that method's docstring.
+                assignment.mark_completed_if_all_household_stops_collected(auto_end=False)
+        except OperatorFlowError as exc:
+            return Response(
+                {"status": "error", "code": exc.code, "message": exc.message},
+                status=exc.http_status,
+            )
 
         # Notify the customer instantly. Safe no-op if push isn't configured
         # or they have no registered device.

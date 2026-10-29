@@ -8,6 +8,40 @@ from app.models.core_modules.daily_operations.daily_trip_household_collection im
 from app.serializers.company_projects.tenancy import TenancyReadSerializerMixin
 from app.serializers.superadmin.staff_management.user_serializer import UniqueIdOrPkField
 from app.serializers.evidence_image import EvidenceImageField, absolute_image_url
+from app.utils.related_prefetch import prefetch_related_rows, related
+
+
+def _household_lookups():
+    from app.models.core_modules.daily_operations.wastecollection import WasteCollection
+    from app.models.masters.panchayat import Panchayat
+    from app.models.masters.ward import Ward
+    from app.models.superadmin_masters.company import Company
+    from app.models.superadmin_masters.project import Project
+
+    return {
+        "company": (Company, "company_id"),
+        "project": (Project, "project_id"),
+        "trip_assignment": (DailyTripAssignment, "trip_assignment_id"),
+        "customer": (CustomerCreation, "customer_id"),
+        "panchayat": (Panchayat, "panchayat_id"),
+        "ward": (Ward, "ward_id"),
+        "waste_collection": (WasteCollection, "waste_collection_id"),
+    }
+
+
+class DailyTripHouseholdCollectionListSerializer(serializers.ListSerializer):
+    """One query per related table for the page (plus the assignments'
+    trip plans), instead of ~6 per household row."""
+
+    def to_representation(self, data):
+        from app.models.core_modules.schedule_setup.trip_plan import TripPlan
+
+        rows = list(data.all() if hasattr(data, "all") else data)
+        related_rows = prefetch_related_rows(rows, _household_lookups())
+        prefetch_related_rows(
+            related_rows["trip_assignment"].values(), {"trip_plan": (TripPlan, "trip_plan_id")},
+        )
+        return super().to_representation(rows)
 
 
 class DailyTripHouseholdCollectionSerializer(
@@ -86,12 +120,19 @@ class DailyTripHouseholdCollectionSerializer(
             "created_at",
             "updated_at",
         ]
+        list_serializer_class = DailyTripHouseholdCollectionListSerializer
+
+    def get_company_name(self, obj):
+        return getattr(related(obj, "company"), "name", None)
+
+    def get_project_name(self, obj):
+        return getattr(related(obj, "project"), "name", None)
 
     def get_trip_assignment(self, obj):
-        assignment = obj.trip_assignment
+        assignment = related(obj, "trip_assignment")
         if not assignment:
             return None
-        trip_plan = assignment.trip_plan
+        trip_plan = related(assignment, "trip_plan")
         return {
             "unique_id": assignment.unique_id,
             "trip_date": str(assignment.trip_date),
@@ -127,7 +168,7 @@ class DailyTripHouseholdCollectionSerializer(
         return attrs
 
     def get_customer(self, obj):
-        customer = obj.customer
+        customer = related(obj, "customer")
         if not customer:
             return None
         return {
@@ -138,15 +179,15 @@ class DailyTripHouseholdCollectionSerializer(
         }
 
     def get_panchayat(self, obj):
-        p = obj.panchayat
+        p = related(obj, "panchayat")
         return None if not p else {"unique_id": p.unique_id, "panchayat_name": p.panchayat_name}
 
     def get_ward(self, obj):
-        w = obj.ward
+        w = related(obj, "ward")
         return None if not w else {"unique_id": w.unique_id, "ward_name": w.ward_name}
 
     def get_waste_breakdown(self, obj):
-        wc = obj.waste_collection
+        wc = related(obj, "waste_collection")
         if not wc:
             return None
         return {

@@ -23,10 +23,10 @@ class PanchayatLeaderLogin(BaseMaster):
         default=generate_panchayat_leader_id,
     )
 
-    panchayat_id = models.CharField(max_length=30, null=True, blank=True)
+    panchayat_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
-    company_id = models.CharField(max_length=30, null=True, blank=True)
-    project_id = models.CharField(max_length=30, null=True, blank=True)
+    company_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    project_id = models.CharField(max_length=30, null=True, blank=True, db_index=True)
 
     username = models.CharField(
         max_length=150,
