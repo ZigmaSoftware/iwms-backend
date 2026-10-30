@@ -223,6 +223,8 @@ class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedV
         data["original_crew"] = {
             "driver": getattr(getattr(crew, "driver", None), "employee_name", None),
             "operator": getattr(getattr(crew, "operator", None), "employee_name", None),
+            "driver_id": crew.driver_id,
+            "operator_id": crew.operator_id,
         } if crew else None
         return Response(data)
 
