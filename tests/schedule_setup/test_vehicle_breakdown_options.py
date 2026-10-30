@@ -192,3 +192,32 @@ def test_available_staff_templates_offers_the_broken_trips_own_crew(
     assert staff_template.unique_id not in template_ids({})
     # For the trip that broke down, the same crew can carry on.
     assert staff_template.unique_id in template_ids({"trip_assignment_id": source.unique_id})
+
+
+def test_verify_preview_with_a_replacement_vehicle_param(
+    company, project, supervisor, bin_plan, staff_template,
+):
+    """`?replacement_vehicle_id=` must not be applied as a column filter on
+    the breakdown (it has no replacement yet) — that 404'd the preview."""
+    source = _assignment(bin_plan)
+    breakdown = VehicleBreakdown.objects.create(
+        company_id=company.unique_id,
+        project_id=project.unique_id,
+        trip_assignment_id=source.unique_id,
+        breakdown_vehicle_id=source.vehicle_id,
+    )
+    spare = VehicleCreation.objects.create(
+        company_id=company.unique_id, project_id=project.unique_id, vehicle_no="TN01SPARE",
+    )
+    request = APIRequestFactory().get(
+        f"/vehicle-breakdowns/{breakdown.unique_id}/verify-preview/",
+        {"replacement_vehicle_id": spare.unique_id},
+    )
+    force_authenticate(request, user=supervisor)
+    response = VehicleBreakdownViewSet.as_view({"get": "verify_preview"})(
+        request, unique_id=breakdown.unique_id,
+    )
+
+    assert response.status_code == 200, response.data
+    assert response.data["replacement_vehicle_id"] == spare.unique_id
+    assert response.data["original_crew"]["driver_id"] == staff_template.driver_id
