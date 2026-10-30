@@ -213,7 +213,12 @@ class VehicleBreakdownViewSet(BulkUploadMixin, AuditViewSetMixin, CompanyScopedV
         )
         from app.services import vehicle_substitution
 
-        instance = self.get_object()
+        # Not get_object(): the list filters treat `?replacement_vehicle_id=`
+        # as a column filter on the breakdown itself and would 404 it.
+        from django.shortcuts import get_object_or_404
+
+        instance = get_object_or_404(self.get_queryset(), unique_id=unique_id)
+        self.check_object_permissions(request, instance)
         replacement_vehicle_id = (
             request.query_params.get("replacement_vehicle_id")
             or instance.replacement_vehicle_id
